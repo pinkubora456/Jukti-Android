@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -248,6 +249,13 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
         Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     Icon(
                         imageVector = Icons.Default.Analytics,
                         contentDescription = null,
@@ -256,7 +264,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isAssamese) "লিডাৰব'ৰ্ড আৰু প্ৰগ্ৰেছ এনালাইটিক্স" else "Leaderboard & Analytics",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
