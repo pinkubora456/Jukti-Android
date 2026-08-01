@@ -1,0 +1,199 @@
+package com.example.data.local
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "questions")
+data class QuestionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subject: String,          // e.g., "Assam History", "General Knowledge", "Reasoning"
+    val topic: String,            // e.g., "Ahom Dynasty", "Assam Geography", "Indian Economy"
+    val difficulty: String,       // "Easy", "Medium", "Hard"
+    val questionEn: String,
+    val questionAs: String,
+    val optionAEn: String,
+    val optionBEn: String,
+    val optionCEn: String,
+    val optionDEn: String,
+    val optionAAs: String,
+    val optionBAs: String,
+    val optionCAs: String,
+    val optionDAs: String,
+    val correctOptionIndex: Int,  // 0, 1, 2, 3
+    val explanationEn: String,
+    val explanationAs: String,
+    val isBookmarked: Boolean = false,
+    val isLiked: Boolean = false,
+    val isHidden: Boolean = false,
+    val examCategory: String = "ADRE", // e.g. "ADRE", "APSC", "Assam Police", "TET"
+    val isPremium: Boolean = false,
+    val questionType: String = "Expected", // "PYQ", "Expected"
+    val isReported: Boolean = false
+)
+
+@Entity(tableName = "mock_tests")
+data class MockTestEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val titleEn: String,
+    val titleAs: String,
+    val category: String,          // "ADRE", "APSC", "Assam Police", "TET", "PYQ"
+    val durationMinutes: Int,
+    val totalQuestions: Int,
+    val totalMarks: Int,
+    val isScheduled: Boolean = false,
+    val scheduledDate: String = "",
+    val isCompleted: Boolean = false,
+    val userScore: Int = 0,
+    val userAccuracy: Float = 0f,
+    val userRank: Int = 0,
+    val userPercentile: Float = 0f,
+    val isPublished: Boolean = true,
+    val testType: String = "Full-Length", // "Full-Length", "Subject-wise", "Chapter-wise"
+    val subjectOrChapter: String = "General Studies & Assam GK",
+    val negativeMarking: String = "0.25 Marks",
+    val difficulty: String = "Medium", // "Easy", "Medium", "Hard"
+    val isPremium: Boolean = false,
+    val inProgress: Boolean = false,
+    val questionsAnswered: Int = 0,
+    val timeRemainingSeconds: Int = 0,
+    val questionIds: String = "",
+    val markPerQuestion: Float = 1f
+)
+
+@Entity(tableName = "study_notes")
+data class StudyNoteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subject: String,
+    val topic: String,
+    val titleEn: String,
+    val titleAs: String,
+    val contentEn: String,
+    val contentAs: String,
+    val isBookmarked: Boolean = false,
+    val isDownloaded: Boolean = false,
+    val readTimeMinutes: Int = 5,
+    val isPremium: Boolean = false
+)
+
+@Entity(tableName = "exam_updates")
+data class ExamUpdateEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val examName: String,         // e.g. "ADRE 2.0 / 3.0", "APSC CCE 2026", "Assam Police SI"
+    val category: String,         // "Notification", "Syllabus", "Pattern", "Cutoff", "Admit Card"
+    val titleEn: String,
+    val titleAs: String,
+    val updateDate: String,
+    val detailEn: String,
+    val detailAs: String,
+    val officialLink: String = "https://assam.gov.in",
+    val isImportantNotice: Boolean = false
+)
+
+@Entity(tableName = "banners")
+data class BannerEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val titleEn: String,
+    val titleAs: String,
+    val subtitleEn: String,
+    val subtitleAs: String,
+    val type: String,             // "PROMOTIONAL", "INFORMATION", "CAROUSEL"
+    val badgeText: String = "UPDATED",
+    val actionUrl: String = "",
+    val isActive: Boolean = true,
+    val imageUrl: String = "",
+    val actionType: String = "Link" // "Mock Test", "Study Notes", "Link"
+)
+
+@Entity(tableName = "notifications")
+data class NotificationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val body: String,
+    val timestamp: String,
+    val category: String = "General",
+    val isRead: Boolean = false
+)
+
+@Entity(tableName = "user_profile")
+data class UserProfileEntity(
+    @PrimaryKey val id: Int = 1,
+    val name: String = "Assam Scholar",
+    val email: String = "scholar@jukti.in",
+    val mobile: String = "+91 98765 43210",
+    val district: String = "Kamrup Metropolitan",
+    val examGoal: String = "ADRE Grade 3 & APSC CCE",
+    val xp: Int = 1250,
+    val level: Int = 6,
+    val dailyStreak: Int = 7,
+    val totalSolved: Int = 142,
+    val correctCount: Int = 118,
+    val totalTimeMinutes: Int = 340,
+    val isPremium: Boolean = false,
+    val role: String = "USER",     // "USER", "ADMIN", "OWNER"
+    val firebaseProjectId: String = "jukti-26035",
+    val joinedDate: String = "Jul 2026"
+)
+
+@Entity(tableName = "about_config")
+data class AboutConfigEntity(
+    @PrimaryKey val id: Int = 1,
+    val appTitle: String = "Jukti (যুক্তি)",
+    val appSubtitleEn: String = "Assam's Premier Exam Prep Portal",
+    val appSubtitleAs: String = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
+    val versionText: String = "Version 2026.1.0",
+    val missionEn: String = "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam. We provide comprehensive practice modules, high-yield Assam history and current affairs notes, full-length timed mock tests, and real-time state ranking analytics.",
+    val missionAs: String = "যুক্তি এপ্পৰ প্ৰধান উদ্দেশ্য হৈছে অসমৰ সকলো প্ৰতিযোগীতামূলক পৰীক্ষাৰ (APSC, ADRE 2.0, Assam Police, SLRC, TET) প্ৰাৰ্থীসকলক উচ্চমানদণ্ডৰ মক টেষ্ট, বিগত বৰ্ষৰ প্ৰশ্ন আৰু অধ্যয়ন সমল সম্পূৰ্ণ বিনামূলীয়াকৈ তথা সহজ ভাষাত যোগান ধৰা।",
+    val logoIconName: String = "School", // "School", "Book", "Library", "Star", "Sparkles", "Psychology", "Award", "Trophy", "Balance", "Gavel"
+    val copyrightText: String = "Copyright © 2026 Jukti Education Portal. All rights reserved.",
+    val developerTagline: String = "Designed & Developed for Assam Aspirants",
+    val contactEmail: String = "support@jukti.in",
+    val contactPhone: String = "+91 98765 43210",
+    val contactTelegram: String = "t.me/JuktiAssam",
+    val contactWhatsapp: String = "Community Group",
+    val adminEmails: String = "",
+    val refundPolicyEn: String = "Our policy lasts 7 days. If 7 days have gone by since your purchase, unfortunately, we cannot offer you a refund. To be eligible for a refund, your request must be due to technical billing issues or double charge. Please contact support@jukti.in with your transaction details.",
+    val refundPolicyAs: String = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য। ক্ৰয় কৰাৰ ৭ দিন অতিক্ৰম কৰিলে কোনো ৰিফাণ্ড প্ৰদান কৰা নহ'ব। কেৱল কাৰিকৰী অসুবিধা বা ভুলতে দুবাৰ পইচা কটা গ’লেহে আপুনি ৰিফাণ্ডৰ বাবে আবেদন কৰিব পাৰিব। সহায়ৰ বাবে support@jukti.in ত যোগাযোগ কৰক।"
+)
+
+
+@Entity(tableName = "subscription_plans")
+data class PlanEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val planName: String,
+    val planPrice: String,
+    val discount: String,
+    val finalPrice: String,
+    val offerValidity: String,
+    val contents: String = "", // JSON string of contents added
+    val features: String = "", // JSON string or comma-separated features
+    val isActive: Boolean = true
+)
+
+@Entity(tableName = "exams")
+data class ExamEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val subtitle: String,
+    val status: String = "Active"
+)
+
+@Entity(tableName = "subjects_chapters")
+data class SubjectChapterEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subject: String,
+    val chapter: String
+)
+
+@Entity(tableName = "pending_requests")
+data class PendingRequestEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val requestType: String, // "DELETE_USER", "DELETE_QUESTION", "BLOCK_USER", "UPGRADE_PLAN", "CREATE_PLAN", "DELETE_MOCK"
+    val title: String,
+    val description: String,
+    val targetId: String = "",
+    val payloadJson: String = "",
+    val requestedBy: String = "Admin",
+    val timestamp: String = "",
+    val status: String = "PENDING" // "PENDING", "APPROVED", "REJECTED"
+)
+

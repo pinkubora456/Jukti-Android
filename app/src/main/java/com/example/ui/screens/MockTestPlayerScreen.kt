@@ -1,0 +1,405 @@
+package com.example.ui.screens
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.*
+import com.example.ui.theme.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.ui.components.ReportQuestionDialog
+import androidx.compose.material.icons.filled.Report
+import androidx.compose.ui.unit.sp
+import com.example.ui.components.BilingualText
+import com.example.ui.viewmodel.AppLanguage
+import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.Screen
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
+    val language by viewModel.language.collectAsState()
+    val questionLanguage by viewModel.questionLanguage.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mockTest by viewModel.selectedMockTest.collectAsState()
+    val questions by viewModel.questions.collectAsState()
+    val userAnswers by viewModel.mockUserAnswers.collectAsState()
+    val markedForReview by viewModel.mockMarkedForReview.collectAsState()
+    val timeRemainingSeconds by viewModel.mockTimeRemainingSeconds.collectAsState()
+
+    var currentQuestionIndex by remember { mutableStateOf(0) }
+    var showPaletteSheet by remember { mutableStateOf(false) }
+    var showSubmitConfirmDialog by remember { mutableStateOf(false) }
+    var showExitConfirmDialog by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+
+    val activeMockQuestions = questions.take(mockTest?.totalQuestions ?: 10)
+    val currentQuestion = activeMockQuestions.getOrNull(currentQuestionIndex)
+
+    val minutesLeft = timeRemainingSeconds / 60
+    val secondsLeft = timeRemainingSeconds % 60
+
+    if (showExitConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmDialog = false },
+            title = { Text(if (language == AppLanguage.ASSAMESE) "পৰীক্ষাৰ পৰা ওলাই যাব বিচাৰে নেকি?" else "Exit Mock Test?") },
+            text = { Text(if (language == AppLanguage.ASSAMESE) "আপোনাৰ চলিত টেষ্টৰ অগ্ৰগতি সংৰক্ষণ কৰা নহ'ব।" else "Your current test progress will not be saved.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitConfirmDialog = false
+                        viewModel.navigateTo(Screen.MOCK_TESTS)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(if (language == AppLanguage.ASSAMESE) "ওলাই যাওঁক (Exit)" else "Exit")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirmDialog = false }) {
+                    Text(if (language == AppLanguage.ASSAMESE) "বাতিল (Cancel)" else "Cancel")
+                }
+            }
+        )
+    }
+
+    if (showSubmitConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showSubmitConfirmDialog = false },
+            title = { Text(if (language == AppLanguage.ASSAMESE) "পৰীক্ষা দাখিল কৰিব বিচাৰে নেকি?" else "Submit Mock Test?") },
+            text = {
+                Text(
+                    text = "Answered: ${userAnswers.size} / ${activeMockQuestions.size}\nMarked for Review: ${markedForReview.size}"
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showSubmitConfirmDialog = false
+                    viewModel.submitCurrentMockTest()
+                }) {
+                    Text(if (language == AppLanguage.ASSAMESE) "দাখিল কৰক (Submit)" else "Submit Test")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSubmitConfirmDialog = false }) {
+                    Text("Continue Test")
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Player Top Bar
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(onClick = { showExitConfirmDialog = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Column {
+                            BilingualText(
+                                textEn = mockTest?.titleEn ?: "Mock Test",
+                                textAs = mockTest?.titleAs ?: "মক টেষ্ট",
+                                language = language,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Time Left: %02d:%02d".format(minutesLeft, secondsLeft),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                // Question Language Switcher Bar with Question Palette Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { showPaletteSheet = !showPaletteSheet },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.GridView,
+                            contentDescription = "Question Palette",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (language == AppLanguage.ASSAMESE) "প্ৰশ্নসূচী" else "Palette",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.ENGLISH,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
+                            label = { Text("EN", fontSize = 11.sp) },
+                            modifier = Modifier.height(28.dp)
+                        )
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.ASSAMESE,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
+                            label = { Text("অসমীয়া", fontSize = 11.sp) },
+                            modifier = Modifier.height(28.dp)
+                        )
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.BOTH,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
+                            label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.height(28.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showPaletteSheet) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Question Palette (${userAnswers.size}/${activeMockQuestions.size} Answered)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(6),
+                        modifier = Modifier.height(140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        itemsIndexed(activeMockQuestions) { index, _ ->
+                            val isAnswered = userAnswers.containsKey(index)
+                            val isReviewed = markedForReview.contains(index)
+
+                            val cellBg = when {
+                                isReviewed -> MaterialTheme.colorScheme.warning
+                                isAnswered -> MaterialTheme.colorScheme.success
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(cellBg)
+                                    .clickable {
+                                        currentQuestionIndex = index
+                                        showPaletteSheet = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isAnswered || isReviewed) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Active Question Area
+        if (currentQuestion != null) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Question ${currentQuestionIndex + 1} of ${activeMockQuestions.size}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row {
+                        IconButton(onClick = { showReportDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Report,
+                                contentDescription = "Report Question",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        TextButton(onClick = { viewModel.toggleMarkForReview(currentQuestionIndex) }) {
+                            Icon(
+                                imageVector = if (markedForReview.contains(currentQuestionIndex)) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (markedForReview.contains(currentQuestionIndex)) "Marked" else "Mark for Review")
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                BilingualText(
+                    textEn = currentQuestion.questionEn,
+                    textAs = currentQuestion.questionAs,
+                    language = questionLanguage,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                val selectedAnswer = userAnswers[currentQuestionIndex]
+                val options = listOf(
+                    currentQuestion.optionAEn to currentQuestion.optionAAs,
+                    currentQuestion.optionBEn to currentQuestion.optionBAs,
+                    currentQuestion.optionCEn to currentQuestion.optionCAs,
+                    currentQuestion.optionDEn to currentQuestion.optionDAs
+                )
+
+                options.forEachIndexed { optIndex, pair ->
+                    val isSelected = (selectedAnswer == optIndex)
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                viewModel.recordMockAnswer(currentQuestionIndex, optIndex)
+                            },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { viewModel.recordMockAnswer(currentQuestionIndex, optIndex) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            BilingualText(
+                                textEn = pair.first,
+                                textAs = pair.second,
+                                language = questionLanguage,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Bottom Navigation Controls
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { if (currentQuestionIndex > 0) currentQuestionIndex-- },
+                        enabled = (currentQuestionIndex > 0)
+                    ) {
+                        Text(if (language == AppLanguage.ASSAMESE) "পূৰ্বৱৰ্তী" else "Previous")
+                    }
+
+                    Button(
+                        onClick = { showSubmitConfirmDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text(if (language == AppLanguage.ASSAMESE) "দাখিল (Submit)" else "Submit")
+                    }
+
+                    Button(
+                        onClick = {
+                            if (currentQuestionIndex < activeMockQuestions.size - 1) {
+                                currentQuestionIndex++
+                            }
+                        },
+                        enabled = (currentQuestionIndex < activeMockQuestions.size - 1)
+                    ) {
+                        Text(if (language == AppLanguage.ASSAMESE) "পৰৱৰ্তী" else "Next")
+                    }
+                }
+            }
+        }
+        
+        if (showReportDialog && currentQuestion != null) {
+            ReportQuestionDialog(
+                questionId = currentQuestion.id,
+                onDismissRequest = { showReportDialog = false },
+                onSubmitReport = { reason, details ->
+                    showReportDialog = false
+                    android.widget.Toast.makeText(context, "Question reported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    }
+}

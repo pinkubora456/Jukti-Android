@@ -1,0 +1,533 @@
+package com.example.ui.screens
+
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.example.data.local.MockTestEntity
+import com.example.ui.viewmodel.JuktiViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditMockScreen(viewModel: JuktiViewModel) {
+    val context = LocalContext.current
+    val mocks by viewModel.mockTests.collectAsState()
+    val exams by viewModel.examsList.collectAsState()
+    val allQuestions by viewModel.questions.collectAsState()
+
+    var selectedMock by remember { mutableStateOf<MockTestEntity?>(null) }
+
+    // Form fields for editing
+    var mockTitleEn by remember { mutableStateOf("") }
+    var mockTitleAs by remember { mutableStateOf("") }
+    val selectedExams = remember { mutableStateListOf<String>() }
+    var examDialogVisible by remember { mutableStateOf(false) }
+
+    var durationMinutes by remember { mutableStateOf("90") }
+    var markPerQuestion by remember { mutableStateOf("1.0") }
+    
+    var negativeMarking by remember { mutableStateOf("0.25 Marks") }
+    var negativeMarkingExpanded by remember { mutableStateOf(false) }
+    val negativeMarkingOptions = listOf("0.25 Marks", "0.5 Marks", "1.0 Marks", "None")
+
+    var testType by remember { mutableStateOf("Full-Length") }
+    var testTypeExpanded by remember { mutableStateOf(false) }
+    val testTypeOptions = listOf("Full-Length", "Subject-wise", "Chapter-wise")
+
+    var planType by remember { mutableStateOf("Free") }
+    var planTypeExpanded by remember { mutableStateOf(false) }
+    val planTypeOptions = listOf("Free", "Premium")
+
+    var selectedSubjectFilter by remember { mutableStateOf("All Subjects") }
+    var subjectFilterExpanded by remember { mutableStateOf(false) }
+    var questionSearchQuery by remember { mutableStateOf("") }
+    val selectedQuestionIds = remember { mutableStateListOf<Long>() }
+
+    val subjectsList = listOf("All Subjects") + allQuestions.map { it.subject }.distinct()
+
+    val filteredQuestions = allQuestions.filter { q ->
+        val matchesSubject = selectedSubjectFilter == "All Subjects" || q.subject.equals(selectedSubjectFilter, ignoreCase = true)
+        val matchesSearch = questionSearchQuery.isBlank() || 
+            q.questionEn.contains(questionSearchQuery, ignoreCase = true) ||
+            q.subject.contains(questionSearchQuery, ignoreCase = true)
+        matchesSubject && matchesSearch
+    }
+
+    // When a mock is selected, populate fields
+    LaunchedEffect(selectedMock) {
+        selectedMock?.let { mock ->
+            mockTitleEn = mock.titleEn
+            mockTitleAs = mock.titleAs
+            selectedExams.clear()
+            if (mock.category.isNotBlank()) {
+                selectedExams.addAll(mock.category.split(",").map { it.trim() })
+            }
+            durationMinutes = mock.durationMinutes.toString()
+            markPerQuestion = mock.markPerQuestion.toString()
+            negativeMarking = mock.negativeMarking
+            testType = mock.testType
+            planType = if (mock.isPremium) "Premium" else "Free"
+            selectedQuestionIds.clear()
+            if (mock.questionIds.isNotBlank()) {
+                selectedQuestionIds.addAll(mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() })
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(if (selectedMock == null) "Edit Mock Tests" else "Editing: ${selectedMock?.titleEn}", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        if (selectedMock != null) {
+                            selectedMock = null
+                        } else {
+                            viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+    ) { innerPadding ->
+        if (selectedMock == null) {
+            // List all mocks to select for editing
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Text("Select a Mock Test to Edit:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                items(mocks) { mock ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedMock = mock },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(mock.titleEn, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Exam: ${mock.category} | Type: ${mock.testType} | ${mock.durationMinutes} mins", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = { selectedMock = mock }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            IconButton(onClick = {
+                                viewModel.requestOrDeleteMock(mock) { _, message ->
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Edit form for selected mock
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Text("Mock Test Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                item {
+                    OutlinedTextField(
+                        value = mockTitleEn,
+                        onValueChange = { mockTitleEn = it },
+                        label = { Text("Mock Test Title (English) *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+                item {
+                    OutlinedTextField(
+                        value = mockTitleAs,
+                        onValueChange = { mockTitleAs = it },
+                        label = { Text("Mock Test Title (Assamese)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().clickable { examDialogVisible = true }) {
+                        OutlinedTextField(
+                            value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Target Exam (Multiple/Single) *") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = durationMinutes,
+                            onValueChange = { durationMinutes = it },
+                            label = { Text("Duration (Mins) *") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        OutlinedTextField(
+                            value = markPerQuestion,
+                            onValueChange = { markPerQuestion = it },
+                            label = { Text("Mark / Q *") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = negativeMarkingExpanded,
+                            onExpandedChange = { negativeMarkingExpanded = !negativeMarkingExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = negativeMarking,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Negative Mark") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = negativeMarkingExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = negativeMarkingExpanded,
+                                onDismissRequest = { negativeMarkingExpanded = false }
+                            ) {
+                                negativeMarkingOptions.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = { Text(opt) },
+                                        onClick = {
+                                            negativeMarking = opt
+                                            negativeMarkingExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        ExposedDropdownMenuBox(
+                            expanded = testTypeExpanded,
+                            onExpandedChange = { testTypeExpanded = !testTypeExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = testType,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Test Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = testTypeExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = testTypeExpanded,
+                                onDismissRequest = { testTypeExpanded = false }
+                            ) {
+                                testTypeOptions.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = { Text(opt) },
+                                        onClick = {
+                                            testType = opt
+                                            testTypeExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    ExposedDropdownMenuBox(
+                        expanded = planTypeExpanded,
+                        onExpandedChange = { planTypeExpanded = !planTypeExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = planType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Plan (Free/Premium)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = planTypeExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = planTypeExpanded,
+                            onDismissRequest = { planTypeExpanded = false }
+                        ) {
+                            planTypeOptions.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = { Text(opt) },
+                                    onClick = {
+                                        planType = opt
+                                        planTypeExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Select Questions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Total Questions Added:",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "${selectedQuestionIds.size}",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = subjectFilterExpanded,
+                            onExpandedChange = { subjectFilterExpanded = !subjectFilterExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = selectedSubjectFilter,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Filter Subject") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectFilterExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = subjectFilterExpanded,
+                                onDismissRequest = { subjectFilterExpanded = false }
+                            ) {
+                                subjectsList.forEach { subj ->
+                                    DropdownMenuItem(
+                                        text = { Text(subj) },
+                                        onClick = {
+                                            selectedSubjectFilter = subj
+                                            subjectFilterExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = questionSearchQuery,
+                            onValueChange = { questionSearchQuery = it },
+                            label = { Text("Search Q-Bank") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                        )
+                    }
+                }
+
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(filteredQuestions) { q ->
+                                val isSelected = selectedQuestionIds.contains(q.id)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (isSelected) selectedQuestionIds.remove(q.id)
+                                            else selectedQuestionIds.add(q.id)
+                                        }
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            if (checked) {
+                                                if (!selectedQuestionIds.contains(q.id)) selectedQuestionIds.add(q.id)
+                                            } else {
+                                                selectedQuestionIds.remove(q.id)
+                                            }
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(q.questionEn, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 2)
+                                        Text("[${q.subject}]", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                            if (mockTitleEn.isNotBlank() && selectedExams.isNotEmpty()) {
+                                val duration = durationMinutes.toIntOrNull() ?: 90
+                                val markPerQ = markPerQuestion.toFloatOrNull() ?: 1.0f
+                                val totalQ = selectedQuestionIds.size.coerceAtLeast(1)
+                                val totalMarksInt = (totalQ * markPerQ).toInt()
+
+                                val updatedMock = selectedMock!!.copy(
+                                    titleEn = mockTitleEn.trim(),
+                                    titleAs = mockTitleAs.trim().ifBlank { mockTitleEn.trim() },
+                                    category = selectedExams.joinToString(", "),
+                                    durationMinutes = duration,
+                                    totalQuestions = totalQ,
+                                    totalMarks = totalMarksInt,
+                                    testType = testType,
+                                    subjectOrChapter = selectedSubjectFilter,
+                                    negativeMarking = negativeMarking,
+                                    isPremium = planType.equals("Premium", ignoreCase = true),
+                                    questionIds = selectedQuestionIds.joinToString(","),
+                                    markPerQuestion = markPerQ
+                                )
+
+                                viewModel.updateMockTest(updatedMock) {
+                                    Toast.makeText(context, "Mock Test updated successfully!", Toast.LENGTH_SHORT).show()
+                                    selectedMock = null
+                                }
+                            } else {
+                                Toast.makeText(context, "Please enter mock title and select target exam(s).", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        Text("Save Changes", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        }
+    }
+
+    if (examDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { examDialogVisible = false },
+            title = { Text("Select Target Exams") },
+            text = {
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    items(exams) { exam ->
+                        val isSelected = selectedExams.contains(exam.title)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isSelected) selectedExams.remove(exam.title)
+                                    else selectedExams.add(exam.title)
+                                }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        if (!selectedExams.contains(exam.title)) selectedExams.add(exam.title)
+                                    } else {
+                                        selectedExams.remove(exam.title)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(exam.title, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { examDialogVisible = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+}
