@@ -1047,7 +1047,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                         // Free plan limit check: 25 questions
                                         val isPremium = userProfile?.isPremium == true
                                         if (!isPremium && studiedQuestionsCountInSession >= 25) {
-                                            showLimitModal = true
+                                            viewModel.showPaywall()
                                         }
                                     }
                                 },

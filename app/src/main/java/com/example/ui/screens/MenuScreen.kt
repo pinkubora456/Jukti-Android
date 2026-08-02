@@ -226,14 +226,33 @@ fun MenuScreen(viewModel: JuktiViewModel) {
 
             // Logout Button
             OutlinedButton(
-                onClick = { viewModel.navigateTo(Screen.AUTH) },
+                onClick = { viewModel.logout() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
                 Icon(imageVector = Icons.Default.Logout, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isAssamese) "লগ আউট / একাউণ্ট সলনি কৰক" else "Log Out / Switch Account")
+                Text(if (isAssamese) "লগ আউট" else "Log Out")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Jukti • Test Your Knowledge",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "v2026.1.0",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.FaqEntity
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
@@ -31,19 +32,25 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
     val isAssamese = language == AppLanguage.ASSAMESE
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val aboutConfig by viewModel.aboutConfig.collectAsState()
+    val faqs by viewModel.faqs.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var showEditDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var telegram by remember { mutableStateOf("") }
     var whatsapp by remember { mutableStateOf("") }
+
+    // FAQ editing state
+    var editingFaq by remember { mutableStateOf<FaqEntity?>(null) }
+    var showFaqDialog by remember { mutableStateOf(false) }
+    var faqQuestionEn by remember { mutableStateOf("") }
+    var faqQuestionAs by remember { mutableStateOf("") }
+    var faqAnswerEn by remember { mutableStateOf("") }
+    var faqAnswerAs by remember { mutableStateOf("") }
+    var faqToDelete by remember { mutableStateOf<FaqEntity?>(null) }
 
     LaunchedEffect(showEditDialog) {
         if (showEditDialog) {
             email = aboutConfig.contactEmail
-            phone = aboutConfig.contactPhone
-            telegram = aboutConfig.contactTelegram
             whatsapp = aboutConfig.contactWhatsapp
         }
     }
@@ -98,24 +105,6 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.weight(1f)
                 )
                 ContactChannelCard(
-                    title = "Helpline",
-                    sub = aboutConfig.contactPhone,
-                    icon = Icons.Default.Phone,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ContactChannelCard(
-                    title = "Telegram",
-                    sub = aboutConfig.contactTelegram,
-                    icon = Icons.Default.Send,
-                    modifier = Modifier.weight(1f)
-                )
-                ContactChannelCard(
                     title = "WhatsApp",
                     sub = aboutConfig.contactWhatsapp,
                     icon = Icons.Default.Forum,
@@ -124,27 +113,72 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
             }
 
             // Frequently Asked Questions
-            Text(
-                text = if (isAssamese) "প্ৰায়ে সোধা প্ৰশ্নসমূহ (FAQ)" else "Frequently Asked Questions",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isAssamese) "প্ৰায়ে সোধা প্ৰশ্নসমূহ (FAQ)" else "Frequently Asked Questions",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
 
-            FaqItemCard(
-                q = if (isAssamese) "মক টেষ্টসমূহ কিদৰে দিয়া হয়?" else "How do I take full-length mock tests?",
-                a = if (isAssamese) "মক টেষ্ট মেনুলৈ গৈ যিকোনো পৰীক্ষা চয়ন কৰক। তাত নিৰ্ধাৰিত সময় আৰু নিগেティブ মাৰ্কিং ব্যৱস্থা থাকিব।" else "Navigate to the Mock Tests tab, pick your exam (APSC, ADRE, Police), and click 'Start Test'. Timer and negative marking rules apply."
-            )
+                if (isAdminOrOwner) {
+                    TextButton(
+                        onClick = {
+                            editingFaq = null
+                            faqQuestionEn = ""
+                            faqQuestionAs = ""
+                            faqAnswerEn = ""
+                            faqAnswerAs = ""
+                            showFaqDialog = true
+                        },
+                        modifier = Modifier.testTag("add_faq_btn")
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add FAQ", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (isAssamese) "যোগ কৰক" else "+ Add FAQ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
 
-            FaqItemCard(
-                q = if (isAssamese) "অফলাইনত অধ্যয়ন কৰিব পাৰিমনে?" else "Can I study offline without internet?",
-                a = if (isAssamese) "হয়, এবাৰ ডাউন্মলোড কৰা প্ৰশ্ন আৰু নোটছসমূহ অফলাইনত পঢ়িব পাৰিব।" else "Yes! Loaded study notes, downloaded e-books, and saved offline practice sets can be accessed anytime without internet."
-            )
+            if (faqs.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        text = if (isAssamese) "কোনো প্রশ্ন উপলব্ধ নাই" else "No FAQs available.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                faqs.forEach { faq ->
+                    val question = if (isAssamese && faq.questionAs.isNotBlank()) faq.questionAs else faq.questionEn
+                    val answer = if (isAssamese && faq.answerAs.isNotBlank()) faq.answerAs else faq.answerEn
 
-            FaqItemCard(
-                q = if (isAssamese) "ম'বাইল নম্বৰ সলনি কিদৰে কৰিব?" else "How to report a wrong question answer?",
-                a = if (isAssamese) "প্ৰশ্নটোৰ তলত থকা ফ্ল্যাগ/ৰিপোৰ্ট আইকনটো টিপি আমালৈ জনাওক, আমাৰ ছাবজেক্ট এক্সপাৰ্টসকলে ১২ ঘণ্টাৰ ভিতৰত সংশোধন কৰিব।" else "Tap the 'Report Question' flag icon inside any MCQ screen. Our Assam subject experts verify and correct reports within 12 hours."
-            )
+                    FaqItemCard(
+                        q = question,
+                        a = answer,
+                        isAdminOrOwner = isAdminOrOwner,
+                        onEdit = {
+                            editingFaq = faq
+                            faqQuestionEn = faq.questionEn
+                            faqQuestionAs = faq.questionAs
+                            faqAnswerEn = faq.answerEn
+                            faqAnswerAs = faq.answerAs
+                            showFaqDialog = true
+                        },
+                        onDelete = {
+                            faqToDelete = faq
+                        }
+                    )
+                }
+            }
         }
     }
 
@@ -165,20 +199,6 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                         singleLine = true
                     )
                     OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        label = { Text("Helpline Phone *") },
-                        modifier = Modifier.fillMaxWidth().testTag("contact_phone_input"),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = telegram,
-                        onValueChange = { telegram = it },
-                        label = { Text("Telegram Link/Handle *") },
-                        modifier = Modifier.fillMaxWidth().testTag("contact_telegram_input"),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
                         value = whatsapp,
                         onValueChange = { whatsapp = it },
                         label = { Text("WhatsApp Community Info *") },
@@ -190,14 +210,12 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (email.isBlank() || phone.isBlank() || telegram.isBlank() || whatsapp.isBlank()) {
-                            android.widget.Toast.makeText(context, "All contact fields are required", android.widget.Toast.LENGTH_SHORT).show()
+                        if (email.isBlank() || whatsapp.isBlank()) {
+                            android.widget.Toast.makeText(context, "Email and WhatsApp fields are required", android.widget.Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.updateAboutConfig(
                                 aboutConfig.copy(
                                     contactEmail = email.trim(),
-                                    contactPhone = phone.trim(),
-                                    contactTelegram = telegram.trim(),
                                     contactWhatsapp = whatsapp.trim()
                                 )
                             )
@@ -212,6 +230,114 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showEditDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Add / Edit FAQ Dialog
+    if (showFaqDialog) {
+        AlertDialog(
+            onDismissRequest = { showFaqDialog = false },
+            title = { Text(if (editingFaq != null) "Edit FAQ" else "Add FAQ", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = faqQuestionEn,
+                        onValueChange = { faqQuestionEn = it },
+                        label = { Text("Question (English) *") },
+                        modifier = Modifier.fillMaxWidth().testTag("faq_q_en_input")
+                    )
+                    OutlinedTextField(
+                        value = faqQuestionAs,
+                        onValueChange = { faqQuestionAs = it },
+                        label = { Text("Question (Assamese)") },
+                        modifier = Modifier.fillMaxWidth().testTag("faq_q_as_input")
+                    )
+                    OutlinedTextField(
+                        value = faqAnswerEn,
+                        onValueChange = { faqAnswerEn = it },
+                        label = { Text("Answer (English) *") },
+                        modifier = Modifier.fillMaxWidth().testTag("faq_a_en_input"),
+                        minLines = 3
+                    )
+                    OutlinedTextField(
+                        value = faqAnswerAs,
+                        onValueChange = { faqAnswerAs = it },
+                        label = { Text("Answer (Assamese)") },
+                        modifier = Modifier.fillMaxWidth().testTag("faq_a_as_input"),
+                        minLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (faqQuestionEn.isBlank() || faqAnswerEn.isBlank()) {
+                            android.widget.Toast.makeText(context, "English question and answer are required", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            if (editingFaq != null) {
+                                viewModel.updateFaq(
+                                    editingFaq!!.copy(
+                                        questionEn = faqQuestionEn.trim(),
+                                        questionAs = faqQuestionAs.trim(),
+                                        answerEn = faqAnswerEn.trim(),
+                                        answerAs = faqAnswerAs.trim()
+                                    )
+                                )
+                                android.widget.Toast.makeText(context, "FAQ updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.addFaq(
+                                    questionEn = faqQuestionEn.trim(),
+                                    questionAs = faqQuestionAs.trim(),
+                                    answerEn = faqAnswerEn.trim(),
+                                    answerAs = faqAnswerAs.trim()
+                                )
+                                android.widget.Toast.makeText(context, "FAQ added successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            showFaqDialog = false
+                        }
+                    },
+                    modifier = Modifier.testTag("save_faq_btn")
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFaqDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Delete FAQ Confirmation Dialog
+    if (faqToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { faqToDelete = null },
+            title = { Text("Delete FAQ", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete this FAQ?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteFaq(faqToDelete!!)
+                        android.widget.Toast.makeText(context, "FAQ deleted", android.widget.Toast.LENGTH_SHORT).show()
+                        faqToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("confirm_delete_faq_btn")
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { faqToDelete = null }) {
                     Text("Cancel")
                 }
             }
@@ -249,22 +375,33 @@ private fun ContactChannelCard(
 }
 
 @Composable
-private fun FaqItemCard(q: String, a: String) {
+private fun FaqItemCard(
+    q: String,
+    a: String,
+    isAdminOrOwner: Boolean = false,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = q, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(
+                    text = q,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null
@@ -275,6 +412,31 @@ private fun FaqItemCard(q: String, a: String) {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = a, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                if (isAdminOrOwner) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = onEdit, modifier = Modifier.testTag("edit_faq_item_btn")) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit FAQ", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Edit")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(
+                            onClick = onDelete,
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.testTag("delete_faq_item_btn")
+                        ) {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete FAQ", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delete")
+                        }
+                    }
+                }
             }
         }
     }

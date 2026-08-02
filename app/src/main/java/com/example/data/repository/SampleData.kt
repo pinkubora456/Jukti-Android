@@ -774,13 +774,16 @@ object SampleData {
         isPremium = false,
         role = "USER", // Standard user by default. Login as juktieducation@gmail.com unlocks Owner access.
         firebaseProjectId = "jukti-26035",
-        joinedDate = "Jul 2026"
+        joinedDate = "Jul 2026",
+        isLoggedIn = false,
+        currentDeviceId = "",
+        activeDeviceId = ""
     )
 
     val initialAboutConfig = AboutConfigEntity(
         id = 1,
         appTitle = "Jukti (যুক্তি)",
-        appSubtitleEn = "Assam's Premier Exam Prep Portal",
+        appSubtitleEn = "Test Your Knowledge",
         appSubtitleAs = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
         versionText = "Version 2026.1.0",
         missionEn = "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam. We provide comprehensive practice modules, high-yield Assam history and current affairs notes, full-length timed mock tests, and real-time state ranking analytics.",
@@ -795,5 +798,29 @@ object SampleData {
         adminEmails = "",
         refundPolicyEn = "Our policy lasts 7 days. If 7 days have gone by since your purchase, unfortunately, we cannot offer you a refund. To be eligible for a refund, your request must be due to technical billing issues or double charge. Please contact support@jukti.in with your transaction details.",
         refundPolicyAs = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য। ক্ৰয় কৰাৰ ৭ দিন অতিক্ৰম কৰিলে কোনো ৰিফাণ্ড প্ৰদান কৰা নহ'ব। কেৱল কাৰিকৰী অসুবিধা বা ভুলতে দুবাৰ পইচা কটা গ’লেহে আপুনি ৰিফাণ্ডৰ বাবে আবেদন কৰিব পাৰিব। সহায়ৰ বাবে support@jukti.in ত যোগাযোগ কৰক।"
+    )
+
+    val initialFaqs = listOf(
+        FaqEntity(
+            id = 1,
+            questionEn = "How do I take full-length mock tests?",
+            questionAs = "মক টেষ্টসমূহ কিদৰে দিয়া হয়?",
+            answerEn = "Navigate to the Mock Tests tab, pick your exam (APSC, ADRE, Police), and click 'Start Test'. Timer and negative marking rules apply.",
+            answerAs = "মক টেষ্ট মেনুলৈ গৈ যিকোনো পৰীক্ষা চয়ন কৰক। তাত নিৰ্ধাৰিত সময় আৰু নিগেティブ মাৰ্কিং ব্যৱস্থা থাকিব।"
+        ),
+        FaqEntity(
+            id = 2,
+            questionEn = "Can I study offline without internet?",
+            questionAs = "অফলাইনত অধ্যয়ন কৰিব পাৰিমনে?",
+            answerEn = "Yes! Loaded study notes, downloaded e-books, and saved offline practice sets can be accessed anytime without internet.",
+            answerAs = "হয়, এবাৰ ডাউন্মলোড কৰা প্ৰশ্ন আৰু নোটছসমূহ অফলাইনত পঢ়িব পাৰিব।"
+        ),
+        FaqEntity(
+            id = 3,
+            questionEn = "How to report a wrong question answer?",
+            questionAs = "ভুল প্ৰশ্ন বা উত্তৰ কেনেকৈ ৰিপোৰ্ট কৰিব?",
+            answerEn = "Tap the 'Report Question' flag icon inside any MCQ screen. Our Assam subject experts verify and correct reports within 12 hours.",
+            answerAs = "প্ৰশ্নটোৰ তলত থকা ফ্ল্যাগ/ৰিপোৰ্ট আইকনটো টিপি আমালৈ জনাওক, আমাৰ ছাবজেক্ট এক্সপাৰ্টসকলে ১২ ঘণ্টাৰ ভিতৰত সংশোধন কৰিব।"
+        )
     )
 }

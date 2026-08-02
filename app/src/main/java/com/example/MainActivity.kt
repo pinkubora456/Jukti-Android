@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.ui.components.*
 import com.example.ui.screens.*
 import com.example.ui.theme.JuktiTheme
 import com.example.ui.viewmodel.AppLanguage
@@ -36,8 +37,18 @@ class MainActivity : ComponentActivity() {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
             val language by viewModel.language.collectAsState()
+            val showPremiumPaywall by viewModel.showPremiumPaywall.collectAsState()
 
             JuktiTheme(darkTheme = isDarkTheme) {
+                if (showPremiumPaywall) {
+                    PremiumFeatureDialog(
+                        onDismiss = { viewModel.dismissPaywall() },
+                        onUpgradeClick = {
+                            viewModel.dismissPaywall()
+                            viewModel.navigateTo(Screen.PREMIUM_PLANS)
+                        }
+                    )
+                }
                 val showBottomBar = currentScreen in listOf(
                     Screen.HOME,
                     Screen.MCQ_STUDY,

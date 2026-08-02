@@ -16,7 +16,8 @@ class JuktiRepository(
     private val planDao: PlanDao,
     private val examDao: ExamDao,
     private val subjectChapterDao: SubjectChapterDao,
-    private val pendingRequestDao: PendingRequestDao
+    private val pendingRequestDao: PendingRequestDao,
+    private val faqDao: FaqDao
 ) {
     private val firebaseRepository = FirebaseRepository()
     val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions()
@@ -35,6 +36,7 @@ class JuktiRepository(
     val allExams: Flow<List<ExamEntity>> = examDao.getAllExams()
     val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = subjectChapterDao.getAllSubjectsChapters()
     val allPendingRequests: Flow<List<PendingRequestEntity>> = pendingRequestDao.getAllPendingRequests()
+    val allFaqs: Flow<List<FaqEntity>> = faqDao.getAllFaqs()
 
     suspend fun initializeSeedDataIfNeeded() {
         if (userProfileDao.getUserProfileDirect() == null) {
@@ -42,6 +44,10 @@ class JuktiRepository(
         }
         if (aboutConfigDao.getAboutConfigDirect() == null) {
             aboutConfigDao.insertOrUpdateAboutConfig(SampleData.initialAboutConfig)
+        }
+        val currentFaqs = faqDao.getAllFaqs().firstOrNull()
+        if (currentFaqs.isNullOrEmpty()) {
+            faqDao.insertAll(SampleData.initialFaqs)
         }
         val currentQuestions = questionDao.getAllQuestions().firstOrNull()
         if (currentQuestions.isNullOrEmpty()) {
@@ -347,4 +353,9 @@ class JuktiRepository(
             mockTestDao.deleteMockTest(test)
         }
     }
+
+    // FAQ Actions
+    suspend fun addFaq(faq: FaqEntity): Long = faqDao.insertFaq(faq)
+    suspend fun updateFaq(faq: FaqEntity) = faqDao.updateFaq(faq)
+    suspend fun deleteFaq(faq: FaqEntity) = faqDao.deleteFaq(faq)
 }

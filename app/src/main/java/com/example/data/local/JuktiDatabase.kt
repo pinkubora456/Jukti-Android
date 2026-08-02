@@ -18,9 +18,10 @@ import androidx.room.RoomDatabase
         PlanEntity::class,
         ExamEntity::class,
         SubjectChapterEntity::class,
-        PendingRequestEntity::class
+        PendingRequestEntity::class,
+        FaqEntity::class
     ],
-    version = 14,
+    version = 16,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -36,6 +37,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun examDao(): ExamDao
     abstract fun subjectChapterDao(): SubjectChapterDao
     abstract fun pendingRequestDao(): PendingRequestDao
+    abstract fun faqDao(): FaqDao
 
     companion object {
         @Volatile

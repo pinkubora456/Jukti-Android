@@ -217,3 +217,21 @@ interface PendingRequestDao {
     suspend fun deleteRequest(request: PendingRequestEntity)
 }
 
+@Dao
+interface FaqDao {
+    @Query("SELECT * FROM faqs ORDER BY id ASC")
+    fun getAllFaqs(): Flow<List<FaqEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFaq(faq: FaqEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(faqs: List<FaqEntity>)
+
+    @Update
+    suspend fun updateFaq(faq: FaqEntity)
+
+    @Delete
+    suspend fun deleteFaq(faq: FaqEntity)
+}
+

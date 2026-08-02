@@ -308,7 +308,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
 
         OutlinedButton(
             onClick = {
-                viewModel.navigateTo(Screen.AUTH)
+                viewModel.logout()
             },
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
@@ -317,7 +317,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         ) {
             Icon(Icons.Default.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (language == AppLanguage.ASSAMESE) "লগ আউট / একাউণ্ট সলনি কৰক" else "Sign Out / Switch Account")
+            Text(if (language == AppLanguage.ASSAMESE) "লগ আউট" else "Sign Out")
         }
     }
 }

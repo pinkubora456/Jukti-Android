@@ -45,7 +45,6 @@ fun HomeScreen(viewModel: JuktiViewModel) {
     val mockTests by viewModel.mockTests.collectAsState()
     val studyNotes by viewModel.studyNotes.collectAsState()
     val questions by viewModel.questions.collectAsState()
-    val isGuestMode by viewModel.isGuestMode.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
 
     var showPomodoroDialog by remember { mutableStateOf(false) }
@@ -104,7 +103,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Smart Preparation",
+                                text = "Test Your Knowledge",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -153,50 +152,6 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp)
         ) {
-            // Guest Mode Warning Bar if active
-            if (isGuestMode) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (language == AppLanguage.ASSAMESE) "অতিথি অৱস্থা (Guest Mode) - সীমিত সুবিধা" else "Guest Mode - Limited features active",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                        TextButton(
-                            onClick = {
-                                viewModel.toggleGuestMode(false)
-                                viewModel.navigateTo(Screen.AUTH)
-                            }
-                        ) {
-                            Text(
-                                text = if (language == AppLanguage.ASSAMESE) "লগইন কৰক" else "Sign In",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
 
             // User Welcome & Streak Header Card

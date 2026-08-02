@@ -1,6 +1,6 @@
 {
   "name": "Jukti - Assam Exam Prep",
-  "description": "Comprehensive competitive exam preparation app for Assam (ADRE, APSC, Assam Police, TET) with MCQs, Mock Tests, Notes, Analytics & Admin Portal.",
+  "description": "Jukti: Test Your Knowledge. Comprehensive competitive exam preparation app for Assam (ADRE, APSC, Assam Police, TET) with MCQs, Mock Tests, Notes, Analytics & Admin Portal.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

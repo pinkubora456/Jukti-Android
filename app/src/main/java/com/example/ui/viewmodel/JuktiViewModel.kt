@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.*
 import com.example.data.repository.JuktiRepository
 import com.example.data.repository.SampleData
+import com.example.data.repository.UserSessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -78,7 +79,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.planDao(),
         database.examDao(),
         database.subjectChapterDao(),
-        database.pendingRequestDao()
+        database.pendingRequestDao(),
+        database.faqDao()
     )
 
     val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
@@ -130,17 +132,43 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
     // Navigation State
-    private val _currentScreen = MutableStateFlow(Screen.HOME)
+    private val _currentScreen = MutableStateFlow(Screen.AUTH)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+    private val _sessionMessage = MutableStateFlow<String?>(null)
+    val sessionMessage: StateFlow<String?> = _sessionMessage.asStateFlow()
+
+    private val _showPremiumPaywall = MutableStateFlow(false)
+    val showPremiumPaywall: StateFlow<Boolean> = _showPremiumPaywall.asStateFlow()
+
+    fun showPaywall() {
+        _showPremiumPaywall.value = true
+    }
+
+    fun dismissPaywall() {
+        _showPremiumPaywall.value = false
+    }
+
+    fun clearSessionMessage() {
+        _sessionMessage.value = null
+    }
+
+    val userProfile = repository.userProfile.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), null
+    )
+
+    val isUserPremium: StateFlow<Boolean> = userProfile.map { it?.isPremium ?: false }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
 
     // Data Flows from Repository
     val plans = repository.allPlans.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
-    val questions = repository.allQuestions.map { list -> list.filter { !it.isReported } }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-    
+    val questions = repository.allQuestions.map { list ->
+        list.filter { !it.isReported }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val reportedQuestions = repository.allQuestions.map { list -> list.filter { it.isReported } }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -150,12 +178,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val hiddenQuestions = repository.hiddenQuestions.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
     val mockTests = repository.allMockTests.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
     val studyNotes = repository.allNotes.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
     val savedNotes = repository.savedNotes.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -171,9 +202,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val notifications = repository.allNotifications.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
-    val userProfile = repository.userProfile.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), null
-    )
 
     val aboutConfig: StateFlow<AboutConfigEntity> = repository.aboutConfig.map {
         it ?: SampleData.initialAboutConfig
@@ -184,6 +212,35 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val pendingRequests: StateFlow<List<PendingRequestEntity>> = repository.allPendingRequests.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
+    val faqs: StateFlow<List<FaqEntity>> = repository.allFaqs.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    fun addFaq(questionEn: String, questionAs: String, answerEn: String, answerAs: String) {
+        viewModelScope.launch {
+            repository.addFaq(
+                FaqEntity(
+                    questionEn = questionEn,
+                    questionAs = questionAs,
+                    answerEn = answerEn,
+                    answerAs = answerAs
+                )
+            )
+        }
+    }
+
+    fun updateFaq(faq: FaqEntity) {
+        viewModelScope.launch {
+            repository.updateFaq(faq)
+        }
+    }
+
+    fun deleteFaq(faq: FaqEntity) {
+        viewModelScope.launch {
+            repository.deleteFaq(faq)
+        }
+    }
 
     val isAdminOrOwner: StateFlow<Boolean> = combine(userProfile, aboutConfig) { profile, config ->
         val email = profile?.email?.trim()
@@ -236,6 +293,40 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.initializeSeedDataIfNeeded()
         }
+        viewModelScope.launch {
+            userProfile.collect { prof ->
+                if (prof != null) {
+                    if (!prof.isLoggedIn) {
+                        if (_currentScreen.value != Screen.AUTH) {
+                            _currentScreen.value = Screen.AUTH
+                        }
+                    } else {
+                        if (_currentScreen.value == Screen.AUTH) {
+                            _currentScreen.value = Screen.HOME
+                        }
+                        if (prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+                            val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
+                            if (activeInManager == null) {
+                                UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
+                            } else if (activeInManager != prof.currentDeviceId) {
+                                logoutDueToOtherDeviceLogin()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
+            userProfile.collect { prof ->
+                if (prof != null && prof.isLoggedIn && prof.email.isNotBlank()) {
+                    UserSessionManager.observeActiveDeviceId(prof.email).collect { activeId ->
+                        if (activeId != null && prof.currentDeviceId.isNotBlank() && activeId != prof.currentDeviceId) {
+                            logoutDueToOtherDeviceLogin()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun toggleLanguage() {
@@ -259,6 +350,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun navigateTo(screen: Screen) {
+        val isLoggedIn = userProfile.value?.isLoggedIn ?: false
+        if (!isLoggedIn && screen != Screen.AUTH) {
+            _currentScreen.value = Screen.AUTH
+            return
+        }
+        if (screen == Screen.LEADERBOARD && !isUserPremium.value) {
+            _showPremiumPaywall.value = true
+            return
+        }
         _currentScreen.value = screen
     }
 
@@ -275,10 +375,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleGuestMode(isGuest: Boolean) {
-        _isGuestMode.value = isGuest
+        _isGuestMode.value = false
     }
 
     fun selectMockTest(mock: MockTestEntity) {
+        if (mock.isPremium && !isUserPremium.value) {
+            _showPremiumPaywall.value = true
+            return
+        }
         _selectedMockTest.value = mock
         _mockUserAnswers.value = emptyMap()
         _mockMarkedForReview.value = emptySet()
@@ -300,6 +404,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectStudyNote(note: StudyNoteEntity?) {
+        if (note != null && note.isPremium && !isUserPremium.value) {
+            _showPremiumPaywall.value = true
+            return
+        }
         _selectedStudyNote.value = note
         if (note != null) {
             navigateTo(Screen.STUDY_NOTE_DETAIL)
@@ -455,6 +563,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleDownloadNote(n: StudyNoteEntity) {
+        if (n.isPremium && !isUserPremium.value) {
+            _showPremiumPaywall.value = true
+            return
+        }
         viewModelScope.launch { repository.toggleDownloadNote(n) }
     }
 
@@ -470,7 +582,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loginWithEmail(emailInput: String, nameInput: String = "") {
         viewModelScope.launch {
-            val trimmedEmail = emailInput.trim()
+            val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
             val currentProf = userProfile.value ?: SampleData.initialUserProfile
             val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
             val isAdminEmail = trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
@@ -485,12 +597,50 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 else -> trimmedEmail.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
             val newName = if (nameInput.isNotBlank()) nameInput else defaultName
+            val deviceId = java.util.UUID.randomUUID().toString()
+
+            UserSessionManager.registerSession(trimmedEmail, deviceId)
+
             val updatedProf = currentProf.copy(
-                email = if (trimmedEmail.isNotBlank()) trimmedEmail else "scholar@jukti.in",
+                email = trimmedEmail,
                 role = newRole,
-                name = newName
+                name = newName,
+                isLoggedIn = true,
+                currentDeviceId = deviceId,
+                activeDeviceId = deviceId
             )
             repository.updateUserProfile(updatedProf)
+            _sessionMessage.value = null
+            _currentScreen.value = Screen.HOME
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            val currentProf = userProfile.value ?: SampleData.initialUserProfile
+            val updatedProf = currentProf.copy(
+                isLoggedIn = false,
+                currentDeviceId = "",
+                activeDeviceId = ""
+            )
+            repository.updateUserProfile(updatedProf)
+            _sessionMessage.value = null
+            _currentScreen.value = Screen.AUTH
+        }
+    }
+
+    private fun logoutDueToOtherDeviceLogin() {
+        viewModelScope.launch {
+            val currentProf = userProfile.value ?: return@launch
+            if (!currentProf.isLoggedIn) return@launch
+            val updatedProf = currentProf.copy(
+                isLoggedIn = false,
+                currentDeviceId = "",
+                activeDeviceId = ""
+            )
+            repository.updateUserProfile(updatedProf)
+            _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
+            _currentScreen.value = Screen.AUTH
         }
     }
 

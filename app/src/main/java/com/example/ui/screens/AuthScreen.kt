@@ -28,6 +28,7 @@ import com.example.ui.viewmodel.Screen
 fun AuthScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val sessionMessage by viewModel.sessionMessage.collectAsState()
 
     var isLoginTab by remember { mutableStateOf(true) }
     var nameInput by remember { mutableStateOf("") }
@@ -276,6 +277,15 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         )
 
         Text(
+            text = "Test Your Knowledge",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.secondary
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
             text = if (language == AppLanguage.ASSAMESE) "অসমৰ প্ৰতিযোগিতামূলক পৰীক্ষা প্ৰস্তুতি পৰ্টেল" else "Assam Competitive Exam Preparation Portal",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -308,6 +318,28 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         }
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        if (sessionMessage != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = sessionMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         if (errorMessage != null) {
             Surface(
@@ -508,17 +540,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                 text = if (language == AppLanguage.ASSAMESE) "Google ৰ সৈতে অব্যাহত ৰাখক" else "Continue with Google",
                 fontWeight = FontWeight.Bold
             )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        TextButton(
-            onClick = {
-                viewModel.toggleGuestMode(true)
-                viewModel.navigateTo(Screen.HOME)
-            }
-        ) {
-            Text(if (language == AppLanguage.ASSAMESE) "অতিথি হিচাপে অব্যাহত ৰাখক (Guest Mode)" else "Continue as Guest (Limited Access)")
         }
     }
 }

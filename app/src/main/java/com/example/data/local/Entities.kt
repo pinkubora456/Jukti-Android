@@ -131,14 +131,17 @@ data class UserProfileEntity(
     val isPremium: Boolean = false,
     val role: String = "USER",     // "USER", "ADMIN", "OWNER"
     val firebaseProjectId: String = "jukti-26035",
-    val joinedDate: String = "Jul 2026"
+    val joinedDate: String = "Jul 2026",
+    val isLoggedIn: Boolean = false,
+    val currentDeviceId: String = "",
+    val activeDeviceId: String = ""
 )
 
 @Entity(tableName = "about_config")
 data class AboutConfigEntity(
     @PrimaryKey val id: Int = 1,
     val appTitle: String = "Jukti (যুক্তি)",
-    val appSubtitleEn: String = "Assam's Premier Exam Prep Portal",
+    val appSubtitleEn: String = "Test Your Knowledge",
     val appSubtitleAs: String = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
     val versionText: String = "Version 2026.1.0",
     val missionEn: String = "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam. We provide comprehensive practice modules, high-yield Assam history and current affairs notes, full-length timed mock tests, and real-time state ranking analytics.",
@@ -195,5 +198,14 @@ data class PendingRequestEntity(
     val requestedBy: String = "Admin",
     val timestamp: String = "",
     val status: String = "PENDING" // "PENDING", "APPROVED", "REJECTED"
+)
+
+@Entity(tableName = "faqs")
+data class FaqEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val questionEn: String,
+    val questionAs: String = "",
+    val answerEn: String,
+    val answerAs: String = ""
 )
 
