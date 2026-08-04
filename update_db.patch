@@ -1,0 +1,37 @@
+--- app/src/main/java/com/example/data/local/Entities.kt
++++ app/src/main/java/com/example/data/local/Entities.kt
+@@ -193,3 +193,12 @@
+     val answerEn: String,
+     val answerAs: String = ""
+ )
++
++@Entity(tableName = "question_progress")
++data class QuestionProgressEntity(
++    @PrimaryKey val questionId: Long,
++    val firstAttemptCorrect: Boolean? = null,
++    val everGotWrong: Boolean = false,
++    val totalCorrectDays: Int = 0,
++    val lastAttemptDateStr: String = "",
++    val isMastered: Boolean = false
++)
+--- app/src/main/java/com/example/data/local/JuktiDatabase.kt
++++ app/src/main/java/com/example/data/local/JuktiDatabase.kt
+@@ -19,7 +19,8 @@
+         ExamEntity::class,
+         SubjectChapterEntity::class,
+         PendingRequestEntity::class,
+-        FaqEntity::class
++        FaqEntity::class,
++        QuestionProgressEntity::class
+     ],
+-    version = 16,
++    version = 17,
+     exportSchema = false
+ )
+@@ -40,6 +41,7 @@
+     abstract fun subjectChapterDao(): SubjectChapterDao
+     abstract fun pendingRequestDao(): PendingRequestDao
+     abstract fun faqDao(): FaqDao
++    abstract fun questionProgressDao(): QuestionProgressDao
+ 
+     companion object {

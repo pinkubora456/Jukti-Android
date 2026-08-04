@@ -603,10 +603,11 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                             selectedOptionIndex = index
                                             isSubmitted = true
                                             viewModel.recordStudyProgress(1, 10)
-                                            if (index == currentQuestion.correctOptionIndex) {
+                                            val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
+                                            if (isAnsCorrect) {
                                                 scoreCount += 10
-                                                viewModel.awardXpForCorrectAnswer()
                                             }
+                                            viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect)
                                         },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(containerColor = backgroundColor),
@@ -720,6 +721,9 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                             currentQuestionIndex++
                                             selectedOptionIndex = null
                                             isSubmitted = false
+                                        } else {
+                                            viewModel.awardChapterCompletionXp()
+                                            viewModel.navigateTo(Screen.HOME)
                                         }
                                     }
                                 ) {

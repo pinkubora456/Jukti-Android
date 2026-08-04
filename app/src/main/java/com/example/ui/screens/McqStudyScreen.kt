@@ -273,6 +273,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val questions by viewModel.questions.collectAsState()
+    val mockTests by viewModel.mockTests.collectAsState()
+    val studyNotes by viewModel.studyNotes.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -410,6 +413,16 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
             }
             else -> {
                 // Main Study Feature Cards - Vertically Scrollable List
+                
+                var searchQuery by remember { mutableStateOf("") }
+                
+                val isPremium = userProfile?.isPremium == true
+                val availableQuestions = if (isPremium) questions.size else questions.count { !it.isPremium }
+                val solvedQuestions = userProfile?.totalSolved ?: 0
+                val availableMocks = if (isPremium) mockTests.size else mockTests.count { !it.isPremium }
+                val completedMocks = mockTests.count { it.isCompleted }
+                val availableNotes = if (isPremium) studyNotes.size else studyNotes.count { !it.isPremium }
+                
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -417,6 +430,19 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(if (isAssamese) "বিষয়, অধ্যায়, নোটছ বিচাৰক..." else "Search subjects, chapters, notes...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    )
+
                     // 1. Study MCQs
                     StudyFeatureCard(
                         title = "Study MCQs",
@@ -425,7 +451,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.AutoStories,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { activeStudySubView = "STUDY_MCQS" }
+                        onClick = { activeStudySubView = "STUDY_MCQS" },
+                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ" else "$solvedQuestions/$availableQuestions completed",
+                        badgeText = "🔥 Popular"
                     )
 
                     // 2. Practice MCQs
@@ -436,7 +464,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Quiz,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.secondary,
-                        onClick = { viewModel.navigateTo(Screen.PRACTICE) }
+                        onClick = { viewModel.navigateTo(Screen.PRACTICE) },
+                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ" else "$solvedQuestions/$availableQuestions completed",
+                        badgeText = "⭐ Recommended"
                     )
 
                     // 3. Mock Tests
@@ -447,7 +477,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Assignment,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }
+                        onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
+                        progressText = if (isAssamese) "$completedMocks/$availableMocks সম্পূৰ্ণ" else "$completedMocks/$availableMocks completed",
+                        badgeText = "👑 Premium"
                     )
 
                     // 4. Pomodoro Study Timer
@@ -456,9 +488,10 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         description = "Stay focused with timed study sessions.",
                         actionText = if (isAssamese) "টাইমাৰ আৰম্ভ কৰক" else "Start Timer",
                         icon = Icons.Default.HourglassTop,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.error,
-                        onClick = { activeStudySubView = "POMODORO" }
+                        onClick = { activeStudySubView = "POMODORO" },
+                        badgeText = "🎯 Focus"
                     )
 
                     // 5. Study Notes
@@ -469,7 +502,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Description,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) }
+                        onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
+                        progressText = if (isAssamese) "$availableNotes টো উপলব্ধ" else "$availableNotes chapters available",
+                        badgeText = "🆕 New"
                     )
 
                     // 6. Exam Pattern & Cutoff
@@ -480,7 +515,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Analytics,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.secondary,
-                        onClick = { viewModel.navigateTo(Screen.EXAM_INFO) }
+                        onClick = { viewModel.navigateTo(Screen.EXAM_INFO) },
+                        badgeText = "🔄 Updated"
                     )
 
                     // 7. Current Affairs
@@ -491,7 +527,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Newspaper,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = { activeStudySubView = "CURRENT_AFFAIRS" }
+                        onClick = { activeStudySubView = "CURRENT_AFFAIRS" },
+                        badgeText = "🆕 New"
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -512,7 +549,9 @@ fun StudyFeatureCard(
     icon: ImageVector,
     containerColor: Color,
     iconTintColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    progressText: String? = null,
+    badgeText: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -547,55 +586,83 @@ fun StudyFeatureCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = containerColor,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconTintColor,
-                            modifier = Modifier.size(26.dp)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = containerColor,
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = iconTintColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+                        
+                        if (progressText != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = progressText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = iconTintColor
+                            )
+                        }
+                    }
+                }
+                
+                if (badgeText != null) {
+                    Surface(
+                        color = containerColor.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = iconTintColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = onClick,
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = iconTintColor
+                    containerColor = iconTintColor,
+                    contentColor = Color.White
                 )
             ) {
                 Text(
@@ -623,6 +690,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -1045,8 +1113,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                         viewModel.recordStudyProgress(1, 10)
 
                                         // Free plan limit check: 25 questions
-                                        val isPremium = userProfile?.isPremium == true
-                                        if (!isPremium && studiedQuestionsCountInSession >= 25) {
+                                        if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
                                             viewModel.showPaywall()
                                         }
                                     }
@@ -1520,10 +1587,11 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                 if (selectedOptionIndex != null) {
                                     isSubmitted = true
                                     viewModel.recordStudyProgress(1, 10)
-                                    if (selectedOptionIndex == currentQuestion.correctOptionIndex) {
+                                    val isAnsCorrect = (selectedOptionIndex == currentQuestion.correctOptionIndex)
+                                    if (isAnsCorrect) {
                                         scoreCount += 10
-                                        viewModel.awardXpForCorrectAnswer()
                                     }
+                                    viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect)
                                 }
                             },
                             enabled = selectedOptionIndex != null,
@@ -1538,11 +1606,14 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                     currentQuestionIndex++
                                     selectedOptionIndex = null
                                     isSubmitted = false
+                                } else {
+                                    viewModel.awardChapterCompletionXp()
+                                    viewModel.navigateTo(Screen.HOME)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (isAssamese) "পৰৱৰ্তী প্ৰশ্ন (Next Question)" else "Next Question")
+                            Text(if (currentQuestionIndex == activeQuestions.size - 1) (if (isAssamese) "সমাপ্ত (Finish)" else "Finish Practice") else (if (isAssamese) "পৰৱৰ্তী প্ৰশ্ন (Next Question)" else "Next Question"))
                         }
                     }
                 }

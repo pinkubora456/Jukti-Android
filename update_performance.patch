@@ -1,0 +1,51 @@
+--- app/src/main/java/com/example/ui/screens/HomeScreen.kt
++++ app/src/main/java/com/example/ui/screens/HomeScreen.kt
+@@ -622,17 +622,23 @@
+                 } else {
+                     "38s"
+                 }
+-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved", value = "${userProfile?.totalSolved ?: 186}")
+-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy", value = "81.7%")
+-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Solved Speed", value = solvedSpeed)
+-                StatItem(title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level", value = "Lvl ${userProfile?.level ?: 7}")
++                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved", value = "${userProfile?.totalSolved ?: 186}", icon = "📝")
++                StatItem(title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy", value = "81.7%", icon = "🎯")
++                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Solved Speed", value = solvedSpeed, icon = "⚡")
++                StatItem(title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level", value = "Lvl ${userProfile?.level ?: 7}", icon = "📈", isLevel = true)
+             }
+         }
+     }
+ }
+ 
+ @Composable
+-fun StatItem(title: String, value: String) {
++fun StatItem(title: String, value: String, icon: String = "", isLevel: Boolean = false) {
+     Column(horizontalAlignment = Alignment.CenterHorizontally) {
++        if (isLevel) {
++            Surface(color = MaterialTheme.colorScheme.tertiary, shape = RoundedCornerShape(8.dp)) {
++                Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
++            }
++        } else {
+         Text(
+             text = value,
+             style = MaterialTheme.typography.titleMedium,
+@@ -640,9 +646,12 @@
+             color = MaterialTheme.colorScheme.primary
+         )
++        }
++        Spacer(modifier = Modifier.height(4.dp))
+-        Text(
+-            text = title,
+-            style = MaterialTheme.typography.labelSmall,
+-            color = MaterialTheme.colorScheme.onSurfaceVariant
+-        )
++        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
++            if (icon.isNotEmpty()) Text(text = icon, fontSize = 12.sp)
++            Text(
++                text = title,
++                style = MaterialTheme.typography.labelSmall,
++                color = MaterialTheme.colorScheme.onSurfaceVariant
++            )
++        }
+     }
+ }

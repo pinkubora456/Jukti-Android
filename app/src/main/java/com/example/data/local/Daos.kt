@@ -235,3 +235,12 @@ interface FaqDao {
     suspend fun deleteFaq(faq: FaqEntity)
 }
 
+@Dao
+interface QuestionProgressDao {
+    @Query("SELECT * FROM question_progress WHERE questionId = :questionId")
+    suspend fun getProgress(questionId: Long): QuestionProgressEntity?
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(progress: QuestionProgressEntity)
+}
+

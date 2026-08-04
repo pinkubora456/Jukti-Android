@@ -74,7 +74,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Card(
+            OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -84,7 +84,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(if (isAssamese) "ডাৰ্ক মোড (Dark Theme)" else "Dark Theme Mode", fontWeight = FontWeight.SemiBold)
                             Text(
                                 if (isAssamese) "রাতি অধ্যয়ন কৰাৰ বাবে উপযোগী" else "Comfortable reading for night study",
@@ -92,9 +92,15 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
                         Switch(
-                            checked = isDarkTheme,
-                            onCheckedChange = { viewModel.toggleDarkTheme() }
+                            checked = isDarkTheme ?: systemDark,
+                            onCheckedChange = { viewModel.toggleDarkTheme(systemDark) },
+                            colors = SwitchDefaults.colors(
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                            )
                         )
                     }
                 }
@@ -108,7 +114,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Card(
+            OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -126,7 +132,15 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(checked = offlineSync, onCheckedChange = { offlineSync = it })
+                        Switch(
+                            checked = offlineSync, 
+                            onCheckedChange = { offlineSync = it },
+                            colors = SwitchDefaults.colors(
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
@@ -162,7 +176,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Card(
+            OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {

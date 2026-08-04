@@ -67,6 +67,11 @@ enum class Screen {
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = JuktiDatabase.getDatabase(application)
+    
+    private val prefs = application.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
+    private val _lastSessionType = MutableStateFlow(prefs.getString("last_session_type", "mock") ?: "mock")
+    val lastSessionType: StateFlow<String> = _lastSessionType.asStateFlow()
+
     val repository = JuktiRepository(
         database.questionDao(),
         database.mockTestDao(),
@@ -80,7 +85,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.examDao(),
         database.subjectChapterDao(),
         database.pendingRequestDao(),
-        database.faqDao()
+        database.faqDao(),
+        database.questionProgressDao()
     )
 
     val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
@@ -128,8 +134,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _questionLanguage = MutableStateFlow(AppLanguage.BOTH)
     val questionLanguage: StateFlow<AppLanguage> = _questionLanguage.asStateFlow()
 
-    private val _isDarkTheme = MutableStateFlow(false)
-    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
+    private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
+    val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
     // Navigation State
     private val _currentScreen = MutableStateFlow(Screen.AUTH)
@@ -142,6 +148,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val showPremiumPaywall: StateFlow<Boolean> = _showPremiumPaywall.asStateFlow()
 
     fun showPaywall() {
+        if (isUserPremium.value) return
         _showPremiumPaywall.value = true
     }
 
@@ -155,10 +162,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     val userProfile = repository.userProfile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), null
-    )
-
-    val isUserPremium: StateFlow<Boolean> = userProfile.map { it?.isPremium ?: false }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
 
     // Data Flows from Repository
@@ -248,7 +251,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val adminEmails = config.adminEmails.split(",").map { it.trim() }
         profile?.role == "ADMIN" || profile?.role == "OWNER" || isOwnerEmail || (email != null && adminEmails.contains(email))
     }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+        viewModelScope, SharingStarted.Eagerly, false
     )
 
     val isOwner: StateFlow<Boolean> = userProfile.map { profile ->
@@ -256,7 +259,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val isOwnerEmail = email?.equals("juktieducation@gmail.com", ignoreCase = true) == true
         profile?.role == "OWNER" || isOwnerEmail
     }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+        viewModelScope, SharingStarted.Eagerly, false
+    )
+
+    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner) { profile, admin ->
+        profile?.isPremium == true || admin || profile?.role == "ADMIN" || profile?.role == "OWNER"
+    }.stateIn(
+        viewModelScope, SharingStarted.Eagerly, false
     )
 
     // Selection & Filter States
@@ -341,15 +350,33 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         _questionLanguage.value = lang
     }
 
-    fun toggleTheme() {
-        _isDarkTheme.value = !_isDarkTheme.value
+    fun toggleTheme(isSystemDark: Boolean) {
+        val current = _isDarkTheme.value ?: isSystemDark
+        _isDarkTheme.value = !current
     }
 
-    fun toggleDarkTheme() {
-        _isDarkTheme.value = !_isDarkTheme.value
+    fun toggleDarkTheme(isSystemDark: Boolean) {
+        val current = _isDarkTheme.value ?: isSystemDark
+        _isDarkTheme.value = !current
     }
 
     fun navigateTo(screen: Screen) {
+        when (screen) {
+            Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> {
+                _lastSessionType.value = "mock"
+                prefs.edit().putString("last_session_type", "mock").apply()
+            }
+            Screen.PRACTICE -> {
+                _lastSessionType.value = "practice"
+                prefs.edit().putString("last_session_type", "practice").apply()
+            }
+            Screen.STUDY_NOTES, Screen.STUDY_NOTE_DETAIL -> {
+                _lastSessionType.value = "study"
+                prefs.edit().putString("last_session_type", "study").apply()
+            }
+            else -> {}
+        }
+        
         val isLoggedIn = userProfile.value?.isLoggedIn ?: false
         if (!isLoggedIn && screen != Screen.AUTH) {
             _currentScreen.value = Screen.AUTH
@@ -555,8 +582,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             val newTime = prof.totalTimeMinutes + minutesToAdd
             val updated = prof.copy(
                 totalSolved = newSolved,
-                totalTimeMinutes = newTime,
-                xp = prof.xp + (questionsStudiedDelta * 5)
+                totalTimeMinutes = newTime
             )
             repository.updateUserProfile(updated)
         }
@@ -570,8 +596,23 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.toggleDownloadNote(n) }
     }
 
-    fun awardXpForCorrectAnswer() {
-        viewModelScope.launch { repository.awardXp(10, 1) }
+    fun awardChapterCompletionXp() {
+        viewModelScope.launch {
+            repository.awardXp(50, 0)
+        }
+    }
+
+    fun incrementDailyStreak() {
+        viewModelScope.launch {
+            repository.incrementDailyStreak()
+        }
+    }
+
+    fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean) {
+        viewModelScope.launch {
+            val today = java.time.LocalDate.now().toString()
+            repository.processQuestionAnswerForXp(questionId, isCorrect, today)
+        }
     }
 
     fun updateFirebaseProjectId(projectId: String) {

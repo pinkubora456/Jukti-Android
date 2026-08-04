@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,6 +64,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showLogoPickerOnly by remember { mutableStateOf(false) }
+    var showGamificationInfo by remember { mutableStateOf(false) }
 
     val currentLogoIcon = getLogoIcon(aboutConfig.logoIconName)
 
@@ -279,6 +281,45 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             }
 
             Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showGamificationInfo = true },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isAssamese) "XP, স্তৰ আৰু লিডাৰব'ৰ্ড কেনেকৈ কাম কৰে" else "How XP, Levels & Leaderboard Work",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = if (isAssamese) "পৰীক্ষা উত্তীৰ্ণৰ সম্ভাৱনা আৰু অন্যান্য এনালাইটিক্সৰ বিষয়ে জানক" else "Learn about exam clearance probability and analytics",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -326,6 +367,13 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                 showEditDialog = false
             },
             onDismiss = { showEditDialog = false }
+        )
+    }
+
+    if (showGamificationInfo) {
+        GamificationInfoDialog(
+            isAssamese = isAssamese,
+            onDismiss = { showGamificationInfo = false }
         )
     }
 }
@@ -691,6 +739,92 @@ fun OwnerEditAboutDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun GamificationInfoDialog(
+    isAssamese: Boolean,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isAssamese) "XP, স্তৰ আৰু এনালাইটিক্স কেনেকৈ কাম কৰে" else "How XP, Levels & Analytics Work",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // XP & Levels
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAssamese) "XP আৰু স্তৰ (Levels)" else "XP & Levels",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isAssamese) "আপুনি মক টেষ্ট (Mock Tests) আৰু প্ৰেকটিছ কুইজ (Practice Quizzes) সম্পূৰ্ণ কৰাৰ লগে লগে XP অৰ্জন কৰে। অধিক XP য়ে আপোনাক নতুন স্তৰ (Levels) আৰু বেজ (Badges) আনলক কৰাত সহায় কৰে।" else "You earn XP by completing Mock Tests and Practice Quizzes. Gaining more XP helps you level up and unlock new Badges.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // Probability of Clearing Exam
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Analytics, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAssamese) "উত্তীৰ্ণৰ সম্ভাৱনা" else "Exam Clearance Probability",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isAssamese) "এইটো আপোনাৰ গড় স্ক'ৰ, কুইজৰ সঠিকতা, আৰু নিয়মীয়া প্ৰদৰ্শনৰ ওপৰত ভিত্তি কৰি গণনা কৰা হয়। ই দেখুৱায় যে আপুনি প্ৰকৃত পৰীক্ষাত উত্তীৰ্ণ হোৱাৰ কিমান সম্ভাৱনা আছে।" else "This is calculated based on your average mock test scores, practice accuracy, and consistency. It gives you an estimate of your chances of clearing the real exam.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // Leaderboard
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isAssamese) "লিডাৰব'ৰ্ড" else "Leaderboard",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isAssamese) "লিডাৰব'ৰ্ডে আপোনাক অসমৰ অন্যান্য পৰীক্ষাৰ্থীসকলৰ সৈতে ৰেংকিং কৰে। ই আপোনাৰ XP আৰু মক টেষ্টৰ গড় স্ক'ৰ (Mock Avg) দুয়োটা ব্যৱহাৰ কৰি আপোনাৰ স্থান নিৰ্ধাৰণ কৰে।" else "The Leaderboard ranks you against other aspirants across Assam. It uses both your total XP and average mock test scores to determine your position.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (isAssamese) "বুজিলো" else "Got it")
             }
         }
     )

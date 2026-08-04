@@ -28,6 +28,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
@@ -123,7 +124,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     }
 
     if (showMyPlanDialog) {
-        val isPassPro = userProfile?.isPremium == true
+        val isPassPro = isUserPremium
         AlertDialog(
             onDismissRequest = { showMyPlanDialog = false },
             title = {
@@ -141,7 +142,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = if (isPassPro) "Pass Pro Active ⚡" else "Free Plan 🌟",
+                                text = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (isPassPro) "Pass Pro Active ⚡" else "Free Plan 🌟",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isPassPro) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -270,7 +271,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 ProfileDetailRow(icon = Icons.Default.Flag, label = "Target Goal", value = userProfile?.examGoal ?: "ADRE & APSC")
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
-                ProfileDetailRow(icon = Icons.Default.WorkspacePremium, label = "Subscription", value = if (userProfile?.isPremium == true) "Pass Pro Active" else "Free Plan")
+                ProfileDetailRow(icon = Icons.Default.WorkspacePremium, label = "Subscription", value = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (isUserPremium) "Pass Pro Active ⚡" else "Free Plan")
             }
         }
 

@@ -1,0 +1,19 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -404,4 +404,18 @@
+         if (xpToAward > 0) awardXp(xpToAward, 0)
+         return xpToAward
+     }
++
++    suspend fun incrementDailyStreak() {
++        val profile = userProfileDao.getUserProfileDirect() ?: return
++        // Assuming logic that this is called once a day when they open or study
++        val newStreak = profile.dailyStreak + 1
++        val updated = profile.copy(dailyStreak = newStreak)
++        userProfileDao.insertOrUpdateProfile(updated)
++        
++        if (newStreak % 7 == 0) {
++            awardXp(30, 0)
++        }
++    }
+ }

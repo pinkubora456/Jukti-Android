@@ -1,0 +1,69 @@
+--- app/src/main/java/com/example/ui/screens/HomeScreen.kt
++++ app/src/main/java/com/example/ui/screens/HomeScreen.kt
+@@ -162,6 +162,13 @@
+             })
+ 
+             Spacer(modifier = Modifier.height(16.dp))
++            
++            ContinueLearningCard(
++                language = language,
++                onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }
++            )
++            
++            Spacer(modifier = Modifier.height(16.dp))
+ 
+             val context = androidx.compose.ui.platform.LocalContext.current
+             
+@@ -321,6 +328,52 @@
+ }
+ 
+ @Composable
++fun ContinueLearningCard(
++    language: AppLanguage,
++    onClick: () -> Unit
++) {
++    Card(
++        modifier = Modifier
++            .fillMaxWidth()
++            .padding(horizontal = 16.dp)
++            .clickable { onClick() },
++        shape = RoundedCornerShape(16.dp),
++        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
++    ) {
++        Row(
++            modifier = Modifier
++                .fillMaxWidth()
++                .padding(16.dp),
++            verticalAlignment = Alignment.CenterVertically,
++            horizontalArrangement = Arrangement.SpaceBetween
++        ) {
++            Row(
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.spacedBy(16.dp)
++            ) {
++                Icon(
++                    imageVector = Icons.Default.PlayCircleFilled,
++                    contentDescription = "Continue",
++                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
++                    modifier = Modifier.size(36.dp)
++                )
++                Column {
++                    Text(
++                        text = if (language == AppLanguage.ASSAMESE) "অধ্যয়ন চলাই যাওক" else "Continue Learning",
++                        style = MaterialTheme.typography.titleMedium,
++                        fontWeight = FontWeight.Bold,
++                        color = MaterialTheme.colorScheme.onSecondaryContainer
++                    )
++                    Text(
++                        text = if (language == AppLanguage.ASSAMESE) "শেহতীয়া মক টেষ্ট আৰম্ভ কৰক" else "Resume last mock test",
++                        style = MaterialTheme.typography.bodySmall,
++                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
++                    )
++                }
++            }
++        }
++    }
++}
++
++@Composable
+ fun PromotionalBannersSection(

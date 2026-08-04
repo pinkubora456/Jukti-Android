@@ -27,12 +27,15 @@ fun AutoShiftingBannerCarousel(
     banners: List<com.example.data.local.BannerEntity>,
     plans: List<com.example.data.local.PlanEntity> = emptyList(),
     language: com.example.ui.viewmodel.AppLanguage,
+    isUserPremium: Boolean = false,
     onUpgradeClick: () -> Unit,
     onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null
 ) {
 
-    val activePlansCount = plans.count { it.isActive }
-    val pageCount = banners.size + (if (activePlansCount > 0) activePlansCount else 1)
+    val activePlansCount = if (isUserPremium) 0 else plans.count { it.isActive }
+    val pageCount = banners.size + (if (isUserPremium) 0 else if (activePlansCount > 0) activePlansCount else 1)
+    
+    if (pageCount == 0) return
 
     val pagerState = rememberPagerState(pageCount = { pageCount })
     
@@ -50,49 +53,63 @@ fun AutoShiftingBannerCarousel(
             state = pagerState, 
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         ) { page ->
-            val activePlans = plans.filter { it.isActive }
-            if (activePlans.isNotEmpty()) {
-                if (page < activePlans.size) {
-                    val plan = activePlans[page]
-                    FeaturedPlanBanner(
-                        plan = plan,
-                        onBuyClick = onUpgradeClick
+            if (isUserPremium) {
+                if (page >= 0 && page < banners.size) {
+                    InfoBannerContent(
+                        banner = banners[page],
+                        language = language,
+                        onUpgradeClick = onUpgradeClick,
+                        onBannerClick = onBannerClick,
+                        isUserPremium = isUserPremium
                     )
-                } else {
-                    val bannerIndex = page - activePlans.size
-                    if (bannerIndex >= 0 && bannerIndex < banners.size) {
-                        InfoBannerContent(
-                            banner = banners[bannerIndex],
-                            language = language,
-                            onUpgradeClick = onUpgradeClick,
-                            onBannerClick = onBannerClick
-                        )
-                    }
                 }
             } else {
-                if (page == 0) {
-                    // Fallback empty banner or dummy if no plans
-                    FeaturedPlanBanner(
-                        plan = com.example.data.local.PlanEntity(
-                            planName = "Premium Access",
-                            planPrice = "₹499",
-                            discount = "0",
-                            finalPrice = "499",
-                            offerValidity = "",
-                            features = "Full Access|All Mocks",
-                            isActive = true
-                        ),
-                        onBuyClick = onUpgradeClick
-                    )
-                } else {
-                    val bannerIndex = page - 1
-                    if (bannerIndex >= 0 && bannerIndex < banners.size) {
-                        InfoBannerContent(
-                            banner = banners[bannerIndex],
-                            language = language,
-                            onUpgradeClick = onUpgradeClick,
-                            onBannerClick = onBannerClick
+                val activePlans = plans.filter { it.isActive }
+                if (activePlans.isNotEmpty()) {
+                    if (page < activePlans.size) {
+                        val plan = activePlans[page]
+                        FeaturedPlanBanner(
+                            plan = plan,
+                            onBuyClick = onUpgradeClick
                         )
+                    } else {
+                        val bannerIndex = page - activePlans.size
+                        if (bannerIndex >= 0 && bannerIndex < banners.size) {
+                            InfoBannerContent(
+                                banner = banners[bannerIndex],
+                                language = language,
+                                onUpgradeClick = onUpgradeClick,
+                                onBannerClick = onBannerClick,
+                                isUserPremium = isUserPremium
+                            )
+                        }
+                    }
+                } else {
+                    if (page == 0) {
+                        // Fallback empty banner or dummy if no plans
+                        FeaturedPlanBanner(
+                            plan = com.example.data.local.PlanEntity(
+                                planName = "Premium Access",
+                                planPrice = "₹499",
+                                discount = "0",
+                                finalPrice = "499",
+                                offerValidity = "",
+                                features = "Full Access|All Mocks",
+                                isActive = true
+                            ),
+                            onBuyClick = onUpgradeClick
+                        )
+                    } else {
+                        val bannerIndex = page - 1
+                        if (bannerIndex >= 0 && bannerIndex < banners.size) {
+                            InfoBannerContent(
+                                banner = banners[bannerIndex],
+                                language = language,
+                                onUpgradeClick = onUpgradeClick,
+                                onBannerClick = onBannerClick,
+                                isUserPremium = isUserPremium
+                            )
+                        }
                     }
                 }
             }
@@ -105,7 +122,8 @@ fun InfoBannerContent(
     banner: com.example.data.local.BannerEntity,
     language: com.example.ui.viewmodel.AppLanguage,
     onUpgradeClick: () -> Unit,
-    onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null
+    onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null,
+    isUserPremium: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -208,7 +226,8 @@ fun InfoBannerContent(
                         containerColor = MaterialTheme.colorScheme.secondary,
                         contentColor = MaterialTheme.colorScheme.onSecondary
                     ),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                 ) {
                     Text(
                         text = buttonText,

@@ -1,0 +1,39 @@
+--- app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
++++ app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
+@@ -107,6 +107,10 @@
+ 
+     private val repository: JuktiRepository = JuktiRepository(database.daos())
+ 
++    private val prefs = application.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
++    private val _lastSessionType = MutableStateFlow(prefs.getString("last_session_type", "mock") ?: "mock")
++    val lastSessionType: StateFlow<String> = _lastSessionType.asStateFlow()
++
+     private val _currentScreen = MutableStateFlow(Screen.HOME)
+     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+ 
+@@ -355,6 +359,13 @@
+     }
+ 
+     fun navigateTo(screen: Screen) {
++        when (screen) {
++            Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> setLastSessionType("mock")
++            Screen.PRACTICE -> setLastSessionType("practice")
++            Screen.STUDY_NOTES, Screen.STUDY_NOTE_DETAIL -> setLastSessionType("study")
++            else -> {}
++        }
++        
+         val isLoggedIn = userProfile.value?.isLoggedIn ?: false
+         if (!isLoggedIn && screen != Screen.AUTH) {
+             _currentScreen.value = Screen.AUTH
+@@ -369,6 +380,11 @@
+             _showPremiumPaywall.value = false
+         }
+     }
++    
++    fun setLastSessionType(type: String) {
++        _lastSessionType.value = type
++        prefs.edit().putString("last_session_type", type).apply()
++    }
+ 
+     fun toggleLanguage() {
+         _language.value = when (_language.value) {

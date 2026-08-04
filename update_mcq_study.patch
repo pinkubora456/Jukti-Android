@@ -1,0 +1,61 @@
+--- app/src/main/java/com/example/ui/screens/McqStudyScreen.kt
++++ app/src/main/java/com/example/ui/screens/McqStudyScreen.kt
+@@ -275,6 +275,9 @@
+     val questionLanguage by viewModel.questionLanguage.collectAsState()
+     val userProfile by viewModel.userProfile.collectAsState()
+     val isAssamese = language == AppLanguage.ASSAMESE
++    val questions by viewModel.questions.collectAsState()
++    val mockTests by viewModel.mockTests.collectAsState()
++    val studyNotes by viewModel.studyNotes.collectAsState()
+     val context = androidx.compose.ui.platform.LocalContext.current
+ 
+     var activeStudySubView by rememberSaveable { mutableStateOf<String?>(null) }
+@@ -413,6 +416,13 @@
+                 
+                 var searchQuery by remember { mutableStateOf("") }
+                 
++                val isPremium = userProfile?.isPremium == true
++                val availableQuestions = if (isPremium) questions.size else questions.count { !it.isPremium }
++                val solvedQuestions = userProfile?.totalSolved ?: 0
++                val availableMocks = if (isPremium) mockTests.size else mockTests.count { !it.isPremium }
++                val completedMocks = mockTests.count { it.isCompleted }
++                val availableNotes = if (isPremium) studyNotes.size else studyNotes.count { !it.isPremium }
++                
+                 Column(
+                     modifier = Modifier
+                         .fillMaxSize()
+@@ -434,7 +444,7 @@
+                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.primary,
+                         onClick = { activeStudySubView = "STUDY_MCQS" },
+-                        progressText = "120/500 completed",
++                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ কৰা হৈছে" else "$solvedQuestions/$availableQuestions Completed",
+                         badgeText = "🔥 Popular"
+                     )
+ 
+@@ -447,6 +457,7 @@
+                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.secondary,
+                         onClick = { viewModel.navigateTo(Screen.PRACTICE) },
++                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ কৰা হৈছে" else "$solvedQuestions/$availableQuestions Completed",
+                         badgeText = "⭐ Recommended"
+                     )
+ 
+@@ -459,7 +470,7 @@
+                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.tertiary,
+                         onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
+-                        progressText = "Best Score: 82%",
++                        progressText = if (isAssamese) "$completedMocks/$availableMocks সম্পূৰ্ণ কৰা হৈছে" else "$completedMocks/$availableMocks Completed",
+                         badgeText = "👑 Premium"
+                     )
+ 
+@@ -479,7 +490,7 @@
+                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.primary,
+                         onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
+-                        progressText = "8/15 chapters read",
++                        progressText = if (isAssamese) "$availableNotes নোট উপলব্ধ" else "$availableNotes notes available",
+                         badgeText = "🆕 New"
+                     )
+ 

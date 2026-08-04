@@ -209,3 +209,13 @@ data class FaqEntity(
     val answerAs: String = ""
 )
 
+@Entity(tableName = "question_progress")
+data class QuestionProgressEntity(
+    @PrimaryKey val questionId: Long,
+    val firstAttemptCorrect: Boolean? = null,
+    val everGotWrong: Boolean = false,
+    val totalCorrectDays: Int = 0,
+    val lastAttemptDateStr: String = "",
+    val isMastered: Boolean = false
+)
+

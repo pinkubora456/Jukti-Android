@@ -32,6 +32,8 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     val activity = context as? Activity
     val plans by viewModel.plans.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     
     var selectedPlan by remember { mutableStateOf<PlanEntity?>(null) }
     
@@ -221,6 +223,7 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
 
         Button(
             onClick = {
+                if (isUserPremium) return@Button
                 val currentPlan = selectedPlan
                 if (currentPlan != null) {
                     if (activity != null) {
@@ -237,11 +240,12 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            enabled = !isUserPremium || isPurchaseSuccessful
         ) {
             Icon(Icons.Default.ShoppingBag, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (isPurchaseSuccessful) "✅ Subscription Active via Google Play" else "Buy via Google Play Billing")
+            Text(if (isAdminOrOwner) "✅ Subscription Active (Admin/Owner)" else if (isUserPremium) "✅ Subscription Active" else "Buy via Google Play Billing")
         }
     }
 }

@@ -1,0 +1,15 @@
+--- app/src/main/java/com/example/data/local/Daos.kt
++++ app/src/main/java/com/example/data/local/Daos.kt
+@@ -194,3 +194,11 @@
+     @Query("DELETE FROM faqs")
+     suspend fun deleteAllFaqs()
+ }
++
++@Dao
++interface QuestionProgressDao {
++    @Query("SELECT * FROM question_progress WHERE questionId = :questionId")
++    suspend fun getProgress(questionId: Long): QuestionProgressEntity?
++    
++    @Insert(onConflict = OnConflictStrategy.REPLACE)
++    suspend fun insertOrUpdate(progress: QuestionProgressEntity)
++}

@@ -46,6 +46,7 @@ val LightSurface = Color(0xFFFFFFFF)
 val LightSurfaceVariant = Color(0xFFF1F5F9)
 val LightOnSurface = Color(0xFF0F172A)
 val LightOnSurfaceVariant = Color(0xFF64748B)
+val LightOutline = Color(0xFF94A3B8)
 val LightBorder = Color(0xFFE2E8F0)
 
 // Dark Theme Neutrals
@@ -54,6 +55,7 @@ val DarkSurface = Color(0xFF1E293B)
 val DarkSurfaceVariant = Color(0xFF334155)
 val DarkOnSurface = Color(0xFFF8FAFC)
 val DarkOnSurfaceVariant = Color(0xFFCBD5E1)
+val DarkOutline = Color(0xFF64748B)
 val DarkBorder = Color(0xFF334155)
 
 // ColorScheme Helpers for Brand Extensions

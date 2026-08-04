@@ -1,0 +1,23 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -298,8 +298,19 @@
+ 
+     suspend fun awardXp(addedXp: Int, addedTimeMins: Int = 1) {
+         val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
+         val newXp = profile.xp + addedXp
+-        val newLevel = (newXp / 200) + 1
++        
++        var newLevel = 1
++        while (true) {
++            val nextLevel = newLevel + 1
++            val requiredXp = 50 * nextLevel + 10 * (nextLevel - 1) * (nextLevel - 1)
++            if (newXp >= requiredXp) {
++                newLevel = nextLevel
++            } else {
++                break
++            }
++        }
++        
+         val updated = profile.copy(
+             xp = newXp,
+             level = newLevel,

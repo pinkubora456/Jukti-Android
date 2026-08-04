@@ -112,7 +112,17 @@ fun FeaturedPlanBanner(
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(
+                        onClick = { showDetailsDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
+                    ) {
+                        Text("More Info", fontWeight = FontWeight.Bold)
+                    }
                     Button(
                         onClick = onBuyClick,
                         colors = ButtonDefaults.buttonColors(
@@ -122,13 +132,6 @@ fun FeaturedPlanBanner(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Buy Now", fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(
-                        onClick = { showDetailsDialog = true },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-                    ) {
-                        Text("More Info", fontWeight = FontWeight.Bold)
                     }
                 }
             }

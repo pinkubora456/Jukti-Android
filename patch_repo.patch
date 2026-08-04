@@ -1,0 +1,11 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -17,7 +17,8 @@
+     private val examDao: ExamDao,
+     private val subjectChapterDao: SubjectChapterDao,
+     private val pendingRequestDao: PendingRequestDao,
+-    private val faqDao: FaqDao
++    private val faqDao: FaqDao,
++    private val questionProgressDao: QuestionProgressDao
+ ) {
+     private val firebaseRepository = FirebaseRepository()

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.BilingualText
+import com.example.data.local.UserProfileEntity
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
@@ -45,7 +46,8 @@ data class TopRanker(
     val level: Int,
     val badge: String,
     val examPlanEn: String,
-    val examPlanAs: String
+    val examPlanAs: String,
+    val avgMockScore: Float = 0f
 )
 
 data class ChapterAccuracy(
@@ -287,11 +289,20 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
             }
         }
 
+        val mockAvg = remember(mockHistoryList) {
+            if (mockHistoryList.isNotEmpty()) {
+                mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
+            } else {
+                0f
+            }
+        }
+
         if (selectedTab == 0) {
             // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
             LeaderboardTabContent(
                 userXp = userProfile?.xp ?: 2350,
                 userLevel = userProfile?.level ?: 8,
+                userMockAvg = mockAvg,
                 isAssamese = isAssamese
             )
         } else {
@@ -304,7 +315,12 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // 1. PROBABILITY OF CLEARING EXAM IN %
-                ExamClearanceProbabilityCard(isAssamese = isAssamese)
+                ExamClearanceProbabilityCard(
+                    isAssamese = isAssamese,
+                    mockHistoryList = mockHistoryList,
+                    subjectBreakdownList = subjectBreakdownList,
+                    userProfile = userProfile
+                )
 
                 // 2. KEY PERFORMANCE INDICATOR (KPI) IN 2x2 GRID
                 KpiGrid2x2(userProfileSolved = userProfile?.totalSolved ?: 1248, isAssamese = isAssamese)
@@ -327,6 +343,9 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
 
                 // 5. MOCKTEST SCORE TREND IN LINE GRAPH
                 MockTestScoreTrendCard(isAssamese = isAssamese)
+
+                // 5.1. STUDY TIME TREND IN LINE GRAPH
+                StudyTimeTrendCard(isAssamese = isAssamese)
 
                 // 6. MOCK HISTORY
                 MockTestHistorySection(
@@ -362,7 +381,63 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
 // COMPONENT 1: PROBABILITY OF CLEARING EXAM
 // -----------------------------------------------------------------------------
 @Composable
-fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
+fun ExamClearanceProbabilityCard(
+    isAssamese: Boolean,
+    mockHistoryList: List<MockHistoryItem>,
+    subjectBreakdownList: List<SubjectBreakdown>,
+    userProfile: UserProfileEntity?
+) {
+    val mockAvg = if (mockHistoryList.isNotEmpty()) {
+        mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
+    } else {
+        0f
+    }
+    
+    val topicMastery = if (subjectBreakdownList.isNotEmpty()) {
+        subjectBreakdownList.map { it.accuracyPercent.toFloat() }.average().toFloat()
+    } else {
+        0f
+    }
+    
+    val overallAccuracy = if (userProfile != null && userProfile.totalSolved > 0) {
+        (userProfile.correctCount.toFloat() / userProfile.totalSolved.toFloat()) * 100f
+    } else {
+        0f
+    }
+    
+    val revisionConsistency = (userProfile?.dailyStreak?.toFloat() ?: 0f) * 10f
+    val boundedRevision = revisionConsistency.coerceIn(0f, 100f)
+    
+    val syllabusCompletion = (userProfile?.level?.toFloat() ?: 1f) * 5f
+    val boundedSyllabus = syllabusCompletion.coerceIn(0f, 100f)
+    
+    var probability = (mockAvg * 0.40f) + (topicMastery * 0.30f) + (overallAccuracy * 0.15f) + (boundedRevision * 0.10f) + (boundedSyllabus * 0.05f)
+    if (probability > 98f) {
+        probability = 98f
+    }
+    
+    val chanceTextEn = when {
+        probability >= 90f -> "Excellent Chance"
+        probability >= 80f -> "High Chance"
+        probability >= 70f -> "Good Chance"
+        probability >= 60f -> "Moderate Chance"
+        else -> "Needs Improvement"
+    }
+    
+    val chanceTextAs = when {
+        probability >= 90f -> "শ্ৰেষ্ঠ সম্ভাৱনা (Excellent Chance)"
+        probability >= 80f -> "উচ্চ সম্ভাৱনা (High Chance)"
+        probability >= 70f -> "ভাল সম্ভাৱনা (Good Chance)"
+        probability >= 60f -> "মধ্যমীয়া সম্ভাৱনা (Moderate Chance)"
+        else -> "উন্নতিৰ প্ৰয়োজন (Needs Improvement)"
+    }
+    
+    val chanceColor = when {
+        probability >= 80f -> MaterialTheme.colorScheme.success
+        probability >= 60f -> Color(0xFFF57C00) // Orange
+        else -> MaterialTheme.colorScheme.error
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -401,7 +476,7 @@ fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (isAssamese) "ADRE ৩য়/৪ৰ্থ শ্ৰেণী আৰু APSC প্ৰিলিমছৰ তুলনা অনুযায়ী" else "Based on ADRE Grade III/IV & APSC benchmark statistics",
+                        text = if (isAssamese) "Assam Grade 3 & 4 exam-ৰ তুলনা অনুযায়ী" else "Based on Assam Grade 3 & 4 exam benchmark statistics",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -417,10 +492,10 @@ fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "87.4%",
+                            text = String.format("%.1f%%", probability),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = chanceColor
                         )
                     }
                 }
@@ -430,11 +505,11 @@ fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
 
             // Gauge Indicator
             LinearProgressIndicator(
-                progress = 0.874f,
+                progress = { probability / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp),
-                color = MaterialTheme.colorScheme.primary,
+                color = chanceColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
@@ -447,7 +522,7 @@ fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.successContainer
+                    color = chanceColor.copy(alpha = 0.15f)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -456,21 +531,21 @@ fun ExamClearanceProbabilityCard(isAssamese: Boolean) {
                         Icon(
                             Icons.Default.TrendingUp,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.success,
+                            tint = chanceColor,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isAssamese) "উচ্চ সম্ভাৱনা (High Probability)" else "High Clearance Probability",
+                            text = if (isAssamese) chanceTextAs else chanceTextEn,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSuccessContainer
+                            color = chanceColor
                         )
                     }
                 }
 
                 Text(
-                    text = if (isAssamese) "শীৰ্ষ ৪% পৰীক্ষাৰ্থীৰ ভিতৰত" else "Top 4% Aspirant Zone",
+                    text = if (isAssamese) "অধিক পৰিশ্ৰম কৰক" else "Keep practicing to improve",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     fontWeight = FontWeight.Medium
@@ -1305,6 +1380,9 @@ fun MockTestHistorySection(
     isAssamese: Boolean,
     onViewMockResult: (MockHistoryItem) -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val displayList = if (isExpanded) mockHistoryList else mockHistoryList.take(3)
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1324,7 +1402,7 @@ fun MockTestHistorySection(
             )
         }
 
-        mockHistoryList.forEach { mock ->
+        displayList.forEach { mock ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1418,6 +1496,18 @@ fun MockTestHistorySection(
                 }
             }
         }
+        
+        if (mockHistoryList.size > 3) {
+            TextButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isExpanded) (if (isAssamese) "কম দেখুৱাওক" else "View Less") else (if (isAssamese) "সকলো দেখুৱাওক" else "View All"),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
@@ -1428,9 +1518,10 @@ fun MockTestHistorySection(
 fun LeaderboardTabContent(
     userXp: Int,
     userLevel: Int,
+    userMockAvg: Float,
     isAssamese: Boolean
 ) {
-    var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam
+    var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam, 2 = Mock Test Avg
     var selectedExamIndex by remember { mutableStateOf(0) } // Default: ADRE Grade III & IV
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -1452,18 +1543,18 @@ fun LeaderboardTabContent(
         )
     }
 
-    val allRankers = remember(userXp, userLevel) {
+    val allRankers = remember(userXp, userLevel, userMockAvg) {
         listOf(
-            TopRanker("Anurag Kalita", "Guwahati", 4850, 15, "ADRE Topper", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী"),
-            TopRanker("Priyanka Das", "Jorhat", 4210, 14, "APSC Rank 1", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ"),
-            TopRanker("Bishal Gogoi", "Dibrugarh", 3980, 13, "Speed Master", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী"),
-            TopRanker("Ritu Bora", "Nagaon", 3650, 12, "Daily Scholar", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল"),
-            TopRanker("Himangshu Saikia", "Tezpur", 3420, 11, "Ahom Scholar", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ"),
-            TopRanker("Sangeeta Sharma", "Silchar", 3100, 10, "GK Whiz", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত"),
-            TopRanker("Nayan Sarma", "Barpeta", 2950, 9, "Maths Expert", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী"),
-            TopRanker("Dipika Medhi", "Mangaldai", 2780, 9, "Police Ranker", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল"),
-            TopRanker("Jatin Baruah", "Sivasagar", 2540, 8, "Forest Cadet", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত"),
-            TopRanker("Assam Scholar (You)", "Guwahati", userXp, userLevel, "Rising Star", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী")
+            TopRanker("Anurag Kalita", "Guwahati", 4850, 15, "ADRE Topper", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 91.2f),
+            TopRanker("Priyanka Das", "Jorhat", 4210, 14, "APSC Rank 1", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 94.5f),
+            TopRanker("Bishal Gogoi", "Dibrugarh", 3980, 13, "Speed Master", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 89.0f),
+            TopRanker("Ritu Bora", "Nagaon", 3650, 12, "Daily Scholar", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 86.5f),
+            TopRanker("Himangshu Saikia", "Tezpur", 3420, 11, "Ahom Scholar", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 88.3f),
+            TopRanker("Sangeeta Sharma", "Silchar", 3100, 10, "GK Whiz", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত", 84.1f),
+            TopRanker("Nayan Sarma", "Barpeta", 2950, 9, "Maths Expert", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 82.6f),
+            TopRanker("Dipika Medhi", "Mangaldai", 2780, 9, "Police Ranker", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 80.4f),
+            TopRanker("Jatin Baruah", "Sivasagar", 2540, 8, "Forest Cadet", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত", 78.9f),
+            TopRanker("Assam Scholar (You)", "Guwahati", userXp, userLevel, "Rising Star", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", userMockAvg)
         )
     }
 
@@ -1472,7 +1563,7 @@ fun LeaderboardTabContent(
     val filteredList = remember(leaderboardMode, selectedExamIndex, allRankers) {
         if (leaderboardMode == 0) {
             allRankers.sortedByDescending { it.xp }
-        } else {
+        } else if (leaderboardMode == 1) {
             val examRankers = allRankers.filter { 
                 it.examPlanEn == activeSelectedExam || it.name.contains("You") 
             }.map { ranker ->
@@ -1484,6 +1575,8 @@ fun LeaderboardTabContent(
                 } else ranker
             }
             examRankers.sortedByDescending { it.xp }
+        } else {
+            allRankers.sortedByDescending { it.avgMockScore }
         }
     }
 
@@ -1601,10 +1694,40 @@ fun LeaderboardTabContent(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isAssamese) "একে পৰীক্ষা (Same Exam)" else "Same Exam",
+                                        text = if (isAssamese) "একে পৰীক্ষা" else "Same Exam",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (leaderboardMode == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mock Avg Button
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { leaderboardMode = 2 },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (leaderboardMode == 2) MaterialTheme.colorScheme.primary else Color.Transparent
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Analytics,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (leaderboardMode == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isAssamese) "মক গড়" else "Mock Avg",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (leaderboardMode == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -1698,6 +1821,7 @@ fun LeaderboardTabContent(
                     if (filteredList.size >= 3) {
                         PodiumShowcase(
                             topThree = filteredList.take(3),
+                            leaderboardMode = leaderboardMode,
                             isAssamese = isAssamese
                         )
                     }
@@ -1705,7 +1829,7 @@ fun LeaderboardTabContent(
             }
         }
 
-        // LEADERBOARD RANK LIST HEADER
+        // LEADERBOARD LIST HEADER
         item {
             Row(
                 modifier = Modifier
@@ -1717,8 +1841,10 @@ fun LeaderboardTabContent(
                 Text(
                     text = if (leaderboardMode == 0) {
                         if (isAssamese) "সমগ্ৰ অসমৰ ক্ৰম তালিকা" else "All Assam Top Rankers"
-                    } else {
+                    } else if (leaderboardMode == 1) {
                         if (isAssamese) "${examOptionsAs[selectedExamIndex]} পৰীক্ষাৰ্থী তালিকা" else "Candidates: ${examOptionsEn[selectedExamIndex]}"
+                    } else {
+                        if (isAssamese) "মক গড় ক্ৰম তালিকা" else "Mock Avg Rankers"
                     },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
@@ -1816,7 +1942,7 @@ fun LeaderboardTabContent(
                     }
 
                     Text(
-                        text = "${ranker.xp} XP",
+                        text = if (leaderboardMode == 2) "${String.format("%.1f", ranker.avgMockScore)}%" else "${ranker.xp} XP",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
@@ -1830,6 +1956,7 @@ fun LeaderboardTabContent(
 @Composable
 fun PodiumShowcase(
     topThree: List<TopRanker>,
+    leaderboardMode: Int,
     isAssamese: Boolean
 ) {
     Row(
@@ -1844,6 +1971,7 @@ fun PodiumShowcase(
                 rankPos = 2,
                 color = Color(0xFFC0C0C0),
                 heightDp = 70,
+                leaderboardMode = leaderboardMode,
                 isAssamese = isAssamese
             )
         }
@@ -1855,6 +1983,7 @@ fun PodiumShowcase(
                 rankPos = 1,
                 color = Color(0xFFFFD700),
                 heightDp = 90,
+                leaderboardMode = leaderboardMode,
                 isAssamese = isAssamese
             )
         }
@@ -1866,6 +1995,7 @@ fun PodiumShowcase(
                 rankPos = 3,
                 color = Color(0xFFCD7F32),
                 heightDp = 55,
+                leaderboardMode = leaderboardMode,
                 isAssamese = isAssamese
             )
         }
@@ -1878,6 +2008,7 @@ fun PodiumItem(
     rankPos: Int,
     color: Color,
     heightDp: Int,
+    leaderboardMode: Int,
     isAssamese: Boolean
 ) {
     Column(
@@ -1911,7 +2042,7 @@ fun PodiumItem(
         )
 
         Text(
-            text = "${ranker.xp} XP",
+            text = if (leaderboardMode == 2) "${String.format("%.1f", ranker.avgMockScore)}%" else "${ranker.xp} XP",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary
@@ -1934,6 +2065,187 @@ fun PodiumItem(
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+    }
+}
+@Composable
+fun StudyTimeTrendCard(isAssamese: Boolean) {
+    val times = listOf(1.5f, 2.0f, 2.5f, 1.8f, 3.2f, 3.8f, 4.5f) // Study time in hours
+    val maxTime = 5.0f // Max axis value
+    val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    
+    val lineColor = MaterialTheme.colorScheme.secondary
+    val gradientColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isAssamese) "অধ্যয়নৰ সময় (Study Time)" else "Study Time Trend",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        text = "Avg: 2.7h/day",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+            
+            Text(
+                text = if (isAssamese) "(মক টেষ্ট + অনুশীলন + অধ্যয়ন)" else "(Mock time + Practice time + Study time)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 32.dp, top = 2.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Line Graph Canvas
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val width = size.width
+                    val height = size.height
+                    val paddingLeft = 30f
+                    val paddingBottom = 40f
+                    val paddingTop = 20f
+                    val paddingRight = 20f
+
+                    val graphWidth = width - paddingLeft - paddingRight
+                    val graphHeight = height - paddingTop - paddingBottom
+
+                    // Draw Grid Lines (0, maxTime/2, maxTime)
+                    val gridY0 = paddingTop + graphHeight
+                    val gridY50 = paddingTop + graphHeight / 2
+                    val gridY100 = paddingTop
+
+                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
+                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
+                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
+
+                    // Calculate point positions
+                    val points = times.mapIndexed { index, time ->
+                        val x = paddingLeft + index * (graphWidth / (times.size - 1))
+                        val y = paddingTop + graphHeight * (1f - (time / maxTime))
+                        Offset(x, y)
+                    }
+
+                    // Path for Line & Gradient Fill
+                    val path = Path().apply {
+                        if (points.isNotEmpty()) {
+                            moveTo(points[0].x, points[0].y)
+                            for (i in 1 until points.size) {
+                                lineTo(points[i].x, points[i].y)
+                            }
+                        }
+                    }
+
+                    val fillPath = Path().apply {
+                        addPath(path)
+                        lineTo(points.last().x, gridY0)
+                        lineTo(points.first().x, gridY0)
+                        close()
+                    }
+
+                    // Fill Gradient
+                    drawPath(
+                        path = fillPath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(gradientColor, Color.Transparent),
+                            startY = paddingTop,
+                            endY = gridY0
+                        )
+                    )
+
+                    // Draw Line
+                    drawPath(
+                        path = path,
+                        color = lineColor,
+                        style = Stroke(width = 6f)
+                    )
+
+                    // Draw Points and Node Circles
+                    points.forEach { point ->
+                        drawCircle(color = Color.White, radius = 8f, center = point)
+                        drawCircle(color = lineColor, radius = 5f, center = point)
+                    }
+                }
+
+                // Score text overlays on top of points
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    times.forEachIndexed { idx, t ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${t}h",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // X-Axis Labels
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 12.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    labels.forEach { lbl ->
+                        Text(
+                            text = lbl,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = if (isAssamese) "যোৱা ৭ দিনত আপোনাৰ অধ্যয়নৰ সময় বৃদ্ধি পাইছে। আপুনি মুঠ ১৯.৩ ঘণ্টা পঢ়িছে।" else "Your daily study time is increasing over the last 7 days. Total study time is 19.3 hours.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

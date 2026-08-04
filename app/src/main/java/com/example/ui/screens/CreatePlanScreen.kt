@@ -383,7 +383,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 Text(if (isAnalyzePageEnabled) "Yes" else "No", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                                 Switch(
                                     checked = isAnalyzePageEnabled,
-                                    onCheckedChange = { isAnalyzePageEnabled = it }
+                                    onCheckedChange = { isAnalyzePageEnabled = it },
+                                    colors = SwitchDefaults.colors(
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                                    )
                                 )
                             }
                         }
@@ -516,7 +521,15 @@ fun FeatureSwitch(label: String, checked: Boolean, onCheckedChange: (Boolean) ->
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked, 
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+            )
+        )
     }
 }
 

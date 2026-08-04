@@ -1,0 +1,12 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -303,7 +303,8 @@
+         var newLevel = 1
+         while (true) {
+             val nextLevel = newLevel + 1
+-            val requiredXp = 50 * nextLevel + 10 * (nextLevel - 1) * (nextLevel - 1)
++            val currentLvl = nextLevel - 1
++            val requiredXp = 50 * currentLvl + 10 * (currentLvl - 1) * (currentLvl - 1)
+             if (newXp >= requiredXp) {
+                 newLevel = nextLevel
+             } else {

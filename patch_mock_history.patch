@@ -1,0 +1,40 @@
+--- app/src/main/java/com/example/ui/screens/LeaderboardAnalyticsScreen.kt
++++ app/src/main/java/com/example/ui/screens/LeaderboardAnalyticsScreen.kt
+@@ -1306,7 +1306,10 @@
+     isAssamese: Boolean,
+     onViewMockResult: (MockHistoryItem) -> Unit
+ ) {
++    var isExpanded by remember { mutableStateOf(false) }
++    val displayList = if (isExpanded) mockHistoryList else mockHistoryList.take(3)
++
+     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+         Row(
+             modifier = Modifier.fillMaxWidth(),
+@@ -1325,7 +1328,7 @@
+             )
+         }
+ 
+-        mockHistoryList.forEach { mock ->
++        displayList.forEach { mock ->
+             Card(
+                 modifier = Modifier
+                     .fillMaxWidth()
+@@ -1421,5 +1424,19 @@
+                 }
+             }
+         }
++        
++        if (mockHistoryList.size > 3) {
++            TextButton(
++                onClick = { isExpanded = !isExpanded },
++                modifier = Modifier.fillMaxWidth()
++            ) {
++                Text(
++                    text = if (isExpanded) (if (isAssamese) "কম দেখুৱাওক" else "View Less") else (if (isAssamese) "সকলো দেখুৱাওক" else "View All"),
++                    fontWeight = FontWeight.Bold
++                )
++            }
++        }
+     }
+ }
+ 

@@ -39,7 +39,8 @@ class MainActivity : ComponentActivity() {
             val language by viewModel.language.collectAsState()
             val showPremiumPaywall by viewModel.showPremiumPaywall.collectAsState()
 
-            JuktiTheme(darkTheme = isDarkTheme) {
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            JuktiTheme(darkTheme = isDarkTheme ?: systemDark) {
                 if (showPremiumPaywall) {
                     PremiumFeatureDialog(
                         onDismiss = { viewModel.dismissPaywall() },

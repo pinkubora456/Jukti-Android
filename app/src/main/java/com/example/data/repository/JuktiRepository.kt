@@ -17,7 +17,8 @@ class JuktiRepository(
     private val examDao: ExamDao,
     private val subjectChapterDao: SubjectChapterDao,
     private val pendingRequestDao: PendingRequestDao,
-    private val faqDao: FaqDao
+    private val faqDao: FaqDao,
+    private val questionProgressDao: QuestionProgressDao
 ) {
     private val firebaseRepository = FirebaseRepository()
     val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions()
@@ -218,7 +219,9 @@ class JuktiRepository(
             )
             mockTestDao.updateMockTest(updated)
             // Reward XP
-            awardXp(150, timeSpentMins)
+            val scorePercentage = if (mock.totalMarks > 0) ((score.toFloat() / mock.totalMarks.toFloat()) * 100f).toInt() else 0
+            val mockXp = 20 + (scorePercentage / 5)
+            awardXp(mockXp, timeSpentMins)
         }
     }
 
@@ -296,7 +299,19 @@ class JuktiRepository(
     suspend fun awardXp(addedXp: Int, addedTimeMins: Int = 1) {
         val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
         val newXp = profile.xp + addedXp
-        val newLevel = (newXp / 200) + 1
+        
+        var newLevel = 1
+        while (true) {
+            val nextLevel = newLevel + 1
+            val currentLvl = nextLevel - 1
+            val requiredXp = 50 * currentLvl + 10 * (currentLvl - 1) * (currentLvl - 1)
+            if (newXp >= requiredXp) {
+                newLevel = nextLevel
+            } else {
+                break
+            }
+        }
+        
         val updated = profile.copy(
             xp = newXp,
             level = newLevel,
@@ -358,4 +373,59 @@ class JuktiRepository(
     suspend fun addFaq(faq: FaqEntity): Long = faqDao.insertFaq(faq)
     suspend fun updateFaq(faq: FaqEntity) = faqDao.updateFaq(faq)
     suspend fun deleteFaq(faq: FaqEntity) = faqDao.deleteFaq(faq)
+
+    suspend fun processQuestionAnswerForXp(questionId: Long, isCorrect: Boolean, todayStr: String): Int {
+        val progress = questionProgressDao.getProgress(questionId) ?: QuestionProgressEntity(questionId = questionId)
+        var xpToAward = 0
+
+        if (progress.isMastered) {
+            return 0 // No XP for already mastered
+        }
+
+        if (progress.lastAttemptDateStr == todayStr) {
+            return 0 // No XP for multiple attempts on the same day
+        }
+
+        var newTotalCorrectDays = progress.totalCorrectDays
+        var newFirstAttemptCorrect = progress.firstAttemptCorrect
+        var newEverGotWrong = progress.everGotWrong
+        var newIsMastered = progress.isMastered
+
+        if (isCorrect) {
+            newTotalCorrectDays += 1
+            if (progress.firstAttemptCorrect == null) {
+                newFirstAttemptCorrect = true
+                xpToAward = 5 // First correct answer
+            } else if (progress.everGotWrong) {
+                xpToAward = 8 // Correct after previously getting it wrong
+            } else {
+                xpToAward = 5 // Just another correct answer
+            }
+            
+            if (newTotalCorrectDays >= 3) {
+                newIsMastered = true
+                xpToAward += 10 // Master a question
+            }
+        } else {
+            if (progress.firstAttemptCorrect == null) {
+                newFirstAttemptCorrect = false
+            }
+            newEverGotWrong = true
+        }
+
+        questionProgressDao.insertOrUpdate(progress.copy(firstAttemptCorrect = newFirstAttemptCorrect, everGotWrong = newEverGotWrong, totalCorrectDays = newTotalCorrectDays, lastAttemptDateStr = todayStr, isMastered = newIsMastered))
+        if (xpToAward > 0) awardXp(xpToAward, 0)
+        return xpToAward
+    }
+
+    suspend fun incrementDailyStreak() {
+        val profile = userProfileDao.getUserProfileDirect() ?: return
+        val newStreak = profile.dailyStreak + 1
+        val updated = profile.copy(dailyStreak = newStreak)
+        userProfileDao.insertOrUpdateProfile(updated)
+        
+        if (newStreak % 7 == 0) {
+            awardXp(30, 0)
+        }
+    }
 }

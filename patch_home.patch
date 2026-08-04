@@ -1,0 +1,63 @@
+--- app/src/main/java/com/example/ui/screens/HomeScreen.kt
++++ app/src/main/java/com/example/ui/screens/HomeScreen.kt
+@@ -167,11 +167,6 @@
+             })
+ 
+             Spacer(modifier = Modifier.height(16.dp))
+-            
+-            ContinueLearningCard(
+-                language = language,
+-                onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }
+-            )
+ 
+             Spacer(modifier = Modifier.height(16.dp))
+ 
+@@ -231,6 +226,13 @@
+                 }
+             )
+ 
++            Spacer(modifier = Modifier.height(16.dp))
++            
++            ContinueLearningCard(
++                language = language,
++                onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }
++            )
++
+             Spacer(modifier = Modifier.height(16.dp))
+ 
+             // Quick Navigation Grid
+@@ -333,6 +335,16 @@
+ 
+ @Composable
+ fun ContinueLearningCard(
+     language: AppLanguage,
+     onClick: () -> Unit
+ ) {
++    val sessionType = remember { listOf("mock", "practice", "study").random() }
++    val titleTextEn = when (sessionType) {
++        "practice" -> "Continue Last Practice"
++        "study" -> "Continue Last Study"
++        else -> "Continue Last Mock"
++    }
++    val titleTextAs = when (sessionType) {
++        "practice" -> "শেহতীয়া অনুশীলন চলাই যাওক"
++        "study" -> "শেহতীয়া অধ্যয়ন চলাই যাওক"
++        else -> "শেহতীয়া মক টেষ্ট চলাই যাওক"
++    }
++
+     Card(
+         modifier = Modifier
+             .fillMaxWidth()
+@@ -367,9 +379,9 @@
+                         color = MaterialTheme.colorScheme.onSecondaryContainer
+                     )
+                     Text(
+-                        text = if (language == AppLanguage.ASSAMESE) "শেহতীয়া মক টেষ্ট আৰম্ভ কৰক" else "Resume last mock test",
++                        text = if (language == AppLanguage.ASSAMESE) titleTextAs else titleTextEn,
+                         style = MaterialTheme.typography.bodySmall,
+-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
++                        fontWeight = FontWeight.Bold,
++                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                     )
+                 }
+             }

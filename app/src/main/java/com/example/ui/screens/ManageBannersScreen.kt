@@ -438,7 +438,12 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                             Switch(
                                 checked = isActive,
                                 onCheckedChange = { isActive = it },
-                                modifier = Modifier.testTag("banner_active_switch")
+                                modifier = Modifier.testTag("banner_active_switch"),
+                                colors = SwitchDefaults.colors(
+                                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                                )
                             )
                         }
 

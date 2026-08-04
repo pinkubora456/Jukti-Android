@@ -26,6 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import com.example.data.local.*
 import com.example.ui.components.BilingualText
 import com.example.ui.theme.*
@@ -46,6 +51,8 @@ fun HomeScreen(viewModel: JuktiViewModel) {
     val studyNotes by viewModel.studyNotes.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
+    val lastSessionType by viewModel.lastSessionType.collectAsState()
 
     var showPomodoroDialog by remember { mutableStateOf(false) }
 
@@ -84,14 +91,14 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.MenuBook,
                                     contentDescription = "Jukti Logo",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
                         }
@@ -105,7 +112,8 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                             Text(
                                 text = "Test Your Knowledge",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -168,6 +176,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 banners = banners,
                 plans = plans,
                 language = language,
+                isUserPremium = isUserPremium,
                 onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) },
                 onBannerClick = { banner ->
                     when (banner.actionType) {
@@ -216,7 +225,21 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ContinueLearningCard(
+                language = language,
+                sessionType = lastSessionType,
+                onClick = {
+                    when (lastSessionType) {
+                        "practice" -> viewModel.navigateTo(Screen.PRACTICE)
+                        "study" -> viewModel.navigateTo(Screen.STUDY_NOTES)
+                        else -> viewModel.navigateTo(Screen.MOCK_TESTS)
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Quick Navigation Grid
             QuickNavGrid(
@@ -226,7 +249,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 onOpenPomodoro = { showPomodoroDialog = true }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Performance Summary Widget
             PerformanceSummaryCard(
@@ -235,7 +258,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 onViewAnalytics = { viewModel.navigateTo(Screen.LEADERBOARD) }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Study Notes Highlights
             SectionHeader(
@@ -280,7 +303,7 @@ fun UserWelcomeHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -291,12 +314,12 @@ fun UserWelcomeHeader(
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userProfile?.name?.take(1)?.uppercase() ?: "J",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -308,6 +331,67 @@ fun UserWelcomeHeader(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContinueLearningCard(
+    language: AppLanguage,
+    sessionType: String,
+    onClick: () -> Unit
+) {
+    val titleTextEn = when (sessionType) {
+        "practice" -> "Resume Last Practice"
+        "study" -> "Resume Last Study"
+        else -> "Resume Last Mock"
+    }
+    val titleTextAs = when (sessionType) {
+        "practice" -> "শেহতীয়া অনুশীলন চলাই যাওক"
+        "study" -> "শেহতীয়া অধ্যয়ন চলাই যাওক"
+        else -> "শেহতীয়া মক টেষ্ট চলাই যাওক"
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Continue",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(36.dp)
+                )
+                Column {
+                    Text(
+                        text = if (language == AppLanguage.ASSAMESE) "অধ্যয়ন চলাই যাওক" else "Continue Learning",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = if (language == AppLanguage.ASSAMESE) titleTextAs else titleTextEn,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
@@ -484,9 +568,21 @@ fun QuickNavItemCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+
     Card(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.scale(scale),
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
@@ -500,14 +596,14 @@ fun QuickNavItemCard(
             Surface(
                 shape = CircleShape,
                 color = item.color.copy(alpha = 0.15f),
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = item.color,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -614,29 +710,61 @@ fun PerformanceSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved", value = "${userProfile?.totalSolved ?: 186}")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy", value = "81.7%")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "মুঠ এক্সপি" else "Total XP", value = "${userProfile?.xp ?: 1450}")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level", value = "Lvl ${userProfile?.level ?: 7}")
+                val solvedSpeed = if (userProfile != null && userProfile.totalSolved > 0) {
+                    val avgSeconds = (userProfile.totalTimeMinutes * 60) / userProfile.totalSolved
+                    "${avgSeconds.coerceIn(18, 75)}s"
+                } else {
+                    "38s"
+                }
+                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved", value = "${userProfile?.totalSolved ?: 186}", icon = "📝")
+                StatItem(title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy", value = "81.7%", icon = "🎯")
+                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Speed", value = solvedSpeed, icon = "⚡")
+                StatItem(title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level", value = "Lvl ${userProfile?.level ?: 7}", icon = "📈", isBadge = true)
             }
         }
     }
 }
 
 @Composable
-fun StatItem(title: String, value: String) {
+fun StatItem(title: String, value: String, icon: String = "", isBadge: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if (isBadge) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiary,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onTertiary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        } else {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (icon.isNotEmpty()) {
+                Text(text = icon, style = MaterialTheme.typography.labelSmall)
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

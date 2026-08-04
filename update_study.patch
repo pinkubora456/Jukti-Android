@@ -1,0 +1,210 @@
+--- app/src/main/java/com/example/ui/screens/McqStudyScreen.kt
++++ app/src/main/java/com/example/ui/screens/McqStudyScreen.kt
+@@ -410,6 +410,31 @@
+             }
+             else -> {
+                 // Main Study Feature Cards - Vertically Scrollable List
++                
++                var searchQuery by remember { mutableStateOf("") }
++                
+                 Column(
+                     modifier = Modifier
+                         .fillMaxSize()
+@@ -417,6 +442,17 @@
+                         .padding(horizontal = 16.dp, vertical = 16.dp),
+                     verticalArrangement = Arrangement.spacedBy(14.dp)
+                 ) {
++                    OutlinedTextField(
++                        value = searchQuery,
++                        onValueChange = { searchQuery = it },
++                        placeholder = { Text(if (isAssamese) "বিষয়, অধ্যায়, নোটছ বিচাৰক..." else "Search subjects, chapters, notes...") },
++                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
++                        modifier = Modifier.fillMaxWidth(),
++                        shape = RoundedCornerShape(12.dp),
++                        singleLine = true,
++                        colors = OutlinedTextFieldDefaults.colors(
++                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
++                        )
++                    )
++
+                     // 1. Study MCQs
+                     StudyFeatureCard(
+                         title = "Study MCQs",
+                         description = "Learn chapter-wise MCQs.",
+                         actionText = if (isAssamese) "অধ্যয়ন আৰম্ভ কৰক" else "Start Learning",
+                         icon = Icons.Default.AutoStories,
+                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.primary,
+-                        onClick = { activeStudySubView = "STUDY_MCQS" }
++                        onClick = { activeStudySubView = "STUDY_MCQS" },
++                        progressText = "120/500 completed",
++                        badgeText = "🔥 Popular"
+                     )
+ 
+                     // 2. Practice MCQs
+                     StudyFeatureCard(
+                         title = "Practice MCQs",
+                         description = "Practice with instant explanations.",
+                         actionText = if (isAssamese) "অনুশীলন কৰক" else "Practice Now",
+                         icon = Icons.Default.Quiz,
+                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.secondary,
+-                        onClick = { viewModel.navigateTo(Screen.PRACTICE) }
++                        onClick = { viewModel.navigateTo(Screen.PRACTICE) },
++                        badgeText = "⭐ Recommended"
+                     )
+ 
+                     // 3. Mock Tests
+                     StudyFeatureCard(
+                         title = "Mock Tests",
+                         description = "Attempt full-length mock exams.",
+                         actionText = if (isAssamese) "পৰীক্ষা দিয়ক" else "Attempt Test",
+                         icon = Icons.Default.Assignment,
+                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.tertiary,
+-                        onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }
++                        onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
++                        progressText = "Best Score: 82%",
++                        badgeText = "👑 Premium"
+                     )
+ 
+                     // 4. Pomodoro Study Timer
+                     StudyFeatureCard(
+                         title = "Pomodoro Study Timer",
+                         description = "Stay focused with timed study sessions.",
+                         actionText = if (isAssamese) "টাইমাৰ আৰম্ভ কৰক" else "Start Timer",
+                         icon = Icons.Default.HourglassTop,
+-                        containerColor = MaterialTheme.colorScheme.errorContainer,
+-                        iconTintColor = MaterialTheme.colorScheme.error,
++                        containerColor = MaterialTheme.colorScheme.primaryContainer,
++                        iconTintColor = MaterialTheme.colorScheme.error,
+                         onClick = { activeStudySubView = "POMODORO" }
+                     )
+ 
+                     // 5. Study Notes
+                     StudyFeatureCard(
+                         title = "Study Notes",
+                         description = "Read chapter-wise notes.",
+                         actionText = if (isAssamese) "নো ট পঢ়ক" else "Read Notes",
+                         icon = Icons.Default.Description,
+                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                         iconTintColor = MaterialTheme.colorScheme.primary,
+-                        onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) }
++                        onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
++                        progressText = "8/15 chapters read",
++                        badgeText = "🆕 New"
+                     )
+ 
+@@ -512,7 +548,9 @@
+     icon: ImageVector,
+     containerColor: Color,
+     iconTintColor: Color,
+-    onClick: () -> Unit
++    onClick: () -> Unit,
++    progressText: String? = null,
++    badgeText: String? = null
+ ) {
+     val interactionSource = remember { MutableInteractionSource() }
+     val isPressed by interactionSource.collectIsPressedAsState()
+@@ -547,15 +585,27 @@
+     ) {
+         Column(
+             modifier = Modifier
+                 .fillMaxWidth()
+-                .padding(16.dp)
++                .padding(12.dp)
+         ) {
+             Row(
+                 modifier = Modifier.fillMaxWidth(),
+-                verticalAlignment = Alignment.CenterVertically
++                verticalAlignment = Alignment.Top
+             ) {
+-                Surface(
+-                    shape = CircleShape,
+-                    color = containerColor,
+-                    modifier = Modifier.size(48.dp)
+-                ) {
+-                    Box(contentAlignment = Alignment.Center) {
+-                        Icon(
+-                            imageVector = icon,
+-                            contentDescription = null,
+-                            tint = iconTintColor,
+-                            modifier = Modifier.size(26.dp)
+-                        )
+-                    }
+-                }
+-
+-                Spacer(modifier = Modifier.width(14.dp))
++                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
++                    Surface(
++                        shape = CircleShape,
++                        color = containerColor,
++                        modifier = Modifier.size(42.dp)
++                    ) {
++                        Box(contentAlignment = Alignment.Center) {
++                            Icon(
++                                imageVector = icon,
++                                contentDescription = null,
++                                tint = iconTintColor,
++                                modifier = Modifier.size(22.dp)
++                            )
++                        }
++                    }
++
++                    Spacer(modifier = Modifier.width(12.dp))
+ 
+-                Column(modifier = Modifier.weight(1f)) {
++                    Column {
+                     Text(
+                         text = title,
+                         style = MaterialTheme.typography.titleMedium,
+@@ -584,24 +634,51 @@
+                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                         lineHeight = 18.sp
+                     )
++                    
++                    if (progressText != null) {
++                        Spacer(modifier = Modifier.height(4.dp))
++                        Text(
++                            text = progressText,
++                            style = MaterialTheme.typography.labelSmall,
++                            fontWeight = FontWeight.Medium,
++                            color = iconTintColor
++                        )
++                    }
++                    }
++                }
++                
++                if (badgeText != null) {
++                    Surface(
++                        color = containerColor.copy(alpha = 0.5f),
++                        shape = RoundedCornerShape(8.dp)
++                    ) {
++                        Text(
++                            text = badgeText,
++                            style = MaterialTheme.typography.labelSmall,
++                            fontWeight = FontWeight.Bold,
++                            color = iconTintColor,
++                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
++                        )
++                    }
+                 }
+             }
+ 
+-            Spacer(modifier = Modifier.height(14.dp))
++            Spacer(modifier = Modifier.height(12.dp))
+ 
+             Button(
+                 onClick = onClick,
+                 shape = RoundedCornerShape(12.dp),
+-                modifier = Modifier.fillMaxWidth(),
++                modifier = Modifier.fillMaxWidth().height(42.dp),
++                contentPadding = PaddingValues(0.dp),
+                 colors = ButtonDefaults.buttonColors(
+-                    containerColor = containerColor,
+-                    contentColor = iconTintColor
++                    containerColor = iconTintColor,
++                    contentColor = Color.White
+                 )
+             ) {
+                 Text(

@@ -1,0 +1,51 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -303,4 +303,47 @@
+         )
+         userProfileDao.insertOrUpdateProfile(updated)
+     }
++
++    suspend fun processQuestionAnswerForXp(questionId: Long, isCorrect: Boolean, todayStr: String): Int {
++        val progress = questionProgressDao.getProgress(questionId) ?: QuestionProgressEntity(questionId = questionId)
++        var xpToAward = 0
++
++        if (progress.isMastered) {
++            return 0 // No XP for already mastered
++        }
++
++        if (progress.lastAttemptDateStr == todayStr) {
++            return 0 // No XP for multiple attempts on the same day
++        }
++
++        var newTotalCorrectDays = progress.totalCorrectDays
++        var newFirstAttemptCorrect = progress.firstAttemptCorrect
++        var newEverGotWrong = progress.everGotWrong
++        var newIsMastered = progress.isMastered
++
++        if (isCorrect) {
++            newTotalCorrectDays += 1
++            if (progress.firstAttemptCorrect == null) {
++                newFirstAttemptCorrect = true
++                xpToAward = 5 // First correct answer
++            } else if (progress.everGotWrong) {
++                xpToAward = 8 // Correct after previously getting it wrong
++            } else {
++                xpToAward = 5 // Just another correct answer
++            }
++            
++            if (newTotalCorrectDays >= 3) {
++                newIsMastered = true
++                xpToAward += 10 // Master a question
++            }
++        } else {
++            if (progress.firstAttemptCorrect == null) {
++                newFirstAttemptCorrect = false
++            }
++            newEverGotWrong = true
++        }
++
++        questionProgressDao.insertOrUpdate(progress.copy(firstAttemptCorrect = newFirstAttemptCorrect, everGotWrong = newEverGotWrong, totalCorrectDays = newTotalCorrectDays, lastAttemptDateStr = todayStr, isMastered = newIsMastered))
++        if (xpToAward > 0) awardXp(xpToAward, 0)
++        return xpToAward
++    }
+ }
