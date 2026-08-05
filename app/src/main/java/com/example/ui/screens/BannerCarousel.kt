@@ -128,18 +128,27 @@ fun InfoBannerContent(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
+        val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+        val gradientColors = if (isDark) {
+            listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.tertiary
+            )
+        } else {
+            listOf(
+                Color(0xFF1E3A8A), // Deep Blue
+                Color(0xFF3730A3)  // Deep Indigo
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.tertiary
-                        )
-                    ),
+                    brush = Brush.horizontalGradient(colors = gradientColors),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .clickable {
@@ -227,7 +236,7 @@ fun InfoBannerContent(
                         contentColor = MaterialTheme.colorScheme.onSecondary
                     ),
                     shape = RoundedCornerShape(24.dp),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                    
                 ) {
                     Text(
                         text = buttonText,

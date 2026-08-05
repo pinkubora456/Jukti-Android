@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
@@ -297,15 +298,16 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
             }
         }
 
-        if (selectedTab == 0) {
-            // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
-            LeaderboardTabContent(
-                userXp = userProfile?.xp ?: 2350,
-                userLevel = userProfile?.level ?: 8,
-                userMockAvg = mockAvg,
-                isAssamese = isAssamese
-            )
-        } else {
+        Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
+            if (tab == 0) {
+                // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
+                LeaderboardTabContent(
+                    userXp = userProfile?.xp ?: 2350,
+                    userLevel = userProfile?.level ?: 8,
+                    userMockAvg = mockAvg,
+                    isAssamese = isAssamese
+                )
+            } else {
             // MY ANALYTICS TAB (REBUILT WITH ALL NEW USER REQUIREMENTS)
             Column(
                 modifier = Modifier
@@ -365,6 +367,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                 )
             }
         }
+    }
     }
 
     // Modal Dialog for Frequently Incorrect / Skipped Questions

@@ -65,18 +65,26 @@ fun FeaturedPlanBanner(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
+        val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+        val gradientColors = if (isDark) {
+            listOf(
+                MaterialTheme.colorScheme.tertiary,
+                MaterialTheme.colorScheme.primary
+            )
+        } else {
+            listOf(
+                androidx.compose.ui.graphics.Color(0xFF0F766E), // Deep Teal
+                androidx.compose.ui.graphics.Color(0xFF1D4ED8)  // Deep Blue
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.tertiary,
-                            MaterialTheme.colorScheme.primary
-                        )
-                    )
+                    brush = Brush.horizontalGradient(colors = gradientColors)
                 )
                 .clickable { onBuyClick() }
                 .padding(20.dp)

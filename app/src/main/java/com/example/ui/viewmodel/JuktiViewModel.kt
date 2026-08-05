@@ -134,7 +134,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _questionLanguage = MutableStateFlow(AppLanguage.BOTH)
     val questionLanguage: StateFlow<AppLanguage> = _questionLanguage.asStateFlow()
 
-    private val _isDarkTheme = MutableStateFlow<Boolean?>(null)
+    private val _isDarkTheme = MutableStateFlow<Boolean?>(
+        if (prefs.contains("is_dark_theme")) prefs.getBoolean("is_dark_theme", false) else null
+    )
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
     // Navigation State
@@ -352,12 +354,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleTheme(isSystemDark: Boolean) {
         val current = _isDarkTheme.value ?: isSystemDark
-        _isDarkTheme.value = !current
+        val newValue = !current
+        _isDarkTheme.value = newValue
+        prefs.edit().putBoolean("is_dark_theme", newValue).apply()
     }
 
     fun toggleDarkTheme(isSystemDark: Boolean) {
         val current = _isDarkTheme.value ?: isSystemDark
-        _isDarkTheme.value = !current
+        val newValue = !current
+        _isDarkTheme.value = newValue
+        prefs.edit().putBoolean("is_dark_theme", newValue).apply()
     }
 
     fun navigateTo(screen: Screen) {

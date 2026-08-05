@@ -1,0 +1,3 @@
+import androidx.compose.animation.animateContentSize
+
+// ...
