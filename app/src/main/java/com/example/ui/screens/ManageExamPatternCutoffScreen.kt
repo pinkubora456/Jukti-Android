@@ -175,14 +175,12 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                                     label = { Text("Category") },
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .testTag("category_selector")
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
                                         .clickable { categoryDropdownExpanded = true }
-                                        .testTag("category_selector"),
-                                    enabled = false,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
                                 )
                                 DropdownMenu(
                                     expanded = categoryDropdownExpanded,
