@@ -30,11 +30,7 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
     
     // Mock user data
     val mockUsers = remember {
-        mutableStateListOf(
-            UserLog("1", "John Doe", "john@example.com", "Free Plan", "Lifetime", false),
-            UserLog("2", "Alice Smith", "alice@example.com", "Premium 6 Months", "Valid till Dec 2026", false),
-            UserLog("3", "Bob Jones", "bob@example.com", "Premium 1 Year", "Valid till Jun 2027", true)
-        )
+        mutableStateListOf<UserLog>()
     }
 
     val filteredUsers = mockUsers.filter {

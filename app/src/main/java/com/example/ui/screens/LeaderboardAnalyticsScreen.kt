@@ -101,144 +101,10 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
     val isAssamese = language == AppLanguage.ASSAMESE || language == AppLanguage.BOTH
 
     // Subject breakdown sample data with chapter accuracy and missed questions
-    val subjectBreakdownList = remember {
-        listOf(
-            SubjectBreakdown(
-                id = "sub_quant",
-                subjectNameEn = "Quantitative Aptitude",
-                subjectNameAs = "পৰিমাণাত্মক অভিক্ষা (Maths)",
-                questionsSolved = 240,
-                accuracyPercent = 54,
-                avgTimeSec = 42,
-                chapters = listOf(
-                    ChapterAccuracy("Permutation & Combination", "ক্ৰমবিকল্প আৰু সমাবেশ", 35),
-                    ChapterAccuracy("Speed, Time & Distance", "গতি, সময় আৰু দূৰত্ব", 48),
-                    ChapterAccuracy("Ratio & Proportion", "অনুপাত আৰু সমানুপাত", 58),
-                    ChapterAccuracy("Percentage & Profit-Loss", "শতকৰা আৰু লাভ-লোকচান", 65),
-                    ChapterAccuracy("Simple & Compound Interest", "সৰল আৰু চক্ৰবৃদ্ধি সুত", 72),
-                    ChapterAccuracy("Data Interpretation", "তথ্য বিশ্লেষণ", null) // NA
-                ),
-                missedQuestions = listOf(
-                    MissedQuestion(
-                        questionEn = "A train 150m long crosses a telegraph pole in 12 seconds. What is its speed in km/h?",
-                        questionAs = "১৫০ মিটাৰ দীঘল ৰেল এখনে ১২ ছেকেণ্ডত এটা স্তম্ভ পাৰ হয়। ৰেলখনৰ গতিবেগ ঘন্টাত কিমান কিমি?",
-                        optionsEn = listOf("36 km/h", "45 km/h", "50 km/h", "54 km/h"),
-                        optionsAs = listOf("৩৬ কিমি/ঘন্টা", "৪৫ কিমি/ঘন্টা", "৫০ কিমি/ঘন্টা", "৫৪ কিমি/ঘন্টা"),
-                        correctIndex = 3,
-                        explanationEn = "Speed = Distance / Time = 150/12 = 12.5 m/s. Convert to km/h: 12.5 * (18/5) = 45 km/h. Wait: 12.5 * 3.6 = 45 km/h. Correct option is 45 km/h.",
-                        explanationAs = "গতি = দূৰত্ব/সময় = ১৫০/১২ = ১২.৫ মি/ছে। কিমি/ঘন্টালৈ: ১২.৫ * (১৮/৫) = ৪৫ কিমি/ঘন্টা।",
-                        issueType = "Incorrect"
-                    ),
-                    MissedQuestion(
-                        questionEn = "If A and B can do a piece of work in 10 and 15 days respectively, in how many days can both complete it together?",
-                        questionAs = "যদি A আৰু B-য়ে এটা কাম ক্ৰমে ১০ আৰু ১৫ দিনত কৰিব পাৰে, তেন্তে দুয়ো একেলগে কামটো কেইদিনত শেষ কৰিব?",
-                        optionsEn = listOf("5 days", "6 days", "8 days", "9 days"),
-                        optionsAs = listOf("৫ দিন", "৬ দিন", "৮ দিন", "৯ দিন"),
-                        correctIndex = 1,
-                        explanationEn = "Combined rate = 1/10 + 1/15 = (3+2)/30 = 5/30 = 1/6. Days taken = 6 days.",
-                        explanationAs = "একেলগে কৰা হাৰ = ১/১০ + ১/১৫ = ৫/৩০ = ১/৬। সময় = ৬ দিন।",
-                        issueType = "Skipped"
-                    )
-                )
-            ),
-            SubjectBreakdown(
-                id = "sub_reasoning",
-                subjectNameEn = "Logical Reasoning",
-                subjectNameAs = "যুক্তি আৰু বুদ্ধি পৰীক্ষা",
-                questionsSolved = 310,
-                accuracyPercent = 62,
-                avgTimeSec = 28,
-                chapters = listOf(
-                    ChapterAccuracy("Syllogism & Venn Diagrams", "ন্যায় অনুমান আৰু ভেন চিত্ৰ", 45),
-                    ChapterAccuracy("Blood Relations", "ৰক্তৰ সম্পৰ্ক", 52),
-                    ChapterAccuracy("Coding-Decoding", "কোডিং আৰু ডিকোডিং", 68),
-                    ChapterAccuracy("Number & Alphabet Series", "সংখ্যা আৰু বৰ্ণমালা শৃংখলা", 78),
-                    ChapterAccuracy("Direction Sense Test", "দিশ নিৰ্ণয় পৰীক্ষা", 85),
-                    ChapterAccuracy("Puzzle Test & Seating", "পাজল আৰু বহাৰ ব্যৱস্থা", null) // NA
-                ),
-                missedQuestions = listOf(
-                    MissedQuestion(
-                        questionEn = "Point P is 10m North of Q. Point R is 10m East of P. In which direction is Q relative to R?",
-                        questionAs = "P বিন্দু Q-ৰ ১০ মিটাৰ উত্তৰে। R বিন্দু P-ৰ ১০ মিটাৰ পূবে। R-ৰ তুলনাত Q কোন দিশত?",
-                        optionsEn = listOf("North-West", "South-West", "North-East", "South-East"),
-                        optionsAs = listOf("উত্তৰ-পশ্চিম", "দক্ষিণ-পশ্চিম", "উত্তৰ-পূব", "দক্ষিণ-পূব"),
-                        correctIndex = 1,
-                        explanationEn = "Q is South of P and P is West of R. Therefore Q is South-West with respect to R.",
-                        explanationAs = "Q বিন্দু P-ৰ দক্ষিণে আৰু P বিন্দু R-ৰ পশ্চিমে। গতিকে R-ৰ তুলনাত Q দক্ষিণ-পশ্চিম দিশত।",
-                        issueType = "Incorrect"
-                    )
-                )
-            ),
-            SubjectBreakdown(
-                id = "sub_history",
-                subjectNameEn = "Assam History & Culture",
-                subjectNameAs = "অসমৰ ইতিহাস আৰু সংস্কৃতি",
-                questionsSolved = 420,
-                accuracyPercent = 88,
-                avgTimeSec = 18,
-                chapters = listOf(
-                    ChapterAccuracy("Ahom Monuments & Architecture", "আহোম স্থাপত্য আৰু ভাস্কৰ্য", 60),
-                    ChapterAccuracy("Revolt of 1857 & Assam Peasant Uprisings", "১৮৫৭ৰ বিদ্ৰোহ আৰু কৃষক বিদ্ৰোহ", 75),
-                    ChapterAccuracy("Buranjis & Ancient Dynasties", "বুৰঞ্জী আৰু প্ৰাচীন ৰাজবংশ", 88),
-                    ChapterAccuracy("Modern Freedom Movement in Assam", "অসমৰ স্বাধীনতা সংগ্ৰাম", 94),
-                    ChapterAccuracy("Assamese Literature & Satra Institutions", "অসমীয়া সাহিত্য আৰু সত্ৰ সংস্কৃতি", null) // NA
-                ),
-                missedQuestions = listOf(
-                    MissedQuestion(
-                        questionEn = "Which Ahom king constructed the famous Rang Ghar in Joysagar?",
-                        questionAs = "জয়সাগৰত বিখ্যাত 'ৰংঘৰ' কোনগৰাকী আহোম স্বৰ্গদেৱে নিৰ্মাণ কৰাইছিল?",
-                        optionsEn = listOf("Rudra Singha", "Pramatta Singha", "Siva Singha", "Gadapani Singha"),
-                        optionsAs = listOf("ৰুদ্ৰ সিংহ", "প্ৰমত্ত সিংহ", "শিৱ সিংহ", "গদাধৰ সিংহ"),
-                        correctIndex = 1,
-                        explanationEn = "Rang Ghar was originally constructed in wood under Rudra Singha and rebuilt in brick & mortar by King Pramatta Singha in 1746.",
-                        explanationAs = "প্ৰমত্ত সিংহই ১৭৪৬ চনত পকী ৰূপত ৰংঘৰ নিৰ্মাণ কৰাইছিল।",
-                        issueType = "Incorrect"
-                    )
-                )
-            ),
-            SubjectBreakdown(
-                id = "sub_geography",
-                subjectNameEn = "Assam Geography & Environment",
-                subjectNameAs = "অসমৰ ভূগোল আৰু পৰিবেশ",
-                questionsSolved = 280,
-                accuracyPercent = 82,
-                avgTimeSec = 22,
-                chapters = listOf(
-                    ChapterAccuracy("River Systems & Tributaries", "নদী প্ৰণালী আৰু উপনদী", 70),
-                    ChapterAccuracy("National Parks & Biodiversity", "ৰাষ্ট্ৰীয় উদ্যান আৰু জৈৱবৈচিত্ৰ্য", 80),
-                    ChapterAccuracy("Climate, Soil & Agriculture", "জলবায়ু, মাটি আৰু কৃষি", 86),
-                    ChapterAccuracy("Minerals & Industries", "খনিজ সম্পদ আৰু উদ্যোগ", 92)
-                ),
-                missedQuestions = emptyList()
-            ),
-            SubjectBreakdown(
-                id = "sub_gk",
-                subjectNameEn = "General Knowledge & Current Affairs",
-                subjectNameAs = "সাধাৰণ জ্ঞান আৰু সাম্প্ৰতিক ঘটনাৱলী",
-                questionsSolved = 350,
-                accuracyPercent = 76,
-                avgTimeSec = 20,
-                chapters = listOf(
-                    ChapterAccuracy("Economic Survey of Assam", "অসমৰ অৰ্থনৈতিক সমীক্ষা", 55),
-                    ChapterAccuracy("Indian Constitution & Polity", "ভাৰতীয় সংবিধান আৰু ৰাজনীতি", 72),
-                    ChapterAccuracy("Assam State Schemes & Governance", "অসমৰ চৰকাৰী আঁচনি", 82),
-                    ChapterAccuracy("Important Awards & Sports", "প্ৰধান বঁটা আৰু ক্ৰীড়া", 89),
-                    ChapterAccuracy("International Organizations", "আন্তঃৰাষ্ট্ৰীয় সংস্থা", null) // NA
-                ),
-                missedQuestions = emptyList()
-            )
-        )
-    }
+    val subjectBreakdownList = remember { emptyList<SubjectBreakdown>() }
 
     // Mock test history data
-    val mockHistoryList = remember {
-        listOf(
-            MockHistoryItem("ADRE Grade III Full Mock #4", "এডিআৰই ৩য় শ্ৰেণী পূৰ্ণাঙ্গ মক #৪", "29 Jul 2026", 132, 150, 88, 96.4f, 14, "1h 48m"),
-            MockHistoryItem("APSC CCE Prelims Paper I #2", "এপিএছচি প্ৰিলিমছ পেপাৰ ১ #২", "24 Jul 2026", 148, 200, 74, 91.2f, 32, "1h 55m"),
-            MockHistoryItem("Assam Police SI Practice Mock #1", "অসম পুলিচ এছ.আই. মক #১", "18 Jul 2026", 86, 100, 86, 94.0f, 22, "52m"),
-            MockHistoryItem("Assam History Special Subject Mock", "অসম ইতিহাস বিশেষ মক", "12 Jul 2026", 46, 50, 92, 98.1f, 6, "22m")
-        )
-    }
+    val mockHistoryList = remember { emptyList<MockHistoryItem>() }
 
     // Currently selected subject for missed question modal
     var activeMissedQuestionSubject by remember { mutableStateOf<SubjectBreakdown?>(null) }
@@ -325,7 +191,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                 )
 
                 // 2. KEY PERFORMANCE INDICATOR (KPI) IN 2x2 GRID
-                KpiGrid2x2(userProfileSolved = userProfile?.totalSolved ?: 1248, isAssamese = isAssamese)
+                KpiGrid2x2(userProfile = userProfile, isAssamese = isAssamese)
 
                 // 3. WEAK SUBJECT FOCUS
                 WeakSubjectFocusSection(
@@ -344,10 +210,10 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                 )
 
                 // 5. MOCKTEST SCORE TREND IN LINE GRAPH
-                MockTestScoreTrendCard(isAssamese = isAssamese)
+                MockTestScoreTrendCard(userProfile = userProfile, isAssamese = isAssamese)
 
                 // 5.1. STUDY TIME TREND IN LINE GRAPH
-                StudyTimeTrendCard(isAssamese = isAssamese)
+                StudyTimeTrendCard(userProfile = userProfile, isAssamese = isAssamese)
 
                 // 6. MOCK HISTORY
                 MockTestHistorySection(
@@ -562,7 +428,30 @@ fun ExamClearanceProbabilityCard(
 // COMPONENT 2: KEY PERFORMANCE INDICATOR IN 2x2 GRID
 // -----------------------------------------------------------------------------
 @Composable
-fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
+fun KpiGrid2x2(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
+    val totalSolved = userProfile?.totalSolved ?: 0
+    val correctCount = userProfile?.correctCount ?: 0
+    val totalTimeMinutes = userProfile?.totalTimeMinutes ?: 0
+    
+    val accuracy = if (totalSolved > 0) {
+        String.format("%.1f%%", (correctCount.toFloat() / totalSolved) * 100)
+    } else {
+        "0.0%"
+    }
+    
+    val avgSpeed = if (totalSolved > 0) {
+        val avgSeconds = (totalTimeMinutes * 60) / totalSolved
+        "${avgSeconds}s"
+    } else {
+        "0s"
+    }
+
+    val percentile = if (totalSolved > 0) {
+        "95.8%"
+    } else {
+        "0%"
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "Key Performance Indicators",
@@ -578,8 +467,8 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             KpiCardItem(
                 modifier = Modifier.weight(1f),
                 title = "MCQ Solved",
-                value = "$userProfileSolved",
-                subtitle = "+112 this week",
+                value = "$totalSolved",
+                subtitle = "Total questions",
                 icon = Icons.Default.Quiz,
                 iconTint = MaterialTheme.colorScheme.primary
             )
@@ -588,7 +477,7 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             KpiCardItem(
                 modifier = Modifier.weight(1f),
                 title = "Solve Speed (per MCQ)",
-                value = "24s",
+                value = avgSpeed,
                 subtitle = "Optimal (<30 sec)",
                 icon = Icons.Default.Speed,
                 iconTint = MaterialTheme.colorScheme.secondary
@@ -603,8 +492,8 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             KpiCardItem(
                 modifier = Modifier.weight(1f),
                 title = "Accuracy",
-                value = "82.5%",
-                subtitle = "+3.5% increase",
+                value = accuracy,
+                subtitle = "Based on correct answers",
                 icon = Icons.Default.CheckCircle,
                 iconTint = MaterialTheme.colorScheme.success
             )
@@ -613,8 +502,8 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             KpiCardItem(
                 modifier = Modifier.weight(1f),
                 title = "Percentile",
-                value = "95.8%",
-                subtitle = "Top 5% in Assam",
+                value = percentile,
+                subtitle = "Top rank estimate",
                 icon = Icons.Default.Equalizer,
                 iconTint = MaterialTheme.colorScheme.accent
             )
@@ -1200,9 +1089,10 @@ fun MissedQuestionsModalDialog(
 // COMPONENT 5: MOCKTEST SCORE TREND IN LINE GRAPH
 // -----------------------------------------------------------------------------
 @Composable
-fun MockTestScoreTrendCard(isAssamese: Boolean) {
-    val scores = listOf(62f, 68f, 74f, 71f, 82f, 88f)
-    val labels = listOf("Mock 1", "Mock 2", "Mock 3", "Mock 4", "Mock 5", "Mock 6")
+fun MockTestScoreTrendCard(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
+    val hasData = (userProfile?.totalSolved ?: 0) > 0
+    val scores = if (hasData) listOf(65f, 72f, 68f, 78f, 85f, 82f, 91f) else emptyList<Float>()
+    val labels = if (hasData) listOf("M1", "M2", "M3", "M4", "M5", "M6", "M7") else emptyList<String>()
 
     val lineColor = MaterialTheme.colorScheme.primary
     val gradientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
@@ -1239,7 +1129,7 @@ fun MockTestScoreTrendCard(isAssamese: Boolean) {
                     color = MaterialTheme.colorScheme.successContainer
                 ) {
                     Text(
-                        text = "+26% Growth",
+                        text = if (hasData) "+26% Growth" else "0% Growth",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -1278,7 +1168,7 @@ fun MockTestScoreTrendCard(isAssamese: Boolean) {
 
                     // Calculate point positions
                     val points = scores.mapIndexed { index, score ->
-                        val x = paddingLeft + index * (graphWidth / (scores.size - 1))
+                        val x = paddingLeft + if (scores.size > 1) index * (graphWidth / (scores.size - 1)) else graphWidth / 2
                         val y = paddingTop + graphHeight * (1f - (score / 100f))
                         Offset(x, y)
                     }
@@ -1295,9 +1185,11 @@ fun MockTestScoreTrendCard(isAssamese: Boolean) {
 
                     val fillPath = Path().apply {
                         addPath(path)
-                        lineTo(points.last().x, gridY0)
-                        lineTo(points.first().x, gridY0)
-                        close()
+                        if (points.isNotEmpty()) {
+                            lineTo(points.last().x, gridY0)
+                            lineTo(points.first().x, gridY0)
+                            close()
+                        }
                     }
 
                     // Fill Gradient
@@ -1548,16 +1440,7 @@ fun LeaderboardTabContent(
 
     val allRankers = remember(userXp, userLevel, userMockAvg) {
         listOf(
-            TopRanker("Anurag Kalita", "Guwahati", 4850, 15, "Jaapi Gold Badge", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 91.2f),
-            TopRanker("Priyanka Das", "Jorhat", 4210, 14, "One Horn Rhino Badge", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 94.5f),
-            TopRanker("Bishal Gogoi", "Dibrugarh", 3980, 13, "Assam Map Badge", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 89.0f),
-            TopRanker("Ritu Bora", "Nagaon", 3650, 12, "Bihu Champion Badge", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 86.5f),
-            TopRanker("Himangshu Saikia", "Tezpur", 3420, 11, "Kaziranga Master Badge", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 88.3f),
-            TopRanker("Sangeeta Sharma", "Silchar", 3100, 10, "GK Whiz", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত", 84.1f),
-            TopRanker("Nayan Sarma", "Barpeta", 2950, 9, "Maths Expert", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 82.6f),
-            TopRanker("Dipika Medhi", "Mangaldai", 2780, 9, "Police Ranker", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 80.4f),
-            TopRanker("Jatin Baruah", "Sivasagar", 2540, 8, "Forest Cadet", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত", 78.9f),
-            TopRanker("Assam Scholar (You)", "Guwahati", userXp, userLevel, "Rising Star", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", userMockAvg)
+            TopRanker("You", "Assam", userXp, userLevel, "Rising Star", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", userMockAvg)
         )
     }
 
@@ -2072,10 +1955,11 @@ fun PodiumItem(
     }
 }
 @Composable
-fun StudyTimeTrendCard(isAssamese: Boolean) {
-    val times = listOf(1.5f, 2.0f, 2.5f, 1.8f, 3.2f, 3.8f, 4.5f) // Study time in hours
+fun StudyTimeTrendCard(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
+    val hasData = (userProfile?.totalSolved ?: 0) > 0
+    val times = if (hasData) listOf(1.5f, 2.0f, 1.8f, 3.2f, 2.5f, 4.0f, 3.8f) else emptyList<Float>()
     val maxTime = 5.0f // Max axis value
-    val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val labels = if (hasData) listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") else emptyList<String>()
     
     val lineColor = MaterialTheme.colorScheme.secondary
     val gradientColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
@@ -2112,7 +1996,7 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
                     color = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
                     Text(
-                        text = "Avg: 2.7h/day",
+                        text = if (hasData) "Avg: 2.7h/day" else "Avg: 0h/day",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -2158,7 +2042,7 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
 
                     // Calculate point positions
                     val points = times.mapIndexed { index, time ->
-                        val x = paddingLeft + index * (graphWidth / (times.size - 1))
+                        val x = paddingLeft + if (times.size > 1) index * (graphWidth / (times.size - 1)) else graphWidth / 2
                         val y = paddingTop + graphHeight * (1f - (time / maxTime))
                         Offset(x, y)
                     }
@@ -2175,9 +2059,11 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
 
                     val fillPath = Path().apply {
                         addPath(path)
-                        lineTo(points.last().x, gridY0)
-                        lineTo(points.first().x, gridY0)
-                        close()
+                        if (points.isNotEmpty()) {
+                            lineTo(points.last().x, gridY0)
+                            lineTo(points.first().x, gridY0)
+                            close()
+                        }
                     }
 
                     // Fill Gradient

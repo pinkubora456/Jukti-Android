@@ -88,68 +88,7 @@ class JuktiRepository(
         }
         val currentPendingRequests = pendingRequestDao.getAllPendingRequests().firstOrNull()
         if (currentPendingRequests.isNullOrEmpty()) {
-            val initialReqs = listOf(
-                PendingRequestEntity(
-                    requestType = "DELETE_USER",
-                    title = "Delete User: John Doe",
-                    description = "Request to delete user account john@example.com",
-                    targetId = "1",
-                    payloadJson = "john@example.com",
-                    requestedBy = "admin@jukti.in",
-                    timestamp = "Today, 10:30 AM",
-                    status = "PENDING"
-                ),
-                PendingRequestEntity(
-                    requestType = "DELETE_QUESTION",
-                    title = "Delete Question #1",
-                    description = "Request to delete question: \"Which Ahom king constructed the Rang Ghar...\"",
-                    targetId = "1",
-                    payloadJson = "",
-                    requestedBy = "admin@jukti.in",
-                    timestamp = "Today, 11:15 AM",
-                    status = "PENDING"
-                ),
-                PendingRequestEntity(
-                    requestType = "BLOCK_USER",
-                    title = "Block User: Bob Jones",
-                    description = "Request to block user account bob@example.com due to policy violation",
-                    targetId = "3",
-                    payloadJson = "bob@example.com",
-                    requestedBy = "moderator@jukti.in",
-                    timestamp = "Yesterday",
-                    status = "PENDING"
-                ),
-                PendingRequestEntity(
-                    requestType = "UPGRADE_PLAN",
-                    title = "Upgrade Plan for Alice Smith",
-                    description = "Request to upgrade alice@example.com to Premium 1 Year plan",
-                    targetId = "2",
-                    payloadJson = "Premium 1 Year|Valid till Jun 2027",
-                    requestedBy = "admin@jukti.in",
-                    timestamp = "Yesterday",
-                    status = "PENDING"
-                ),
-                PendingRequestEntity(
-                    requestType = "CREATE_PLAN",
-                    title = "Create Plan: Super Pass 2026",
-                    description = "Create plan Super Pass 2026 at ₹499 with 1 Year validity",
-                    targetId = "",
-                    payloadJson = "Super Pass 2026|₹499|₹999|1 Year",
-                    requestedBy = "admin@jukti.in",
-                    timestamp = "2 days ago",
-                    status = "PENDING"
-                ),
-                PendingRequestEntity(
-                    requestType = "DELETE_MOCK",
-                    title = "Delete Mock Test #2",
-                    description = "Request to delete mock test: \"APSC CCE General Studies Prelims Mock\"",
-                    targetId = "2",
-                    payloadJson = "",
-                    requestedBy = "admin@jukti.in",
-                    timestamp = "2 days ago",
-                    status = "PENDING"
-                )
-            )
+            val initialReqs = emptyList<PendingRequestEntity>()
             pendingRequestDao.insertAll(initialReqs)
         }
     }
@@ -364,6 +303,34 @@ class JuktiRepository(
 
     suspend fun deleteQuestionById(id: Long) {
         questionDao.deleteQuestionById(id)
+    }
+
+    suspend fun resetUserProgress() {
+        val currentProfile = userProfileDao.getUserProfileDirect()
+        if (currentProfile != null) {
+            userProfileDao.insertOrUpdateProfile(
+                currentProfile.copy(
+                    xp = 0,
+                    level = 1,
+                    dailyStreak = 0,
+                    totalSolved = 0,
+                    correctCount = 0,
+                    totalTimeMinutes = 0
+                )
+            )
+        }
+
+        val allMocks = mockTestDao.getAllMockTests().firstOrNull() ?: emptyList()
+        val resetMocks = allMocks.map { 
+            it.copy(
+                isCompleted = false,
+                userScore = 0,
+                userAccuracy = 0f,
+                userRank = 0,
+                userPercentile = 0f
+            )
+        }
+        resetMocks.forEach { mockTestDao.updateMockTest(it) }
     }
 
     suspend fun deleteMockTestById(id: Long) {

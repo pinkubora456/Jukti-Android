@@ -23,7 +23,7 @@ import androidx.room.RoomDatabase
         QuestionProgressEntity::class,
         ActivityLogEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {

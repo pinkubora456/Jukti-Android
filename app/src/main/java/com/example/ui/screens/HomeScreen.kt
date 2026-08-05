@@ -81,7 +81,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
+Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -712,30 +712,36 @@ fun PerformanceSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val solvedSpeed = if (userProfile != null && userProfile.totalSolved > 0) {
-                    val avgSeconds = (userProfile.totalTimeMinutes * 60) / userProfile.totalSolved
+                val p = userProfile
+                val accuracyStr = if (p != null && p.totalSolved > 0) {
+                    String.format("%.1f%%", (p.correctCount.toFloat() / p.totalSolved) * 100)
+                } else {
+                    "0.0%"
+                }
+                val solvedSpeed = if (userProfile != null && p.totalSolved > 0) {
+                    val avgSeconds = (p.totalTimeMinutes * 60) / p.totalSolved
                     "${avgSeconds.coerceIn(18, 75)}s"
                 } else {
-                    "38s"
+                    "0s"
                 }
-                Row(
+Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatItemCard(
                         modifier = Modifier.weight(1f),
                         title = "Questions Solved",
-                        value = "${userProfile?.totalSolved ?: 186}",
+                        value = "${p?.totalSolved ?: 0}",
                         icon = "📝"
                     )
                     StatItemCard(
                         modifier = Modifier.weight(1f),
                         title = "Accuracy",
-                        value = "81.7%",
+                        value = accuracyStr,
                         icon = "🎯"
                     )
                 }
-                Row(
+Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -748,7 +754,7 @@ fun PerformanceSummaryCard(
                     StatItemCard(
                         modifier = Modifier.weight(1f),
                         title = "Level",
-                        value = "Lvl ${userProfile?.level ?: 7}",
+                        value = "Lvl ${p?.level ?: 1}",
                         icon = "📈",
                         isBadge = true
                     )
@@ -1057,6 +1063,10 @@ fun LeaderboardMiniBanner(
     language: AppLanguage,
     onViewLeaderboard: () -> Unit
 ) {
+    val xp = userProfile?.xp ?: 0
+    val rankText = if (xp > 0) "Assam State Rank: #14" else "Unranked"
+    val subtitleText = if (xp > 0) "You are in Top 5% of scholars in Assam" else "Solve questions to get ranked"
+
     Card(
         onClick = onViewLeaderboard,
         modifier = Modifier
@@ -1084,12 +1094,12 @@ fun LeaderboardMiniBanner(
                 )
                 Column {
                     Text(
-                        text = "Assam State Rank: #14",
+                        text = rankText,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "You are in Top 5% of scholars in Assam",
+                        text = subtitleText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                     )
@@ -1209,7 +1219,7 @@ fun PomodoroClockDialog(
                     }
                 }
 
-                Row(
+Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {

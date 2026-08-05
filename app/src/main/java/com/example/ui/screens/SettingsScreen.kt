@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.data.local.QuestionEntity
 import com.example.ui.components.BilingualText
 import com.example.ui.viewmodel.AppLanguage
@@ -37,13 +38,13 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
     val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
+    val context = LocalContext.current
 
     var offlineSync by remember { mutableStateOf(true) }
-    var showCacheDialog by remember { mutableStateOf(false) }
-    var cacheClearedMessage by remember { mutableStateOf(false) }
     var showSavedQuestionsDialog by remember { mutableStateOf(false) }
     var showHiddenQuestionsDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showClearProgressDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -143,30 +144,11 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
-                    ListItem(
-                        headlineContent = { Text("Clear Temporary App Cache") },
-                        supportingContent = { Text("Free up cached test files (34 MB)") },
-                        leadingContent = { Icon(Icons.Default.CleaningServices, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                        modifier = Modifier.clickable { showCacheDialog = true }
-                    )
                 }
             }
 
-            if (cacheClearedMessage) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Cache memory successfully cleared!",
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+
 
             // Saved & Hidden Questions Management
             Text(
@@ -248,6 +230,33 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            "Clear Progress Data",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            "Reset speed, accuracy, questions solved, and rank",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingContent = {
+                        Icon(Icons.Default.RestartAlt, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    },
+                    modifier = Modifier.clickable { showClearProgressDialog = true }
+                )
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
             ) {
                 ListItem(
@@ -272,6 +281,39 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 )
             }
         }
+    }
+
+    if (showClearProgressDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearProgressDialog = false },
+            title = {
+                Text(
+                    "Clear Progress Data?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "This will reset all your progress data including speed, accuracy, questions solved, and rank. Your profile and saved questions will be kept. Are you sure you want to proceed?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearUserProgressData()
+                        showClearProgressDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Clear Progress")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearProgressDialog = false }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
     }
 
     if (showDeleteAccountDialog) {
@@ -308,28 +350,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    if (showCacheDialog) {
-        AlertDialog(
-            onDismissRequest = { showCacheDialog = false },
-            title = { Text("Clear App Cache?") },
-            text = { Text("This will clear 34 MB of temporary cached files. Your score history will remain safe.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showCacheDialog = false
-                        cacheClearedMessage = true
-                    }
-                ) {
-                    Text("Clear")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCacheDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+
 
     if (showSavedQuestionsDialog) {
         SavedQuestionsDialog(
@@ -360,6 +381,7 @@ fun SavedQuestionsDialog(
     onToggleBookmark: (QuestionEntity) -> Unit
 ) {
     val isAssamese = language == AppLanguage.ASSAMESE
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -493,6 +515,7 @@ fun HiddenQuestionsDialog(
     onUnhideAll: () -> Unit
 ) {
     val isAssamese = language == AppLanguage.ASSAMESE
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {

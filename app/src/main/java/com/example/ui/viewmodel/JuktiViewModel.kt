@@ -782,6 +782,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
+    fun clearUserProgressData() {
+        viewModelScope.launch {
+            repository.resetUserProgress()
+        }
+    }
+
     fun deleteAccount() {
         viewModelScope.launch {
             repository.updateUserProfile(
