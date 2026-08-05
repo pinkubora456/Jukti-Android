@@ -26,6 +26,13 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     val selectedExams = remember { mutableStateListOf<String>() }
     var targetExamDialogVisible by remember { mutableStateOf(false) }
     val exams by viewModel.examsList.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val rawSubjects = allSubjectsChapters.map { it.subject }.distinct()
+    val subjectsList: List<String> = if (rawSubjects.isEmpty()) listOf("Assam History", "General Knowledge") else rawSubjects
+    var subjectExpanded by remember { mutableStateOf(false) }
+    var chapterExpanded by remember { mutableStateOf(false) }
+    val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.distinct()
+    val chaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
     
     var difficultyExpanded by remember { mutableStateOf(false) }
     var difficulty by remember { mutableStateOf("Medium") }

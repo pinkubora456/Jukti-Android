@@ -25,6 +25,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     val notes by viewModel.studyNotes.collectAsState()
     val exams by viewModel.examsList.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
@@ -40,12 +41,16 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
 
     var subject by remember { mutableStateOf("Assam History") }
     var chapter by remember { mutableStateOf("Ahom Dynasty") }
+    var chapterDropdownExpanded by remember { mutableStateOf(false) }
+    val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.distinct()
+    val chaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
 
     var contentEn by remember { mutableStateOf("") }
     var contentAs by remember { mutableStateOf("") }
 
-    val subjectsList = listOf("Assam History", "Assam Geography", "Assam Culture", "Polity", "General Studies", "Quantitative Aptitude", "Logical Reasoning", "English")
+        val rawSubj = allSubjectsChapters.map { it.subject }.distinct()
+    val subjectsList: List<String> = if (rawSubj.isEmpty()) listOf("Assam History", "Assam Geography", "Assam Culture", "Polity", "General Studies", "Quantitative Aptitude", "Logical Reasoning", "English") else rawSubj
 
     Scaffold(
         topBar = {
@@ -291,13 +296,33 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                         }
                     }
                     item {
-                        OutlinedTextField(
-                            value = chapter,
-                            onValueChange = { chapter = it },
-                            label = { Text("Chapter / Topic (Optional)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+                        ExposedDropdownMenuBox(
+                            expanded = chapterDropdownExpanded,
+                            onExpandedChange = { chapterDropdownExpanded = !chapterDropdownExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = chapter,
+                                onValueChange = { chapter = it },
+                                label = { Text("Chapter / Topic (Optional)") },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                singleLine = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterDropdownExpanded) }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = chapterDropdownExpanded,
+                                onDismissRequest = { chapterDropdownExpanded = false }
+                            ) {
+                                chaptersList.forEach { chap ->
+                                    DropdownMenuItem(
+                                        text = { Text(chap) },
+                                        onClick = {
+                                            chapter = chap
+                                            chapterDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                     item {
                         OutlinedTextField(

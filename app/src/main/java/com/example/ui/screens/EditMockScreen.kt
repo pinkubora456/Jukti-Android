@@ -60,7 +60,8 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
     var questionSearchQuery by remember { mutableStateOf("") }
     val selectedQuestionIds = remember { mutableStateListOf<Long>() }
 
-    val subjectsList = listOf("All Subjects") + allQuestions.map { it.subject }.distinct()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val subjectsList = listOf("All Subjects") + allSubjectsChapters.map { it.subject }.distinct()
 
     val filteredQuestions = allQuestions.filter { q ->
         val matchesSubject = selectedSubjectFilter == "All Subjects" || q.subject.equals(selectedSubjectFilter, ignoreCase = true)

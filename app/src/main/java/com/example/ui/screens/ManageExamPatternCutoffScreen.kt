@@ -52,7 +52,8 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
     var examDropdownExpanded by remember { mutableStateOf(false) }
 
     val categories = listOf("Syllabus", "Pattern", "Cutoff", "Notification", "Admit Card")
-    val popularExams = listOf("ADRE", "APSC", "Assam Police", "TET", "Other")
+    val examsList by viewModel.examsList.collectAsState()
+    val popularExams = examsList.map { it.title } + "Other"
 
     // Populate form when editing an item
     LaunchedEffect(editingItem) {

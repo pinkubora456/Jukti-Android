@@ -36,7 +36,9 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
 
     var noteSearchQuery by remember { mutableStateOf("") }
     var selectedSubjectFilter by remember { mutableStateOf("All") }
-    val subjects = listOf("All", "Assam History", "Assam Geography", "Assam Culture", "Polity")
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val rawSubj = allSubjectsChapters.map { it.subject }.distinct()
+    val subjects = listOf("All") + if (rawSubj.isEmpty()) listOf("Assam History", "Assam Geography", "Assam Culture", "Polity") else rawSubj
 
     val filteredNotes = notes.filter { note ->
         (selectedSubjectFilter == "All" || note.subject == selectedSubjectFilter) &&

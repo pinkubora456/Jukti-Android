@@ -29,6 +29,7 @@ import com.example.ui.viewmodel.JuktiViewModel
 fun CreateMockScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     val exams by viewModel.examsList.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val allQuestions by viewModel.questions.collectAsState()
 
     var mockTitleEn by remember { mutableStateOf("") }
@@ -60,6 +61,10 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     // Add Question Dialog state
     var showAddQuestionDialog by remember { mutableStateOf(false) }
     var qSubject by remember { mutableStateOf("") }
+    var qSubjectExpanded by remember { mutableStateOf(false) }
+    var qChapterExpanded by remember { mutableStateOf(false) }
+    val rawChapters = allSubjectsChapters.filter { it.subject == qSubject }.map { it.chapter }.distinct()
+    val qChaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
     var qChapter by remember { mutableStateOf("") }
     val qSelectedExams = remember { mutableStateListOf<String>() }
     var qTargetExamDialogVisible by remember { mutableStateOf(false) }
@@ -98,7 +103,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     var addToQBank by remember { mutableStateOf(true) }
     var isUploadingQ by remember { mutableStateOf(false) }
 
-    val subjectsList = listOf("All Subjects") + allQuestions.map { it.subject }.distinct()
+        val subjectsList = listOf("All Subjects") + allSubjectsChapters.map { it.subject }.distinct()
 
     val filteredQuestions = allQuestions.filter { q ->
         val matchesSubject = selectedSubjectFilter == "All Subjects" || q.subject.equals(selectedSubjectFilter, ignoreCase = true)
@@ -522,13 +527,33 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
-                        OutlinedTextField(
-                            value = qSubject,
-                            onValueChange = { qSubject = it },
-                            label = { Text("Subject *") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+                        ExposedDropdownMenuBox(
+                            expanded = qSubjectExpanded,
+                            onExpandedChange = { qSubjectExpanded = !qSubjectExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = qSubject,
+                                onValueChange = { qSubject = it },
+                                label = { Text("Subject *") },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                singleLine = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = qSubjectExpanded) }
+                            )
+                            ExposedDropdownMenu(
+                                expanded = qSubjectExpanded,
+                                onDismissRequest = { qSubjectExpanded = false }
+                            ) {
+                                subjectsList.filter { it != "All Subjects" }.forEach { subj ->
+                                    DropdownMenuItem(
+                                        text = { Text(subj) },
+                                        onClick = {
+                                            qSubject = subj
+                                            qSubjectExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                     item {
                         OutlinedTextField(

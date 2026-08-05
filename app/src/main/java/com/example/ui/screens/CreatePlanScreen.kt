@@ -13,18 +13,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePlanScreen(viewModel: JuktiViewModel) {
-    var planName by remember { mutableStateOf("") }
+    var planName by remember { mutableStateOf(TextFieldValue("")) }
     
     // Pricing
-    var planPrice by remember { mutableStateOf("") }
-    var discount by remember { mutableStateOf("") }
-    var finalPrice by remember { mutableStateOf("") }
+    var planPrice by remember { mutableStateOf(TextFieldValue("")) }
+    var discount by remember { mutableStateOf(TextFieldValue("")) }
+    var finalPrice by remember { mutableStateOf(TextFieldValue("")) }
     
 
     // Content & Benefits Lists
@@ -32,32 +33,33 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     val featuresList = remember { mutableStateListOf<String>() }
     
     val context = androidx.compose.ui.platform.LocalContext.current
-    val examOptions = listOf("All Exams", "APSC", "ADRE", "Assam Police", "SLRC", "TET", "UPSC", "SSC", "Banking", "State PCS")
+    val examsList by viewModel.examsList.collectAsState()
+    val examOptions = listOf("All Exams") + examsList.map { it.title }
 
     // State for Mock Test Benefit
     var mockTestExamSelected by remember { mutableStateOf("All Exams") }
     var mockTestLimitOption by remember { mutableStateOf("All") }
-    var mockTestCustomLimit by remember { mutableStateOf("") }
+    var mockTestCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Questions Benefit
     var questionsExamSelected by remember { mutableStateOf("All Exams") }
     var questionsLimitOption by remember { mutableStateOf("All") }
-    var questionsCustomLimit by remember { mutableStateOf("") }
+    var questionsCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Study Notes Benefit
     var studyNotesExamSelected by remember { mutableStateOf("All Exams") }
     var studyNotesLimitOption by remember { mutableStateOf("All") }
-    var studyNotesCustomLimit by remember { mutableStateOf("") }
+    var studyNotesCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Current Affairs Benefit
     var currentAffairsExamSelected by remember { mutableStateOf("All Exams") }
     var currentAffairsLimitOption by remember { mutableStateOf("All") }
-    var currentAffairsCustomLimit by remember { mutableStateOf("") }
+    var currentAffairsCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Analyze Page Benefit
     var isAnalyzePageEnabled by remember { mutableStateOf(true) }
 
-    var customFeatureInput by remember { mutableStateOf("") }
+    var customFeatureInput by remember { mutableStateOf(TextFieldValue("")) }
 
 
     Scaffold(
@@ -107,10 +109,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         value = planPrice,
                         onValueChange = { 
                             planPrice = it 
-                            val price = it.toDoubleOrNull() ?: 0.0
-                            val disc = discount.toDoubleOrNull() ?: 0.0
+                            val price = it.text.toDoubleOrNull() ?: 0.0
+                            val disc = discount.text.toDoubleOrNull() ?: 0.0
                             if (price >= 0 && disc in 0.0..100.0) {
-                                finalPrice = (price - (price * disc / 100)).toInt().toString()
+                                finalPrice = TextFieldValue((price - (price * disc / 100)).toInt().toString())
                             }
                         },
                         label = { Text("Price (₹) *") },
@@ -122,10 +124,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         value = discount,
                         onValueChange = { 
                             discount = it 
-                            val price = planPrice.toDoubleOrNull() ?: 0.0
-                            val disc = it.toDoubleOrNull() ?: 0.0
+                            val price = planPrice.text.toDoubleOrNull() ?: 0.0
+                            val disc = it.text.toDoubleOrNull() ?: 0.0
                             if (price >= 0 && disc in 0.0..100.0) {
-                                finalPrice = (price - (price * disc / 100)).toInt().toString()
+                                finalPrice = TextFieldValue((price - (price * disc / 100)).toInt().toString())
                             }
                         },
                         label = { Text("Discount % *") },
@@ -187,12 +189,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         }
                         Button(
                             onClick = {
-                                val limit = if (mockTestLimitOption == "All") "All" else mockTestCustomLimit.ifBlank { "Custom" }
+                                val limit = if (mockTestLimitOption == "All") "All" else mockTestCustomLimit.text.ifBlank { "Custom" }
                                 val featureStr = "Mock Test ($mockTestExamSelected): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (mockTestLimitOption == "Custom") {
-                                    mockTestCustomLimit = ""
+                                    mockTestCustomLimit = TextFieldValue("")
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -240,12 +242,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         }
                         Button(
                             onClick = {
-                                val limit = if (questionsLimitOption == "All") "All" else questionsCustomLimit.ifBlank { "Custom" }
+                                val limit = if (questionsLimitOption == "All") "All" else questionsCustomLimit.text.ifBlank { "Custom" }
                                 val featureStr = "Questions ($questionsExamSelected): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (questionsLimitOption == "Custom") {
-                                    questionsCustomLimit = ""
+                                    questionsCustomLimit = TextFieldValue("")
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -293,12 +295,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         }
                         Button(
                             onClick = {
-                                val limit = if (studyNotesLimitOption == "All") "All" else studyNotesCustomLimit.ifBlank { "Custom" }
+                                val limit = if (studyNotesLimitOption == "All") "All" else studyNotesCustomLimit.text.ifBlank { "Custom" }
                                 val featureStr = "Study Notes ($studyNotesExamSelected): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (studyNotesLimitOption == "Custom") {
-                                    studyNotesCustomLimit = ""
+                                    studyNotesCustomLimit = TextFieldValue("")
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -346,12 +348,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         }
                         Button(
                             onClick = {
-                                val limit = if (currentAffairsLimitOption == "All") "All" else currentAffairsCustomLimit.ifBlank { "Custom" }
+                                val limit = if (currentAffairsLimitOption == "All") "All" else currentAffairsCustomLimit.text.ifBlank { "Custom" }
                                 val featureStr = "Current Affairs ($currentAffairsExamSelected): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (currentAffairsLimitOption == "Custom") {
-                                    currentAffairsCustomLimit = ""
+                                    currentAffairsCustomLimit = TextFieldValue("")
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -423,10 +425,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         )
                         Button(
                             onClick = {
-                                if (customFeatureInput.isNotBlank()) {
-                                    featuresList.add(customFeatureInput.trim())
-                                    contentsList.add(customFeatureInput.trim())
-                                    customFeatureInput = ""
+                                if (customFeatureInput.text.isNotBlank()) {
+                                    featuresList.add(customFeatureInput.text.trim())
+                                    contentsList.add(customFeatureInput.text.trim())
+                                    customFeatureInput = TextFieldValue("")
                                 }
                             },
                             modifier = Modifier.align(Alignment.End)
@@ -484,12 +486,12 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
             item {
                 Button(
                     onClick = {
-                        if (planName.isNotBlank() && finalPrice.isNotBlank()) {
+                        if (planName.text.isNotBlank() && finalPrice.text.isNotBlank()) {
                             val newPlan = com.example.data.local.PlanEntity(
-                                planName = planName,
-                                planPrice = planPrice,
-                                discount = discount,
-                                finalPrice = finalPrice,
+                                planName = planName.text,
+                                planPrice = planPrice.text,
+                                discount = discount.text,
+                                finalPrice = finalPrice.text,
                                 offerValidity = "", // Removed per user request
                                 contents = contentsList.joinToString(separator = "|"),
                                 features = featuresList.joinToString(separator = "|")
