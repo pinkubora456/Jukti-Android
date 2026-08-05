@@ -103,43 +103,5 @@ fun SplashScreen(viewModel: JuktiViewModel) {
                 }
             }
         }
-        
-        // Gamosa border at bottom
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .align(Alignment.BottomCenter)
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val diamondWidth = 30f
-                var x = 0f
-                while (x < size.width + diamondWidth) {
-                    val path = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(x, size.height / 2)
-                        lineTo(x + diamondWidth / 2, 0f)
-                        lineTo(x + diamondWidth, size.height / 2)
-                        lineTo(x + diamondWidth / 2, size.height)
-                        close()
-                    }
-                    drawPath(path = path, color = Color.Red)
-                    x += diamondWidth + 10f
-                }
-                
-                // Top and bottom thin red lines
-                drawLine(
-                    color = Color.Red,
-                    start = Offset(0f, 2f),
-                    end = Offset(size.width, 2f),
-                    strokeWidth = 4f
-                )
-                drawLine(
-                    color = Color.Red,
-                    start = Offset(0f, size.height - 2f),
-                    end = Offset(size.width, size.height - 2f),
-                    strokeWidth = 4f
-                )
-            }
-        }
     }
 }

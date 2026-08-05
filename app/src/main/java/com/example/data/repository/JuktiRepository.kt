@@ -18,9 +18,13 @@ class JuktiRepository(
     private val subjectChapterDao: SubjectChapterDao,
     private val pendingRequestDao: PendingRequestDao,
     private val faqDao: FaqDao,
-    private val questionProgressDao: QuestionProgressDao
+    private val questionProgressDao: QuestionProgressDao,
+    private val activityLogDao: ActivityLogDao
 ) {
     private val firebaseRepository = FirebaseRepository()
+
+    val activityLogs: Flow<List<ActivityLogEntity>> = activityLogDao.getAllLogs()
+
     val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions()
     val bookmarkedQuestions: Flow<List<QuestionEntity>> = questionDao.getBookmarkedQuestions()
     val hiddenQuestions: Flow<List<QuestionEntity>> = questionDao.getHiddenQuestions()
@@ -427,5 +431,17 @@ class JuktiRepository(
         if (newStreak % 7 == 0) {
             awardXp(30, 0)
         }
+    }
+
+    suspend fun insertActivityLog(log: ActivityLogEntity) {
+        activityLogDao.insertLog(log)
+    }
+
+    suspend fun deleteOldAdminLogs(thresholdTime: Long) {
+        activityLogDao.deleteOldAdminLogs(thresholdTime)
+    }
+
+    suspend fun deleteOldOwnerLogs(thresholdTime: Long) {
+        activityLogDao.deleteOldOwnerLogs(thresholdTime)
     }
 }

@@ -244,3 +244,18 @@ interface QuestionProgressDao {
     suspend fun insertOrUpdate(progress: QuestionProgressEntity)
 }
 
+
+@Dao
+interface ActivityLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLog(log: ActivityLogEntity)
+
+    @Query("SELECT * FROM activity_logs ORDER BY timestamp DESC")
+    fun getAllLogs(): Flow<List<ActivityLogEntity>>
+
+    @Query("DELETE FROM activity_logs WHERE role = 'ADMIN' AND timestamp < :thresholdTime")
+    suspend fun deleteOldAdminLogs(thresholdTime: Long)
+
+    @Query("DELETE FROM activity_logs WHERE role = 'OWNER' AND timestamp < :thresholdTime")
+    suspend fun deleteOldOwnerLogs(thresholdTime: Long)
+}

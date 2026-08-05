@@ -85,13 +85,13 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Column {
                         Text(
-                            text = if (isAssamese) "পৰীক্ষাৰ আৰ্হি ও কাট-অফ প'ৰ্টেল" else "Exam Pattern & Cutoff Hub",
+                            text = "Exam Pattern & Cutoff Hub",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = if (isAssamese) "ছিলেবাছ, পৰীক্ষাৰ নিয়ম আৰু পূৰ্বৱৰ্তী কাট-অফ" else "Syllabus, Exam Patterns & Category Cutoffs",
+                            text = "Syllabus, Exam Patterns & Category Cutoffs",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -145,7 +145,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isAssamese) tab.titleAs else tab.titleEn,
+                                    text = tab.titleEn,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = contentColor
@@ -242,7 +242,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             if (filteredUpdates.isNotEmpty()) {
                 item {
                     Text(
-                        text = if (isAssamese) "প্ৰাসংগিক অফিচিয়েল জাননীসমূহ:" else "Official Notices & Notifications:",
+                        text = "Official Notices & Notifications:",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -288,13 +288,13 @@ fun SyllabusHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = if (isAssamese) "অসম পৰীক্ষাৰ বিষয়বস্তু আৰু ছিলেবাছ" else "Exam Syllabus & Subject Breakdown",
+                    text = "Exam Syllabus & Subject Breakdown",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = if (isAssamese) "প্ৰতিটো পৰীক্ষাৰ বিস্তৃত অধ্যায় আৰু বিষয় সূচী" else "Comprehensive topic-wise breakdown for all Assam Govt. Exams",
+                    text = "Comprehensive topic-wise breakdown for all Assam Govt. Exams",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
@@ -323,13 +323,13 @@ fun ExamPatternHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = if (isAssamese) "পৰীক্ষাৰ আৰ্হি আৰু নম্বৰ বিভাজন" else "Exam Pattern & Marking Scheme",
+                    text = "Exam Pattern & Marking Scheme",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
-                    text = if (isAssamese) "প্ৰশ্নৰ সংখ্যা, সময়সীমা আৰু নেগেটিভ মাৰ্কিং নিয়ম" else "Duration, total marks, negative marking & question distribution",
+                    text = "Duration, total marks, negative marking & question distribution",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                 )
@@ -358,13 +358,13 @@ fun CutoffHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = if (isAssamese) "পূৰ্বৱৰ্তী আৰু সম্ভাব্য কাট-অফ নম্বৰ" else "Previous Year & Expected Cutoffs",
+                    text = "Previous Year & Expected Cutoffs",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
-                    text = if (isAssamese) "শ্ৰেণী অনুসৰি কাট-অফ নম্বৰৰ সবিশেষ" else "Category-wise minimum qualifying scores (UR, OBC, SC, ST, EWS)",
+                    text = "Category-wise minimum qualifying scores (UR, OBC, SC, ST, EWS)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                 )
@@ -797,7 +797,7 @@ fun ExamUpdateItemCard(
             ) {
                 Icon(Icons.Default.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(if (language == AppLanguage.ASSAMESE) "অফিচিয়েল লিংক চাওক" else "Official Website Link")
+                Text("Official Website Link")
             }
         }
     }

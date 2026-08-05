@@ -112,7 +112,7 @@ fun StudySubjectBannerCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isAssamese) banner.titleAs else banner.titleEn,
+                            text = banner.titleEn,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -131,7 +131,7 @@ fun StudySubjectBannerCard(
                         }
                     }
                     Text(
-                        text = if (isAssamese) banner.subtitleAs else banner.subtitleEn,
+                        text = banner.subtitleEn,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -144,16 +144,16 @@ fun StudySubjectBannerCard(
                 onExpandedChange = { expanded = !expanded }
             ) {
                 val labelText = when {
-                    selectedChapters.isEmpty() -> if (isAssamese) "সকলো অধ্যায় নিৰ্বাচিত (Mix All)" else "All Chapters Selected (Mix All)"
+                    selectedChapters.isEmpty() -> "All Chapters Selected (Mix All)"
                     selectedChapters.size == 1 -> selectedChapters.first()
-                    else -> if (isAssamese) "${selectedChapters.size} টা অধ্যায় নিৰ্বাচিত" else "${selectedChapters.size} Chapters Selected"
+                    else -> "${selectedChapters.size} Chapters Selected"
                 }
 
                 OutlinedTextField(
                     value = labelText,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text(if (isAssamese) "অধ্যায় বাছনি (একক/বহু)" else "Select Chapters (Single/Multiple)", fontSize = 12.sp) },
+                    label = { Text("Select Chapters (Single/Multiple)", fontSize = 12.sp) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .menuAnchor()
@@ -182,7 +182,7 @@ fun StudySubjectBannerCard(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isAssamese) "সকলো অধ্যায় (Mix All)" else "All Chapters (Mix All)",
+                                    text = "All Chapters (Mix All)",
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -257,7 +257,7 @@ fun StudySubjectBannerCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isAssamese) actionButtonTextAs else actionButtonTextEn,
+                        text = actionButtonTextEn,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -313,10 +313,10 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         Column {
                             Text(
                                 text = when (activeStudySubView) {
-                                    "STUDY_MCQS" -> if (isAssamese) "Study MCQs" else "Study MCQs"
-                                    "POMODORO" -> if (isAssamese) "Pomodoro Timer" else "Pomodoro Study Timer"
-                                    "CURRENT_AFFAIRS" -> if (isAssamese) "কাৰেণ্ট এফেয়াৰ্ছ" else "Current Affairs"
-                                    else -> if (isAssamese) "অধ্যয়ন কেন্দ্ৰ" else "Study Hub"
+                                    "STUDY_MCQS" -> "Study MCQs"
+                                    "POMODORO" -> "Pomodoro Study Timer"
+                                    "CURRENT_AFFAIRS" -> "Current Affairs"
+                                    else -> "Study Hub"
                                 },
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
@@ -324,10 +324,10 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             )
                             Text(
                                 text = when (activeStudySubView) {
-                                    "STUDY_MCQS" -> if (isAssamese) "অধ্যায় আৰু বিষয় অনুসৰি MCQs" else "Learn chapter-wise MCQs"
-                                    "POMODORO" -> if (isAssamese) "একাগ্ৰতাৰে অধ্যয়ন কৰক" else "Stay focused with timed study sessions"
-                                    "CURRENT_AFFAIRS" -> if (isAssamese) "দৈনিক কাৰেণ্ট এফেয়াৰ্ছ নোটছ" else "Daily updated news capsules & study notes"
-                                    else -> if (isAssamese) "আপোনাৰ প্ৰস্তুতিৰ বাবে বিষয় বাছনি কৰক" else "Choose a module to start learning"
+                                    "STUDY_MCQS" -> "Learn chapter-wise MCQs"
+                                    "POMODORO" -> "Stay focused with timed study sessions"
+                                    "CURRENT_AFFAIRS" -> "Daily updated news capsules & study notes"
+                                    else -> "Choose a module to start learning"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -433,7 +433,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text(if (isAssamese) "বিষয়, অধ্যায়, নোটছ বিচাৰক..." else "Search subjects, chapters, notes...") },
+                        placeholder = { Text("Search subjects, chapters, notes...") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -447,12 +447,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Study MCQs",
                         description = "Learn chapter-wise MCQs.",
-                        actionText = if (isAssamese) "অধ্যয়ন আৰম্ভ কৰক" else "Start Learning",
+                        actionText = "Start Learning",
                         icon = Icons.Default.AutoStories,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
                         onClick = { activeStudySubView = "STUDY_MCQS" },
-                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ" else "$solvedQuestions/$availableQuestions completed",
+                        progressText = "$solvedQuestions/$availableQuestions completed",
                         badgeText = "🔥 Popular"
                     )
 
@@ -460,12 +460,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Practice MCQs",
                         description = "Practice with instant explanations.",
-                        actionText = if (isAssamese) "অনুশীলন কৰক" else "Practice Now",
+                        actionText = "Practice Now",
                         icon = Icons.Default.Quiz,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.secondary,
                         onClick = { viewModel.navigateTo(Screen.PRACTICE) },
-                        progressText = if (isAssamese) "$solvedQuestions/$availableQuestions সম্পূৰ্ণ" else "$solvedQuestions/$availableQuestions completed",
+                        progressText = "$solvedQuestions/$availableQuestions completed",
                         badgeText = "⭐ Recommended"
                     )
 
@@ -473,12 +473,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Mock Tests",
                         description = "Attempt full-length mock exams.",
-                        actionText = if (isAssamese) "পৰীক্ষা দিয়ক" else "Attempt Test",
+                        actionText = "Attempt Test",
                         icon = Icons.Default.Assignment,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
                         onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
-                        progressText = if (isAssamese) "$completedMocks/$availableMocks সম্পূৰ্ণ" else "$completedMocks/$availableMocks completed",
+                        progressText = "$completedMocks/$availableMocks completed",
                         badgeText = "👑 Premium"
                     )
 
@@ -486,7 +486,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Pomodoro Study Timer",
                         description = "Stay focused with timed study sessions.",
-                        actionText = if (isAssamese) "টাইমাৰ আৰম্ভ কৰক" else "Start Timer",
+                        actionText = "Start Timer",
                         icon = Icons.Default.HourglassTop,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.error,
@@ -498,12 +498,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Study Notes",
                         description = "Read chapter-wise notes.",
-                        actionText = if (isAssamese) "নো ট পঢ়ক" else "Read Notes",
+                        actionText = "Read Notes",
                         icon = Icons.Default.Description,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
                         onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
-                        progressText = if (isAssamese) "$availableNotes টো উপলব্ধ" else "$availableNotes chapters available",
+                        progressText = "$availableNotes chapters available",
                         badgeText = "🆕 New"
                     )
 
@@ -511,7 +511,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Exam Pattern & Cutoff",
                         description = "View Exam Patterns, Syllabus & Previous Year Cutoffs.",
-                        actionText = if (isAssamese) "বিৱৰণ চাওক" else "View Details",
+                        actionText = "View Details",
                         icon = Icons.Default.Analytics,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.secondary,
@@ -523,7 +523,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     StudyFeatureCard(
                         title = "Current Affairs",
                         description = "Stay updated with daily current affairs notes & news capsules.",
-                        actionText = if (isAssamese) "নোটছ পঢ়ক" else "Read Notes",
+                        actionText = "Read Notes",
                         icon = Icons.Default.Newspaper,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
@@ -767,7 +767,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = if (isAssamese) "অধ্যয়নৰ বাবে বিষয় বাছনি কৰক:" else "Choose Subject to Study:",
+                    text = "Choose Subject to Study:",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -887,11 +887,11 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = when(selectedSubjectTab) {
-                            "General Knowledge" -> if (isAssamese) "সাধাৰণ জ্ঞান" else "General Knowledge"
-                            "General English" -> if (isAssamese) "সাধাৰণ ইংৰাজী" else "General English"
-                            "General Mathematics" -> if (isAssamese) "গণিত" else "Mathematics"
-                            "Reasoning" -> if (isAssamese) "যুক্তিবিদ্যা" else "Reasoning"
-                            else -> if (isAssamese) "সকলো বিষয়" else "All Subjects"
+                            "General Knowledge" -> "General Knowledge"
+                            "General English" -> "General English"
+                            "General Mathematics" -> "Mathematics"
+                            "Reasoning" -> "Reasoning"
+                            else -> "All Subjects"
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -899,9 +899,9 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     )
                     Text(
                         text = if (selectedChapters.isEmpty()) {
-                            if (isAssamese) "সকলো অধ্যায় • ${studyQuestionsList.size} প্ৰশ্ন" else "All Chapters • ${studyQuestionsList.size} Questions"
+                            "All Chapters • ${studyQuestionsList.size} Questions"
                         } else {
-                            if (isAssamese) "${selectedChapters.size} টা অধ্যায় • ${studyQuestionsList.size} প্ৰশ্ন" else "${selectedChapters.size} Chapters • ${studyQuestionsList.size} Questions"
+                            "${selectedChapters.size} Chapters • ${studyQuestionsList.size} Questions"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -956,7 +956,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     ) {
                         val totalStudied = userProfile?.totalSolved ?: studiedQuestionsCountInSession
                         Text(
-                            text = if (isAssamese) "অধ্যয়ন: $totalStudied" else "Studied: $totalStudied",
+                            text = "Studied: $totalStudied",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -981,7 +981,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     Icon(Icons.Default.SearchOff, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (isAssamese) "নিৰ্বাচিত অধ্যায়ৰ কোনো প্ৰশ্ন পোৱা নগ'ল" else "No questions found for selected chapter",
+                        text = "No questions found for selected chapter",
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center
                     )
@@ -990,7 +990,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         selectedSubjectTab = "All Subject"
                         selectedChapters = emptySet()
                     }) {
-                        Text(if (isAssamese) "সকলো বিষয় চাওক" else "View All Subjects")
+                        Text("View All Subjects")
                     }
                 }
             }
@@ -1056,7 +1056,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             }) {
                                 Icon(
                                     imageVector = Icons.Outlined.VisibilityOff,
-                                    contentDescription = if (isAssamese) "প্ৰশ্নটো লুকুৱাওক" else "Hide Question",
+                                    contentDescription = "Hide Question",
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -1188,7 +1188,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                     Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isAssamese) "উত্তৰ আৰু ব্যাখ্যা (Direct Explanation):" else "Correct Answer & Explanation:",
+                                        text = "Correct Answer & Explanation:",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1240,7 +1240,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isAssamese) "পূৰ্বৱৰ্তী" else "Previous")
+                            Text("Previous")
                         }
 
                         // Status Badge
@@ -1262,7 +1262,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             enabled = currentQuestionIndex < studyQuestionsList.size - 1,
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (isAssamese) "পরৱৰ্তী" else "Next")
+                            Text("Next")
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next", modifier = Modifier.size(18.dp))
                         }
@@ -1279,14 +1279,13 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) },
                 title = {
                     Text(
-                        text = if (isAssamese) "বিনামূলীয়া সীমা সমাপ্ত (Free Plan Limit)" else "Free Daily Limit Reached",
+                        text = "Free Daily Limit Reached",
                         fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
                     Text(
-                        text = if (isAssamese) "আপুনি আজিৰ ২৫টা প্ৰশ্নৰ অধ্যয়ন সীমা সম্পূৰ্ণ কৰিলে। সীমাহীন MCQ অধ্যয়ন আৰু ব্যাখ্যা লাভ কৰিবলৈ Jukti Premium লৈ আপগ্ৰেড কৰক।"
-                        else "You have studied 25 questions in this session. Upgrade to Jukti Premium to unlock unlimited MCQ practice, custom tests, and detailed PDF study notes!"
+                        text = "You have studied 25 questions in this session. Upgrade to Jukti Premium to unlock unlimited MCQ practice, custom tests, and detailed PDF study notes!"
                     )
                 },
                 confirmButton = {
@@ -1294,12 +1293,12 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         showLimitModal = false
                         viewModel.navigateTo(Screen.PREMIUM_PLANS)
                     }) {
-                        Text(if (isAssamese) "প্ৰিমিয়াম লওক" else "Upgrade to Premium")
+                        Text("Upgrade to Premium")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showLimitModal = false }) {
-                        Text(if (isAssamese) "পাছত কৰিম" else "Continue Free")
+                        Text("Continue Free")
                     }
                 }
             )
@@ -1309,18 +1308,15 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
             AlertDialog(
                 onDismissRequest = { showHideNotice = false },
                 icon = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                title = { Text(if (isAssamese) "প্ৰশ্নটো লুকুৱাই থোৱা হ'ল" else "Question Hidden") },
+                title = { Text("Question Hidden") },
                 text = {
                     Text(
-                        if (isAssamese) 
-                            "এই প্ৰশ্নটো আপোনাৰ অধ্যয়নৰ পৰা লুকুৱাই থোৱা হ'ল কাৰণ আপুনি ইয়াৰ উত্তৰ ভালদৰে জানে। ছেটিংছৰ 'লুকুৱাই থোৱা প্ৰশ্নসমূহ'ত ইয়াক পুনৰ চাব বা আনহাইড কৰিব পাৰিব।"
-                        else 
-                            "This question has been hidden because you know it very well! It will no longer appear in your study or practice sessions. You can review or unhide it anytime under Settings."
+                        "This question has been hidden because you know it very well! It will no longer appear in your study or practice sessions. You can review or unhide it anytime under Settings."
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = { showHideNotice = false }) {
-                        Text(if (isAssamese) "বুজি পালোঁ" else "Got It")
+                        Text("Got It")
                     }
                 }
             )
@@ -1379,7 +1375,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isAssamese) "প্ৰেক্টিছ কুইজ (Timed Practice)" else "Timed Practice Quiz",
+                text = "Timed Practice Quiz",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -1392,7 +1388,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                 ) {
                     val count = userProfile?.totalSolved ?: 0
                     Text(
-                        text = if (isAssamese) "অনুশীলন: $count" else "Practiced: $count",
+                        text = "Practiced: $count",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
@@ -1468,8 +1464,8 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
         if (currentQuestion == null) {
             com.example.ui.components.EmptyStateIllustration(
                 type = com.example.ui.components.EmptyStateType.RHINO_BOOK,
-                title = if (isAssamese) "কোনো প্ৰশ্ন উপলব্ধ নাই" else "No Questions",
-                message = if (isAssamese) "এই বিষয়ৰ বাবে কোনো প্ৰশ্ন উপলব্ধ নাই।" else "No practice questions available.",
+                title = "No Questions",
+                message = "No practice questions available.",
                 modifier = Modifier.fillMaxWidth().padding(top = 40.dp)
             )
         } else {
@@ -1518,7 +1514,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             }) {
                                 Icon(
                                     imageVector = Icons.Outlined.VisibilityOff,
-                                    contentDescription = if (isAssamese) "প্ৰশ্নটো লুকুৱাওক" else "Hide Question",
+                                    contentDescription = "Hide Question",
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -1602,7 +1598,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             enabled = selectedOptionIndex != null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (isAssamese) "উত্তৰ দাখিল কৰক (Submit)" else "Submit Answer")
+                            Text("Submit Answer")
                         }
                     } else {
                         Button(
@@ -1618,7 +1614,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (currentQuestionIndex == activeQuestions.size - 1) (if (isAssamese) "সমাপ্ত (Finish)" else "Finish Practice") else (if (isAssamese) "পৰৱৰ্তী প্ৰশ্ন (Next Question)" else "Next Question"))
+                            Text(if (currentQuestionIndex == activeQuestions.size - 1) ("Finish Practice") else ("Next Question"))
                         }
                     }
                 }
@@ -1699,7 +1695,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     timeRemainingSeconds = 25 * 60
                     isTimerRunning = false
                 },
-                label = { Text(if (isAssamese) "অধ্যয়ন (25 মীন)" else "Study Mode (25m)") }
+                label = { Text("Study Mode (25m)") }
             )
             FilterChip(
                 selected = (timerMode == "Break"),
@@ -1709,7 +1705,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     timeRemainingSeconds = 5 * 60
                     isTimerRunning = false
                 },
-                label = { Text(if (isAssamese) "জিৰণি (5 মীন)" else "Short Break (5m)") }
+                label = { Text("Short Break (5m)") }
             )
         }
 
@@ -1736,7 +1732,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = if (timerMode == "Study") (if (isAssamese) "অধ্যয়ন চলি আছে..." else "FOCUSING") else (if (isAssamese) "জিৰণি সময়..." else "REST TIME"),
+                    text = if (timerMode == "Study") ("FOCUSING") else ("REST TIME"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.outline
@@ -1755,7 +1751,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
             ) {
                 Icon(if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isTimerRunning) (if (isAssamese) "স্থগিত ৰাখক" else "Pause") else (if (isAssamese) "আৰম্ভ কৰক" else "Start Timer"))
+                Text(if (isTimerRunning) ("Pause") else ("Start Timer"))
             }
 
             OutlinedButton(
@@ -1768,7 +1764,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isAssamese) "পুনৰ ছেট কৰক" else "Reset")
+                Text("Reset")
             }
         }
 
@@ -1789,7 +1785,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = if (isAssamese) "আজি সম্পূৰ্ণ কৰা পম'ড'ৰ' ছেশ্বন:" else "Completed Focus Sessions Today:",
+                        text = "Completed Focus Sessions Today:",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -2173,7 +2169,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isAssamese) "উভতি যাওক" else "Back to List")
+                    Text("Back to List")
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2211,7 +2207,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = if (isAssamese) note.titleAs else note.titleEn,
+                text = note.titleEn,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -2227,7 +2223,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
-                        text = if (isAssamese) note.contentAs else note.contentEn,
+                        text = note.contentEn,
                         style = MaterialTheme.typography.bodyLarge,
                         lineHeight = 24.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -2262,13 +2258,13 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if (isAssamese) "দৈনিক কাৰেণ্ট এফেয়াৰ্ছ নোটছ" else "Daily Current Affairs Study Notes",
+                                text = "Daily Current Affairs Study Notes",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Text(
-                                text = if (isAssamese) "অসম আৰু ৰাষ্ট্ৰীয় প্ৰধান বিষয়সমূহৰ বিষয়সূচী" else "High-yield news capsules, schemes & state highlights",
+                                text = "High-yield news capsules, schemes & state highlights",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                             )
@@ -2284,7 +2280,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = if (isAssamese) "কাৰেণ্ট এফেয়াৰ্ছ বিষয় বিচাৰক..." else "Search current affairs topic or keyword...",
+                            text = "Search current affairs topic or keyword...",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     },
@@ -2329,7 +2325,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isAssamese) "কোনো কাৰেণ্ট এফেয়াৰ্ছ নোট পোৱা নগ'ল" else "No current affairs study notes found.",
+                            text = "No current affairs study notes found.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -2372,7 +2368,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
-                                text = if (isAssamese) note.titleAs else note.titleEn,
+                                text = note.titleEn,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -2381,7 +2377,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = if (isAssamese) note.contentAs.take(120) + "..." else note.contentEn.take(120) + "...",
+                                text = note.contentEn.take(120) + "...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -2394,7 +2390,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 TextButton(onClick = { selectedNote = note }) {
-                                    Text(if (isAssamese) "সম্পূৰ্ণ নোটছ পঢ়ক →" else "Read Full Notes →", fontWeight = FontWeight.Bold)
+                                    Text("Read Full Notes →", fontWeight = FontWeight.Bold)
                                 }
 
                                 IconButton(onClick = { viewModel.toggleBookmarkNote(note) }) {

@@ -140,7 +140,7 @@ data class UserProfileEntity(
 @Entity(tableName = "about_config")
 data class AboutConfigEntity(
     @PrimaryKey val id: Int = 1,
-    val appTitle: String = "Jukti (যুক্তি)",
+    val appTitle: String = "Jukti",
     val appSubtitleEn: String = "Test Your Knowledge",
     val appSubtitleAs: String = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
     val versionText: String = "Version 2026.1.0",
@@ -219,3 +219,12 @@ data class QuestionProgressEntity(
     val isMastered: Boolean = false
 )
 
+
+@Entity(tableName = "activity_logs")
+data class ActivityLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userEmail: String,
+    val role: String, // "ADMIN" or "OWNER"
+    val actionDetails: String,
+    val timestamp: Long
+)

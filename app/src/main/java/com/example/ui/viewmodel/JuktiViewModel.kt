@@ -87,7 +87,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.subjectChapterDao(),
         database.pendingRequestDao(),
         database.faqDao(),
-        database.questionProgressDao()
+        database.questionProgressDao(),
+        database.activityLogDao()
     )
 
     val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
@@ -111,6 +112,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addExam(title: String, subtitle: String, status: String = "Active") {
+        logActivity("Added exam: $title")
         viewModelScope.launch {
             repository.insertExam(ExamEntity(title = title, subtitle = subtitle, status = status))
         }
@@ -221,7 +223,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val aboutConfig: StateFlow<AboutConfigEntity> = repository.aboutConfig.map {
-        it ?: SampleData.initialAboutConfig
+        val config = it ?: SampleData.initialAboutConfig
+        if (config.appTitle == "Jukti (যুক্তি)") {
+            val newConfig = config.copy(appTitle = "Jukti")
+            viewModelScope.launch { repository.updateAboutConfig(newConfig) }
+            newConfig
+        } else {
+            config
+        }
     }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), SampleData.initialAboutConfig
     )
@@ -312,9 +321,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _mockTimeRemainingSeconds = MutableStateFlow(5400) // 90 mins
     val mockTimeRemainingSeconds: StateFlow<Int> = _mockTimeRemainingSeconds.asStateFlow()
 
+    val activityLogs: StateFlow<List<ActivityLogEntity>> = repository.activityLogs.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
     init {
         viewModelScope.launch {
             repository.initializeSeedDataIfNeeded()
+            cleanUpOldLogs()
         }
         viewModelScope.launch {
             userProfile.collect { prof ->
@@ -364,6 +378,32 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun logActivity(actionDetails: String) {
+        val user = userProfile.value ?: return
+        if (user.role == "ADMIN" || user.role == "OWNER") {
+            viewModelScope.launch {
+                repository.insertActivityLog(
+                    ActivityLogEntity(
+                        userEmail = user.email,
+                        role = user.role,
+                        actionDetails = actionDetails,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun cleanUpOldLogs() {
+        viewModelScope.launch {
+            val currentTime = System.currentTimeMillis()
+            val adminThreshold = currentTime - (45L * 24 * 60 * 60 * 1000)
+            val ownerThreshold = currentTime - (10L * 24 * 60 * 60 * 1000)
+            repository.deleteOldAdminLogs(adminThreshold)
+            repository.deleteOldOwnerLogs(ownerThreshold)
+        }
+    }
+
     fun toggleLanguage() {
         _language.value = if (_language.value == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH
     }
@@ -376,21 +416,20 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         _questionLanguage.value = lang
     }
 
-    fun toggleTheme(isSystemDark: Boolean) {
-        val current = _isDarkTheme.value ?: isSystemDark
-        val newValue = !current
-        _isDarkTheme.value = newValue
-        prefs.edit().putBoolean("is_dark_theme", newValue).apply()
+
+    fun setDarkTheme(isDark: Boolean) {
+        _isDarkTheme.value = isDark
+        prefs.edit().putBoolean("is_dark_theme", isDark).apply()
     }
 
-    fun toggleDarkTheme(isSystemDark: Boolean) {
-        val current = _isDarkTheme.value ?: isSystemDark
-        val newValue = !current
-        _isDarkTheme.value = newValue
-        prefs.edit().putBoolean("is_dark_theme", newValue).apply()
-    }
+
+    private var lastNavTime = 0L
 
     fun navigateTo(screen: Screen) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastNavTime < 500) return
+        lastNavTime = currentTime
+
         when (screen) {
             Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> {
                 _lastSessionType.value = "mock"
@@ -552,6 +591,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateMockTest(mock: MockTestEntity, onComplete: () -> Unit = {}) {
+        logActivity("Updated mock test: ${mock.titleEn}")
         viewModelScope.launch {
             repository.updateMockTest(mock)
             onComplete()
@@ -572,6 +612,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateStudyNote(note: StudyNoteEntity, onComplete: () -> Unit = {}) {
+        logActivity("Updated study note: ${note.titleEn}")
         viewModelScope.launch {
             repository.updateStudyNote(note)
             onComplete()
@@ -723,6 +764,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAboutConfig(config: AboutConfigEntity) {
+        logActivity("Updated About/Config settings")
         viewModelScope.launch {
             repository.updateAboutConfig(config)
         }
@@ -895,6 +937,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun deleteQuestion(question: QuestionEntity) {
+        logActivity("Deleted question ID: ${question.id}")
         viewModelScope.launch {
             repository.deleteQuestion(question)
         }

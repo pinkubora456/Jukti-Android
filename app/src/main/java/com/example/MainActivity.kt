@@ -17,6 +17,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.ui.components.*
 import com.example.ui.screens.*
@@ -78,9 +85,27 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
-                            when (screen) {
+                    var isTransitioning by remember { mutableStateOf(false) }
+                    LaunchedEffect(currentScreen) {
+                        isTransitioning = true
+                        delay(500) // Block clicks for 500ms after navigation
+                        isTransitioning = false
+                    }
+                    Box(modifier = Modifier
+                        .padding(innerPadding)
+                        .pointerInput(isTransitioning) {
+                            if (isTransitioning) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        val screen = currentScreen
+                        when (screen) {
                                 Screen.SPLASH -> SplashScreen(viewModel)
                                 Screen.HOME -> HomeScreen(viewModel)
                                 Screen.MCQ_STUDY -> McqStudyScreen(viewModel)
@@ -127,7 +152,6 @@ class MainActivity : ComponentActivity() {
                                    Screen.MANAGE_BANNERS -> ManageBannersScreen(viewModel)
                                     Screen.REFUND_POLICY -> RefundPolicyScreen(viewModel)
                             }
-                        }
                     }
                 }
             }
@@ -162,7 +186,7 @@ fun JuktiBottomNavigation(
                     )
                 },
                 label = {
-                    Text(if (language == AppLanguage.ASSAMESE) item.titleAs else item.titleEn)
+                    Text(item.titleEn)
                 }
             )
         }

@@ -44,7 +44,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     if (showEditProfileDialog) {
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
-            title = { Text(if (language == AppLanguage.ASSAMESE) "প্ৰফাইল সম্পাদনা কৰক" else "Edit Profile") },
+            title = { Text("Edit Profile") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -130,7 +130,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(if (language == AppLanguage.ASSAMESE) "মোৰ প্লাণৰ বিৱৰণ" else "My Plan Details", fontWeight = FontWeight.Bold)
+                    Text("My Plan Details", fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -156,7 +156,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     }
 
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "প্লাণৰ সুবিধাসমূহ:" else "Plan Features Included:",
+                        text = "Plan Features Included:",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -200,7 +200,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (language == AppLanguage.ASSAMESE) "প্ৰফাইল" else "My Profile", fontWeight = FontWeight.Bold) },
+                title = { Text("My Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -290,7 +290,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         ) {
             Icon(Icons.Default.Edit, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (language == AppLanguage.ASSAMESE) "প্ৰফাইল সম্পাদনা কৰক" else "Edit Profile Details")
+            Text("Edit Profile Details")
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -302,7 +302,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         ) {
             Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (language == AppLanguage.ASSAMESE) "মোৰ প্লাণৰ বিৱৰণ (My Plan)" else "My Plan Details")
+            Text("My Plan Details")
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -318,7 +318,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         ) {
             Icon(Icons.Default.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (language == AppLanguage.ASSAMESE) "লগ আউট" else "Sign Out")
+            Text("Sign Out")
         }
     }
 }

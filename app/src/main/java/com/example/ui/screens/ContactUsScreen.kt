@@ -59,7 +59,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isAssamese) "যোগাযোগ আৰু সহায়" else "Contact Us", fontWeight = FontWeight.Bold) },
+                title = { Text("Contact Us", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -89,7 +89,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
         ) {
             // Support Channels Banner
             Text(
-                text = if (isAssamese) "দ্ৰুত সহায় চেনেলসমূহ" else "Direct Support Channels",
+                text = "Direct Support Channels",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -120,7 +120,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isAssamese) "প্ৰায়ে সোধা প্ৰশ্নসমূহ (FAQ)" else "Frequently Asked Questions",
+                    text = "Frequently Asked Questions",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -140,7 +140,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add FAQ", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isAssamese) "যোগ কৰক" else "+ Add FAQ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("+ Add FAQ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -151,7 +151,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = if (isAssamese) "কোনো প্রশ্ন উপলব্ধ নাই" else "No FAQs available.",
+                        text = "No FAQs available.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)

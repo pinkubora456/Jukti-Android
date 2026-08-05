@@ -329,7 +329,7 @@ fun UserWelcomeHeader(
                 }
                 Column {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "নমস্কাৰ, ${userProfile?.name ?: "পৰীক্ষাৰ্থী"}" else "Hello, ${userProfile?.name ?: "Scholar"}",
+                        text = "Hello, ${userProfile?.name ?: "Scholar"}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -384,13 +384,13 @@ fun ContinueLearningCard(
                 )
                 Column {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "অধ্যয়ন চলাই যাওক" else "Continue Learning",
+                        text = "Continue Learning",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) titleTextAs else titleTextEn,
+                        text = titleTextEn,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -470,7 +470,7 @@ fun PromotionalBannersSection(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "এতিয়াই প্ৰিমিয়াম কৰক" else "Upgrade to Pass Pro",
+                            text = "Upgrade to Pass Pro",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -508,7 +508,7 @@ fun QuickNavGrid(
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
-            text = if (language == AppLanguage.ASSAMESE) "দ্ৰুত নেভিগেচন" else "Quick Navigation",
+            text = "Quick Navigation",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -647,7 +647,7 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "দৈনিক কুইজ challenge" else "Daily Quiz Challenge",
+                        text = "Daily Quiz Challenge",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -656,12 +656,12 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "আজৰি সময়ৰ ১০টা প্ৰশ্ন - +৫০ এক্সপি উপাৰ্জন কৰক" else "10 Quick MCQs for Today - Earn +50 XP",
+                    text = "10 Quick MCQs for Today - Earn +50 XP",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "বিষয়: অসমৰ ইতিহাস আৰু কাৰেণ্ট এফেয়াৰ্ছ" else "Topics: Assam History & Current Affairs",
+                    text = "Topics: Assam History & Current Affairs",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -670,7 +670,7 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
                 onClick = onStartQuiz,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(if (language == AppLanguage.ASSAMESE) "আৰম্ভ কৰক" else "Start Quiz")
+                Text("Start Quiz")
             }
         }
     }
@@ -697,12 +697,12 @@ fun PerformanceSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "প্ৰদৰ্শনৰ সাৰাংশ" else "Performance Summary",
+                    text = "Performance Summary",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(onClick = onViewAnalytics) {
-                    Text(if (language == AppLanguage.ASSAMESE) "বিশ্লেষণ চাওক" else "View Analytics")
+                    Text("View Analytics")
                 }
             }
 
@@ -724,13 +724,13 @@ fun PerformanceSummaryCard(
                 ) {
                     StatItemCard(
                         modifier = Modifier.weight(1f),
-                        title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved",
+                        title = "Questions Solved",
                         value = "${userProfile?.totalSolved ?: 186}",
                         icon = "📝"
                     )
                     StatItemCard(
                         modifier = Modifier.weight(1f),
-                        title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy",
+                        title = "Accuracy",
                         value = "81.7%",
                         icon = "🎯"
                     )
@@ -741,13 +741,13 @@ fun PerformanceSummaryCard(
                 ) {
                     StatItemCard(
                         modifier = Modifier.weight(1f),
-                        title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Speed",
+                        title = "Speed",
                         value = solvedSpeed,
                         icon = "⚡"
                     )
                     StatItemCard(
                         modifier = Modifier.weight(1f),
-                        title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level",
+                        title = "Level",
                         value = "Lvl ${userProfile?.level ?: 7}",
                         icon = "📈",
                         isBadge = true
@@ -839,7 +839,7 @@ fun SectionHeader(
             fontWeight = FontWeight.Bold
         )
         TextButton(onClick = onSeeAllClick) {
-            Text(if (language == AppLanguage.ASSAMESE) "সকলো চাওক" else "See All")
+            Text("See All")
         }
     }
 }
@@ -947,9 +947,9 @@ fun MockTestCard(
             ) {
                 Text(
                     text = if (mock.isCompleted) {
-                        if (language == AppLanguage.ASSAMESE) "পুনৰ চেষ্টা কৰক" else "Re-attempt"
+                        "Re-attempt"
                     } else {
-                        if (language == AppLanguage.ASSAMESE) "পৰীক্ষা দিয়ক" else "Attempt Mock"
+                        "Attempt Mock"
                     }
                 )
             }
@@ -1025,13 +1025,13 @@ fun CurrentAffairsSection(language: AppLanguage, onStartPractice: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "অসম ও ৰাষ্ট্ৰীয় কাৰেণ্ট এফেয়াৰ্ছ" else "Assam & National Current Affairs",
+                    text = "Assam & National Current Affairs",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "দৈনিক গুৰুত্বপূৰ্ণ বিষয় আৰু পঢ়ন নোটছ" else "Daily updated news capsules and study notes",
+                    text = "Daily updated news capsules and study notes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1084,12 +1084,12 @@ fun LeaderboardMiniBanner(
                 )
                 Column {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "অসম ৰাজ্যিক লিডাৰব'ৰ্ড" else "Assam State Rank: #14",
+                        text = "Assam State Rank: #14",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "আপুনি শীৰ্ষ ৫% পৰীক্ষাৰ্থীৰ ভিতৰত আছে" else "You are in Top 5% of scholars in Assam",
+                        text = "You are in Top 5% of scholars in Assam",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                     )
@@ -1153,7 +1153,7 @@ fun PomodoroClockDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = if (isAssamese) "পমোড’ৰ’ ষ্টাদী ক্লক" else "Study Pomodoro Clock",
+                    text = "Study Pomodoro Clock",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1167,9 +1167,9 @@ fun PomodoroClockDialog(
             ) {
                 Text(
                     text = if (isBreakMode) {
-                        if (isAssamese) "☕ জিৰণিৰ সময় (Break Time)" else "☕ Short Rest & Refresh"
+                        "☕ Short Rest & Refresh"
                     } else {
-                        if (isAssamese) "🎯 মনোযোগ চক্ৰ (Deep Focus Session)" else "🎯 Deep Focus Study Cycle"
+                        "🎯 Deep Focus Study Cycle"
                     },
                     style = MaterialTheme.typography.labelLarge,
                     color = if (isBreakMode) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
@@ -1279,7 +1279,7 @@ fun PomodoroClockDialog(
                 }
 
                 Text(
-                    text = if (isAssamese) "সম্পূৰ্ণ হোৱা ছেছন: $sessionsCompleted 🔥" else "Completed Sessions Today: $sessionsCompleted 🔥",
+                    text = "Completed Sessions Today: $sessionsCompleted 🔥",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1288,7 +1288,7 @@ fun PomodoroClockDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(if (isAssamese) "বন্ধ কৰক" else "Close")
+                Text("Close")
             }
         }
     )

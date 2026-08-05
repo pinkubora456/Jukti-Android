@@ -144,14 +144,14 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                         Text(
                             text = if (isSessionStarted) {
                                 when (selectedSubjectKey) {
-                                    "General Knowledge" -> if (isAssamese) "সাধাৰণ জ্ঞান (GK)" else "General Knowledge"
-                                    "General English" -> if (isAssamese) "সাধাৰণ ইংৰাজী" else "General English"
-                                    "Mathematics", "General Mathematics" -> if (isAssamese) "গণিত (Mathematics)" else "Mathematics"
-                                    "Reasoning" -> if (isAssamese) "যুক্তিবিদ্যা" else "Reasoning"
-                                    else -> if (isAssamese) "সকলো বিষয়" else "All Subjects"
+                                    "General Knowledge" -> "General Knowledge"
+                                    "General English" -> "General English"
+                                    "Mathematics", "General Mathematics" -> "Mathematics"
+                                    "Reasoning" -> "Reasoning"
+                                    else -> "All Subjects"
                                 }
                             } else {
-                                if (isAssamese) "অনুশীলন মডিউল" else "Practice MCQ"
+                                "Practice MCQ"
                             },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
@@ -160,13 +160,13 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                         Text(
                             text = if (isSessionStarted) {
                                 val chText = if (selectedChapters.isEmpty()) {
-                                    if (isAssamese) "সকলো অধ্যায় (Mix All)" else "All Chapters"
+                                    "All Chapters"
                                 } else {
-                                    if (isAssamese) "${selectedChapters.size} টা অধ্যায়" else "${selectedChapters.size} Chapters"
+                                    "${selectedChapters.size} Chapters"
                                 }
-                                "$chText • ${practiceQuestions.size} ${if (isAssamese) "প্ৰশ্ন" else "Questions"}"
+                                "$chText • ${practiceQuestions.size} ${"Questions"}"
                             } else {
-                                if (isAssamese) "বিষয় নিৰ্বাচন কৰি অনুশীলন কৰক" else "Select a subject banner to start practice"
+                                "Select a subject banner to start practice"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -191,7 +191,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = if (isAssamese) "অনুশীলন: $totalPracticedCount" else "Practiced: $totalPracticedCount",
+                                    text = "Practiced: $totalPracticedCount",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -222,7 +222,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = if (isAssamese) "প্ৰশ্নৰ ভাষা:" else "Question Language:",
+                            text = "Question Language:",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -268,7 +268,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = if (isAssamese) "অনুশীলন বাবে বিষয় বাছনি কৰক:" else "Choose Subject to Practice:",
+                    text = "Choose Subject to Practice:",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -400,12 +400,12 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                         ) {
                             com.example.ui.components.EmptyStateIllustration(
                                 type = com.example.ui.components.EmptyStateType.RHINO_BOOK,
-                                title = if (isAssamese) "কোনো প্ৰশ্ন উপলব্ধ নাই" else "No Questions Found",
-                                message = if (isAssamese) "এই বিষয় বা অধ্যায়ৰ বাবে কোনো প্ৰশ্ন উপলব্ধ নাই।" else "No questions found for the selected subject or chapter.",
+                                title = "No Questions Found",
+                                message = "No questions found for the selected subject or chapter.",
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
                             )
                             Button(onClick = { isSessionStarted = false }) {
-                                Text(if (isAssamese) "পাছলৈ যাওক" else "Back to Subjects")
+                                Text("Back to Subjects")
                             }
                         }
                     }
@@ -667,7 +667,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                                 Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
-                                                    text = if (isAssamese) "উত্তৰৰ ব্যাখ্যা (Explanation):" else "Explanation & Analysis:",
+                                                    text = "Explanation & Analysis:",
                                                     style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -705,7 +705,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     enabled = currentQuestionIndex > 0
                                 ) {
                                     Icon(Icons.Default.ChevronLeft, contentDescription = null)
-                                    Text(if (isAssamese) "পূৰ্বৱৰ্তী" else "Previous")
+                                    Text("Previous")
                                 }
 
                                 Button(
@@ -722,9 +722,9 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                 ) {
                                     Text(
                                         if (currentQuestionIndex == practiceQuestions.size - 1) {
-                                            if (isAssamese) "সমাপ্ত" else "Completed"
+                                            "Completed"
                                         } else {
-                                            if (isAssamese) "পৰৱৰ্তী" else "Next"
+                                            "Next"
                                         }
                                     )
                                     Icon(Icons.Default.ChevronRight, contentDescription = null)
@@ -812,7 +812,7 @@ private fun PracticeSubjectBannerCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isAssamese) banner.titleAs else banner.titleEn,
+                            text = banner.titleEn,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -831,7 +831,7 @@ private fun PracticeSubjectBannerCard(
                         }
                     }
                     Text(
-                        text = if (isAssamese) banner.subtitleAs else banner.subtitleEn,
+                        text = banner.subtitleEn,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -844,16 +844,16 @@ private fun PracticeSubjectBannerCard(
                 onExpandedChange = { expanded = !expanded }
             ) {
                 val labelText = when {
-                    selectedChapters.isEmpty() -> if (isAssamese) "সকলো অধ্যায় নিৰ্বাচিত (Mix All)" else "All Chapters Selected (Mix All)"
+                    selectedChapters.isEmpty() -> "All Chapters Selected (Mix All)"
                     selectedChapters.size == 1 -> selectedChapters.first()
-                    else -> if (isAssamese) "${selectedChapters.size} টা অধ্যায় নিৰ্বাচিত" else "${selectedChapters.size} Chapters Selected"
+                    else -> "${selectedChapters.size} Chapters Selected"
                 }
 
                 OutlinedTextField(
                     value = labelText,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text(if (isAssamese) "অধ্যায় বাছনি (একক/বহু)" else "Select Chapters (Single/Multiple)", fontSize = 12.sp) },
+                    label = { Text("Select Chapters (Single/Multiple)", fontSize = 12.sp) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .menuAnchor()
@@ -882,7 +882,7 @@ private fun PracticeSubjectBannerCard(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isAssamese) "সকলো অধ্যায় (Mix All)" else "All Chapters (Mix All)",
+                                    text = "All Chapters (Mix All)",
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -957,7 +957,7 @@ private fun PracticeSubjectBannerCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isAssamese) actionButtonTextAs else actionButtonTextEn,
+                        text = actionButtonTextEn,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )

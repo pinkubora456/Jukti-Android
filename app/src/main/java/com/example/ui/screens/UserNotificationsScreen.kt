@@ -32,7 +32,7 @@ fun UserNotificationsScreen(viewModel: JuktiViewModel) {
             TopAppBar(
                 title = { 
                     Text(
-                        text = if (isAssamese) "জাননীসমূহ" else "Notifications", 
+                        text = "Notifications", 
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -74,12 +74,12 @@ fun UserNotificationsScreen(viewModel: JuktiViewModel) {
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                         )
                         Text(
-                            text = if (isAssamese) "কোনো জাননী পোৱা হোৱা নাই।" else "No notifications received yet.",
+                            text = "No notifications received yet.",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = if (isAssamese) "এডমিনৰ পৰা জাননী ইয়াতে দেখা পাব।" else "Important updates from admin will appear here.",
+                            text = "Important updates from admin will appear here.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )

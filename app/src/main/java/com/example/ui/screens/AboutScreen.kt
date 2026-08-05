@@ -56,7 +56,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isAssamese) "যুক্তিৰ বিষয়ে" else "About Jukti App", fontWeight = FontWeight.Bold) },
+                title = { Text("About Jukti App", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -192,7 +192,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = if (isAssamese) aboutConfig.appSubtitleAs else aboutConfig.appSubtitleEn,
+                    text = aboutConfig.appSubtitleEn,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -211,14 +211,14 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = if (isAssamese) "আমাৰ উদ্দেশ্য" else "Our Mission",
+                        text = "Our Mission",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (isAssamese) aboutConfig.missionAs else aboutConfig.missionEn,
+                        text = aboutConfig.missionEn,
                         style = MaterialTheme.typography.bodyMedium,
                         lineHeight = 22.sp
                     )
@@ -231,7 +231,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = if (isAssamese) "প্ৰধান সুবিধাসমূহ" else "Key Platform Features",
+                        text = "Key Platform Features",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -284,13 +284,13 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isAssamese) "XP, স্তৰ আৰু লিডাৰব'ৰ্ড কেনেকৈ কাম কৰে" else "How XP, Levels & Leaderboard Work",
+                            text = "How XP, Levels & Leaderboard Work",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = if (isAssamese) "পৰীক্ষা উত্তীৰ্ণৰ সম্ভাৱনা আৰু অন্যান্য এনালাইটিক্সৰ বিষয়ে জানক" else "Learn about exam clearance probability and analytics",
+                            text = "Learn about exam clearance probability and analytics",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -738,7 +738,7 @@ fun GamificationInfoDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = if (isAssamese) "XP, স্তৰ আৰু এনালাইটিক্স কেনেকৈ কাম কৰে" else "How XP, Levels & Analytics Work",
+                text = "How XP, Levels & Analytics Work",
                 fontWeight = FontWeight.Bold
             )
         },
@@ -755,7 +755,7 @@ fun GamificationInfoDialog(
                         Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAssamese) "XP আৰু স্তৰ (Levels)" else "XP & Levels",
+                            text = "XP & Levels",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -763,7 +763,7 @@ fun GamificationInfoDialog(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isAssamese) "আপুনি মক টেষ্ট (Mock Tests) আৰু প্ৰেকটিছ কুইজ (Practice Quizzes) সম্পূৰ্ণ কৰাৰ লগে লগে XP অৰ্জন কৰে। অধিক XP য়ে আপোনাক নতুন স্তৰ (Levels) আৰু বেজ (Badges) আনলক কৰাত সহায় কৰে।" else "You earn XP by completing Mock Tests and Practice Quizzes. Gaining more XP helps you level up and unlock new Badges.",
+                        text = "You earn XP by completing Mock Tests and Practice Quizzes. Gaining more XP helps you level up and unlock new Badges.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -774,7 +774,7 @@ fun GamificationInfoDialog(
                         Icon(Icons.Default.Analytics, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAssamese) "উত্তীৰ্ণৰ সম্ভাৱনা" else "Exam Clearance Probability",
+                            text = "Exam Clearance Probability",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -782,7 +782,7 @@ fun GamificationInfoDialog(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isAssamese) "এইটো আপোনাৰ গড় স্ক'ৰ, কুইজৰ সঠিকতা, আৰু নিয়মীয়া প্ৰদৰ্শনৰ ওপৰত ভিত্তি কৰি গণনা কৰা হয়। ই দেখুৱায় যে আপুনি প্ৰকৃত পৰীক্ষাত উত্তীৰ্ণ হোৱাৰ কিমান সম্ভাৱনা আছে।" else "This is calculated based on your average mock test scores, practice accuracy, and consistency. It gives you an estimate of your chances of clearing the real exam.",
+                        text = "This is calculated based on your average mock test scores, practice accuracy, and consistency. It gives you an estimate of your chances of clearing the real exam.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -793,7 +793,7 @@ fun GamificationInfoDialog(
                         Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAssamese) "লিডাৰব'ৰ্ড" else "Leaderboard",
+                            text = "Leaderboard",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -801,7 +801,7 @@ fun GamificationInfoDialog(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (isAssamese) "লিডাৰব'ৰ্ডে আপোনাক অসমৰ অন্যান্য পৰীক্ষাৰ্থীসকলৰ সৈতে ৰেংকিং কৰে। ই আপোনাৰ XP আৰু মক টেষ্টৰ গড় স্ক'ৰ (Mock Avg) দুয়োটা ব্যৱহাৰ কৰি আপোনাৰ স্থান নিৰ্ধাৰণ কৰে।" else "The Leaderboard ranks you against other aspirants across Assam. It uses both your total XP and average mock test scores to determine your position.",
+                        text = "The Leaderboard ranks you against other aspirants across Assam. It uses both your total XP and average mock test scores to determine your position.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -809,7 +809,7 @@ fun GamificationInfoDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(if (isAssamese) "বুজিলো" else "Got it")
+                Text("Got it")
             }
         }
     )

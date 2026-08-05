@@ -99,7 +99,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val content = if (language == AppLanguage.ASSAMESE) selectedNote!!.contentAs.ifBlank { selectedNote!!.contentEn } else selectedNote!!.contentEn
+                val content = selectedNote!!.contentEn
                 Text(
                     text = content,
                     style = MaterialTheme.typography.bodyMedium,
@@ -127,7 +127,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "পৰীক্ষাৰ অধ্যয়ন নোটছ" else "Study Notes & Revision Sheets",
+                            text = "Study Notes & Revision Sheets",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -139,7 +139,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                     OutlinedTextField(
                         value = noteSearchQuery,
                         onValueChange = { noteSearchQuery = it },
-                        placeholder = { Text(if (language == AppLanguage.ASSAMESE) "নোটছ বিচাৰক..." else "Search notes...") },
+                        placeholder = { Text("Search notes...") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -163,8 +163,8 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
             if (filteredNotes.isEmpty()) {
                 com.example.ui.components.EmptyStateIllustration(
                     type = com.example.ui.components.EmptyStateType.NOTEBOOK_GAMOSA,
-                    title = if (isAssamese) "কোনো টোকা পোৱা নগ'ল" else "No Notes Found",
-                    message = if (isAssamese) "অনুগ্ৰহ কৰি আপোনাৰ ফিল্টাৰ সলনি কৰক" else "Try clearing your search query or filters",
+                    title = "No Notes Found",
+                    message = "Try clearing your search query or filters",
                     modifier = Modifier.fillMaxWidth().padding(top = 40.dp)
                 )
             } else {

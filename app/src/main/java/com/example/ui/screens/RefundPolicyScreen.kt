@@ -50,7 +50,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isAssamese) "ৰিফাণ্ড পলিচি (Refund Policy)" else "Refund Policy", fontWeight = FontWeight.Bold) },
+                title = { Text("Refund Policy", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(
                         onClick = { viewModel.navigateTo(Screen.MENU) },
@@ -99,7 +99,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
             }
 
             Text(
-                text = if (isAssamese) "ক্ৰয় আৰু ৰিফাণ্ডৰ নিয়মাৱলী" else "Purchase & Refund Guidelines",
+                text = "Purchase & Refund Guidelines",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -114,7 +114,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = if (isAssamese) aboutConfig.refundPolicyAs else aboutConfig.refundPolicyEn,
+                        text = aboutConfig.refundPolicyEn,
                         style = MaterialTheme.typography.bodyMedium,
                         lineHeight = 22.sp,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -140,7 +140,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = if (isAssamese) "কিবা অসুবিধা পালে support@jukti.in ত যোগাযোগ কৰক।" else "For any payment discrepancy, email support@jukti.in",
+                        text = "For any payment discrepancy, email support@jukti.in",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium

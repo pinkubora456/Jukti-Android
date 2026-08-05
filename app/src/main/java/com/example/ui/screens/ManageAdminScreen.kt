@@ -50,7 +50,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(if (isAssamese) "এডমিন ব্যৱস্থাপনা" else "Manage Admins") 
+                    Text("Manage Admins") 
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
@@ -87,15 +87,12 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (isAssamese) "এডমিন যোগ কৰক" else "Promote / Add Admin",
+                            text = "Promote / Add Admin",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isAssamese)
-                                "যিটো ইমেইল আইডি ইয়াত যোগ কৰা হ'ব, সেই ইমেইলেৰে লগইন কৰিলে স্বয়ংক্ৰিয়ভাৱে এডমিন ক্ষমতা লাভ কৰিব।"
-                            else
-                                "Enter an email ID below. Anyone logging in with this email will automatically receive full Admin access.",
+                            text = "Enter an email ID below. Anyone logging in with this email will automatically receive full Admin access.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -109,7 +106,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
             OutlinedTextField(
                 value = emailInput,
                 onValueChange = { emailInput = it },
-                label = { Text(if (isAssamese) "নতুন এডমিনৰ ইমেইল লিখক" else "Enter User Email ID") },
+                label = { Text("Enter User Email ID") },
                 placeholder = { Text("example@domain.com") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -127,7 +124,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
                     ) {
                         Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isAssamese) "যোগ কৰক" else "Make Admin")
+                        Text("Make Admin")
                     }
                 }
             )
@@ -135,10 +132,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
             if (showSuccessMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (isAssamese)
-                        "✓ $showSuccessMessage ক এডমিন হিচাপে যোগ কৰা হ'ল"
-                    else
-                        "✓ $showSuccessMessage added as Admin!",
+                    text = "✓ $showSuccessMessage added as Admin!",
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold
@@ -149,7 +143,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
 
             // Search Existing Admins Section
             Text(
-                text = if (isAssamese) "বৰ্তমানৰ এডমিনসকল (${adminEmailsList.size})" else "Current Admins (${adminEmailsList.size})",
+                text = "Current Admins (${adminEmailsList.size})",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -159,7 +153,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text(if (isAssamese) "ইমেইল সন্ধান কৰক..." else "Search admin by email...") },
+                placeholder = { Text("Search admin by email...") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = {
@@ -178,9 +172,9 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
                 ) {
                     Text(
                         text = if (searchQuery.isNotBlank())
-                            (if (isAssamese) "কোনো এডমিন পোৱা নগ'ল" else "No matching admin found")
+                            ("No matching admin found")
                         else
-                            (if (isAssamese) "কোনো অতিৰিক্ত এডমিন সূচীভুক্ত কৰা নাই" else "No additional admin emails added yet."),
+                            ("No additional admin emails added yet."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

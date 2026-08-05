@@ -127,7 +127,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                     }
                     Column {
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "পৰীক্ষাৰ বিশ্লেষণ & ফলাফল" else "Mock Test Result & Analysis",
+                            text = "Mock Test Result & Analysis",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -168,7 +168,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                 onClick = { selectedTab = 0 },
                 text = {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "ফলাফল সংক্ষেপ" else "Scorecard Summary",
+                        text = "Scorecard Summary",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -179,7 +179,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                 onClick = { selectedTab = 1 },
                 text = {
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "প্ৰশ্ন বিশ্লেষণ (${activeQuestions.size})" else "Analyze Questions (${activeQuestions.size})",
+                        text = "Analyze Questions (${activeQuestions.size})",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -216,7 +216,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "অভিনন্দন! ফলাফল সফলভাৱে সংৰক্ষিত" else "Test Submitted Successfully!",
+                    text = "Test Submitted Successfully!",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -236,17 +236,17 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             ResultStatBox(
-                                title = if (language == AppLanguage.ASSAMESE) "প্ৰাপ্ত নম্বৰ" else "Score",
+                                title = "Score",
                                 value = "${mockTest?.userScore ?: (correctCount * 2)}/${mockTest?.totalMarks ?: (activeQuestions.size * 2)}",
                                 color = MaterialTheme.colorScheme.primary
                             )
                             ResultStatBox(
-                                title = if (language == AppLanguage.ASSAMESE) "অসম ৰেংক" else "Assam Rank",
+                                title = "Assam Rank",
                                 value = "#${mockTest?.userRank ?: 14}",
                                 color = MaterialTheme.colorScheme.secondary
                             )
                             ResultStatBox(
-                                title = if (language == AppLanguage.ASSAMESE) "পাৰচেণ্টাইল" else "Percentile",
+                                title = "Percentile",
                                 value = "96.8%",
                                 color = Color(0xFF00897B)
                             )
@@ -258,7 +258,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
 
                         // DETAILED QUESTION BREAKDOWN COUNTS
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "প্ৰশ্নৰ ফলাফলৰ বিভাজন:" else "Question Performance Breakdown:",
+                            text = "Question Performance Breakdown:",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -273,7 +273,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             // Correct
                             BreakdownChip(
                                 modifier = Modifier.weight(1f),
-                                label = if (language == AppLanguage.ASSAMESE) "শুদ্ধ" else "Correct",
+                                label = "Correct",
                                 count = "$correctCount",
                                 icon = Icons.Default.CheckCircle,
                                 color = Color(0xFF2E7D32),
@@ -282,7 +282,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             // Incorrect
                             BreakdownChip(
                                 modifier = Modifier.weight(1f),
-                                label = if (language == AppLanguage.ASSAMESE) "ভুল" else "Incorrect",
+                                label = "Incorrect",
                                 count = "$incorrectCount",
                                 icon = Icons.Default.Cancel,
                                 color = Color(0xFFC62828),
@@ -291,7 +291,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             // Skipped
                             BreakdownChip(
                                 modifier = Modifier.weight(1f),
-                                label = if (language == AppLanguage.ASSAMESE) "এৰি থোৱা" else "Skipped",
+                                label = "Skipped",
                                 count = "$skippedCount",
                                 icon = Icons.Default.RemoveCircleOutline,
                                 color = Color(0xFFE65100),
@@ -306,7 +306,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (language == AppLanguage.ASSAMESE) "মুঠ চেষ্টা কৰা প্ৰশ্ন:" else "Attempted Questions:",
+                                text = "Attempted Questions:",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
@@ -320,7 +320,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (language == AppLanguage.ASSAMESE) "শুদ্ধতাৰ পৰিমাণ (Accuracy):" else "Accuracy Rate:",
+                                text = "Accuracy Rate:",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
@@ -344,7 +344,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                     Icon(Icons.Default.Analytics, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (language == AppLanguage.ASSAMESE) "প্ৰশ্নৰ উত্তৰ & ব্যাখ্যা বিশ্লেষণ কৰক ➔" else "Analyze Questions & Explanations ➔",
+                        text = "Analyze Questions & Explanations ➔",
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -400,7 +400,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(if (language == AppLanguage.ASSAMESE) "গৃহ পৃষ্ঠালৈ ঘূৰি যাওক" else "Return to Home")
+                    Text("Return to Home")
                 }
             }
         } else {
@@ -418,7 +418,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (language == AppLanguage.ASSAMESE) "ফিল্টাৰসমূহ:" else "Filter Analysis:",
+                                text = "Filter Analysis:",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -492,7 +492,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (language == AppLanguage.ASSAMESE) "ভাষা নির্বাচন:" else "Explanations Language:",
+                                text = "Explanations Language:",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -587,7 +587,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "এই ফিল্টাৰৰ বাবে কোনো প্ৰশ্ন পোৱা নগ'ল" else "No questions match the selected filter.",
+                            text = "No questions match the selected filter.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -653,9 +653,9 @@ fun QuestionAnalysisCard(
     }
 
     val statusText = when {
-        isCorrect -> if (appLanguage == AppLanguage.ASSAMESE) "শুদ্ধ (+1.0)" else "Correct (+1.0)"
-        isIncorrect -> if (appLanguage == AppLanguage.ASSAMESE) "ভুল (-0.25)" else "Incorrect (-0.25)"
-        else -> if (appLanguage == AppLanguage.ASSAMESE) "এৰি থোৱা (0.0)" else "Skipped (0.0)"
+        isCorrect -> "Correct (+1.0)"
+        isIncorrect -> "Incorrect (-0.25)"
+        else -> "Skipped (0.0)"
     }
 
     Card(
@@ -811,7 +811,7 @@ fun QuestionAnalysisCard(
                                     color = Color(0xFFFFCDD2)
                                 ) {
                                     Text(
-                                        text = if (appLanguage == AppLanguage.ASSAMESE) "আপোনাৰ উত্তৰ ✕" else "Your Answer ✕",
+                                        text = "Your Answer ✕",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -828,9 +828,9 @@ fun QuestionAnalysisCard(
                                 ) {
                                     Text(
                                         text = if (isThisUserChoice) {
-                                            if (appLanguage == AppLanguage.ASSAMESE) "আপোনাৰ শুদ্ধ উত্তৰ ✓" else "Your Correct Choice ✓"
+                                            "Your Correct Choice ✓"
                                         } else {
-                                            if (appLanguage == AppLanguage.ASSAMESE) "শুদ্ধ উত্তৰ ✓" else "Correct Answer ✓"
+                                            "Correct Answer ✓"
                                         },
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 10.sp,
@@ -864,7 +864,7 @@ fun QuestionAnalysisCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (appLanguage == AppLanguage.ASSAMESE) "সমাধান আৰু ব্যাখ্যা (Solution & Explanation):" else "Solution & Detailed Explanation:",
+                            text = "Solution & Detailed Explanation:",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -893,9 +893,9 @@ fun QuestionAnalysisCard(
             ) {
                 Text(
                     text = if (isSkipped) {
-                        if (appLanguage == AppLanguage.ASSAMESE) "প্ৰশ্নটি উত্তৰ নকৰাকৈ এৰি থোৱা হৈছিল" else "Question was left unattempted"
+                        "Question was left unattempted"
                     } else {
-                        if (appLanguage == AppLanguage.ASSAMESE) "উত্তৰ সংৰক্ষিত" else "Answer saved"
+                        "Answer saved"
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -71,7 +71,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text(if (language == AppLanguage.ASSAMESE) "প্ৰশ্ন, নোটছ, মক টেষ্ট বিচাৰক..." else "Search questions, notes, mocks...") },
+                    placeholder = { Text("Search questions, notes, mocks...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
@@ -93,7 +93,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (language == AppLanguage.ASSAMESE) "অনুসন্ধান কৰিবলৈ শব্দ টাইপ কৰক" else "Type to search across Jukti app",
+                    text = "Type to search across Jukti app",
                     color = MaterialTheme.colorScheme.outline
                 )
             }

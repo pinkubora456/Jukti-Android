@@ -266,7 +266,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isAssamese) "লিডাৰব'ৰ্ড আৰু প্ৰগ্ৰেছ এনালাইটিক্স" else "Leaderboard & Analytics",
+                        text = "Leaderboard & Analytics",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -279,12 +279,12 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                     Tab(
                         selected = (selectedTab == 0),
                         onClick = { selectedTab = 0 },
-                        text = { Text(if (isAssamese) "ৰাজ্যিক ৰেংক" else "State Leaderboard", fontWeight = FontWeight.Bold) }
+                        text = { Text("State Leaderboard", fontWeight = FontWeight.Bold) }
                     )
                     Tab(
                         selected = (selectedTab == 1),
                         onClick = { selectedTab = 1 },
-                        text = { Text(if (isAssamese) "মোৰ এনালাইটিক্স" else "My Analytics", fontWeight = FontWeight.Bold) }
+                        text = { Text("My Analytics", fontWeight = FontWeight.Bold) }
                     )
                 }
             }
@@ -471,7 +471,7 @@ fun ExamClearanceProbabilityCard(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAssamese) "পৰীক্ষা উত্তীৰ্ণ হোৱাৰ সম্ভাৱনা" else "Probability of Clearing Exam",
+                            text = "Probability of Clearing Exam",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -479,7 +479,7 @@ fun ExamClearanceProbabilityCard(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (isAssamese) "Assam Grade 3 & 4 exam-ৰ তুলনা অনুযায়ী" else "Based on Assam Grade 3 & 4 exam benchmark statistics",
+                        text = "Based on Assam Grade 3 & 4 exam benchmark statistics",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -539,7 +539,7 @@ fun ExamClearanceProbabilityCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isAssamese) chanceTextAs else chanceTextEn,
+                            text = chanceTextEn,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = chanceColor
@@ -548,7 +548,7 @@ fun ExamClearanceProbabilityCard(
                 }
 
                 Text(
-                    text = if (isAssamese) "অধিক পৰিশ্ৰম কৰক" else "Keep practicing to improve",
+                    text = "Keep practicing to improve",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     fontWeight = FontWeight.Medium
@@ -565,7 +565,7 @@ fun ExamClearanceProbabilityCard(
 fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            text = if (isAssamese) "মূল প্ৰদৰ্শন সূচক (KPI Grid)" else "Key Performance Indicators",
+            text = "Key Performance Indicators",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -577,9 +577,9 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             // 1. MCQ Solved
             KpiCardItem(
                 modifier = Modifier.weight(1f),
-                title = if (isAssamese) "সমাধান কৰা MCQ" else "MCQ Solved",
+                title = "MCQ Solved",
                 value = "$userProfileSolved",
-                subtitle = if (isAssamese) "+১১২ এই সপ্তাহত" else "+112 this week",
+                subtitle = "+112 this week",
                 icon = Icons.Default.Quiz,
                 iconTint = MaterialTheme.colorScheme.primary
             )
@@ -587,9 +587,9 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             // 2. Solve Speed (per MCQ)
             KpiCardItem(
                 modifier = Modifier.weight(1f),
-                title = if (isAssamese) "সমাধানৰ গতি (প্ৰতি MCQ)" else "Solve Speed (per MCQ)",
+                title = "Solve Speed (per MCQ)",
                 value = "24s",
-                subtitle = if (isAssamese) "উৎকৃষ্ট (<৩০ ছেকেণ্ড)" else "Optimal (<30 sec)",
+                subtitle = "Optimal (<30 sec)",
                 icon = Icons.Default.Speed,
                 iconTint = MaterialTheme.colorScheme.secondary
             )
@@ -602,9 +602,9 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             // 3. Accuracy
             KpiCardItem(
                 modifier = Modifier.weight(1f),
-                title = if (isAssamese) "শুদ্ধতা (Accuracy)" else "Accuracy",
+                title = "Accuracy",
                 value = "82.5%",
-                subtitle = if (isAssamese) "+৩.৫% বৃদ্ধি" else "+3.5% increase",
+                subtitle = "+3.5% increase",
                 icon = Icons.Default.CheckCircle,
                 iconTint = MaterialTheme.colorScheme.success
             )
@@ -612,9 +612,9 @@ fun KpiGrid2x2(userProfileSolved: Int, isAssamese: Boolean) {
             // 4. Percentile
             KpiCardItem(
                 modifier = Modifier.weight(1f),
-                title = if (isAssamese) "পাৰ্চেন্টাইল (Percentile)" else "Percentile",
+                title = "Percentile",
                 value = "95.8%",
-                subtitle = if (isAssamese) "অসমৰ শীৰ্ষ ৫% ভিতৰত" else "Top 5% in Assam",
+                subtitle = "Top 5% in Assam",
                 icon = Icons.Default.Equalizer,
                 iconTint = MaterialTheme.colorScheme.accent
             )
@@ -723,12 +723,12 @@ fun WeakSubjectFocusSection(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isAssamese) "দুৰ্বল বিষয়ৰ গুৰুত্ব (Weak Subject Focus)" else "Weak Subject Focus",
+                            text = "Weak Subject Focus",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isAssamese) "শীঘ্ৰে সংশোধন কৰি নম্বৰ সুৰক্ষিত কৰক" else "High priority areas needing immediate revision",
+                            text = "High priority areas needing immediate revision",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -754,12 +754,12 @@ fun WeakSubjectFocusSection(
                                 BilingualText(
                                     textEn = subject.subjectNameEn,
                                     textAs = subject.subjectNameAs,
-                                    language = if (isAssamese) AppLanguage.ASSAMESE else AppLanguage.ENGLISH,
+                                    language = AppLanguage.ENGLISH,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = if (isAssamese) "শুদ্ধতা: ${subject.accuracyPercent}% • ${subject.questionsSolved}টা সমাধান কৰা হৈছে" else "Accuracy: ${subject.accuracyPercent}% • ${subject.questionsSolved} questions solved",
+                                    text = "Accuracy: ${subject.accuracyPercent}% • ${subject.questionsSolved} questions solved",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.SemiBold
@@ -773,7 +773,7 @@ fun WeakSubjectFocusSection(
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
                                 Text(
-                                    text = if (isAssamese) "অনুশীলন" else "Practice",
+                                    text = "Practice",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -790,7 +790,7 @@ fun WeakSubjectFocusSection(
 
                         if (lowestChapters.isNotEmpty()) {
                             Text(
-                                text = if (isAssamese) "দুৰ্বল অধ্যায়সমূহ:" else "Key Weak Chapters:",
+                                text = "Key Weak Chapters:",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
@@ -802,7 +802,7 @@ fun WeakSubjectFocusSection(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "• ${if (isAssamese) chap.nameAs else chap.nameEn}",
+                                        text = "• ${chap.nameEn}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.weight(1f)
@@ -838,7 +838,7 @@ fun SubjectAccuracyBreakdownSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            text = if (isAssamese) "বিষয়ভিত্তিক শুদ্ধতা বিভাজন (Subject Breakdown)" else "Subject Accuracy Breakdown",
+            text = "Subject Accuracy Breakdown",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -880,7 +880,7 @@ fun SubjectBreakdownBannerCard(
                     BilingualText(
                         textEn = subject.subjectNameEn,
                         textAs = subject.subjectNameAs,
-                        language = if (isAssamese) AppLanguage.ASSAMESE else AppLanguage.ENGLISH,
+                        language = AppLanguage.ENGLISH,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -916,7 +916,7 @@ fun SubjectBreakdownBannerCard(
                     // Questions Solved
                     Column(horizontalAlignment = Alignment.Start) {
                         Text(
-                            text = if (isAssamese) "সমাধান কৰা প্ৰশ্ন" else "Questions Solved",
+                            text = "Questions Solved",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -938,7 +938,7 @@ fun SubjectBreakdownBannerCard(
                     // Accuracy
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (isAssamese) "শুদ্ধতা" else "Accuracy",
+                            text = "Accuracy",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -960,7 +960,7 @@ fun SubjectBreakdownBannerCard(
                     // Average Time Per Question
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = if (isAssamese) "গড় সময়/প্ৰশ্ন" else "Avg. Time/Q",
+                            text = "Avg. Time/Q",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -991,7 +991,7 @@ fun SubjectBreakdownBannerCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isAssamese) "প্ৰায়ে ভুল / এৰাই চলা প্ৰশ্ন পৰীক্ষা কৰক (${subject.missedQuestions.size})" else "Frequently Incorrect / Skipped Questions (${subject.missedQuestions.size})",
+                    text = "Frequently Incorrect / Skipped Questions (${subject.missedQuestions.size})",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -1008,7 +1008,7 @@ fun SubjectBreakdownBannerCard(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = if (isAssamese) "অধ্যায়ভিত্তিক শুদ্ধতা (কমৰ পৰা বেছিলৈ):" else "Chapter Accuracy (Lowest to Highest):",
+                        text = "Chapter Accuracy (Lowest to Highest):",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -1045,7 +1045,7 @@ fun SubjectBreakdownBannerCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (isAssamese) chap.nameAs else chap.nameEn,
+                                text = chap.nameEn,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
@@ -1083,12 +1083,12 @@ fun MissedQuestionsModalDialog(
         title = {
             Column {
                 Text(
-                    text = if (isAssamese) "প্ৰায়ে ভুল / এৰাই চলা প্ৰশ্ন" else "Frequently Incorrect / Skipped Questions",
+                    text = "Frequently Incorrect / Skipped Questions",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (isAssamese) subject.subjectNameAs else subject.subjectNameEn,
+                    text = subject.subjectNameEn,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -1103,7 +1103,7 @@ fun MissedQuestionsModalDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isAssamese) "এই বিষয়ত কোনো সঘনাই ভুল হোৱা প্ৰশ্ন সংৰক্ষিত নাই। সুন্দৰ প্ৰদৰ্শন!" else "No frequently incorrect or skipped questions recorded for this subject. Great job!",
+                        text = "No frequently incorrect or skipped questions recorded for this subject. Great job!",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1153,7 +1153,7 @@ fun MissedQuestionsModalDialog(
                                 BilingualText(
                                     textEn = item.questionEn,
                                     textAs = item.questionAs,
-                                    language = if (isAssamese) AppLanguage.ASSAMESE else AppLanguage.ENGLISH,
+                                    language = AppLanguage.ENGLISH,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1167,7 +1167,7 @@ fun MissedQuestionsModalDialog(
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
                                         Text(
-                                            text = if (isAssamese) "শুদ্ধ উত্তৰ: ${item.optionsAs.getOrNull(item.correctIndex) ?: ""}" else "Correct Answer: ${item.optionsEn.getOrNull(item.correctIndex) ?: ""}",
+                                            text = "Correct Answer: ${item.optionsEn.getOrNull(item.correctIndex) ?: ""}",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSuccessContainer
@@ -1176,7 +1176,7 @@ fun MissedQuestionsModalDialog(
                                         BilingualText(
                                             textEn = item.explanationEn,
                                             textAs = item.explanationAs,
-                                            language = if (isAssamese) AppLanguage.ASSAMESE else AppLanguage.ENGLISH,
+                                            language = AppLanguage.ENGLISH,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSuccessContainer
                                         )
@@ -1190,7 +1190,7 @@ fun MissedQuestionsModalDialog(
         },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text(if (isAssamese) "বন্ধ কৰক" else "Close")
+                Text("Close")
             }
         }
     )
@@ -1228,7 +1228,7 @@ fun MockTestScoreTrendCard(isAssamese: Boolean) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isAssamese) "মক টেষ্ট স্কোৰৰ ধাৰা (Score Trend)" else "Mock Test Score Trend",
+                        text = "Mock Test Score Trend",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -1366,7 +1366,7 @@ fun MockTestScoreTrendCard(isAssamese: Boolean) {
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = if (isAssamese) "শেহতীয়া ৬টা মক টেষ্টত আপোনাৰ স্কোৰ ৬২% পৰা ৮৮% লৈ উন্নত হৈছে।" else "Your score has steadily improved from 62% to 88% across recent full-length mocks.",
+                text = "Your score has steadily improved from 62% to 88% across recent full-length mocks.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1393,7 +1393,7 @@ fun MockTestHistorySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isAssamese) "মক টেষ্টৰ ইতিহাস (Mock History)" else "Mock Test History",
+                text = "Mock Test History",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1424,7 +1424,7 @@ fun MockTestHistorySection(
                             BilingualText(
                                 textEn = mock.titleEn,
                                 textAs = mock.titleAs,
-                                language = if (isAssamese) AppLanguage.ASSAMESE else AppLanguage.ENGLISH,
+                                language = AppLanguage.ENGLISH,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1490,7 +1490,7 @@ fun MockTestHistorySection(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (isAssamese) "বিশ্লেষণ কৰক" else "Analyze",
+                                text = "Analyze",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1506,7 +1506,7 @@ fun MockTestHistorySection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = if (isExpanded) (if (isAssamese) "কম দেখুৱাওক" else "View Less") else (if (isAssamese) "সকলো দেখুৱাওক" else "View All"),
+                    text = if (isExpanded) ("View Less") else ("View All"),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1605,13 +1605,13 @@ fun LeaderboardTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isAssamese) "ৰেংক লিডাৰব'ৰ্ড পৰীক্ষা" else "Assam Rank Leaderboard",
+                                text = "Assam Rank Leaderboard",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = if (isAssamese) "সমগ্ৰ অসমৰ পৰীক্ষাৰ্থীসকলৰ সৈতে তুলনা কৰক" else "Compare performance across candidates in Assam",
+                                text = "Compare performance across candidates in Assam",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
@@ -1667,7 +1667,7 @@ fun LeaderboardTabContent(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isAssamese) "সমগ্ৰ এপ (Overall)" else "Overall App",
+                                        text = "Overall App",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (leaderboardMode == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -1697,7 +1697,7 @@ fun LeaderboardTabContent(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isAssamese) "একে পৰীক্ষা" else "Same Exam",
+                                        text = "Same Exam",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (leaderboardMode == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -1727,7 +1727,7 @@ fun LeaderboardTabContent(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isAssamese) "মক গড়" else "Mock Avg",
+                                        text = "Mock Avg",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (leaderboardMode == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -1743,7 +1743,7 @@ fun LeaderboardTabContent(
 
                         Column {
                             Text(
-                                text = if (isAssamese) "পৰীক্ষাৰ পৰিকল্পনা বাছনি কৰক:" else "Select Exam Plan to View:",
+                                text = "Select Exam Plan to View:",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1765,7 +1765,7 @@ fun LeaderboardTabContent(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = if (isAssamese) examOptionsAs[selectedExamIndex] else examOptionsEn[selectedExamIndex],
+                                            text = examOptionsEn[selectedExamIndex],
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -1843,18 +1843,18 @@ fun LeaderboardTabContent(
             ) {
                 Text(
                     text = if (leaderboardMode == 0) {
-                        if (isAssamese) "সমগ্ৰ অসমৰ ক্ৰম তালিকা" else "All Assam Top Rankers"
+                        "All Assam Top Rankers"
                     } else if (leaderboardMode == 1) {
-                        if (isAssamese) "${examOptionsAs[selectedExamIndex]} পৰীক্ষাৰ্থী তালিকা" else "Candidates: ${examOptionsEn[selectedExamIndex]}"
+                        "Candidates: ${examOptionsEn[selectedExamIndex]}"
                     } else {
-                        if (isAssamese) "মক গড় ক্ৰম তালিকা" else "Mock Avg Rankers"
+                        "Mock Avg Rankers"
                     },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "${filteredList.size} ${if (isAssamese) "পৰীক্ষাৰ্থী" else "Candidates"}",
+                    text = "${filteredList.size} ${"Candidates"}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1919,7 +1919,7 @@ fun LeaderboardTabContent(
                                         color = MaterialTheme.colorScheme.primary
                                     ) {
                                         Text(
-                                            text = if (isAssamese) "আপুনি" else "YOU",
+                                            text = "YOU",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = MaterialTheme.colorScheme.onPrimary,
@@ -1936,7 +1936,7 @@ fun LeaderboardTabContent(
                             )
 
                             Text(
-                                text = if (isAssamese) ranker.examPlanAs else ranker.examPlanEn,
+                                text = ranker.examPlanEn,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold
@@ -2101,7 +2101,7 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isAssamese) "অধ্যয়নৰ সময় (Study Time)" else "Study Time Trend",
+                        text = "Study Time Trend",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -2122,7 +2122,7 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
             }
             
             Text(
-                text = if (isAssamese) "(মক টেষ্ট + অনুশীলন + অধ্যয়ন)" else "(Mock time + Practice time + Study time)",
+                text = "(Mock time + Practice time + Study time)",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 32.dp, top = 2.dp)
@@ -2245,7 +2245,7 @@ fun StudyTimeTrendCard(isAssamese: Boolean) {
 
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = if (isAssamese) "যোৱা ৭ দিনত আপোনাৰ অধ্যয়নৰ সময় বৃদ্ধি পাইছে। আপুনি মুঠ ১৯.৩ ঘণ্টা পঢ়িছে।" else "Your daily study time is increasing over the last 7 days. Total study time is 19.3 hours.",
+                text = "Your daily study time is increasing over the last 7 days. Total study time is 19.3 hours.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

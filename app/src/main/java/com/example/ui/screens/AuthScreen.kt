@@ -49,18 +49,17 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
         AlertDialog(
             onDismissRequest = { showForgotPasswordDialog = false },
-            title = { Text(if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড পাহৰিলে" else "Forgot Password", fontWeight = FontWeight.Bold) },
+            title = { Text("Forgot Password", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     if (resetSentMessage) {
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড পুনৰসংস্থাপনৰ লিংক প্ৰেৰণ কৰা হৈছে: $resetEmail"
-                            else "Password reset link sent to $resetEmail. Please check your inbox.",
+                            text = "Password reset link sent to $resetEmail. Please check your inbox.",
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
                         )
                     } else {
-                        Text(if (language == AppLanguage.ASSAMESE) "আপোনাৰ ইমেইল দিয়ক পাছৱৰ্ড পুনৰ সংস্থাপন লিংক পাবলৈ।" else "Enter your registered email address to receive a password reset link.")
+                        Text("Enter your registered email address to receive a password reset link.")
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedTextField(
                             value = resetEmail,
@@ -74,24 +73,20 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                 }
             },
             confirmButton = {
-                if (resetSentMessage) {
-                    Button(onClick = { showForgotPasswordDialog = false }) {
-                        Text("OK")
+                if (!resetSentMessage) {
+                    Button(onClick = { resetSentMessage = true }) {
+                        Text("Send Reset Link")
                     }
                 } else {
-                    Button(onClick = {
-                        if (resetEmail.isNotBlank() && resetEmail.contains("@")) {
-                            resetSentMessage = true
-                        }
-                    }) {
-                        Text(if (language == AppLanguage.ASSAMESE) "লিংক প্ৰেৰণ কৰক" else "Send Reset Link")
+                    Button(onClick = { showForgotPasswordDialog = false }) {
+                        Text("OK")
                     }
                 }
             },
             dismissButton = {
                 if (!resetSentMessage) {
                     TextButton(onClick = { showForgotPasswordDialog = false }) {
-                        Text(if (language == AppLanguage.ASSAMESE) "বাতিল কৰক" else "Cancel")
+                        Text("Cancel")
                     }
                 }
             }
@@ -100,32 +95,16 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
     if (showGoogleAccountDialog) {
         var customGoogleEmail by remember { mutableStateOf("") }
-
+        
         AlertDialog(
             onDismissRequest = { showGoogleAccountDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFF4285F4),
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("G", color = Color.White, fontWeight = FontWeight.ExtraBold)
-                        }
-                    }
-                    Text(if (language == AppLanguage.ASSAMESE) "Google একাউণ্ট বাছনি কৰক" else "Choose a Google Account", fontWeight = FontWeight.Bold)
-                }
-            },
+            title = { Text("Select Google Account", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = if (language == AppLanguage.ASSAMESE) "Jukti-ত ছাইন ইন কৰিবলৈ এটা গুগল একাউণ্ট বাছক:" else "Select a Google account to continue to Jukti App:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Account 1: Pinku Bora (Admin)
+                Column {
+                    Text("Choose an account to continue with Jukti:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Account 1: Admin
                     Surface(
                         onClick = {
                             viewModel.loginWithEmail("borapinku151@gmail.com", "Pinku Bora")
@@ -149,12 +128,14 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                                 Text("Pinku Bora", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                 Text("borapinku151@gmail.com", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                                 Text("ADMIN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                             }
                         }
                     }
-
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
                     // Account 2: Jukti Education (Owner)
                     Surface(
                         onClick = {
@@ -184,7 +165,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             }
                         }
                     }
-
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
                     // Account 3: Assam Scholar (Student)
                     Surface(
                         onClick = {
@@ -211,9 +194,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             }
                         }
                     }
-
+                    
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
-
+                    
                     Text("Or enter another Google email:", style = MaterialTheme.typography.labelMedium)
                     OutlinedTextField(
                         value = customGoogleEmail,
@@ -254,295 +237,259 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(72.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = getLogoIcon(aboutConfig.logoIconName),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = getLogoIcon(aboutConfig.logoIconName),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = aboutConfig.appTitle,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            TabRow(
+                selectedTabIndex = if (isLoginTab) 0 else 1,
+                containerColor = Color.Transparent,
+                divider = { },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Tab(
+                    selected = isLoginTab,
+                    onClick = {
+                        isLoginTab = true
+                        errorMessage = null
+                    },
+                    text = { Text("Sign In", fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = !isLoginTab,
+                    onClick = {
+                        isLoginTab = false
+                        errorMessage = null
+                    },
+                    text = { Text("Register", fontWeight = FontWeight.Bold) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (sessionMessage != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = sessionMessage!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            if (!isLoginTab) {
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = {
+                        nameInput = it
+                        errorMessage = null
+                    },
+                    label = { Text("Full Name") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            OutlinedTextField(
+                value = emailInput,
+                onValueChange = {
+                    emailInput = it
+                    errorMessage = null
+                },
+                label = { Text("Email Address") },
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Password
+            OutlinedTextField(
+                value = passwordInput,
+                onValueChange = {
+                    passwordInput = it
+                    errorMessage = null
+                },
+                label = { Text("Password") },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = "Toggle password visibility"
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (!isLoginTab) {
+                Spacer(modifier = Modifier.height(12.dp))
+                // Confirm Password
+                OutlinedTextField(
+                    value = confirmPasswordInput,
+                    onValueChange = {
+                        confirmPasswordInput = it
+                        errorMessage = null
+                    },
+                    label = { Text("Confirm Password") },
+                    leadingIcon = { Icon(Icons.Default.LockReset, contentDescription = null) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (isLoginTab) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { showForgotPasswordDialog = true }) {
+                        Text("Forgot Password?")
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Action Button: Sign In or Register
+            Button(
+                onClick = {
+                    val trimmedEmail = emailInput.trim()
+                    val trimmedPassword = passwordInput.trim()
+
+                    if (isLoginTab) {
+                        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+                            errorMessage = "Please enter a valid email address."
+                            return@Button
+                        }
+                        if (trimmedPassword.isBlank()) {
+                            errorMessage = "Please enter your password."
+                            return@Button
+                        }
+                        viewModel.loginWithEmail(trimmedEmail)
+                        viewModel.toggleGuestMode(false)
+                        viewModel.navigateTo(Screen.HOME)
+                    } else {
+                        val trimmedName = nameInput.trim()
+                        if (trimmedName.isBlank()) {
+                            errorMessage = "Please enter your full name."
+                            return@Button
+                        }
+                        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+                            errorMessage = "Please enter a valid email address."
+                            return@Button
+                        }
+                        if (trimmedPassword.length < 6) {
+                            errorMessage = "Password must be at least 6 characters."
+                            return@Button
+                        }
+                        if (trimmedPassword != confirmPasswordInput.trim()) {
+                            errorMessage = "Passwords do not match."
+                            return@Button
+                        }
+                        viewModel.loginWithEmail(trimmedEmail, trimmedName)
+                        viewModel.toggleGuestMode(false)
+                        viewModel.navigateTo(Screen.HOME)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (isLoginTab) {
+                        "Sign In with Email"
+                    } else {
+                        "Create Account & Register"
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = "  OR  ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Google Login Button
+            OutlinedButton(
+                onClick = {
+                    showGoogleAccountDialog = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF4285F4),
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("G", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Continue with Google",
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = aboutConfig.appTitle,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Text(
-            text = aboutConfig.appSubtitleEn,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.secondary
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = if (language == AppLanguage.ASSAMESE) "অসমৰ প্ৰতিযোগিতামূলক পৰীক্ষা প্ৰস্তুতি পৰ্টেল" else "Assam Competitive Exam Preparation Portal",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Tabs
-        TabRow(
-            selectedTabIndex = if (isLoginTab) 0 else 1,
-            containerColor = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Tab(
-                selected = isLoginTab,
-                onClick = {
-                    isLoginTab = true
-                    errorMessage = null
-                },
-                text = { Text(if (language == AppLanguage.ASSAMESE) "লগ ইন (Sign In)" else "Sign In", fontWeight = FontWeight.Bold) }
-            )
-            Tab(
-                selected = !isLoginTab,
-                onClick = {
-                    isLoginTab = false
-                    errorMessage = null
-                },
-                text = { Text(if (language == AppLanguage.ASSAMESE) "পঞ্জীয়ন (Register)" else "Register", fontWeight = FontWeight.Bold) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (sessionMessage != null) {
-            Surface(
-                color = MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = sessionMessage!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        if (errorMessage != null) {
-            Surface(
-                color = MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = errorMessage!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        if (!isLoginTab) {
-            // Full Name for Register
-            OutlinedTextField(
-                value = nameInput,
-                onValueChange = {
-                    nameInput = it
-                    errorMessage = null
-                },
-                label = { Text(if (language == AppLanguage.ASSAMESE) "সম্পূৰ্ণ নাম (Full Name)" else "Full Name") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // Email Address
-        OutlinedTextField(
-            value = emailInput,
-            onValueChange = {
-                emailInput = it
-                errorMessage = null
-            },
-            label = { Text(if (language == AppLanguage.ASSAMESE) "ইমেইল ঠিকনা (Email Address)" else "Email Address") },
-            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Password
-        OutlinedTextField(
-            value = passwordInput,
-            onValueChange = {
-                passwordInput = it
-                errorMessage = null
-            },
-            label = { Text(if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড (Password)" else "Password") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = "Toggle password visibility"
-                    )
-                }
-            },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        if (!isLoginTab) {
-            Spacer(modifier = Modifier.height(12.dp))
-            // Confirm Password
-            OutlinedTextField(
-                value = confirmPasswordInput,
-                onValueChange = {
-                    confirmPasswordInput = it
-                    errorMessage = null
-                },
-                label = { Text(if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড নিশ্চিত কৰক (Confirm Password)" else "Confirm Password") },
-                leadingIcon = { Icon(Icons.Default.LockReset, contentDescription = null) },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        if (isLoginTab) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { showForgotPasswordDialog = true }) {
-                    Text(if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড পাহৰিলে?" else "Forgot Password?")
-                }
-            }
-        } else {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Action Button: Sign In or Register
-        Button(
-            onClick = {
-                val trimmedEmail = emailInput.trim()
-                val trimmedPassword = passwordInput.trim()
-
-                if (isLoginTab) {
-                    if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "অনুগ্ৰহ কৰি বৈধ ইমেইল প্ৰৱেশ কৰক" else "Please enter a valid email address."
-                        return@Button
-                    }
-                    if (trimmedPassword.isBlank()) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "অনুগ্ৰহ কৰি পাছৱৰ্ড প্ৰৱেশ কৰক" else "Please enter your password."
-                        return@Button
-                    }
-                    viewModel.loginWithEmail(trimmedEmail)
-                    viewModel.toggleGuestMode(false)
-                    viewModel.navigateTo(Screen.HOME)
-                } else {
-                    val trimmedName = nameInput.trim()
-                    if (trimmedName.isBlank()) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "অনুগ্ৰহ কৰি আপোনাৰ সম্পূৰ্ণ নাম লিখক" else "Please enter your full name."
-                        return@Button
-                    }
-                    if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "অনুগ্ৰহ কৰি বৈধ ইমেইল প্ৰৱেশ কৰক" else "Please enter a valid email address."
-                        return@Button
-                    }
-                    if (trimmedPassword.length < 6) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড অন্ততঃ ৬টা আখৰৰ হ'ব লাগে" else "Password must be at least 6 characters."
-                        return@Button
-                    }
-                    if (trimmedPassword != confirmPasswordInput.trim()) {
-                        errorMessage = if (language == AppLanguage.ASSAMESE) "পাছৱৰ্ড অমিল হৈছে" else "Passwords do not match."
-                        return@Button
-                    }
-                    viewModel.loginWithEmail(trimmedEmail, trimmedName)
-                    viewModel.toggleGuestMode(false)
-                    viewModel.navigateTo(Screen.HOME)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(
-                imageVector = if (isLoginTab) Icons.Default.Login else Icons.Default.PersonAdd,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isLoginTab) {
-                    if (language == AppLanguage.ASSAMESE) "ছাইন ইন (Sign In)" else "Sign In with Email"
-                } else {
-                    if (language == AppLanguage.ASSAMESE) "পঞ্জীয়ন কৰক (Create Account)" else "Create Account & Register"
-                },
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = "  OR  ",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f))
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Google Login Button
-        OutlinedButton(
-            onClick = {
-                showGoogleAccountDialog = true
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFF4285F4),
-                modifier = Modifier.size(20.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("G", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = if (language == AppLanguage.ASSAMESE) "Google ৰ সৈতে অব্যাহত ৰাখক" else "Continue with Google",
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
     }
 }

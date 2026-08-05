@@ -103,7 +103,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = if (isAssamese) "মক টেষ্ট" else "Mock Test",
+                    text = "Mock Test",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -119,7 +119,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
             item {
                 Column {
                     Text(
-                        text = if (isAssamese) "অধ্যয়নৰ পৰিসংখ্যা (Your Mock Stats)" else "Mock Performance Summary",
+                        text = "Mock Performance Summary",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -132,7 +132,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     ) {
                         MockStatCard(
                             modifier = Modifier.weight(1f),
-                            title = if (isAssamese) "উপলব্ধ মক" else "Available Mocks",
+                            title = "Available Mocks",
                             value = "$totalAvailable",
                             icon = Icons.Default.MenuBook,
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -140,7 +140,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         )
                         MockStatCard(
                             modifier = Modifier.weight(1f),
-                            title = if (isAssamese) "সম্পূৰ্ণ কৰা" else "Completed Mocks",
+                            title = "Completed Mocks",
                             value = "$completedCount",
                             icon = Icons.Default.CheckCircle,
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -156,7 +156,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     ) {
                         MockStatCard(
                             modifier = Modifier.weight(1f),
-                            title = if (isAssamese) "শ্ৰেষ্ঠ নম্বৰ" else "Best Score",
+                            title = "Best Score",
                             value = if (completedCount > 0) String.format("%.1f%%", bestScorePct) else "N/A",
                             icon = Icons.Default.EmojiEvents,
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -164,7 +164,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         )
                         MockStatCard(
                             modifier = Modifier.weight(1f),
-                            title = if (isAssamese) "গড় নম্বৰ" else "Average Score",
+                            title = "Average Score",
                             value = if (completedCount > 0) String.format("%.1f%%", avgScorePct) else "N/A",
                             icon = Icons.Default.BarChart,
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -178,7 +178,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
             item {
                 Column {
                     Text(
-                        text = if (isAssamese) "মক টেষ্টৰ প্ৰকাৰ বাছনি কৰক" else "Select Mock Test Category",
+                        text = "Select Mock Test Category",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -195,7 +195,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         // All Mock Tests
                         item {
                             HeroCategoryChip(
-                                title = if (isAssamese) "সকলো" else "All Mocks",
+                                title = "All Mocks",
                                 count = mockTests.size,
                                 icon = Icons.Default.GridView,
                                 isSelected = selectedTestType == "All",
@@ -205,7 +205,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         // Full Length
                         item {
                             HeroCategoryChip(
-                                title = if (isAssamese) "সম্পূৰ্ণ" else "Full Length",
+                                title = "Full Length",
                                 count = mockTests.count { it.testType == "Full-Length" },
                                 icon = Icons.Default.Assignment,
                                 isSelected = selectedTestType == "Full-Length",
@@ -215,7 +215,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         // Subject
                         item {
                             HeroCategoryChip(
-                                title = if (isAssamese) "বিষয় অনুসৰি" else "Subject",
+                                title = "Subject",
                                 count = mockTests.count { it.testType == "Subject-wise" },
                                 icon = Icons.Default.MenuBook,
                                 isSelected = selectedTestType == "Subject-wise",
@@ -225,7 +225,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         // Chapter
                         item {
                             HeroCategoryChip(
-                                title = if (isAssamese) "অধ্যায় অনুসৰি" else "Chapter",
+                                title = "Chapter",
                                 count = mockTests.count { it.testType == "Chapter-wise" },
                                 icon = Icons.Default.FormatListBulleted,
                                 isSelected = selectedTestType == "Chapter-wise",
@@ -255,7 +255,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = if (isAssamese) "মক টেষ্টৰ নাম বা বিষয় বিচাৰক..." else "Search mock test name or subject...",
+                            text = "Search mock test name or subject...",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     },
@@ -292,7 +292,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isAssamese) "উপলব্ধ মক পৰীক্ষাসমূহ (${filteredMocks.size})" else "Available Mock Tests (${filteredMocks.size})",
+                        text = "Available Mock Tests (${filteredMocks.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -304,7 +304,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                             selectedTestType = "All"
                         }) {
                             Text(
-                                text = if (isAssamese) "ৰিচেট কৰক" else "Clear Search",
+                                text = "Clear Search",
                                 style = MaterialTheme.typography.labelMedium
                             )
                         }
@@ -323,8 +323,8 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     ) {
                         com.example.ui.components.EmptyStateIllustration(
                             type = com.example.ui.components.EmptyStateType.STUDENT_JAAPI,
-                            title = if (isAssamese) "কোনো মক টেষ্ট পোৱা নগ'ল" else "No Mock Tests Found",
-                            message = if (isAssamese) "অনুগ্ৰহ কৰি আপোনাৰ চাৰ্চ বা ফিল্টাৰ সলনি কৰক" else "Try clearing your search query or filters",
+                            title = "No Mock Tests Found",
+                            message = "Try clearing your search query or filters",
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -528,7 +528,7 @@ fun ContinueLastMockCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isAssamese) "অসম্পূৰ্ণ মক টেষ্ট" else "CONTINUE LAST MOCK",
+                            text = "CONTINUE LAST MOCK",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary
@@ -582,7 +582,7 @@ fun ContinueLastMockCard(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = if (isAssamese) "মক টেষ্ট পুনৰাৰম্ভ কৰক" else "Resume Test",
+                    text = "Resume Test",
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -779,7 +779,7 @@ fun MockTestCardDetailed(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isAssamese) "অতীতৰ স্কোৰ: ${mock.userScore}/${mock.totalMarks}" else "Score: ${mock.userScore}/${mock.totalMarks} (${mock.userAccuracy.toInt()}%)",
+                            text = "Score: ${mock.userScore}/${mock.totalMarks} (${mock.userAccuracy.toInt()}%)",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -818,11 +818,11 @@ fun MockTestCardDetailed(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (mock.isCompleted) {
-                        if (isAssamese) "পুনৰ চেষ্টা কৰক" else "Re-attempt Mock"
+                        "Re-attempt Mock"
                     } else if (mock.inProgress) {
-                        if (isAssamese) "মক টেষ্ট অব্যাহত ৰাখক" else "Resume Test"
+                        "Resume Test"
                     } else {
-                        if (isAssamese) "পৰীক্ষা আৰম্ভ কৰক" else "Start Mock Test"
+                        "Start Mock Test"
                     },
                     fontWeight = FontWeight.Bold
                 )

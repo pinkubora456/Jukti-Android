@@ -782,7 +782,7 @@ object SampleData {
 
     val initialAboutConfig = AboutConfigEntity(
         id = 1,
-        appTitle = "Jukti (যুক্তি)",
+        appTitle = "Jukti",
         appSubtitleEn = "Test Your Knowledge",
         appSubtitleAs = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
         versionText = "Version 2026.1.0",

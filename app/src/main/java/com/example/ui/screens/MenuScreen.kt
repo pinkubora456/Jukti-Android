@@ -40,7 +40,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
             TopAppBar(
                 title = {
                     Text(
-                        text = if (isAssamese) "মেনু আৰু সেৱাসমূহ" else "Menu & Services",
+                        text = "Menu & Services",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -95,7 +95,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = userProfile?.name ?: if (isAssamese) "অসম শিক্ষাৰ্থী" else "Assam Scholar",
+                            text = userProfile?.name ?: "Assam Scholar",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -109,7 +109,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             AssistChip(
                                 onClick = { viewModel.navigateTo(Screen.PROFILE) },
-                                label = { Text(if (isAssamese) "প্ৰফাইল চাওক" else "View Profile") },
+                                label = { Text("View Profile") },
                                 trailingIcon = {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
@@ -125,7 +125,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
             }
 
             Text(
-                text = if (isAssamese) "মুখ্য মেনু বিকল্পসমূহ" else "Main Menu Options",
+                text = "Main Menu Options",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -136,47 +136,47 @@ fun MenuScreen(viewModel: JuktiViewModel) {
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 MenuItemCard(
-                    title = if (isAssamese) "প্ৰফাইল" else "Profile",
-                    description = if (isAssamese) "ব্যক্তিগত তথ্য, স্তৰ আৰু ব্যৱহাৰকাৰী পৰিসংখ্যা" else "Personal details, levels & user stats",
+                    title = "Profile",
+                    description = "Personal details, levels & user stats",
                     icon = Icons.Default.Person,
-                    badge = if (isAssamese) "লেভেল ${userProfile?.level ?: 7}" else "Lvl ${userProfile?.level ?: 7}",
+                    badge = "Lvl ${userProfile?.level ?: 7}",
                     badgeColor = MaterialTheme.colorScheme.primary,
                     onClick = { viewModel.navigateTo(Screen.PROFILE) }
                 )
 
                 MenuItemCard(
-                    title = if (isAssamese) "কৰ্মস্থান (Workspace)" else "Workspace",
-                    description = if (isAssamese) "প্ৰশাসক আৰু ওনাৰৰ বাবে ৱৰ্কস্পেছ" else "Workspace & Dashboard for Admins & Owners",
+                    title = "Workspace",
+                    description = "Workspace & Dashboard for Admins & Owners",
                     icon = Icons.Default.Work,
-                    badge = if (isAssamese) "এডমিন / ওনাৰ" else "Admin / Owner",
+                    badge = "Admin / Owner",
                     badgeColor = MaterialTheme.colorScheme.primary,
                     onClick = { viewModel.navigateTo(Screen.WORKSPACE) }
                 )
 
                 MenuItemCard(
-                    title = if (isAssamese) "ছেটিংছ (Settings)" else "Settings",
-                    description = if (isAssamese) "ভাষা, থিম, নোটিফিকেশন আৰু ফেচিলিটি ছেটিংছ" else "Language, theme, notifications & preferences",
+                    title = "Settings",
+                    description = "Language, theme, notifications & preferences",
                     icon = Icons.Default.Settings,
                     onClick = { viewModel.navigateTo(Screen.SETTINGS) }
                 )
 
                 MenuItemCard(
-                    title = if (isAssamese) "যোগাযোগ কৰক (Contact Us)" else "Contact Us",
-                    description = if (isAssamese) "সাহায্য ডেঙ্ক, টেলিগ্ৰাম, হোৱাটছএপ আৰু মতামত" else "Helpdesk, Telegram, WhatsApp & direct feedback",
+                    title = "Contact Us",
+                    description = "Helpdesk, Telegram, WhatsApp & direct feedback",
                     icon = Icons.Default.SupportAgent,
                     onClick = { viewModel.navigateTo(Screen.CONTACT_US) }
                 )
 
                 MenuItemCard(
-                    title = if (isAssamese) "যুক্তি সম্পৰ্কে (About)" else "About",
-                    description = if (isAssamese) "যুক্তি পৰ্টেল সংৰচনা, সংস্কৰণ v2026.1 আৰু পৰীক্ষা সূচী" else "Jukti info, version v2026.1 & exam info",
+                    title = "About",
+                    description = "Jukti info, version v2026.1 & exam info",
                     icon = Icons.Default.Info,
                     onClick = { viewModel.navigateTo(Screen.ABOUT) }
                 )
 
                 MenuItemCard(
-                    title = if (isAssamese) "ৰিফাণ্ড পলিচি (Refund Policy)" else "Refund Policy",
-                    description = if (isAssamese) "ক্ৰয় আৰু ফি ৰিফাণ্ড সংক্ৰান্তিয় নিয়মাৱলী" else "Subscription refund window & guidelines",
+                    title = "Refund Policy",
+                    description = "Subscription refund window & guidelines",
                     icon = Icons.Default.ReceiptLong,
                     onClick = { viewModel.navigateTo(Screen.REFUND_POLICY) }
                 )
@@ -205,12 +205,12 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isAssamese) "প্ৰিমিয়াম সদস্যতা পাওক" else "Get Jukti Premium",
+                            text = "Get Jukti Premium",
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = if (isAssamese) "অসীমিত মক টেষ্ট আৰু পিডিএফ ডাউনলোড কৰক" else "Unlock all APSC & ADRE mock tests",
+                            text = "Unlock all APSC & ADRE mock tests",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
@@ -233,7 +233,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
             ) {
                 Icon(imageVector = Icons.Default.Logout, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isAssamese) "লগ আউট" else "Log Out")
+                Text("Log Out")
             }
 
             Spacer(modifier = Modifier.height(16.dp))

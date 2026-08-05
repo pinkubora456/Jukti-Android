@@ -60,8 +60,8 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     if (showExitConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showExitConfirmDialog = false },
-            title = { Text(if (language == AppLanguage.ASSAMESE) "পৰীক্ষাৰ পৰা ওলাই যাব বিচাৰে নেকি?" else "Exit Mock Test?") },
-            text = { Text(if (language == AppLanguage.ASSAMESE) "আপোনাৰ চলিত টেষ্টৰ অগ্ৰগতি সংৰক্ষণ কৰা নহ'ব।" else "Your current test progress will not be saved.") },
+            title = { Text("Exit Mock Test?") },
+            text = { Text("Your current test progress will not be saved.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -70,12 +70,12 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(if (language == AppLanguage.ASSAMESE) "ওলাই যাওঁক (Exit)" else "Exit")
+                    Text("Exit")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExitConfirmDialog = false }) {
-                    Text(if (language == AppLanguage.ASSAMESE) "বাতিল (Cancel)" else "Cancel")
+                    Text("Cancel")
                 }
             }
         )
@@ -84,7 +84,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     if (showSubmitConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showSubmitConfirmDialog = false },
-            title = { Text(if (language == AppLanguage.ASSAMESE) "পৰীক্ষা দাখিল কৰিব বিচাৰে নেকি?" else "Submit Mock Test?") },
+            title = { Text("Submit Mock Test?") },
             text = {
                 Text(
                     text = "Answered: ${userAnswers.size} / ${activeMockQuestions.size}\nMarked for Review: ${markedForReview.size}"
@@ -95,7 +95,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                     showSubmitConfirmDialog = false
                     viewModel.submitCurrentMockTest()
                 }) {
-                    Text(if (language == AppLanguage.ASSAMESE) "দাখিল কৰক (Submit)" else "Submit Test")
+                    Text("Submit Test")
                 }
             },
             dismissButton = {
@@ -171,7 +171,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (language == AppLanguage.ASSAMESE) "প্ৰশ্নসূচী" else "Palette",
+                            text = "Palette",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -367,14 +367,14 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                         onClick = { if (currentQuestionIndex > 0) currentQuestionIndex-- },
                         enabled = (currentQuestionIndex > 0)
                     ) {
-                        Text(if (language == AppLanguage.ASSAMESE) "পূৰ্বৱৰ্তী" else "Previous")
+                        Text("Previous")
                     }
 
                     Button(
                         onClick = { showSubmitConfirmDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text(if (language == AppLanguage.ASSAMESE) "দাখিল (Submit)" else "Submit")
+                        Text("Submit")
                     }
 
                     Button(
@@ -385,7 +385,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                         },
                         enabled = (currentQuestionIndex < activeMockQuestions.size - 1)
                     ) {
-                        Text(if (language == AppLanguage.ASSAMESE) "পৰৱৰ্তী" else "Next")
+                        Text("Next")
                     }
                 }
             }
