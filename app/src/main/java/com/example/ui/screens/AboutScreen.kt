@@ -36,23 +36,8 @@ import com.example.data.local.AboutConfigEntity
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
+import com.example.ui.components.getLogoIcon
 
-private fun getLogoIcon(name: String): ImageVector {
-    return when (name.trim()) {
-        "Book" -> Icons.Default.MenuBook
-        "Library" -> Icons.Default.LocalLibrary
-        "Star" -> Icons.Default.Star
-        "Sparkles" -> Icons.Default.AutoAwesome
-        "Psychology" -> Icons.Default.Psychology
-        "Award" -> Icons.Default.WorkspacePremium
-        "Trophy" -> Icons.Default.EmojiEvents
-        "Balance" -> Icons.Default.AccountBalance
-        "Gavel" -> Icons.Default.Gavel
-        "Graduation" -> Icons.Default.HistoryEdu
-        "Lightbulb" -> Icons.Default.Lightbulb
-        else -> Icons.Default.School
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +89,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
         ) {
             if (isOwner) {
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                     modifier = Modifier.fillMaxWidth()
                 ) {

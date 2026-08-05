@@ -17,6 +17,7 @@ enum class AppLanguage {
 }
 
 enum class Screen {
+    SPLASH,
     HOME,
     MCQ_STUDY,
     PRACTICE,
@@ -140,7 +141,18 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
     // Navigation State
-    private val _currentScreen = MutableStateFlow(Screen.AUTH)
+    private val _currentScreen = MutableStateFlow(Screen.SPLASH)
+    private var splashFinished = false
+
+    fun finishSplash() {
+        splashFinished = true
+        val prof = userProfile.value
+        if (prof != null) {
+            _currentScreen.value = if (prof.isLoggedIn) Screen.HOME else Screen.AUTH
+        } else {
+            _currentScreen.value = Screen.AUTH
+        }
+    }
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
     private val _sessionMessage = MutableStateFlow<String?>(null)
@@ -307,15 +319,27 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             userProfile.collect { prof ->
                 if (prof != null) {
-                    if (!prof.isLoggedIn) {
-                        if (_currentScreen.value != Screen.AUTH) {
-                            _currentScreen.value = Screen.AUTH
+                    if (splashFinished) {
+                        if (!prof.isLoggedIn) {
+                            if (_currentScreen.value != Screen.AUTH) {
+                                _currentScreen.value = Screen.AUTH
+                            }
+                        } else {
+                            if (_currentScreen.value == Screen.AUTH || _currentScreen.value == Screen.SPLASH) {
+                                _currentScreen.value = Screen.HOME
+                            }
+                            if (prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+                                val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
+                                if (activeInManager == null) {
+                                    UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
+                                } else if (activeInManager != prof.currentDeviceId) {
+                                    logoutDueToOtherDeviceLogin()
+                                }
+                            }
                         }
                     } else {
-                        if (_currentScreen.value == Screen.AUTH) {
-                            _currentScreen.value = Screen.HOME
-                        }
-                        if (prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+                        // Just update the session manager quietly
+                        if (prof.isLoggedIn && prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
                             val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
                             if (activeInManager == null) {
                                 UserSessionManager.registerSession(prof.email, prof.currentDeviceId)

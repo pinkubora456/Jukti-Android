@@ -87,9 +87,19 @@ fun FeaturedPlanBanner(
                     brush = Brush.horizontalGradient(colors = gradientColors)
                 )
                 .clickable { onBuyClick() }
-                .padding(20.dp)
         ) {
-            Column {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.05f),
+                modifier = Modifier
+                    .size(180.dp)
+                    .align(Alignment.CenterEnd)
+                    .offset(x = 40.dp, y = 20.dp)
+            )
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Star,

@@ -633,7 +633,7 @@ fun KpiCardItem(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder()
     ) {
@@ -863,7 +863,7 @@ fun SubjectBreakdownBannerCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder()
     ) {
@@ -902,7 +902,7 @@ fun SubjectBreakdownBannerCard(
 
             // Banner Stats Row: Question Solved, Accuracy, Average Time per Question
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -980,7 +980,7 @@ fun SubjectBreakdownBannerCard(
             OutlinedButton(
                 onClick = onCheckMissedQuestions,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(vertical = 6.dp, horizontal = 12.dp)
             ) {
                 Icon(
@@ -1119,7 +1119,7 @@ fun MissedQuestionsModalDialog(
                     subject.missedQuestions.forEachIndexed { qIdx, item ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
@@ -1548,11 +1548,11 @@ fun LeaderboardTabContent(
 
     val allRankers = remember(userXp, userLevel, userMockAvg) {
         listOf(
-            TopRanker("Anurag Kalita", "Guwahati", 4850, 15, "ADRE Topper", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 91.2f),
-            TopRanker("Priyanka Das", "Jorhat", 4210, 14, "APSC Rank 1", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 94.5f),
-            TopRanker("Bishal Gogoi", "Dibrugarh", 3980, 13, "Speed Master", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 89.0f),
-            TopRanker("Ritu Bora", "Nagaon", 3650, 12, "Daily Scholar", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 86.5f),
-            TopRanker("Himangshu Saikia", "Tezpur", 3420, 11, "Ahom Scholar", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 88.3f),
+            TopRanker("Anurag Kalita", "Guwahati", 4850, 15, "Jaapi Gold Badge", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 91.2f),
+            TopRanker("Priyanka Das", "Jorhat", 4210, 14, "One Horn Rhino Badge", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 94.5f),
+            TopRanker("Bishal Gogoi", "Dibrugarh", 3980, 13, "Assam Map Badge", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 89.0f),
+            TopRanker("Ritu Bora", "Nagaon", 3650, 12, "Bihu Champion Badge", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 86.5f),
+            TopRanker("Himangshu Saikia", "Tezpur", 3420, 11, "Kaziranga Master Badge", "APSC CCE Prelims", "এপিএছচি চি.চি.ই. প্ৰিলিমছ", 88.3f),
             TopRanker("Sangeeta Sharma", "Silchar", 3100, 10, "GK Whiz", "Assam Forest Guard & Panchayat", "অসম বনৰক্ষী আৰু পঞ্চায়ত", 84.1f),
             TopRanker("Nayan Sarma", "Barpeta", 2950, 9, "Maths Expert", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", 82.6f),
             TopRanker("Dipika Medhi", "Mangaldai", 2780, 9, "Police Ranker", "Assam Police SI & Constable", "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল", 80.4f),
@@ -1651,7 +1651,7 @@ fun LeaderboardTabContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { leaderboardMode = 0 },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (leaderboardMode == 0) MaterialTheme.colorScheme.primary else Color.Transparent
                         ) {
                             Box(
@@ -1681,7 +1681,7 @@ fun LeaderboardTabContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { leaderboardMode = 1 },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (leaderboardMode == 1) MaterialTheme.colorScheme.primary else Color.Transparent
                         ) {
                             Box(
@@ -1711,7 +1711,7 @@ fun LeaderboardTabContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { leaderboardMode = 2 },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (leaderboardMode == 2) MaterialTheme.colorScheme.primary else Color.Transparent
                         ) {
                             Box(
@@ -1754,7 +1754,7 @@ fun LeaderboardTabContent(
                                 OutlinedButton(
                                     onClick = { isDropdownExpanded = true },
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     )

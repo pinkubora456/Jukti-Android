@@ -73,7 +73,7 @@ fun ExportReportsBannerCard(item: ExportReportsItem) {
             .clickable { item.onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -82,7 +82,7 @@ fun ExportReportsBannerCard(item: ExportReportsItem) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 modifier = Modifier.size(48.dp)
             ) {

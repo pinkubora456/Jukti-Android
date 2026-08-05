@@ -81,6 +81,7 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(innerPadding)) {
                         Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
                             when (screen) {
+                                Screen.SPLASH -> SplashScreen(viewModel)
                                 Screen.HOME -> HomeScreen(viewModel)
                                 Screen.MCQ_STUDY -> McqStudyScreen(viewModel)
                                 Screen.PRACTICE -> PracticeScreen(viewModel)

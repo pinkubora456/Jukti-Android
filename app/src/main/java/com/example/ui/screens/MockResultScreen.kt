@@ -362,7 +362,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             selectedTab = 1
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2E7D32))
                     ) {
                         Text("View Correct ($correctCount)", style = MaterialTheme.typography.labelSmall)
@@ -374,7 +374,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             selectedTab = 1
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC62828))
                     ) {
                         Text("View Incorrect ($incorrectCount)", style = MaterialTheme.typography.labelSmall)
@@ -386,7 +386,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                             selectedTab = 1
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE65100))
                     ) {
                         Text("View Skipped ($skippedCount)", style = MaterialTheme.typography.labelSmall)
@@ -765,7 +765,7 @@ fun QuestionAnalysisCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = optionBg,
                     border = BorderStroke(1.dp, optionBorder)
                 ) {
@@ -935,7 +935,7 @@ fun BreakdownChip(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         color = containerColor
     ) {
         Column(

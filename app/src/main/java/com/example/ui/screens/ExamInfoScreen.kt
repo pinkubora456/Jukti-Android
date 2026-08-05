@@ -129,7 +129,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
 
                         Surface(
                             onClick = { selectedHeroTab = tab },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = containerColor,
                             border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor)
                         ) {

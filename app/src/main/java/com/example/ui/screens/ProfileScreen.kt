@@ -286,7 +286,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                 showEditProfileDialog = true
             },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.Default.Edit, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -298,7 +298,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         OutlinedButton(
             onClick = { showMyPlanDialog = true },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
@@ -314,7 +314,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.Default.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))

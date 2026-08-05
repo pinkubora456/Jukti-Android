@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -147,7 +148,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
             if (faqs.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = if (isAssamese) "কোনো প্রশ্ন উপলব্ধ নাই" else "No FAQs available.",
@@ -386,9 +387,9 @@ private fun FaqItemCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(14.dp).animateContentSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

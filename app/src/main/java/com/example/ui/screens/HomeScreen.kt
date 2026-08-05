@@ -37,11 +37,13 @@ import com.example.ui.theme.*
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
+import com.example.ui.components.getLogoIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
+    val aboutConfig by viewModel.aboutConfig.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val plans by viewModel.plans.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
@@ -95,7 +97,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.MenuBook,
+                                    imageVector = getLogoIcon(aboutConfig.logoIconName),
                                     contentDescription = "Jukti Logo",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(28.dp)
@@ -104,13 +106,13 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                         }
                         Column {
                             Text(
-                                text = "Jukti",
+                                text = aboutConfig.appTitle,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Test Your Knowledge",
+                                text = if (language == com.example.ui.viewmodel.AppLanguage.ASSAMESE) aboutConfig.appSubtitleAs else aboutConfig.appSubtitleEn,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
@@ -167,7 +169,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 viewModel.navigateTo(Screen.PROFILE)
             })
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             val context = androidx.compose.ui.platform.LocalContext.current
             
@@ -225,7 +227,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             ContinueLearningCard(
                 language = language,
@@ -239,7 +241,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Quick Navigation Grid
             QuickNavGrid(
@@ -249,7 +251,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 onOpenPomodoro = { showPomodoroDialog = true }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Performance Summary Widget
             PerformanceSummaryCard(
@@ -258,7 +260,7 @@ fun HomeScreen(viewModel: JuktiViewModel) {
                 onViewAnalytics = { viewModel.navigateTo(Screen.LEADERBOARD) }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Study Notes Highlights
             SectionHeader(
@@ -465,7 +467,7 @@ fun PromotionalBannersSection(
                             containerColor = MaterialTheme.colorScheme.secondary,
                             contentColor = MaterialTheme.colorScheme.onSecondary
                         ),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             text = if (language == AppLanguage.ASSAMESE) "এতিয়াই প্ৰিমিয়াম কৰক" else "Upgrade to Pass Pro",
@@ -596,14 +598,14 @@ fun QuickNavItemCard(
             Surface(
                 shape = CircleShape,
                 color = item.color.copy(alpha = 0.15f),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(52.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = item.color,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
@@ -666,7 +668,7 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
             }
             Button(
                 onClick = onStartQuiz,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text(if (language == AppLanguage.ASSAMESE) "আৰম্ভ কৰক" else "Start Quiz")
             }
@@ -706,9 +708,9 @@ fun PerformanceSummaryCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val solvedSpeed = if (userProfile != null && userProfile.totalSolved > 0) {
                     val avgSeconds = (userProfile.totalTimeMinutes * 60) / userProfile.totalSolved
@@ -716,54 +718,101 @@ fun PerformanceSummaryCard(
                 } else {
                     "38s"
                 }
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved", value = "${userProfile?.totalSolved ?: 186}", icon = "📝")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy", value = "81.7%", icon = "🎯")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Speed", value = solvedSpeed, icon = "⚡")
-                StatItem(title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level", value = "Lvl ${userProfile?.level ?: 7}", icon = "📈", isBadge = true)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatItemCard(
+                        modifier = Modifier.weight(1f),
+                        title = if (language == AppLanguage.ASSAMESE) "সমাধান প্ৰশ্ন" else "Questions Solved",
+                        value = "${userProfile?.totalSolved ?: 186}",
+                        icon = "📝"
+                    )
+                    StatItemCard(
+                        modifier = Modifier.weight(1f),
+                        title = if (language == AppLanguage.ASSAMESE) "সঠিকতা" else "Accuracy",
+                        value = "81.7%",
+                        icon = "🎯"
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatItemCard(
+                        modifier = Modifier.weight(1f),
+                        title = if (language == AppLanguage.ASSAMESE) "সমাধানৰ গতি" else "Speed",
+                        value = solvedSpeed,
+                        icon = "⚡"
+                    )
+                    StatItemCard(
+                        modifier = Modifier.weight(1f),
+                        title = if (language == AppLanguage.ASSAMESE) "লেভেল" else "Level",
+                        value = "Lvl ${userProfile?.level ?: 7}",
+                        icon = "📈",
+                        isBadge = true
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun StatItem(title: String, value: String, icon: String = "", isBadge: Boolean = false) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (isBadge) {
-            Surface(
-                color = MaterialTheme.colorScheme.tertiary,
-                shape = RoundedCornerShape(8.dp)
-            ) {
+fun StatItemCard(modifier: Modifier = Modifier, title: String, value: String, icon: String = "", isBadge: Boolean = false) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (isBadge) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onTertiary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            } else {
                 Text(
                     text = value,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onTertiary,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
-        } else {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (icon.isNotEmpty()) {
-                Text(text = icon, style = MaterialTheme.typography.labelSmall)
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (icon.isNotEmpty()) {
+                    Text(text = icon, style = MaterialTheme.typography.labelMedium)
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -853,7 +902,7 @@ fun MockTestCard(
 ) {
     Card(
         modifier = Modifier.width(260.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder()
     ) {

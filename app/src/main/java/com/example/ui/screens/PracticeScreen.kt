@@ -398,19 +398,12 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                            com.example.ui.components.EmptyStateIllustration(
+                                type = com.example.ui.components.EmptyStateType.RHINO_BOOK,
+                                title = if (isAssamese) "কোনো প্ৰশ্ন উপলব্ধ নাই" else "No Questions Found",
+                                message = if (isAssamese) "এই বিষয় বা অধ্যায়ৰ বাবে কোনো প্ৰশ্ন উপলব্ধ নাই।" else "No questions found for the selected subject or chapter.",
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = if (isAssamese) "এই বিষয় বা অধ্যায়ৰ বাবে কোনো প্ৰশ্ন উপলব্ধ নাই।" else "No questions found for the selected subject or chapter.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
                             Button(onClick = { isSessionStarted = false }) {
                                 Text(if (isAssamese) "পাছলৈ যাওক" else "Back to Subjects")
                             }

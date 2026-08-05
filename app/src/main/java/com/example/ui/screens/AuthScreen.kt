@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
+import com.example.ui.components.getLogoIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +30,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val sessionMessage by viewModel.sessionMessage.collectAsState()
+    val aboutConfig by viewModel.aboutConfig.collectAsState()
 
     var isLoginTab by remember { mutableStateOf(true) }
     var nameInput by remember { mutableStateOf("") }
@@ -243,15 +245,15 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer,
@@ -259,7 +261,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = Icons.Default.MenuBook,
+                    imageVector = getLogoIcon(aboutConfig.logoIconName),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
@@ -270,14 +272,14 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Jukti",
+            text = aboutConfig.appTitle,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary
         )
 
         Text(
-            text = "Test Your Knowledge",
+            text = aboutConfig.appSubtitleEn,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.secondary
@@ -542,5 +544,5 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             )
         }
     }
+    }
 }
-

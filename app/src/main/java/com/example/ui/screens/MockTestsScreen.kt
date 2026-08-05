@@ -276,7 +276,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -321,31 +321,12 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = if (isAssamese) "কোনো মক টেষ্ট পোৱা নগ'ল" else "No Mock Tests Found",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = if (isAssamese) "অনুগ্ৰহ কৰি আপোনাৰ চাৰ্চ বা ফিল্টাৰ সলনি কৰক" else "Try clearing your search query or filters",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        com.example.ui.components.EmptyStateIllustration(
+                            type = com.example.ui.components.EmptyStateType.STUDENT_JAAPI,
+                            title = if (isAssamese) "কোনো মক টেষ্ট পোৱা নগ'ল" else "No Mock Tests Found",
+                            message = if (isAssamese) "অনুগ্ৰহ কৰি আপোনাৰ চাৰ্চ বা ফিল্টাৰ সলনি কৰক" else "Try clearing your search query or filters",
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             } else {
@@ -523,7 +504,7 @@ fun ContinueLastMockCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -789,7 +770,7 @@ fun MockTestCardDetailed(
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(

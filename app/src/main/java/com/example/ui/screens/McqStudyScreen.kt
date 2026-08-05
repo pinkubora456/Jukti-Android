@@ -912,7 +912,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
             // Live Study Timer & Question Count Header Bar
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
             ) {
                 Row(
@@ -952,7 +952,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     // Studied Total
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         val totalStudied = userProfile?.totalSolved ?: studiedQuestionsCountInSession
                         Text(
@@ -966,7 +966,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 }
             }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Question Interactive Card View
         if (currentQuestion == null) {
@@ -1074,7 +1074,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     // Options List - Directly highlights the correct answer
                     val options = listOf(
@@ -1466,7 +1466,12 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
         Spacer(modifier = Modifier.height(14.dp))
 
         if (currentQuestion == null) {
-            Text(if (isAssamese) "প্ৰশ্ন উপলব্ধ নাই" else "No practice questions available.")
+            com.example.ui.components.EmptyStateIllustration(
+                type = com.example.ui.components.EmptyStateType.RHINO_BOOK,
+                title = if (isAssamese) "কোনো প্ৰশ্ন উপলব্ধ নাই" else "No Questions",
+                message = if (isAssamese) "এই বিষয়ৰ বাবে কোনো প্ৰশ্ন উপলব্ধ নাই।" else "No practice questions available.",
+                modifier = Modifier.fillMaxWidth().padding(top = 40.dp)
+            )
         } else {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1530,7 +1535,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                         fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     val options = listOf(
                         currentQuestion.optionAEn to currentQuestion.optionAAs,
@@ -1552,7 +1557,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                         selectedOptionIndex = optIndex
                                     }
                                 },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = when {
                                 isSubmitted && isCorrect -> MaterialTheme.colorScheme.successContainer
                                 isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
@@ -1579,7 +1584,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     if (!isSubmitted) {
                         Button(
@@ -1746,7 +1751,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
             Button(
                 onClick = { isTimerRunning = !isTimerRunning },
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.height(50.dp)
+                
             ) {
                 Icon(if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1759,7 +1764,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     timeRemainingSeconds = totalTimeSeconds
                 },
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.height(50.dp)
+                
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1772,7 +1777,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
         // Completed Sessions Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
         ) {
             Row(
@@ -1834,7 +1839,7 @@ fun ExamPatternAndCutoffTab(viewModel: JuktiViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         when (selectedExam) {
             "ADRE" -> AdreExamPatternCard(isAssamese)
@@ -2002,7 +2007,7 @@ fun QuestionStudyCard(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder()
     ) {
@@ -2164,7 +2169,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             ) {
                 OutlinedButton(
                     onClick = { selectedNote = null },
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -2182,7 +2187,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -2292,7 +2297,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface

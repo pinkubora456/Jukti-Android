@@ -110,7 +110,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -126,7 +126,7 @@ fun RefundPolicyScreen(viewModel: JuktiViewModel) {
             // Footer / Support
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Row(
