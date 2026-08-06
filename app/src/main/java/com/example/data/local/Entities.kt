@@ -228,3 +228,9 @@ data class ActivityLogEntity(
     val actionDetails: String,
     val timestamp: Long
 )
+
+@Entity(tableName = "notification_categories")
+data class NotificationCategoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String
+)

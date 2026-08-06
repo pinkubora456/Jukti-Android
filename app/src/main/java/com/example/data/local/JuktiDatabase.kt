@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -13,6 +17,7 @@ import androidx.room.RoomDatabase
         ExamUpdateEntity::class,
         BannerEntity::class,
         NotificationEntity::class,
+        NotificationCategoryEntity::class,
         UserProfileEntity::class,
         AboutConfigEntity::class,
         PlanEntity::class,
@@ -23,7 +28,7 @@ import androidx.room.RoomDatabase
         QuestionProgressEntity::class,
         ActivityLogEntity::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -33,6 +38,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun examUpdateDao(): ExamUpdateDao
     abstract fun bannerDao(): BannerDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun notificationCategoryDao(): NotificationCategoryDao
     abstract fun userProfileDao(): UserProfileDao
     abstract fun aboutConfigDao(): AboutConfigDao
     abstract fun planDao(): PlanDao
@@ -49,11 +55,28 @@ abstract class JuktiDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
-                ).fallbackToDestructiveMigration().build()
+                )
+                .fallbackToDestructiveMigration()
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        INSTANCE?.let { database ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                val dao = database.notificationCategoryDao()
+                                listOf("General", "Mock Test", "Exam Update", "Study Note", "Announcement").forEach {
+                                    dao.insertNotificationCategory(NotificationCategoryEntity(name = it))
+                                }
+                            }
+                        }
+                    }
+                })
+                .build()
+
                 INSTANCE = instance
                 instance
             }

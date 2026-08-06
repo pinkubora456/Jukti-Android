@@ -187,69 +187,20 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                     item {
                         SyllabusHeroHeader(isAssamese)
                     }
-                    if (selectedExamTab == "All" || selectedExamTab == "ADRE") {
-                        item { AdreSyllabusCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "APSC") {
-                        item { ApscSyllabusCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "Assam Police") {
-                        item { AssamPoliceSyllabusCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "TET") {
-                        item { TetSyllabusCard(isAssamese) }
-                    }
                 }
-
                 HeroTab.PATTERN -> {
                     item {
                         ExamPatternHeroHeader(isAssamese)
                     }
-                    if (selectedExamTab == "All" || selectedExamTab == "ADRE") {
-                        item { AdreExamPatternCardDetailed(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "APSC") {
-                        item { ApscExamPatternCardDetailed(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "Assam Police") {
-                        item { AssamPoliceExamPatternCardDetailed(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "TET") {
-                        item { TetExamPatternCardDetailed(isAssamese) }
-                    }
                 }
-
                 HeroTab.CUTOFF -> {
                     item {
                         CutoffHeroHeader(isAssamese)
                     }
-                    if (selectedExamTab == "All" || selectedExamTab == "ADRE") {
-                        item { AdreCutoffCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "APSC") {
-                        item { ApscCutoffCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "Assam Police") {
-                        item { AssamPoliceCutoffCard(isAssamese) }
-                    }
-                    if (selectedExamTab == "All" || selectedExamTab == "TET") {
-                        item { TetCutoffCard(isAssamese) }
-                    }
                 }
             }
 
-            // DYNAMIC UPDATES LIST (RELEVANT NOTICES FROM DATABASE)
             if (filteredUpdates.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Official Notices & Notifications:",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                }
-
                 items(filteredUpdates) { update ->
                     ExamUpdateItemCard(
                         update = update,
@@ -259,6 +210,42 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                             context.startActivity(intent)
                         }
                     )
+                }
+            } else {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No entries found",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "No syllabus, exam pattern, or cutoff details have been added yet for this filter. Admin users can add or update entries via the top-right manage icon.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
         }

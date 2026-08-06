@@ -23,6 +23,7 @@ import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 import com.example.ui.components.getLogoIcon
+import com.example.ui.components.SafeOutlinedTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +62,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     } else {
                         Text("Enter your registered email address to receive a password reset link.")
                         Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = resetEmail,
                             onValueChange = { resetEmail = it },
                             label = { Text("Email Address") },
@@ -198,7 +199,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
                     
                     Text("Or enter another Google email:", style = MaterialTheme.typography.labelMedium)
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = customGoogleEmail,
                         onValueChange = { customGoogleEmail = it },
                         placeholder = { Text("your.email@gmail.com") },
@@ -321,7 +322,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             }
 
             if (!isLoginTab) {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = nameInput,
                     onValueChange = {
                         nameInput = it
@@ -335,7 +336,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = emailInput,
                 onValueChange = {
                     emailInput = it
@@ -350,7 +351,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
 
             // Password
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = passwordInput,
                 onValueChange = {
                     passwordInput = it
@@ -374,7 +375,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             if (!isLoginTab) {
                 Spacer(modifier = Modifier.height(12.dp))
                 // Confirm Password
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = confirmPasswordInput,
                     onValueChange = {
                         confirmPasswordInput = it

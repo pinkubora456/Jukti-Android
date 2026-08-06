@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.local.MockTestEntity
 import com.example.data.local.QuestionEntity
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.components.SafeOutlinedTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

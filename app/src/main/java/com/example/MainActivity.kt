@@ -1,5 +1,12 @@
 package com.example
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,7 +54,19 @@ class MainActivity : ComponentActivity() {
             val showPremiumPaywall by viewModel.showPremiumPaywall.collectAsState()
 
             val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+
             JuktiTheme(darkTheme = isDarkTheme ?: systemDark) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    val permissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { isGranted ->
+                        // Do nothing, we just asked
+                    }
+                    LaunchedEffect(Unit) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+
                 if (showPremiumPaywall) {
                     PremiumFeatureDialog(
                         onDismiss = { viewModel.dismissPaywall() },

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.MockTestEntity
 import com.example.ui.components.BilingualText
+import com.example.ui.components.SafeOutlinedTextField
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 
@@ -249,7 +250,7 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
 
             // 4. SEARCH BAR
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),

@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.BilingualText
+import com.example.ui.components.SafeOutlinedTextField
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
@@ -68,7 +69,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                 IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     placeholder = { Text("Search questions, notes, mocks...") },

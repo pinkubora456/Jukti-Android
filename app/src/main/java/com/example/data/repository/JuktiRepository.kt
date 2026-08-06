@@ -11,6 +11,7 @@ class JuktiRepository(
     private val examUpdateDao: ExamUpdateDao,
     private val bannerDao: BannerDao,
     private val notificationDao: NotificationDao,
+    private val notificationCategoryDao: NotificationCategoryDao,
     private val userProfileDao: UserProfileDao,
     private val aboutConfigDao: AboutConfigDao,
     private val planDao: PlanDao,
@@ -287,6 +288,12 @@ class JuktiRepository(
     suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity) {
         subjectChapterDao.deleteSubjectChapter(subjectChapter)
     }
+
+
+    // Notification Categories
+    val allNotificationCategories = notificationCategoryDao.getAllNotificationCategories()
+    suspend fun insertNotificationCategory(category: NotificationCategoryEntity) = notificationCategoryDao.insertNotificationCategory(category)
+    suspend fun deleteNotificationCategory(category: NotificationCategoryEntity) = notificationCategoryDao.deleteNotificationCategory(category)
 
     // Pending Requests
     suspend fun insertPendingRequest(request: PendingRequestEntity): Long {

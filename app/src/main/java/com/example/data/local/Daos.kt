@@ -259,3 +259,16 @@ interface ActivityLogDao {
     @Query("DELETE FROM activity_logs WHERE role = 'OWNER' AND timestamp < :thresholdTime")
     suspend fun deleteOldOwnerLogs(thresholdTime: Long)
 }
+
+
+@Dao
+interface NotificationCategoryDao {
+    @Query("SELECT * FROM notification_categories")
+    fun getAllNotificationCategories(): Flow<List<NotificationCategoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNotificationCategory(category: NotificationCategoryEntity)
+
+    @Delete
+    suspend fun deleteNotificationCategory(category: NotificationCategoryEntity)
+}

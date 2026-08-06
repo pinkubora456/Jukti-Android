@@ -19,6 +19,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.local.NotificationEntity
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
+import com.example.data.local.NotificationCategoryEntity
+
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 
@@ -26,14 +30,20 @@ import com.example.ui.viewmodel.Screen
 @Composable
 fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
+
     val notifications by viewModel.notifications.collectAsState()
+    val notificationCategories by viewModel.allNotificationCategories.collectAsState()
+
+    var showCategoryManageDialog by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
 
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("General") }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    val categories = listOf("General", "Mock Test", "Exam Update", "Study Note", "Announcement")
+
 
     Scaffold(
         topBar = {
@@ -100,35 +110,51 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
                     )
 
                     // Category Selector Dropdown
-                    ExposedDropdownMenuBox(
-                        expanded = dropdownExpanded,
-                        onExpandedChange = { dropdownExpanded = !dropdownExpanded }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
-                            value = category,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
-                                .testTag("notif_category_dropdown")
-                        )
-                        ExposedDropdownMenu(
+                        ExposedDropdownMenuBox(
                             expanded = dropdownExpanded,
-                            onDismissRequest = { dropdownExpanded = false }
+                            onExpandedChange = { dropdownExpanded = !dropdownExpanded },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            categories.forEach { selectionOption ->
-                                DropdownMenuItem(
-                                    text = { Text(selectionOption) },
-                                    onClick = {
-                                        category = selectionOption
-                                        dropdownExpanded = false
-                                    },
-                                    modifier = Modifier.testTag("notif_cat_item_$selectionOption")
-                                )
+                            OutlinedTextField(
+                                value = category,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                                    .testTag("notif_category_dropdown")
+                            )
+                            ExposedDropdownMenu(
+                                expanded = dropdownExpanded,
+                                onDismissRequest = { dropdownExpanded = false }
+                            ) {
+                                notificationCategories.forEach { selectionOption ->
+                                    DropdownMenuItem(
+                                        text = { Text(selectionOption.name) },
+                                        onClick = {
+                                            category = selectionOption.name
+                                            dropdownExpanded = false
+                                        },
+                                        modifier = Modifier.testTag("notif_cat_item_${selectionOption.name}")
+                                    )
+                                }
                             }
+                        }
+                        
+                        IconButton(
+                            onClick = { showCategoryManageDialog = true },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = "Manage Categories", tint = MaterialTheme.colorScheme.onSecondaryContainer)
                         }
                     }
 
@@ -191,7 +217,71 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
             }
         }
     }
+
+
+    if (showCategoryManageDialog) {
+        AlertDialog(
+            onDismissRequest = { showCategoryManageDialog = false },
+            title = { Text("Manage Categories") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newCategoryName,
+                        onValueChange = { newCategoryName = it },
+                        label = { Text("New Category Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            if (newCategoryName.isNotBlank()) {
+                                viewModel.addNotificationCategory(newCategoryName.trim())
+                                newCategoryName = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Category")
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                        items(notificationCategories) { cat ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(cat.name)
+                                IconButton(onClick = {
+                                    viewModel.deleteNotificationCategory(cat)
+                                    if (category == cat.name) {
+                                        category = notificationCategories.firstOrNull { it.id != cat.id }?.name ?: "General"
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete Category", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCategoryManageDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 }
+
 
 @Composable
 fun SentNotificationCard(notification: NotificationEntity, onDelete: () -> Unit) {

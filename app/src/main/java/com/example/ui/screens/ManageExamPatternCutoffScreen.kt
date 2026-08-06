@@ -168,22 +168,23 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                             }
 
                             // Category Selector
-                            Box(modifier = Modifier.weight(1f)) {
+                            ExposedDropdownMenuBox(
+                                expanded = categoryDropdownExpanded,
+                                onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 OutlinedTextField(
                                     value = category,
                                     onValueChange = {},
                                     readOnly = true,
                                     label = { Text("Category") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .menuAnchor()
                                         .testTag("category_selector")
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clickable { categoryDropdownExpanded = true }
-                                )
-                                DropdownMenu(
+                                ExposedDropdownMenu(
                                     expanded = categoryDropdownExpanded,
                                     onDismissRequest = { categoryDropdownExpanded = false }
                                 ) {
@@ -193,7 +194,8 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                                             onClick = {
                                                 category = cat
                                                 categoryDropdownExpanded = false
-                                            }
+                                            },
+                                            modifier = Modifier.testTag("category_item_$cat")
                                         )
                                     }
                                 }
