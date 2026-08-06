@@ -49,6 +49,12 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
     val examTabs = listOf("All", "ADRE", "APSC", "Assam Police", "TET")
 
     val filteredUpdates = updates.filter { update ->
+        val examNameLower = update.examName.lowercase()
+        val titleLower = update.titleEn.lowercase()
+        if (examNameLower.contains("dummy") || examNameLower.contains("test") ||
+            titleLower.contains("dummy") || titleLower.contains("test")) {
+            return@filter false
+        }
         val matchesExam = (selectedExamTab == "All" || update.examName.contains(selectedExamTab, ignoreCase = true))
         val matchesCategory = when (selectedHeroTab) {
             HeroTab.SYLLABUS -> update.category.contains("Syllabus", ignoreCase = true) || update.titleEn.contains("Syllabus", ignoreCase = true)
