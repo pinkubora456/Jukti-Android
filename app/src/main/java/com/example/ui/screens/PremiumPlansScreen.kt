@@ -86,7 +86,7 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
             }
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "Premium Plans",
+                text = "All Plans",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -114,7 +114,7 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Jukti Premium Plans",
+                    text = "Jukti All Plans",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer

@@ -503,7 +503,7 @@ fun QuickNavGrid(
         QuickNavItem("Exam Updates", "পৰীক্ষাৰ জাননী", Icons.Default.NotificationsActive, Screen.EXAM_INFO, BrandPrimary),
         QuickNavItem("Leaderboard", "লিডাৰব'ৰ্ড", Icons.Default.Leaderboard, Screen.LEADERBOARD, BrandAccent),
         seventhItem,
-        QuickNavItem("Premium Plans", "প্ৰিমিয়াম প্লাণ", Icons.Default.WorkspacePremium, Screen.PREMIUM_PLANS, BrandWarning)
+        QuickNavItem("All Plans", "সকলো প্লাণ", Icons.Default.WorkspacePremium, Screen.PREMIUM_PLANS, BrandWarning)
     )
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
