@@ -90,7 +90,7 @@ fun UserNotificationsScreen(viewModel: JuktiViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(notifications) { item ->
+                    items(notifications, key = { it.id }) { item ->
                         UserNotificationItemCard(notification = item)
                     }
                 }

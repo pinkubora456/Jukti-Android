@@ -107,7 +107,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                     item {
                         Text("Questions (${matchedQuestions.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
-                    items(matchedQuestions) { q ->
+                    items(matchedQuestions, key = { it.id }) { q ->
                         QuestionStudyCard(
                             question = q,
                             language = language,
@@ -122,7 +122,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                     item {
                         Text("Study Notes (${matchedNotes.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
-                    items(matchedNotes) { n ->
+                    items(matchedNotes, key = { it.id }) { n ->
                         StudyNoteListItem(
                             note = n,
                             language = language,
@@ -137,7 +137,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                     item {
                         Text("Mock Tests (${matchedMocks.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
-                    items(matchedMocks) { m ->
+                    items(matchedMocks, key = { it.id }) { m ->
                         MockTestListItem(
                             mock = m,
                             language = language,

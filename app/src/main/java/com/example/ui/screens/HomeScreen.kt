@@ -257,7 +257,7 @@ Row(
             PerformanceSummaryCard(
                 userProfile = userProfile,
                 language = language,
-                onViewAnalytics = { viewModel.navigateTo(Screen.LEADERBOARD) }
+                onViewAnalytics = { viewModel.navigateTo(Screen.MY_ANALYTICS) }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -488,17 +488,17 @@ fun QuickNavGrid(
     onOpenPomodoro: () -> Unit
 ) {
     val seventhItem = QuickNavItem(
-        titleEn = "Pomodoro Clock",
-        titleAs = "পমোড’ৰ’ ক্লক",
+        titleEn = "Focus Timer",
+        titleAs = "ফ'কাচ টাইমাৰ",
         icon = Icons.Default.HourglassTop,
         screen = Screen.MENU,
         color = BrandSecondary
     )
 
     val items = listOf(
-        QuickNavItem("Study MCQ", "MCQ অধ্যয়ন", Icons.Default.MenuBook, Screen.MCQ_STUDY, BrandPrimary),
-        QuickNavItem("Practice MCQ", "MCQ অনুশীলন", Icons.Default.Quiz, Screen.PRACTICE, BrandSecondary),
-        QuickNavItem("Mock Tests", "সম্পূৰ্ণ মক টেষ্ট", Icons.Default.Timer, Screen.MOCK_TESTS, BrandAccent),
+        QuickNavItem("Learn", "শিকা", Icons.Default.MenuBook, Screen.MCQ_STUDY, BrandPrimary),
+        QuickNavItem("Practice", "অনুশীলন", Icons.Default.Quiz, Screen.PRACTICE, BrandSecondary),
+        QuickNavItem("Mock Exam", "মক পৰীক্ষা", Icons.Default.Timer, Screen.MOCK_TESTS, BrandAccent),
         QuickNavItem("Study Notes", "অধ্যয়ন নোটছ", Icons.Default.StickyNote2, Screen.STUDY_NOTES, BrandWarning),
         QuickNavItem("Exam Updates", "পৰীক্ষাৰ জাননী", Icons.Default.NotificationsActive, Screen.EXAM_INFO, BrandPrimary),
         QuickNavItem("Leaderboard", "লিডাৰব'ৰ্ড", Icons.Default.Leaderboard, Screen.LEADERBOARD, BrandAccent),
@@ -522,7 +522,7 @@ fun QuickNavGrid(
                     item = item,
                     language = language,
                     onClick = {
-                        if (item.titleEn == "Pomodoro Clock") {
+                        if (item.titleEn == "Focus Timer") {
                             onOpenPomodoro()
                         } else {
                             onNavClick(item.screen)
@@ -542,7 +542,7 @@ fun QuickNavGrid(
                     item = item,
                     language = language,
                     onClick = {
-                        if (item.titleEn == "Pomodoro Clock") {
+                        if (item.titleEn == "Focus Timer") {
                             onOpenPomodoro()
                         } else {
                             onNavClick(item.screen)
@@ -1163,7 +1163,7 @@ fun PomodoroClockDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Study Pomodoro Clock",
+                    text = "Focus Timer",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

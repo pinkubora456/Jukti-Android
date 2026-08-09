@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -51,7 +53,7 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
             ) {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = subject,
                     onValueChange = { subject = it },
                     label = { Text("Subject Name") },
@@ -73,7 +75,7 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = chapter,
                 onValueChange = { chapter = it },
                 label = { Text("Chapter Name") },

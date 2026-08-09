@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -139,7 +141,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         ) {
                             // Exam Name field with a simple suggestions system
                             Box(modifier = Modifier.weight(1f)) {
-                                OutlinedTextField(
+                                SafeOutlinedTextField(
                                     value = examName,
                                     onValueChange = { examName = it },
                                     label = { Text("Exam Name") },
@@ -173,7 +175,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                                 onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                OutlinedTextField(
+                                SafeOutlinedTextField(
                                     value = category,
                                     onValueChange = {},
                                     readOnly = true,
@@ -203,7 +205,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         }
 
                         // English Title
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = titleEn,
                             onValueChange = { titleEn = it },
                             label = { Text("Title (English)") },
@@ -214,7 +216,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Assamese Title
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = titleAs,
                             onValueChange = { titleAs = it },
                             label = { Text("Title (Assamese)") },
@@ -225,7 +227,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         )
 
                         // English Detail
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = detailEn,
                             onValueChange = { detailEn = it },
                             label = { Text("Details / Content (English)") },
@@ -236,7 +238,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Assamese Detail
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = detailAs,
                             onValueChange = { detailAs = it },
                             label = { Text("Details / Content (Assamese)") },
@@ -247,7 +249,7 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Official Website Link
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = officialLink,
                             onValueChange = { officialLink = it },
                             label = { Text("Official Link / Reference URL") },

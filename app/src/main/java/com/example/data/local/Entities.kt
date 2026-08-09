@@ -28,7 +28,12 @@ data class QuestionEntity(
     val examCategory: String = "ADRE", // e.g. "ADRE", "APSC", "Assam Police", "TET"
     val isPremium: Boolean = false,
     val questionType: String = "Expected", // "PYQ", "Expected"
-    val isReported: Boolean = false
+    val isReported: Boolean = false,
+    val cachedAt: Long = System.currentTimeMillis(),
+    val lastAccessedAt: Long = System.currentTimeMillis(),
+    val version: Int = 1,
+    val updatedAt: Long = 0L,
+    val firebaseId: String = ""
 )
 
 @Entity(tableName = "mock_tests")
@@ -155,7 +160,16 @@ data class AboutConfigEntity(
     val contactWhatsapp: String = "Community Group",
     val adminEmails: String = "",
     val refundPolicyEn: String = "Our policy lasts 7 days. If 7 days have gone by since your purchase, unfortunately, we cannot offer you a refund. To be eligible for a refund, your request must be due to technical billing issues or double charge. Please contact support@jukti.in with your transaction details.",
-    val refundPolicyAs: String = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য। ক্ৰয় কৰাৰ ৭ দিন অতিক্ৰম কৰিলে কোনো ৰিফাণ্ড প্ৰদান কৰা নহ'ব। কেৱল কাৰিকৰী অসুবিধা বা ভুলতে দুবাৰ পইচা কটা গ’লেহে আপুনি ৰিফাণ্ডৰ বাবে আবেদন কৰিব পাৰিব। সহায়ৰ বাবে support@jukti.in ত যোগাযোগ কৰক।"
+    val refundPolicyAs: String = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য। ক্ৰয় কৰাৰ ৭ দিন অতিক্ৰম কৰিলে কোনো ৰিফাণ্ড প্ৰদান কৰা নহ'ব। কেৱল কাৰিকৰী অসুবিধা বা ভুলতে দুবাৰ পইচা কটা গ’লেহে আপুনি ৰিফাণ্ডৰ বাবে আবেদন কৰিব পাৰিব। সহায়ৰ বাবে support@jukti.in ত যোগাযোগ কৰক.",
+    val founderName: String = "Pinku Bora",
+    val founderTitle: String = "Founder & Creator of Jukti",
+    val founderCredential: String = "ADRE 2022 Qualifier",
+    val founderDescription: String = "Jukti was created with a simple vision — to make competitive exam preparation smarter, more accessible, and more effective for aspirants.\n\nHaving experienced the competitive exam preparation journey myself, I understand the importance of consistent practice, quality questions, performance analysis, and identifying areas that need improvement.\n\nThrough Jukti, my goal is to provide aspirants with a focused platform where they can practice, test their knowledge, track their progress, and prepare with greater confidence.",
+    val founderPhotoUrl: String = "",
+    val founderTagline: String = "Jukti — Test Your Knowledge.",
+    val privacyPolicyContent: String = "",
+    val termsConditionsContent: String = "",
+    val playStoreUrl: String = "https://ais-dev-mbq2e6ge5z4qs5wk3gkstx-397582032913.asia-southeast1.run.app"
 )
 
 
@@ -177,7 +191,11 @@ data class ExamEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
     val subtitle: String,
-    val status: String = "Active"
+    val status: String = "Active",
+    val syncStatus: String = "SYNCED",
+    val firebaseId: String = "",
+    val updatedAt: Long = 0L,
+    val version: Int = 1
 )
 
 @Entity(tableName = "subjects_chapters")
@@ -233,4 +251,15 @@ data class ActivityLogEntity(
 data class NotificationCategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String
+)
+
+@Entity(tableName = "sync_queue")
+data class SyncQueueEntity(
+    @PrimaryKey(autoGenerate = true) val syncId: Long = 0,
+    val entityId: String,
+    val dataType: String,
+    val operation: String,
+    val createdAt: Long = System.currentTimeMillis(),
+    val retryCount: Int = 0,
+    val syncStatus: String = "PENDING"
 )

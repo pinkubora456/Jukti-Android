@@ -26,9 +26,10 @@ import kotlinx.coroutines.launch
         PendingRequestEntity::class,
         FaqEntity::class,
         QuestionProgressEntity::class,
-        ActivityLogEntity::class
+        ActivityLogEntity::class,
+        SyncQueueEntity::class
     ],
-    version = 20,
+    version = 22,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -48,6 +49,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun faqDao(): FaqDao
     abstract fun questionProgressDao(): QuestionProgressDao
     abstract fun activityLogDao(): ActivityLogDao
+    abstract fun syncQueueDao(): SyncQueueDao
 
     companion object {
         @Volatile

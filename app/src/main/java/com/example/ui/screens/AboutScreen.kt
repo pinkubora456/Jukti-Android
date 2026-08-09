@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -304,6 +307,15 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                 }
             }
 
+            FounderCard(
+                aboutConfig = aboutConfig,
+                isOwner = isOwner,
+                onEditFounder = { showEditDialog = true },
+                onUpdateFounderPhoto = { newUrl ->
+                    viewModel.updateAboutConfig(aboutConfig.copy(founderPhotoUrl = newUrl))
+                }
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -496,8 +508,46 @@ fun OwnerEditAboutDialog(
     var logoIconName by remember { mutableStateOf(currentConfig.logoIconName) }
     var developerTagline by remember { mutableStateOf(currentConfig.developerTagline) }
     var copyrightText by remember { mutableStateOf(currentConfig.copyrightText) }
+    var founderName by remember { mutableStateOf(currentConfig.founderName) }
+    var founderTitle by remember { mutableStateOf(currentConfig.founderTitle) }
+    var founderCredential by remember { mutableStateOf(currentConfig.founderCredential) }
+    var founderDescription by remember { mutableStateOf(currentConfig.founderDescription) }
+    var founderTagline by remember { mutableStateOf(currentConfig.founderTagline) }
+    var founderPhotoUrl by remember { mutableStateOf(currentConfig.founderPhotoUrl) }
+    var playStoreUrl by remember { mutableStateOf(currentConfig.playStoreUrl) }
 
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val file = File(context.filesDir, "custom_logo_${System.currentTimeMillis()}.jpg")
+            inputStream?.use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            logoIconName = "custom_logo:${file.absolutePath}"
+        }
+    }
+
+    val founderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val file = File(context.filesDir, "founder_photo_${System.currentTimeMillis()}.jpg")
+            inputStream?.use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            founderPhotoUrl = "custom_founder:${file.absolutePath}"
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -521,27 +571,16 @@ fun OwnerEditAboutDialog(
                         onClick = { selectedTab = 1 },
                         text = { Text("App Details") }
                     )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = { Text("Founder") }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (selectedTab == 0) {
-                    val context = LocalContext.current
-                    val launcher = rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.GetContent()
-                    ) { uri: Uri? ->
-                        if (uri != null) {
-                            val inputStream = context.contentResolver.openInputStream(uri)
-                            val file = File(context.filesDir, "custom_logo_${System.currentTimeMillis()}.jpg")
-                            inputStream?.use { input ->
-                                file.outputStream().use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                            logoIconName = "custom_logo:${file.absolutePath}"
-                        }
-                    }
-
                     Column(
                         modifier = Modifier
                             .height(320.dp)
@@ -622,7 +661,7 @@ fun OwnerEditAboutDialog(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
                             label = { Text("App Title") },
@@ -632,7 +671,7 @@ fun OwnerEditAboutDialog(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = versionText,
                             onValueChange = { versionText = it },
                             label = { Text("Version Tag (e.g. Version 2026.1.0)") },
@@ -640,14 +679,14 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                } else {
+                } else if (selectedTab == 1) {
                     Column(
                         modifier = Modifier
                             .height(320.dp)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = subtitleEn,
                             onValueChange = { subtitleEn = it },
                             label = { Text("Subtitle (English)") },
@@ -655,7 +694,7 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = subtitleAs,
                             onValueChange = { subtitleAs = it },
                             label = { Text("Subtitle (Assamese)") },
@@ -663,7 +702,7 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = missionEn,
                             onValueChange = { missionEn = it },
                             label = { Text("Mission Statement (English)") },
@@ -672,7 +711,7 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = missionAs,
                             onValueChange = { missionAs = it },
                             label = { Text("Mission Statement (Assamese)") },
@@ -681,7 +720,7 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = developerTagline,
                             onValueChange = { developerTagline = it },
                             label = { Text("Developer / Team Tagline") },
@@ -689,10 +728,93 @@ fun OwnerEditAboutDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = copyrightText,
                             onValueChange = { copyrightText = it },
                             label = { Text("Copyright Line") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        SafeOutlinedTextField(
+                            value = playStoreUrl,
+                            onValueChange = { playStoreUrl = it },
+                            label = { Text("App Link / Play Store URL (for Share & Rate Us)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else if (selectedTab == 2) {
+                    Column(
+                        modifier = Modifier
+                            .height(320.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clickable { founderLauncher.launch("image/*") },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (founderPhotoUrl.startsWith("custom_founder:")) {
+                                    val path = founderPhotoUrl.removePrefix("custom_founder:")
+                                    AsyncImage(
+                                        model = File(path),
+                                        contentDescription = "Founder Photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                        OutlinedButton(onClick = { founderLauncher.launch("image/*") }) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Change Founder Photo")
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        SafeOutlinedTextField(
+                            value = founderName,
+                            onValueChange = { founderName = it },
+                            label = { Text("Founder Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        SafeOutlinedTextField(
+                            value = founderTitle,
+                            onValueChange = { founderTitle = it },
+                            label = { Text("Founder Title") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        SafeOutlinedTextField(
+                            value = founderCredential,
+                            onValueChange = { founderCredential = it },
+                            label = { Text("Credential / Achievement") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        SafeOutlinedTextField(
+                            value = founderDescription,
+                            onValueChange = { founderDescription = it },
+                            label = { Text("Founder Bio / Description") },
+                            minLines = 4,
+                            maxLines = 6,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        SafeOutlinedTextField(
+                            value = founderTagline,
+                            onValueChange = { founderTagline = it },
+                            label = { Text("Founder Tagline") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -713,7 +835,14 @@ fun OwnerEditAboutDialog(
                             missionAs = missionAs,
                             logoIconName = logoIconName,
                             developerTagline = developerTagline,
-                            copyrightText = copyrightText
+                            copyrightText = copyrightText,
+                            founderName = founderName,
+                            founderTitle = founderTitle,
+                            founderCredential = founderCredential,
+                            founderDescription = founderDescription,
+                            founderTagline = founderTagline,
+                            founderPhotoUrl = founderPhotoUrl,
+                            playStoreUrl = playStoreUrl
                         )
                     )
                 }
@@ -813,4 +942,196 @@ fun GamificationInfoDialog(
             }
         }
     )
+}
+
+@Composable
+fun FounderCard(
+    aboutConfig: AboutConfigEntity,
+    isOwner: Boolean,
+    onEditFounder: () -> Unit,
+    onUpdateFounderPhoto: (String) -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val founderPhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val file = File(context.filesDir, "founder_photo_${System.currentTimeMillis()}.jpg")
+            inputStream?.use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            onUpdateFounderPhoto("custom_founder:${file.absolutePath}")
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Surface(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clickable(enabled = isOwner) { founderPhotoLauncher.launch("image/*") },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            val photoUrl = aboutConfig.founderPhotoUrl
+                            if (photoUrl.startsWith("custom_founder:")) {
+                                val path = photoUrl.removePrefix("custom_founder:")
+                                AsyncImage(
+                                    model = File(path),
+                                    contentDescription = "Founder Profile Photo - Pinku Bora",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Founder Profile Photo - Pinku Bora",
+                                    modifier = Modifier.size(44.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    if (isOwner) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clickable { founderPhotoLauncher.launch("image/*") }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Change Founder Photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = aboutConfig.founderName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = aboutConfig.founderTitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Verified,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = aboutConfig.founderCredential,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val desc = aboutConfig.founderDescription
+            val displayDesc = if (isExpanded || desc.length < 100) {
+                desc
+            } else {
+                desc.take(100) + "..."
+            }
+
+            Text(
+                text = displayDesc,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (desc.length >= 100) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { isExpanded = !isExpanded },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = if (isExpanded) "Read Less" else "Read More",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            if (isOwner) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onEditFounder,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Edit Founder Details", fontSize = 12.sp)
+                }
+            }
+        }
+    }
 }

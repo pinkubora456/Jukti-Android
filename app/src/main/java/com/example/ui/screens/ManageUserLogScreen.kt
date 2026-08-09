@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,7 +61,7 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                 .padding(innerPadding)
         ) {
             // Search Bar
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
@@ -75,7 +77,7 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(filteredUsers) { user ->
+                items(filteredUsers, key = { it.id }) { user ->
                     UserLogCard(
                         user = user,
                         onBlockUser = { 
@@ -325,7 +327,7 @@ fun UserLogCard(
                 Column {
                     Text("Select a new plan for ${user.name}:")
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = newPlanInput,
                         onValueChange = { newPlanInput = it },
                         label = { Text("New Plan") }
@@ -356,7 +358,7 @@ fun UserLogCard(
                 Column {
                     Text("Update validity for ${user.name}:")
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = newValidityInput,
                         onValueChange = { newValidityInput = it },
                         label = { Text("New Validity") }

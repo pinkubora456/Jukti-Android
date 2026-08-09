@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.BilingualText
@@ -35,18 +38,20 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PracticeScreen(viewModel: JuktiViewModel) {
+fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) {
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val allQuestions by viewModel.questions.collectAsState()
+    val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
     val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
 
     val hiddenIds = remember(hiddenQuestions) { hiddenQuestions.map { it.id }.toSet() }
 
     // Filter out hidden questions
-    val visibleQuestions = remember(allQuestions, hiddenIds) {
-        allQuestions.filter { !it.isHidden && it.id !in hiddenIds }
+    val visibleQuestions = remember(allQuestions, hiddenIds, isSmartPractice, smartPracticeQuestions) {
+        val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
+        baseList.filter { !it.isHidden && it.id !in hiddenIds }.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
     }
 
     var isSessionStarted by rememberSaveable { mutableStateOf(false) }
@@ -78,21 +83,22 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
     }
 
     var currentQuestionIndex by remember { mutableIntStateOf(0) }
-    var selectedOptionIndex by remember { mutableStateOf<Int?>(null) }
-    var isSubmitted by remember { mutableStateOf(false) }
     var scoreCount by remember { mutableIntStateOf(0) }
     val totalPracticedCount = userProfile?.totalSolved ?: 0
+
+    var showSummary by rememberSaveable { mutableStateOf(false) }
+    val userAnswers = remember { mutableStateMapOf<Long, Int>() }
 
     // Reset index if practiceQuestions changes and out of bounds
     LaunchedEffect(practiceQuestions.size) {
         if (currentQuestionIndex >= practiceQuestions.size && practiceQuestions.isNotEmpty()) {
             currentQuestionIndex = 0
-            selectedOptionIndex = null
-            isSubmitted = false
         }
     }
 
     val currentQuestion = practiceQuestions.getOrNull(currentQuestionIndex)
+    val selectedOptionIndex = currentQuestion?.id?.let { userAnswers[it] }
+    val isSubmitted = selectedOptionIndex != null
 
     // Per-question Timer
     var secondsElapsed by remember { mutableIntStateOf(0) }
@@ -103,6 +109,12 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                 delay(1000L)
                 secondsElapsed++
             }
+        }
+    }
+
+    LaunchedEffect(isSmartPractice, smartPracticeQuestions.size) {
+        if (isSmartPractice) {
+            isSessionStarted = true
         }
     }
 
@@ -127,7 +139,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = {
-                        if (isSessionStarted) {
+                        if (isSessionStarted && !isSmartPractice) {
                             isSessionStarted = false
                         } else {
                             viewModel.navigateTo(Screen.HOME)
@@ -139,10 +151,10 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (isSessionStarted) {
+                                if (isSmartPractice) "Smart Practice" else
                                 when (selectedSubjectKey) {
                                     "General Knowledge" -> "General Knowledge"
                                     "General English" -> "General English"
@@ -151,7 +163,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     else -> "All Subjects"
                                 }
                             } else {
-                                "Practice MCQ"
+                                "Practice"
                             },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
@@ -159,12 +171,14 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                         )
                         Text(
                             text = if (isSessionStarted) {
-                                val chText = if (selectedChapters.isEmpty()) {
-                                    "All Chapters"
-                                } else {
-                                    "${selectedChapters.size} Chapters"
+                                if (isSmartPractice) "Your personalized practice session" else {
+                                    val chText = if (selectedChapters.isEmpty()) {
+                                        "All Chapters"
+                                    } else {
+                                        "${selectedChapters.size} Chapters"
+                                    }
+                                    "$chText • ${practiceQuestions.size} ${"Questions"}"
                                 }
-                                "$chText • ${practiceQuestions.size} ${"Questions"}"
                             } else {
                                 "Select a subject banner to start practice"
                             },
@@ -371,14 +385,26 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                             selectedSubjectKey = banner.subjectKey
                             selectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
                             currentQuestionIndex = 0
-                            selectedOptionIndex = null
-                            isSubmitted = false
+                            showSummary = false
+                            userAnswers.clear()
                             isSessionStarted = true
                         },
                         isAssamese = isAssamese
                     )
                 }
             }
+        } else if (showSummary) {
+            PracticeSummaryView(
+                questions = practiceQuestions,
+                userAnswers = userAnswers,
+                onFinish = {
+                    showSummary = false
+                    isSessionStarted = false
+                    viewModel.navigateTo(Screen.HOME)
+                },
+                questionLanguage = questionLanguage,
+                isSmartPractice = isSmartPractice
+            )
         } else {
             // STEP 2: ACTIVE QUESTION AVAILABLE PAGE (Bigger view, NO Subject/Chapter selectors)
             Column(
@@ -495,13 +521,8 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     IconButton(
                                         onClick = {
                                             viewModel.toggleHideQuestion(currentQuestion)
-                                            if (currentQuestionIndex < practiceQuestions.size - 1) {
-                                                selectedOptionIndex = null
-                                                isSubmitted = false
-                                            } else if (currentQuestionIndex > 0) {
+                                            if (currentQuestionIndex >= practiceQuestions.size - 1 && currentQuestionIndex > 0) {
                                                 currentQuestionIndex--
-                                                selectedOptionIndex = null
-                                                isSubmitted = false
                                             }
                                         },
                                         modifier = Modifier.size(36.dp)
@@ -593,8 +614,7 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
                                         .clickable(enabled = !isSubmitted) {
-                                            selectedOptionIndex = index
-                                            isSubmitted = true
+                                            userAnswers[currentQuestion.id] = index
                                             viewModel.recordStudyProgress(1, 10)
                                             val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
                                             if (isAnsCorrect) {
@@ -698,8 +718,6 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     onClick = {
                                         if (currentQuestionIndex > 0) {
                                             currentQuestionIndex--
-                                            selectedOptionIndex = null
-                                            isSubmitted = false
                                         }
                                     },
                                     enabled = currentQuestionIndex > 0
@@ -712,11 +730,9 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     onClick = {
                                         if (currentQuestionIndex < practiceQuestions.size - 1) {
                                             currentQuestionIndex++
-                                            selectedOptionIndex = null
-                                            isSubmitted = false
                                         } else {
                                             viewModel.awardChapterCompletionXp()
-                                            viewModel.navigateTo(Screen.HOME)
+                                            showSummary = true
                                         }
                                     }
                                 ) {
@@ -729,6 +745,15 @@ fun PracticeScreen(viewModel: JuktiViewModel) {
                                     )
                                     Icon(Icons.Default.ChevronRight, contentDescription = null)
                                 }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            TextButton(
+                                onClick = { showSummary = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("End Practice", color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -849,7 +874,7 @@ private fun PracticeSubjectBannerCard(
                     else -> "${selectedChapters.size} Chapters Selected"
                 }
 
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = labelText,
                     onValueChange = {},
                     readOnly = true,
@@ -963,6 +988,162 @@ private fun PracticeSubjectBannerCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun PracticeSummaryView(
+    questions: List<com.example.data.local.QuestionEntity>,
+    userAnswers: Map<Long, Int>,
+    onFinish: () -> Unit,
+    questionLanguage: AppLanguage,
+    isSmartPractice: Boolean = false
+) {
+    var correctCount = 0
+    var incorrectCount = 0
+    val unattemptedCount = questions.size - userAnswers.size
+
+    val answeredQuestions = mutableListOf<Pair<com.example.data.local.QuestionEntity, Boolean>>()
+
+    questions.forEach { q ->
+        val answerIndex = userAnswers[q.id]
+        if (answerIndex != null) {
+            val isCorrect = answerIndex == q.correctOptionIndex
+            if (isCorrect) correctCount++ else incorrectCount++
+            answeredQuestions.add(q to isCorrect)
+        }
+    }
+
+    val totalAttempted = correctCount + incorrectCount
+    val accuracy = if (totalAttempted > 0) (correctCount.toFloat() / totalAttempted * 100).toInt() else 0
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+
+        Text(
+            text = "${questions.size} Questions Practiced",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Text(
+            text = "Accuracy: $accuracy%",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            SummaryStatCard(title = "Correct", count = correctCount, color = MaterialTheme.colorScheme.success)
+            SummaryStatCard(title = "Incorrect", count = incorrectCount, color = MaterialTheme.colorScheme.error)
+            SummaryStatCard(title = "Skipped", count = unattemptedCount, color = MaterialTheme.colorScheme.outline)
+        }
+
+        Button(
+            onClick = onFinish,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) {
+            Text("Finish Practice")
+        }
+
+        if (answeredQuestions.isNotEmpty()) {
+            Text(
+                text = "Detailed Review",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(top = 16.dp, bottom = 8.dp)
+            )
+
+            answeredQuestions.forEachIndexed { index, (q, isCorrect) ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isCorrect) MaterialTheme.colorScheme.successContainer.copy(alpha = 0.2f)
+                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                contentDescription = null,
+                                tint = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp).padding(end = 8.dp)
+                            )
+                            BilingualText(
+                                textEn = "${index + 1}. ${q.questionEn}",
+                                textAs = "${index + 1}. ${q.questionAs}",
+                                language = questionLanguage,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        val selectedAnsIndex = userAnswers[q.id] ?: -1
+                        val selectedAnsEn = when (selectedAnsIndex) {
+                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
+                        }
+                        val correctAnsEn = when (q.correctOptionIndex) {
+                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
+                        }
+
+                        Text(
+                            text = "Your Answer: $selectedAnsEn",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+                        )
+                        if (!isCorrect) {
+                            Text(
+                                text = "Correct Answer: $correctAnsEn",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.success
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SummaryStatCard(title: String, count: Int, color: Color) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+        border = BorderStroke(1.dp, color)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = color)
+            Text(text = title, style = MaterialTheme.typography.labelMedium, color = color)
         }
     }
 }

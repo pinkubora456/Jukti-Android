@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
@@ -149,7 +151,7 @@ fun StudySubjectBannerCard(
                     else -> "${selectedChapters.size} Chapters Selected"
                 }
 
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = labelText,
                     onValueChange = {},
                     readOnly = true,
@@ -313,7 +315,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         Column {
                             Text(
                                 text = when (activeStudySubView) {
-                                    "STUDY_MCQS" -> "Study MCQs"
+                                    "STUDY_MCQS" -> "Learn"
                                     "POMODORO" -> "Pomodoro Study Timer"
                                     "CURRENT_AFFAIRS" -> "Current Affairs"
                                     else -> "Study Hub"
@@ -430,7 +432,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { Text("Search subjects, chapters, notes...") },
@@ -443,10 +445,10 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         )
                     )
 
-                    // 1. Study MCQs
+                    // 1. Learn
                     StudyFeatureCard(
-                        title = "Study MCQs",
-                        description = "Learn chapter-wise MCQs.",
+                        title = "Learn",
+                        description = "Master chapter-wise questions.",
                         actionText = "Start Learning",
                         icon = Icons.Default.AutoStories,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -456,10 +458,10 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         badgeText = "🔥 Popular"
                     )
 
-                    // 2. Practice MCQs
+                    // 2. Practice
                     StudyFeatureCard(
-                        title = "Practice MCQs",
-                        description = "Practice with instant explanations.",
+                        title = "Practice",
+                        description = "Test yourself with instant explanations.",
                         actionText = "Practice Now",
                         icon = Icons.Default.Quiz,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -468,33 +470,45 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         progressText = "$solvedQuestions/$availableQuestions completed",
                         badgeText = "⭐ Recommended"
                     )
-
-                    // 3. Mock Tests
+                    
+                    // 3. Smart Practice
                     StudyFeatureCard(
-                        title = "Mock Tests",
-                        description = "Attempt full-length mock exams.",
-                        actionText = "Attempt Test",
-                        icon = Icons.Default.Assignment,
+                        title = "Smart Practice",
+                        description = "Practice saved and frequently incorrect questions.",
+                        actionText = "Start Smart Practice",
+                        icon = Icons.Default.Psychology,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
+                        onClick = { viewModel.navigateTo(Screen.SMART_PRACTICE) },
+                        badgeText = "🧠 Smart"
+                    )
+
+                    // 4. Mock Exams
+                    StudyFeatureCard(
+                        title = "Mock Exams",
+                        description = "Attempt full-length exam simulations.",
+                        actionText = "Attempt Test",
+                        icon = Icons.Default.Assignment,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        iconTintColor = MaterialTheme.colorScheme.primary,
                         onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
                         progressText = "$completedMocks/$availableMocks completed",
                         badgeText = "👑 Premium"
                     )
 
-                    // 4. Pomodoro Study Timer
+                    // 5. Focus Timer
                     StudyFeatureCard(
-                        title = "Pomodoro Study Timer",
+                        title = "Focus Timer",
                         description = "Stay focused with timed study sessions.",
                         actionText = "Start Timer",
                         icon = Icons.Default.HourglassTop,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.error,
+                        iconTintColor = MaterialTheme.colorScheme.primary,
                         onClick = { activeStudySubView = "POMODORO" },
                         badgeText = "🎯 Focus"
                     )
 
-                    // 5. Study Notes
+                    // 6. Study Notes
                     StudyFeatureCard(
                         title = "Study Notes",
                         description = "Read chapter-wise notes.",
@@ -2240,7 +2254,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -2297,7 +2311,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                     }
                 }
             } else {
-                items(currentAffairsNotes) { note ->
+                items(currentAffairsNotes, key = { it.id }) { note ->
                     Card(
                         onClick = { selectedNote = note },
                         modifier = Modifier.fillMaxWidth(),

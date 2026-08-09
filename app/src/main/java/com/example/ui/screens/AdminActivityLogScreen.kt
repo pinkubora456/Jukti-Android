@@ -55,7 +55,7 @@ fun AdminActivityLogScreen(viewModel: JuktiViewModel) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(activityLogs) { log ->
+                    items(activityLogs, key = { it.id }) { log ->
                         ActivityLogCard(log)
                     }
                 }

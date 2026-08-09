@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -103,7 +105,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
 
             // Add Admin Input Section
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = emailInput,
                 onValueChange = { emailInput = it },
                 label = { Text("Enter User Email ID") },
@@ -150,7 +152,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
+            SafeOutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("Search admin by email...") },

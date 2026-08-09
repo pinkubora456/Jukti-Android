@@ -92,11 +92,12 @@ data class MockHistoryItem(
 )
 
 @Composable
-fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
+fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val examsList by viewModel.examsList.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(1) } // Default to 1 = Analytics as requested
+    var selectedTab by remember { mutableStateOf(initialTab) }
 
     val isAssamese = language == AppLanguage.ASSAMESE || language == AppLanguage.BOTH
 
@@ -171,7 +172,8 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel) {
                     userXp = userProfile?.xp ?: 2350,
                     userLevel = userProfile?.level ?: 8,
                     userMockAvg = mockAvg,
-                    isAssamese = isAssamese
+                    isAssamese = isAssamese,
+                    examsList = examsList
                 )
             } else {
             // MY ANALYTICS TAB (REBUILT WITH ALL NEW USER REQUIREMENTS)
@@ -1414,39 +1416,48 @@ fun LeaderboardTabContent(
     userXp: Int,
     userLevel: Int,
     userMockAvg: Float,
-    isAssamese: Boolean
+    isAssamese: Boolean,
+    examsList: List<com.example.data.local.ExamEntity>
 ) {
     var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam, 2 = Mock Test Avg
     var selectedExamIndex by remember { mutableStateOf(0) } // Default: ADRE Grade III & IV
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
-    val examOptionsEn = remember {
+    val examOptionsEn = remember(examsList) {
+        if (examsList.isNotEmpty()) {
+            examsList.map { it.title }
+        } else {
+            listOf("No Exam Plan")
+        }
+    }
+
+    val examOptionsAs = remember(examsList) {
+        if (examsList.isNotEmpty()) {
+            examsList.map { it.subtitle.ifEmpty { it.title } }
+        } else {
+            listOf("No Exam Plan")
+        }
+    }
+
+    val safeExamIndex = if (selectedExamIndex in examOptionsEn.indices) selectedExamIndex else 0
+    val activeSelectedExam = examOptionsEn[safeExamIndex]
+
+    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs) {
         listOf(
-            "ADRE Grade III & IV",
-            "APSC CCE Prelims",
-            "Assam Police SI & Constable",
-            "Assam Forest Guard & Panchayat"
+            TopRanker(
+                name = "You",
+                city = "Assam",
+                xp = userXp,
+                level = userLevel,
+                badge = "Rising Star",
+                examPlanEn = activeSelectedExam,
+                examPlanAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else activeSelectedExam,
+                avgMockScore = userMockAvg
+            )
         )
     }
 
-    val examOptionsAs = remember {
-        listOf(
-            "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী",
-            "এপিএছচি চি.চি.ই. প্ৰিলিমছ",
-            "অসম পুলিচ এছ.আই. আৰু কনষ্টেবল",
-            "অসম বনৰক্ষী আৰু পঞ্চায়ত"
-        )
-    }
-
-    val allRankers = remember(userXp, userLevel, userMockAvg) {
-        listOf(
-            TopRanker("You", "Assam", userXp, userLevel, "Rising Star", "ADRE Grade III & IV", "এডিআৰই ৩য় আৰু ৪ৰ্থ শ্ৰেণী", userMockAvg)
-        )
-    }
-
-    val activeSelectedExam = examOptionsEn[selectedExamIndex]
-
-    val filteredList = remember(leaderboardMode, selectedExamIndex, allRankers) {
+    val filteredList = remember(leaderboardMode, safeExamIndex, allRankers, examOptionsEn) {
         if (leaderboardMode == 0) {
             allRankers.sortedByDescending { it.xp }
         } else if (leaderboardMode == 1) {
@@ -1456,7 +1467,7 @@ fun LeaderboardTabContent(
                 if (ranker.name.contains("You")) {
                     ranker.copy(
                         examPlanEn = activeSelectedExam,
-                        examPlanAs = examOptionsAs[selectedExamIndex]
+                        examPlanAs = examOptionsAs[safeExamIndex]
                     )
                 } else ranker
             }
@@ -1648,7 +1659,7 @@ fun LeaderboardTabContent(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = examOptionsEn[selectedExamIndex],
+                                            text = activeSelectedExam,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -1728,7 +1739,7 @@ fun LeaderboardTabContent(
                     text = if (leaderboardMode == 0) {
                         "All Assam Top Rankers"
                     } else if (leaderboardMode == 1) {
-                        "Candidates: ${examOptionsEn[selectedExamIndex]}"
+                        "Candidates: $activeSelectedExam"
                     } else {
                         "Mock Avg Rankers"
                     },
@@ -1745,7 +1756,7 @@ fun LeaderboardTabContent(
         }
 
         // ALL USERS RANKED TOP TO BOTTOM
-        itemsIndexed(filteredList) { index, ranker ->
+        itemsIndexed(filteredList, key = { _, it -> it.name + it.examPlanEn }) { index, ranker ->
             val isUser = ranker.name.contains("You")
 
             Card(

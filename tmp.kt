@@ -28,10 +28,12 @@ fun WorkspaceScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Workspace", fontWeight = FontWeight.Bold) },
+           WorkspaceBannerCard(
+            title = { Text("Workspace", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+               WorkspaceBannerCard(
+            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
@@ -41,19 +43,19 @@ fun WorkspaceScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (!isAdminOrOwner) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Access Denied. Admins Only.")
-                }
+            if (isAdminOrOwner) {
+                WorkspaceGrid(isOwner = isOwner, viewModel = viewModel)
             } else {
-                WorkspaceDashboardContent(viewModel, isOwner)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Access restricted to Admins & Owners.")
+                }
             }
         }
     }
 }
 
 @Composable
-fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
+fun WorkspaceGrid(isOwner: Boolean, viewModel: JuktiViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,84 +64,76 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (isOwner) {
-            WorkspaceBannerCard(
-                title = "Owner Dashboard",
+     
+           WorkspaceBannerCard(
+            title = "Owner Dashboard",
                 icon = Icons.Default.Dashboard,
                 onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.OWNER_DASHBOARD) }
             )
         }
-
-        WorkspaceBannerCard(
+        
+ 
             title = "Manage Q-Bank",
             icon = Icons.Default.LibraryBooks,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Manage Mocks",
             icon = Icons.Default.Timer,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Manage Plans",
             icon = Icons.Default.CardMembership,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Manage Exams",
             icon = Icons.Default.School,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_EXAMS) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Manage User Log",
             icon = Icons.Default.People,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_USER_LOG) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Reported Questions",
             icon = Icons.Default.BugReport,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.REPORTED_QUESTIONS) }
         )
-
-        WorkspaceBannerCard(
+ 
+ 
             title = "Manage Current Affairs",
             icon = Icons.Default.Newspaper,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_CURRENT_AFFAIRS) }
         )
-
         WorkspaceBannerCard(
             title = "Manage Study Notes",
             icon = Icons.Default.MenuBook,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_STUDY_NOTES) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Manage Subjects & Chapters",
             icon = Icons.Default.Category,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Information Banners",
             icon = Icons.Default.ViewCarousel,
             onClick = { viewModel.navigateTo(Screen.MANAGE_BANNERS) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Exam Patern & Cutoff",
             icon = Icons.Default.Analytics,
             onClick = { viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF) }
         )
-
-        WorkspaceBannerCard(
+ 
             title = "Notification",
             icon = Icons.Default.Notifications,
             onClick = { viewModel.navigateTo(Screen.MANAGE_NOTIFICATIONS) }
         )
+
     }
 }
 
@@ -150,7 +144,7 @@ fun WorkspaceBannerCard(title: String, icon: ImageVector, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -159,18 +153,32 @@ fun WorkspaceBannerCard(title: String, icon: ImageVector, onClick: () -> Unit) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
-            )
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

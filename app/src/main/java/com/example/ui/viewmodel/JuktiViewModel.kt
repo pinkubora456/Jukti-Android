@@ -28,12 +28,14 @@ enum class Screen {
     HOME,
     MCQ_STUDY,
     PRACTICE,
+    SMART_PRACTICE,
     MOCK_TESTS,
     MOCK_PLAYER,
     MOCK_RESULT,
     STUDY_NOTES,
     STUDY_NOTE_DETAIL,
     LEADERBOARD,
+    MY_ANALYTICS,
     EXAM_INFO,
     PROFILE,
     PREMIUM_PLANS,
@@ -64,12 +66,15 @@ enum class Screen {
     CREATE_MOCK,
     EDIT_MOCK,
     MANAGE_STUDY_NOTES,
+    MANAGE_CURRENT_AFFAIRS,
     MANAGE_SUBJECTS_CHAPTERS,
     MANAGE_NOTIFICATIONS,
+    STORAGE_MANAGEMENT,
     USER_NOTIFICATIONS,
     MANAGE_EXAM_PATTERN_CUTOFF,
     MANAGE_BANNERS,
-    REFUND_POLICY
+    PRIVACY_POLICY,
+    TERMS_CONDITIONS
 }
 
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
@@ -96,7 +101,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.pendingRequestDao(),
         database.faqDao(),
         database.questionProgressDao(),
-        database.activityLogDao()
+        database.activityLogDao(),
+        com.example.data.repository.FirebaseSyncManager(database)
     )
 
     val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
@@ -200,6 +206,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
     val bookmarkedQuestions = repository.bookmarkedQuestions.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+    val smartPracticeQuestions = repository.smartPracticeQuestions.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
     val hiddenQuestions = repository.hiddenQuestions.stateIn(
@@ -476,7 +485,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             _currentScreen.value = Screen.AUTH
             return
         }
-        if (screen == Screen.LEADERBOARD && !isUserPremium.value) {
+        if ((screen == Screen.LEADERBOARD || screen == Screen.MY_ANALYTICS) && !isUserPremium.value) {
             _showPremiumPaywall.value = true
             return
         }

@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -192,14 +194,14 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email Support *") },
                         modifier = Modifier.fillMaxWidth().testTag("contact_email_input"),
                         singleLine = true
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = whatsapp,
                         onValueChange = { whatsapp = it },
                         label = { Text("WhatsApp Community Info *") },
@@ -249,26 +251,26 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = faqQuestionEn,
                         onValueChange = { faqQuestionEn = it },
                         label = { Text("Question (English) *") },
                         modifier = Modifier.fillMaxWidth().testTag("faq_q_en_input")
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = faqQuestionAs,
                         onValueChange = { faqQuestionAs = it },
                         label = { Text("Question (Assamese)") },
                         modifier = Modifier.fillMaxWidth().testTag("faq_q_as_input")
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = faqAnswerEn,
                         onValueChange = { faqAnswerEn = it },
                         label = { Text("Answer (English) *") },
                         modifier = Modifier.fillMaxWidth().testTag("faq_a_en_input"),
                         minLines = 3
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = faqAnswerAs,
                         onValueChange = { faqAnswerAs = it },
                         label = { Text("Answer (Assamese)") },

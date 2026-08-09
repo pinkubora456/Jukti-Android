@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -126,7 +128,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 item {
                     Text("Select a Mock Test to Edit:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                items(mocks) { mock ->
+                items(mocks, key = { it.id }) { mock ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -172,7 +174,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                     Text("Mock Test Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 item {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = mockTitleEn,
                         onValueChange = { mockTitleEn = it },
                         label = { Text("Mock Test Title (English) *") },
@@ -181,7 +183,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                     )
                 }
                 item {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = mockTitleAs,
                         onValueChange = { mockTitleAs = it },
                         label = { Text("Mock Test Title (Assamese)") },
@@ -191,7 +193,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 }
                 item {
                     Box(modifier = Modifier.fillMaxWidth().clickable { examDialogVisible = true }) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                             onValueChange = {},
                             readOnly = true,
@@ -213,7 +215,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = durationMinutes,
                             onValueChange = { durationMinutes = it },
                             label = { Text("Duration (Mins) *") },
@@ -221,7 +223,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = markPerQuestion,
                             onValueChange = { markPerQuestion = it },
                             label = { Text("Mark / Q *") },
@@ -241,7 +243,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             onExpandedChange = { negativeMarkingExpanded = !negativeMarkingExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = negativeMarking,
                                 onValueChange = {},
                                 readOnly = true,
@@ -270,7 +272,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             onExpandedChange = { testTypeExpanded = !testTypeExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = testType,
                                 onValueChange = {},
                                 readOnly = true,
@@ -300,7 +302,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                         expanded = planTypeExpanded,
                         onExpandedChange = { planTypeExpanded = !planTypeExpanded }
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = planType,
                             onValueChange = {},
                             readOnly = true,
@@ -372,7 +374,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             onExpandedChange = { subjectFilterExpanded = !subjectFilterExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = selectedSubjectFilter,
                                 onValueChange = {},
                                 readOnly = true,
@@ -396,7 +398,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             }
                         }
 
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = questionSearchQuery,
                             onValueChange = { questionSearchQuery = it },
                             label = { Text("Search Q-Bank") },
@@ -416,7 +418,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            items(filteredQuestions) { q ->
+                            items(filteredQuestions, key = { it.id }) { q ->
                                 val isSelected = selectedQuestionIds.contains(q.id)
                                 Row(
                                     modifier = Modifier

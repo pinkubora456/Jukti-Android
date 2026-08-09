@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
@@ -32,6 +33,8 @@ fun MenuScreen(viewModel: JuktiViewModel) {
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
+    val aboutConfig by viewModel.aboutConfig.collectAsState()
+    val context = LocalContext.current
 
     val isAssamese = language == AppLanguage.ASSAMESE
 
@@ -175,10 +178,49 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                 )
 
                 MenuItemCard(
-                    title = "Refund Policy",
-                    description = "Subscription refund window & guidelines",
-                    icon = Icons.Default.ReceiptLong,
-                    onClick = { viewModel.navigateTo(Screen.REFUND_POLICY) }
+                    title = "Rate Us",
+                    description = "Rate Jukti 5 stars on Google Play",
+                    icon = Icons.Default.Star,
+                    onClick = {
+                        val link = if (aboutConfig.playStoreUrl.isNotBlank()) aboutConfig.playStoreUrl else "https://ais-dev-mbq2e6ge5z4qs5wk3gkstx-397582032913.asia-southeast1.run.app"
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}"))
+                            context.startActivity(intent)
+                        }
+                    }
+                )
+
+                MenuItemCard(
+                    title = "Share Jukti",
+                    description = "Share app with friends & aspirants",
+                    icon = Icons.Default.Share,
+                    onClick = {
+                        val link = if (aboutConfig.playStoreUrl.isNotBlank()) aboutConfig.playStoreUrl else "https://ais-dev-mbq2e6ge5z4qs5wk3gkstx-397582032913.asia-southeast1.run.app"
+                        val sendIntent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(android.content.Intent.EXTRA_TEXT, "Prepare for APSC, ADRE, and Assam Competitive Exams with Jukti! Download now: $link")
+                            type = "text/plain"
+                        }
+                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Share Jukti via")
+                        context.startActivity(shareIntent)
+                    }
+                )
+
+                MenuItemCard(
+                    title = "Privacy Policy",
+                    description = "Data collection, security & privacy protection",
+                    icon = Icons.Default.Security,
+                    onClick = { viewModel.navigateTo(Screen.PRIVACY_POLICY) }
+                )
+
+                MenuItemCard(
+                    title = "Terms & Conditions",
+                    description = "Terms of service, payments & refund policy",
+                    icon = Icons.Default.Description,
+                    onClick = { viewModel.navigateTo(Screen.TERMS_CONDITIONS) }
                 )
             }
 

@@ -20,7 +20,8 @@ class JuktiRepository(
     private val pendingRequestDao: PendingRequestDao,
     private val faqDao: FaqDao,
     private val questionProgressDao: QuestionProgressDao,
-    private val activityLogDao: ActivityLogDao
+    private val activityLogDao: ActivityLogDao,
+    private val syncManager: FirebaseSyncManager
 ) {
     private val firebaseRepository = FirebaseRepository()
 
@@ -28,6 +29,7 @@ class JuktiRepository(
 
     val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions()
     val bookmarkedQuestions: Flow<List<QuestionEntity>> = questionDao.getBookmarkedQuestions()
+    val smartPracticeQuestions: Flow<List<QuestionEntity>> = questionDao.getSmartPracticeQuestions()
     val hiddenQuestions: Flow<List<QuestionEntity>> = questionDao.getHiddenQuestions()
     val allMockTests: Flow<List<MockTestEntity>> = mockTestDao.getAllMockTests()
     val allNotes: Flow<List<StudyNoteEntity>> = studyNoteDao.getAllNotes()
@@ -81,7 +83,7 @@ class JuktiRepository(
         }
         val currentExams = examDao.getAllExams().firstOrNull()
         if (currentExams.isNullOrEmpty()) {
-            examDao.insertAll(SampleData.sampleExams)
+            syncManager.fetchAllExams()
         }
         val currentSubjectsChapters = subjectChapterDao.getAllSubjectsChapters().firstOrNull()
         if (currentSubjectsChapters.isNullOrEmpty()) {
@@ -130,25 +132,29 @@ class JuktiRepository(
 
     suspend fun deleteQuestion(question: QuestionEntity) {
         questionDao.deleteQuestion(question)
-        // Optionally delete from Firestore too, but not required by user
+        firebaseRepository.deleteQuestion(question.id)
     }
 
     suspend fun bulkInsertQuestions(questions: List<QuestionEntity>) {
         questionDao.insertAll(questions)
-        // Should probably sync here too but keeping it simple for now
+        questions.forEach { firebaseRepository.saveQuestion(it) }
     }
 
     // Mock Actions
     suspend fun addMockTest(mock: MockTestEntity): Long {
-        return mockTestDao.insertMockTest(mock)
+        val id = mockTestDao.insertMockTest(mock)
+        firebaseRepository.saveMockTest(mock.copy(id = id))
+        return id
     }
 
     suspend fun updateMockTest(mock: MockTestEntity) {
         mockTestDao.updateMockTest(mock)
+        firebaseRepository.saveMockTest(mock)
     }
 
     suspend fun deleteMockTest(mock: MockTestEntity) {
         mockTestDao.deleteMockTest(mock)
+        firebaseRepository.deleteMockTest(mock.id)
     }
 
     suspend fun submitMockResult(mockId: Long, score: Int, accuracy: Float, timeSpentMins: Int) {
@@ -191,32 +197,41 @@ class JuktiRepository(
 
     suspend fun deleteStudyNote(note: StudyNoteEntity) {
         studyNoteDao.deleteNote(note)
+        firebaseRepository.deleteStudyNote(note.id)
     }
 
     // Exam Updates
     suspend fun addExamUpdate(update: ExamUpdateEntity): Long {
-        return examUpdateDao.insertUpdate(update)
+        val id = examUpdateDao.insertUpdate(update)
+        firebaseRepository.saveExamUpdate(update.copy(id = id))
+        return id
     }
 
     suspend fun updateExamUpdate(update: ExamUpdateEntity) {
         examUpdateDao.updateExamUpdate(update)
+        firebaseRepository.saveExamUpdate(update)
     }
 
     suspend fun deleteExamUpdate(update: ExamUpdateEntity) {
         examUpdateDao.deleteUpdate(update)
+        firebaseRepository.deleteExamUpdate(update.id)
     }
 
     // Banners
     suspend fun addBanner(banner: BannerEntity): Long {
-        return bannerDao.insertBanner(banner)
+        val id = bannerDao.insertBanner(banner)
+        firebaseRepository.saveBanner(banner.copy(id = id))
+        return id
     }
 
     suspend fun updateBanner(banner: BannerEntity) {
         bannerDao.updateBanner(banner)
+        firebaseRepository.saveBanner(banner)
     }
 
     suspend fun deleteBanner(banner: BannerEntity) {
         bannerDao.deleteBanner(banner)
+        firebaseRepository.deleteBanner(banner.id)
     }
 
     // Notifications
@@ -273,20 +288,30 @@ class JuktiRepository(
     suspend fun updateAboutConfig(config: AboutConfigEntity) {
         aboutConfigDao.insertOrUpdateAboutConfig(config)
     }
-    suspend fun insertPlan(plan: PlanEntity) { planDao.insertPlan(plan) }
+    suspend fun insertPlan(plan: PlanEntity) { 
+        val id = planDao.insertPlan(plan)
+        // planDao.insertPlan returns Long if autoGenerate, let's check or save plan
+        firebaseRepository.savePlan(plan)
+    }
 
-    suspend fun deletePlan(plan: PlanEntity) { planDao.deletePlan(plan) }
+    suspend fun deletePlan(plan: PlanEntity) { 
+        planDao.deletePlan(plan)
+        firebaseRepository.deletePlan(plan.id)
+    }
 
-    suspend fun insertExam(exam: ExamEntity) { examDao.insertExam(exam) }
-    suspend fun updateExam(exam: ExamEntity) { examDao.updateExam(exam) }
-    suspend fun deleteExam(exam: ExamEntity) { examDao.deleteExam(exam) }
+    suspend fun insertExam(exam: ExamEntity) { syncManager.addExam(exam) }
+    suspend fun updateExam(exam: ExamEntity) { syncManager.updateExam(exam) }
+    suspend fun deleteExam(exam: ExamEntity) { syncManager.deleteExam(exam) }
 
     suspend fun addSubjectChapter(subjectChapter: SubjectChapterEntity): Long {
-        return subjectChapterDao.insertSubjectChapter(subjectChapter)
+        val id = subjectChapterDao.insertSubjectChapter(subjectChapter)
+        firebaseRepository.saveSubjectChapter(subjectChapter.copy(id = id))
+        return id
     }
 
     suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity) {
         subjectChapterDao.deleteSubjectChapter(subjectChapter)
+        firebaseRepository.deleteSubjectChapter(subjectChapter.id)
     }
 
 
@@ -348,9 +373,21 @@ class JuktiRepository(
     }
 
     // FAQ Actions
-    suspend fun addFaq(faq: FaqEntity): Long = faqDao.insertFaq(faq)
-    suspend fun updateFaq(faq: FaqEntity) = faqDao.updateFaq(faq)
-    suspend fun deleteFaq(faq: FaqEntity) = faqDao.deleteFaq(faq)
+    suspend fun addFaq(faq: FaqEntity): Long {
+        val id = faqDao.insertFaq(faq)
+        firebaseRepository.saveFaq(faq.copy(id = id))
+        return id
+    }
+
+    suspend fun updateFaq(faq: FaqEntity) {
+        faqDao.updateFaq(faq)
+        firebaseRepository.saveFaq(faq)
+    }
+
+    suspend fun deleteFaq(faq: FaqEntity) {
+        faqDao.deleteFaq(faq)
+        firebaseRepository.deleteFaq(faq.id)
+    }
 
     suspend fun processQuestionAnswerForXp(questionId: Long, isCorrect: Boolean, todayStr: String): Int {
         val progress = questionProgressDao.getProgress(questionId) ?: QuestionProgressEntity(questionId = questionId)
@@ -389,6 +426,8 @@ class JuktiRepository(
                 newFirstAttemptCorrect = false
             }
             newEverGotWrong = true
+            newIsMastered = false // Reset mastery when wrong
+            newTotalCorrectDays = 0
         }
 
         questionProgressDao.insertOrUpdate(progress.copy(firstAttemptCorrect = newFirstAttemptCorrect, everGotWrong = newEverGotWrong, totalCorrectDays = newTotalCorrectDays, lastAttemptDateStr = todayStr, isMastered = newIsMastered))

@@ -14,6 +14,13 @@ interface QuestionDao {
     @Query("SELECT * FROM questions WHERE isBookmarked = 1")
     fun getBookmarkedQuestions(): Flow<List<QuestionEntity>>
 
+    @Query("""
+        SELECT q.* FROM questions q 
+        LEFT JOIN question_progress p ON q.id = p.questionId 
+        WHERE q.isBookmarked = 1 OR (p.everGotWrong = 1 AND p.isMastered = 0)
+    """)
+    fun getSmartPracticeQuestions(): Flow<List<QuestionEntity>>
+
     @Query("SELECT * FROM questions WHERE isHidden = 1")
     fun getHiddenQuestions(): Flow<List<QuestionEntity>>
 
@@ -271,4 +278,19 @@ interface NotificationCategoryDao {
 
     @Delete
     suspend fun deleteNotificationCategory(category: NotificationCategoryEntity)
+}
+
+@Dao
+interface SyncQueueDao {
+    @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' ORDER BY createdAt ASC")
+    fun getPendingSyncs(): Flow<List<SyncQueueEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSync(sync: SyncQueueEntity): Long
+
+    @Update
+    suspend fun updateSync(sync: SyncQueueEntity)
+
+    @Delete
+    suspend fun deleteSync(sync: SyncQueueEntity)
 }

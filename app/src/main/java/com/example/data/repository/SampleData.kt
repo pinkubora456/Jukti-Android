@@ -53,6 +53,12 @@ object SampleData {
         contactWhatsapp = "",
         adminEmails = "",
         refundPolicyEn = "Our policy lasts 7 days.",
-        refundPolicyAs = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য।"
+        refundPolicyAs = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য。",
+        founderName = "Pinku Bora",
+        founderTitle = "Founder & Creator of Jukti",
+        founderCredential = "ADRE 2022 Qualifier",
+        founderDescription = "Jukti was created with a simple vision — to make competitive exam preparation smarter, more accessible, and more effective for aspirants.\n\nHaving experienced the competitive exam preparation journey myself, I understand the importance of consistent practice, quality questions, performance analysis, and identifying areas that need improvement.\n\nThrough Jukti, my goal is to provide aspirants with a focused platform where they can practice, test their knowledge, track their progress, and prepare with greater confidence.",
+        founderPhotoUrl = "",
+        founderTagline = "Jukti — Test Your Knowledge."
     )
 }

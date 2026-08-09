@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -89,7 +91,7 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
                         label = { Text("Notification Title") },
@@ -99,7 +101,7 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
                         singleLine = true
                     )
 
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = body,
                         onValueChange = { body = it },
                         label = { Text("Notification Body / Message") },
@@ -120,7 +122,7 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
                             onExpandedChange = { dropdownExpanded = !dropdownExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = category,
                                 onValueChange = {},
                                 readOnly = true,
@@ -207,7 +209,7 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(notifications) { item ->
+                    items(notifications, key = { it.id }) { item ->
                         SentNotificationCard(
                             notification = item,
                             onDelete = { viewModel.deleteNotification(item) }
@@ -225,7 +227,7 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
             title = { Text("Manage Categories") },
             text = {
                 Column {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = newCategoryName,
                         onValueChange = { newCategoryName = it },
                         label = { Text("New Category Name") },

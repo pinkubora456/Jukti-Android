@@ -142,7 +142,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                 Text("Mock Test Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = mockTitleEn,
                     onValueChange = { mockTitleEn = it },
                     label = { Text("Mock Test Title (English) *") },
@@ -151,7 +151,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = mockTitleAs,
                     onValueChange = { mockTitleAs = it },
                     label = { Text("Mock Test Title (Assamese)") },
@@ -161,7 +161,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             }
             item {
                 Box(modifier = Modifier.fillMaxWidth().clickable { examDialogVisible = true }) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                         onValueChange = {},
                         readOnly = true,
@@ -183,7 +183,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = durationMinutes,
                         onValueChange = { durationMinutes = it },
                         label = { Text("Duration (Mins) *") },
@@ -191,7 +191,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = markPerQuestion,
                         onValueChange = { markPerQuestion = it },
                         label = { Text("Mark / Q *") },
@@ -212,7 +212,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         onExpandedChange = { negativeMarkingExpanded = !negativeMarkingExpanded },
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = negativeMarking,
                             onValueChange = {},
                             readOnly = true,
@@ -242,7 +242,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         onExpandedChange = { testTypeExpanded = !testTypeExpanded },
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = testType,
                             onValueChange = {},
                             readOnly = true,
@@ -273,7 +273,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     expanded = planTypeExpanded,
                     onExpandedChange = { planTypeExpanded = !planTypeExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = planType,
                         onValueChange = {},
                         readOnly = true,
@@ -357,7 +357,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         onExpandedChange = { subjectFilterExpanded = !subjectFilterExpanded },
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = selectedSubjectFilter,
                             onValueChange = {},
                             readOnly = true,
@@ -381,7 +381,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         }
                     }
 
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = questionSearchQuery,
                         onValueChange = { questionSearchQuery = it },
                         label = { Text("Search Q-Bank") },
@@ -401,7 +401,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(filteredQuestions) { q ->
+                        items(filteredQuestions, key = { it.id }) { q ->
                             val isSelected = selectedQuestionIds.contains(q.id)
                             Row(
                                 modifier = Modifier
@@ -532,7 +532,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             expanded = qSubjectExpanded,
                             onExpandedChange = { qSubjectExpanded = !qSubjectExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qSubject,
                                 onValueChange = { qSubject = it },
                                 label = { Text("Subject *") },
@@ -557,7 +557,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         }
                     }
                     item {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = qChapter,
                             onValueChange = { qChapter = it },
                             label = { Text("Chapter *") },
@@ -567,7 +567,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     }
                     item {
                         Box(modifier = Modifier.fillMaxWidth().clickable { qTargetExamDialogVisible = true }) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = if (qSelectedExams.isEmpty()) "Select Target Exams..." else qSelectedExams.joinToString(", "),
                                 onValueChange = {},
                                 readOnly = true,
@@ -589,7 +589,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             expanded = qDifficultyExpanded,
                             onExpandedChange = { qDifficultyExpanded = !qDifficultyExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qDifficulty,
                                 onValueChange = {},
                                 readOnly = true,
@@ -618,7 +618,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             expanded = qQuestionForExpanded,
                             onExpandedChange = { qQuestionForExpanded = !qQuestionForExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qQuestionFor,
                                 onValueChange = {},
                                 readOnly = true,
@@ -647,7 +647,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             expanded = qQuestionTagExpanded,
                             onExpandedChange = { qQuestionTagExpanded = !qQuestionTagExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qQuestionTag,
                                 onValueChange = {},
                                 readOnly = true,
@@ -673,7 +673,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     }
                     if (qQuestionTag == "PYQ") {
                         item {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qPyqExamName,
                                 onValueChange = { qPyqExamName = it },
                                 label = { Text("Exam Name (e.g., APSC CCE)") },
@@ -681,7 +681,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             )
                         }
                         item {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qPyqYear,
                                 onValueChange = { qPyqYear = it },
                                 label = { Text("Year (e.g., 2023)") },
@@ -693,7 +693,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         Text("Question Details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     }
                     item {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = qQuestionEnglish,
                             onValueChange = { qQuestionEnglish = it },
                             label = { Text("Question in English *") },
@@ -702,7 +702,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         )
                     }
                     item {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = qQuestionAssamese,
                             onValueChange = { qQuestionAssamese = it },
                             label = { Text("Question in Assamese") },
@@ -713,25 +713,25 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                     item {
                         Text("Options (English)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     }
-                    item { OutlinedTextField(value = qOptionAEnglish, onValueChange = { qOptionAEnglish = it }, label = { Text("Option A *") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionBEnglish, onValueChange = { qOptionBEnglish = it }, label = { Text("Option B *") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionCEnglish, onValueChange = { qOptionCEnglish = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionDEnglish, onValueChange = { qOptionDEnglish = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionAEnglish, onValueChange = { qOptionAEnglish = it }, label = { Text("Option A *") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionBEnglish, onValueChange = { qOptionBEnglish = it }, label = { Text("Option B *") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionCEnglish, onValueChange = { qOptionCEnglish = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionDEnglish, onValueChange = { qOptionDEnglish = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth()) }
                     
                     item {
                         Text("Options (Assamese)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     }
-                    item { OutlinedTextField(value = qOptionAAssamese, onValueChange = { qOptionAAssamese = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionBAssamese, onValueChange = { qOptionBAssamese = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionCAssamese, onValueChange = { qOptionCAssamese = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth()) }
-                    item { OutlinedTextField(value = qOptionDAssamese, onValueChange = { qOptionDAssamese = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionAAssamese, onValueChange = { qOptionAAssamese = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionBAssamese, onValueChange = { qOptionBAssamese = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionCAssamese, onValueChange = { qOptionCAssamese = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth()) }
+                    item { SafeOutlinedTextField(value = qOptionDAssamese, onValueChange = { qOptionDAssamese = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth()) }
 
                     item {
                         ExposedDropdownMenuBox(
                             expanded = qCorrectOptionExpanded,
                             onExpandedChange = { qCorrectOptionExpanded = !qCorrectOptionExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = qCorrectOption,
                                 onValueChange = {},
                                 readOnly = true,
@@ -756,7 +756,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         }
                     }
                     item {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = qExplanationEnglish,
                             onValueChange = { qExplanationEnglish = it },
                             label = { Text("Explanation (English)") },
@@ -765,7 +765,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         )
                     }
                     item {
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = qExplanationAssamese,
                             onValueChange = { qExplanationAssamese = it },
                             label = { Text("Explanation (Assamese)") },

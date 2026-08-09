@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -37,7 +39,11 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     var editName by remember { mutableStateOf(userProfile?.name ?: "") }
     var editMobile by remember { mutableStateOf(userProfile?.mobile ?: "") }
     var editDistrict by remember { mutableStateOf(userProfile?.district ?: "") }
-    var editGoal by remember { mutableStateOf(userProfile?.examGoal ?: "") }
+    val selectedGoals = remember {
+        mutableStateListOf<String>().apply {
+            addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
+        }
+    }
     var goalExpanded by remember { mutableStateOf(false) }
     val exams by viewModel.examsList.collectAsState()
 
@@ -47,19 +53,19 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
             title = { Text("Edit Profile") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = editName,
                         onValueChange = { editName = it },
                         label = { Text("Name") },
                         singleLine = true
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = editMobile,
                         onValueChange = { editMobile = it },
                         label = { Text("Mobile Number (Optional)") },
                         singleLine = true
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = editDistrict,
                         onValueChange = { editDistrict = it },
                         label = { Text("District") },
@@ -69,11 +75,11 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                         expanded = goalExpanded,
                         onExpandedChange = { goalExpanded = !goalExpanded }
                     ) {
-                        OutlinedTextField(
-                            value = editGoal,
+                        SafeOutlinedTextField(
+                            value = if (selectedGoals.isEmpty()) "Select Target Exam Goals..." else selectedGoals.joinToString(", "),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Target Exam Goal") },
+                            label = { Text("Target Exam Goals (Multiple)") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = goalExpanded) },
                             modifier = Modifier.menuAnchor().fillMaxWidth(),
                             singleLine = true
@@ -83,11 +89,24 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                             onDismissRequest = { goalExpanded = false }
                         ) {
                             exams.forEach { exam ->
+                                val isSelected = selectedGoals.contains(exam.title)
                                 DropdownMenuItem(
-                                    text = { Text(exam.title) },
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = isSelected,
+                                                onCheckedChange = null
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(exam.title)
+                                        }
+                                    },
                                     onClick = {
-                                        editGoal = exam.title
-                                        goalExpanded = false
+                                        if (isSelected) {
+                                            selectedGoals.remove(exam.title)
+                                        } else {
+                                            selectedGoals.add(exam.title)
+                                        }
                                     }
                                 )
                             }
@@ -103,7 +122,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                                 name = editName,
                                 mobile = editMobile,
                                 district = editDistrict,
-                                examGoal = editGoal
+                                examGoal = selectedGoals.joinToString(", ")
                             )
                             coroutineScope.launch {
                                 viewModel.repository.updateUserProfile(updated)
@@ -282,7 +301,8 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                 editName = userProfile?.name ?: ""
                 editMobile = userProfile?.mobile ?: ""
                 editDistrict = userProfile?.district ?: ""
-                editGoal = userProfile?.examGoal ?: ""
+                selectedGoals.clear()
+                selectedGoals.addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
                 showEditProfileDialog = true
             },
             modifier = Modifier.fillMaxWidth(),

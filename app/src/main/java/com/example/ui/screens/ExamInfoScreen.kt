@@ -40,13 +40,22 @@ enum class HeroTab(val id: String, val titleEn: String, val titleAs: String, val
 fun ExamInfoScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val updates by viewModel.examUpdates.collectAsState()
+    val examsList by viewModel.examsList.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = LocalContext.current
 
     var selectedHeroTab by remember { mutableStateOf(HeroTab.PATTERN) }
     var selectedExamTab by remember { mutableStateOf("All") }
-    val examTabs = listOf("All", "ADRE", "APSC", "Assam Police", "TET")
+    val examTabs = remember(examsList) {
+        listOf("All") + examsList.map { it.title }
+    }
+
+    LaunchedEffect(examTabs) {
+        if (selectedExamTab != "All" && !examTabs.contains(selectedExamTab)) {
+            selectedExamTab = "All"
+        }
+    }
 
     val filteredUpdates = updates.filter { update ->
         val examNameLower = update.examName.lowercase()
@@ -55,7 +64,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             titleLower.contains("dummy") || titleLower.contains("test")) {
             return@filter false
         }
-        val matchesExam = (selectedExamTab == "All" || update.examName.contains(selectedExamTab, ignoreCase = true))
+        val matchesExam = (selectedExamTab == "All" || update.examName.equals(selectedExamTab, ignoreCase = true) || update.examName.contains(selectedExamTab, ignoreCase = true))
         val matchesCategory = when (selectedHeroTab) {
             HeroTab.SYLLABUS -> update.category.contains("Syllabus", ignoreCase = true) || update.titleEn.contains("Syllabus", ignoreCase = true)
             HeroTab.PATTERN -> update.category.contains("Pattern", ignoreCase = true) || update.titleEn.contains("Pattern", ignoreCase = true)
@@ -207,7 +216,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             }
 
             if (filteredUpdates.isNotEmpty()) {
-                items(filteredUpdates) { update ->
+                items(filteredUpdates, key = { it.id }) { update ->
                     ExamUpdateItemCard(
                         update = update,
                         language = language,

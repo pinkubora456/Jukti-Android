@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -62,7 +64,7 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(examsList) { exam ->
+                items(examsList, key = { it.id }) { exam ->
                     ExamCard(
                         exam = exam,
                         onEdit = { editingExam = exam },
@@ -86,13 +88,13 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
             title = { Text("Add New Exam Category") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Exam Name (e.g. SSC CGL / Banking)") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = desc,
                         onValueChange = { desc = it },
                         label = { Text("Board / Description") },
@@ -131,13 +133,13 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
             title = { Text("Edit Exam Category") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Exam Name") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = desc,
                         onValueChange = { desc = it },
                         label = { Text("Board / Description") },
@@ -165,12 +167,7 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
 }
 
 @Composable
-fun ExamCard(
-    exam: ExamEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onToggleStatus: () -> Unit
-) {
+fun ExamCard(exam: ExamEntity, onEdit: () -> Unit, onDelete: () -> Unit, onToggleStatus: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -183,12 +180,18 @@ fun ExamCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = exam.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (exam.syncStatus == "PENDING") {
+                        Icon(Icons.Default.Sync, contentDescription = "Syncing", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = exam.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = if (exam.status == "Active") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer

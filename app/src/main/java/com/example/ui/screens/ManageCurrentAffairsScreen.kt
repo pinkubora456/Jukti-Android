@@ -23,9 +23,10 @@ import com.example.ui.viewmodel.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
+fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
-    val notes by viewModel.studyNotes.collectAsState()
+    val allNotes by viewModel.studyNotes.collectAsState()
+    val notes = remember(allNotes) { allNotes.filter { it.subject.contains("Current Affairs", ignoreCase = true) } }
     val exams by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
 
@@ -35,14 +36,14 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     // Form fields
     var titleEn by remember { mutableStateOf("") }
     var titleAs by remember { mutableStateOf("") }
-    var selectedExam by remember { mutableStateOf("ADRE 2.0") }
+    val selectedExams = remember { mutableStateListOf<String>() }
     var examDropdownExpanded by remember { mutableStateOf(false) }
     
     var noteType by remember { mutableStateOf("Free") }
     var typeDropdownExpanded by remember { mutableStateOf(false) }
 
-    var subject by remember { mutableStateOf("Assam History") }
-    var chapter by remember { mutableStateOf("Ahom Dynasty") }
+    var subject by remember { mutableStateOf("Current Affairs") }
+    var chapter by remember { mutableStateOf("") }
     var chapterDropdownExpanded by remember { mutableStateOf(false) }
     val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.distinct()
     val chaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
@@ -57,7 +58,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Manage Study Notes", fontWeight = FontWeight.Bold) },
+                title = { Text("Manage Current Affairs", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -74,7 +75,8 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                 onClick = {
                     titleEn = ""
                     titleAs = ""
-                    selectedExam = exams.firstOrNull()?.title ?: "ADRE 2.0"
+                    selectedExams.clear()
+                    exams.firstOrNull()?.let { selectedExams.add(it.title) }
                     noteType = "Free"
                     subject = "Assam History"
                     chapter = "Ahom Dynasty"
@@ -84,7 +86,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                 },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Study Note", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(Icons.Default.Add, contentDescription = "Add Current Affairs", tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     ) { innerPadding ->
@@ -185,7 +187,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                 showAddDialog = false
                 editingNote = null
             },
-            title = { Text(if (editingNote == null) "Add Study Note" else "Edit Study Note", fontWeight = FontWeight.Bold) },
+            title = { Text(if (editingNote == null) "Add Current Affairs" else "Edit Current Affairs", fontWeight = FontWeight.Bold) },
             text = {
                 LazyColumn(
                     modifier = Modifier
@@ -197,7 +199,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                         SafeOutlinedTextField(
                             value = titleEn,
                             onValueChange = { titleEn = it },
-                            label = { Text("Title of Study Note (English) *") },
+                            label = { Text("Title (English) *") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -206,7 +208,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                         SafeOutlinedTextField(
                             value = titleAs,
                             onValueChange = { titleAs = it },
-                            label = { Text("Title of Study Note (Assamese)") },
+                            label = { Text("Title (Assamese)") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -217,10 +219,10 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                             onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
                         ) {
                             SafeOutlinedTextField(
-                                value = selectedExam,
+                                value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Target Exam") },
+                                label = { Text("Target Exams (Multiple)") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
                                 modifier = Modifier.menuAnchor().fillMaxWidth()
                             )
@@ -229,11 +231,24 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                                 onDismissRequest = { examDropdownExpanded = false }
                             ) {
                                 exams.forEach { exam ->
+                                    val isSelected = selectedExams.contains(exam.title)
                                     DropdownMenuItem(
-                                        text = { Text(exam.title) },
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = isSelected,
+                                                    onCheckedChange = null
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(exam.title)
+                                            }
+                                        },
                                         onClick = {
-                                            selectedExam = exam.title
-                                            examDropdownExpanded = false
+                                            if (isSelected) {
+                                                selectedExams.remove(exam.title)
+                                            } else {
+                                                selectedExams.add(exam.title)
+                                            }
                                         }
                                     )
                                 }
@@ -353,7 +368,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                             val newNote = StudyNoteEntity(
                                 id = editingNote?.id ?: 0,
                                 subject = subject.ifBlank { "General" },
-                                topic = chapter.ifBlank { selectedExam },
+                                topic = chapter.ifBlank { selectedExams.joinToString(", ") },
                                 titleEn = titleEn.trim(),
                                 titleAs = titleAs.ifBlank { titleEn }.trim(),
                                 contentEn = contentEn.trim(),
@@ -363,11 +378,11 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                             )
                             if (editingNote == null) {
                                 viewModel.addStudyNote(newNote) {
-                                    Toast.makeText(context, "Study Note added successfully!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Current Affairs added successfully!", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
                                 viewModel.updateStudyNote(newNote) {
-                                    Toast.makeText(context, "Study Note updated successfully!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Current Affairs updated successfully!", Toast.LENGTH_SHORT).show()
                                 }
                             }
                             showAddDialog = false

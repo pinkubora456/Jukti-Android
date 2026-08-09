@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -138,7 +140,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = noteSearchQuery,
                         onValueChange = { noteSearchQuery = it },
                         placeholder = { Text("Search notes...") },
@@ -174,7 +176,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(filteredNotes) { note ->
+                    items(filteredNotes, key = { it.id }) { note ->
                         StudyNoteListItem(
                             note = note,
                             language = language,

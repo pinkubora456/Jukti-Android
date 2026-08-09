@@ -1,0 +1,2 @@
+sed -i '/text = exam.title,/i \                Row(verticalAlignment = Alignment.CenterVertically) {\n                    if (exam.syncStatus == "PENDING") {\n                        Icon(Icons.Default.Sync, contentDescription = "Syncing", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)\n                        Spacer(modifier = Modifier.width(4.dp))\n                    }\n' app/src/main/java/com/example/ui/screens/ManageExamsScreen.kt
+sed -i '/text = exam.title,/a \                }' app/src/main/java/com/example/ui/screens/ManageExamsScreen.kt

@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -92,7 +94,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = subject,
                     onValueChange = { subject = it },
                     label = { Text("Subject") },
@@ -100,7 +102,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = chapter,
                     onValueChange = { chapter = it },
                     label = { Text("Chapter") },
@@ -109,7 +111,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             }
             item {
                 Box(modifier = Modifier.fillMaxWidth().clickable { targetExamDialogVisible = true }) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                         onValueChange = {},
                         readOnly = true,
@@ -131,7 +133,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     expanded = difficultyExpanded,
                     onExpandedChange = { difficultyExpanded = !difficultyExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = difficulty,
                         onValueChange = {},
                         readOnly = true,
@@ -160,7 +162,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     expanded = questionForExpanded,
                     onExpandedChange = { questionForExpanded = !questionForExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = questionFor,
                         onValueChange = {},
                         readOnly = true,
@@ -189,7 +191,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     expanded = questionTagExpanded,
                     onExpandedChange = { questionTagExpanded = !questionTagExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = questionTag,
                         onValueChange = {},
                         readOnly = true,
@@ -215,7 +217,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             }
             if (questionTag == "PYQ") {
                 item {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = pyqExamName,
                         onValueChange = { pyqExamName = it },
                         label = { Text("Exam Name (e.g., APSC CCE)") },
@@ -223,7 +225,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     )
                 }
                 item {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = pyqYear,
                         onValueChange = { pyqYear = it },
                         label = { Text("Year (e.g., 2023)") },
@@ -235,7 +237,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 Text("Question Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = questionEnglish,
                     onValueChange = { questionEnglish = it },
                     label = { Text("Question in English") },
@@ -244,7 +246,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = questionAssamese,
                     onValueChange = { questionAssamese = it },
                     label = { Text("Question in Assamese") },
@@ -261,38 +263,38 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 Text("Options (English)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             }
             item {
-                OutlinedTextField(value = optionAEnglish, onValueChange = { optionAEnglish = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionAEnglish, onValueChange = { optionAEnglish = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionBEnglish, onValueChange = { optionBEnglish = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionBEnglish, onValueChange = { optionBEnglish = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionCEnglish, onValueChange = { optionCEnglish = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionCEnglish, onValueChange = { optionCEnglish = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionDEnglish, onValueChange = { optionDEnglish = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionDEnglish, onValueChange = { optionDEnglish = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth())
             }
             item {
                 Text("Options (Assamese)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             }
             item {
-                OutlinedTextField(value = optionAAssamese, onValueChange = { optionAAssamese = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionAAssamese, onValueChange = { optionAAssamese = it }, label = { Text("Option A") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionBAssamese, onValueChange = { optionBAssamese = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionBAssamese, onValueChange = { optionBAssamese = it }, label = { Text("Option B") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionCAssamese, onValueChange = { optionCAssamese = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionCAssamese, onValueChange = { optionCAssamese = it }, label = { Text("Option C") }, modifier = Modifier.fillMaxWidth())
             }
             item {
-                OutlinedTextField(value = optionDAssamese, onValueChange = { optionDAssamese = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth())
+                SafeOutlinedTextField(value = optionDAssamese, onValueChange = { optionDAssamese = it }, label = { Text("Option D") }, modifier = Modifier.fillMaxWidth())
             }
             item {
                 ExposedDropdownMenuBox(
                     expanded = correctOptionExpanded,
                     onExpandedChange = { correctOptionExpanded = !correctOptionExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = correctOption,
                         onValueChange = {},
                         readOnly = true,
@@ -317,7 +319,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 }
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = explanationEnglish,
                     onValueChange = { explanationEnglish = it },
                     label = { Text("Explanation (English)") },
@@ -326,7 +328,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = explanationAssamese,
                     onValueChange = { explanationAssamese = it },
                     label = { Text("Explanation (Assamese)") },

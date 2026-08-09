@@ -80,8 +80,10 @@ class MainActivity : ComponentActivity() {
                     Screen.HOME,
                     Screen.MCQ_STUDY,
                     Screen.PRACTICE,
+                    Screen.SMART_PRACTICE,
                     Screen.MOCK_TESTS,
                     Screen.LEADERBOARD,
+                    Screen.MY_ANALYTICS,
                     Screen.MENU,
                     Screen.STUDY_NOTES,
                     Screen.PROFILE,
@@ -129,11 +131,13 @@ class MainActivity : ComponentActivity() {
                                 Screen.HOME -> HomeScreen(viewModel)
                                 Screen.MCQ_STUDY -> McqStudyScreen(viewModel)
                                 Screen.PRACTICE -> PracticeScreen(viewModel)
+                                Screen.SMART_PRACTICE -> PracticeScreen(viewModel, isSmartPractice = true)
                                 Screen.MOCK_TESTS -> MockTestsScreen(viewModel)
                                 Screen.MOCK_PLAYER -> MockTestPlayerScreen(viewModel)
                                 Screen.MOCK_RESULT -> MockResultScreen(viewModel)
                                 Screen.STUDY_NOTES, Screen.STUDY_NOTE_DETAIL -> StudyNotesScreen(viewModel)
-                                Screen.LEADERBOARD -> LeaderboardAnalyticsScreen(viewModel)
+                                Screen.LEADERBOARD -> LeaderboardAnalyticsScreen(viewModel, initialTab = 0)
+                                Screen.MY_ANALYTICS -> LeaderboardAnalyticsScreen(viewModel, initialTab = 1)
                                 Screen.EXAM_INFO -> ExamInfoScreen(viewModel)
                                 Screen.PROFILE -> ProfileScreen(viewModel)
                                 Screen.PREMIUM_PLANS -> PremiumPlansScreen(viewModel)
@@ -164,12 +168,15 @@ class MainActivity : ComponentActivity() {
                                  Screen.CREATE_MOCK -> CreateMockScreen(viewModel)
                                  Screen.EDIT_MOCK -> EditMockScreen(viewModel)
                                  Screen.MANAGE_STUDY_NOTES -> ManageStudyNotesScreen(viewModel)
+                                 Screen.MANAGE_CURRENT_AFFAIRS -> ManageCurrentAffairsScreen(viewModel)
                                  Screen.MANAGE_SUBJECTS_CHAPTERS -> ManageSubjectsChaptersScreen(viewModel)
                                  Screen.MANAGE_NOTIFICATIONS -> ManageNotificationsScreen(viewModel)
+                                 Screen.STORAGE_MANAGEMENT -> StorageManagementScreen(viewModel)
                                  Screen.USER_NOTIFICATIONS -> UserNotificationsScreen(viewModel)
-                                  Screen.MANAGE_EXAM_PATTERN_CUTOFF -> ManageExamPatternCutoffScreen(viewModel)
-                                   Screen.MANAGE_BANNERS -> ManageBannersScreen(viewModel)
-                                    Screen.REFUND_POLICY -> RefundPolicyScreen(viewModel)
+                                 Screen.MANAGE_EXAM_PATTERN_CUTOFF -> ManageExamPatternCutoffScreen(viewModel)
+                                 Screen.MANAGE_BANNERS -> ManageBannersScreen(viewModel)
+                                 Screen.PRIVACY_POLICY -> PrivacyPolicyScreen(viewModel)
+                                 Screen.TERMS_CONDITIONS -> TermsConditionsScreen(viewModel)
                             }
                     }
                 }
@@ -188,7 +195,7 @@ fun JuktiBottomNavigation(
         BottomNavItem("Home", "গৃহ", Icons.Filled.Home, Icons.Outlined.Home, Screen.HOME),
         BottomNavItem("Study", "অধ্যয়ন", Icons.Filled.MenuBook, Icons.Outlined.MenuBook, Screen.MCQ_STUDY),
         BottomNavItem("Mock Tests", "মক টেষ্ট", Icons.Filled.Timer, Icons.Outlined.Timer, Screen.MOCK_TESTS),
-        BottomNavItem("Analyze", "বিশ্লেষণ", Icons.Filled.Analytics, Icons.Outlined.Analytics, Screen.LEADERBOARD),
+        BottomNavItem("Analyze", "বিশ্লেষণ", Icons.Filled.Analytics, Icons.Outlined.Analytics, Screen.MY_ANALYTICS),
         BottomNavItem("Menu", "মেনু", Icons.Filled.Menu, Icons.Outlined.Menu, Screen.MENU)
     )
 

@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,7 +58,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
         ) {
             item {
                 Box(modifier = Modifier.fillMaxWidth().clickable { targetExamDialogVisible = true }) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                         onValueChange = {},
                         readOnly = true,
@@ -79,7 +81,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                     expanded = questionForExpanded,
                     onExpandedChange = { questionForExpanded = !questionForExpanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = questionFor,
                         onValueChange = {},
                         readOnly = true,
@@ -155,7 +157,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
             }
             
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = pastedCsvData,
                     onValueChange = { pastedCsvData = it },
                     label = { Text("Paste CSV Data Here") },

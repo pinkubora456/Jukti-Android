@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -181,7 +183,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         }
 
                         // Title (English)
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = titleEn,
                             onValueChange = { titleEn = it },
                             label = { Text("Banner Title (English) *") },
@@ -192,7 +194,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Title (Assamese - Optional)
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = titleAs,
                             onValueChange = { titleAs = it },
                             label = { Text("Banner Title (Assamese) - Optional") },
@@ -203,7 +205,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Notice Details (English)
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = subtitleEn,
                             onValueChange = { subtitleEn = it },
                             label = { Text("Notice Details (English) *") },
@@ -214,7 +216,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Notice Details (Assamese - Optional)
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = subtitleAs,
                             onValueChange = { subtitleAs = it },
                             label = { Text("Notice Details (Assamese) - Optional") },
@@ -225,7 +227,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         )
 
                         // Badge / Tag
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = badgeText,
                             onValueChange = { badgeText = it },
                             label = { Text("Banner Tag / Badge (e.g. UPDATED, LIVE, NEW)") },
@@ -240,7 +242,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                             expanded = actionTypeExpanded,
                             onExpandedChange = { actionTypeExpanded = !actionTypeExpanded }
                         ) {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = actionType,
                                 onValueChange = {},
                                 readOnly = true,
@@ -274,7 +276,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         // Contextual action destination option
                         when (actionType) {
                             "Link" -> {
-                                OutlinedTextField(
+                                SafeOutlinedTextField(
                                     value = actionUrl,
                                     onValueChange = { actionUrl = it },
                                     label = { Text("Paste Redirection Link (URL) *") },
@@ -291,7 +293,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                                     expanded = mockTestExpanded,
                                     onExpandedChange = { mockTestExpanded = !mockTestExpanded }
                                 ) {
-                                    OutlinedTextField(
+                                    SafeOutlinedTextField(
                                         value = selectedMockName,
                                         onValueChange = {},
                                         readOnly = true,
@@ -324,7 +326,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                                     expanded = studyNoteExpanded,
                                     onExpandedChange = { studyNoteExpanded = !studyNoteExpanded }
                                 ) {
-                                    OutlinedTextField(
+                                    SafeOutlinedTextField(
                                         value = selectedNoteTitle,
                                         onValueChange = {},
                                         readOnly = true,
@@ -417,7 +419,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                         }
 
                         // Custom Image URL Field
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = imageUrl,
                             onValueChange = { imageUrl = it },
                             label = { Text("Custom Image URL (Optional)") },

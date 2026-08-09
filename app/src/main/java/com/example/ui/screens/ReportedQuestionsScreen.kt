@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -147,35 +149,35 @@ fun EditQuestionDialog(
         title = { Text("Edit Question") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = questionText,
                     onValueChange = { questionText = it },
                     label = { Text("Question") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = optionA,
                     onValueChange = { optionA = it },
                     label = { Text("Option A") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = optionB,
                     onValueChange = { optionB = it },
                     label = { Text("Option B") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = optionC,
                     onValueChange = { optionC = it },
                     label = { Text("Option C") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = optionD,
                     onValueChange = { optionD = it },
                     label = { Text("Option D") },

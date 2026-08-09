@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Report
@@ -37,7 +39,7 @@ fun ReportQuestionDialog(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = reason,
                         onValueChange = {},
                         readOnly = true,
@@ -62,7 +64,7 @@ fun ReportQuestionDialog(
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = details,
                     onValueChange = { details = it },
                     label = { Text("Additional Details (Optional)") },

@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.SafeOutlinedTextField
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,25 +36,25 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val examsList by viewModel.examsList.collectAsState()
-    val examOptions = listOf("All Exams") + examsList.map { it.title }
+    val examTitles = examsList.map { it.title }
 
     // State for Mock Test Benefit
-    var mockTestExamSelected by remember { mutableStateOf("All Exams") }
+    val mockTestExamsSelected = remember { mutableStateListOf<String>() }
     var mockTestLimitOption by remember { mutableStateOf("All") }
     var mockTestCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Questions Benefit
-    var questionsExamSelected by remember { mutableStateOf("All Exams") }
+    val questionsExamsSelected = remember { mutableStateListOf<String>() }
     var questionsLimitOption by remember { mutableStateOf("All") }
     var questionsCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Study Notes Benefit
-    var studyNotesExamSelected by remember { mutableStateOf("All Exams") }
+    val studyNotesExamsSelected = remember { mutableStateListOf<String>() }
     var studyNotesLimitOption by remember { mutableStateOf("All") }
     var studyNotesCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
     // State for Current Affairs Benefit
-    var currentAffairsExamSelected by remember { mutableStateOf("All Exams") }
+    val currentAffairsExamsSelected = remember { mutableStateListOf<String>() }
     var currentAffairsLimitOption by remember { mutableStateOf("All") }
     var currentAffairsCustomLimit by remember { mutableStateOf(TextFieldValue("")) }
 
@@ -89,7 +91,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 Text("Plan Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = planName,
                     onValueChange = { planName = it },
                     label = { Text("Plan Name") },
@@ -105,7 +107,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = planPrice,
                         onValueChange = { 
                             planPrice = it 
@@ -120,7 +122,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = discount,
                         onValueChange = { 
                             discount = it 
@@ -138,7 +140,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 }
             }
             item {
-                OutlinedTextField(
+                SafeOutlinedTextField(
                     value = finalPrice,
                     onValueChange = { finalPrice = it },
                     label = { Text("Final Price (₹) *") },
@@ -162,11 +164,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Text("Mock Test Benefit", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.weight(1.2f)) {
-                                GenericDropdownMenu(
-                                    label = "Select Exam",
-                                    selectedOption = mockTestExamSelected,
-                                    options = examOptions,
-                                    onOptionSelected = { mockTestExamSelected = it }
+                                MultiSelectExamDropdownMenu(
+                                    label = "Select Exams",
+                                    selectedExams = mockTestExamsSelected,
+                                    examOptions = examTitles
                                 )
                             }
                             Box(modifier = Modifier.weight(0.8f)) {
@@ -179,7 +180,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                             }
                         }
                         if (mockTestLimitOption == "Custom") {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = mockTestCustomLimit,
                                 onValueChange = { mockTestCustomLimit = it },
                                 label = { Text("Limit Details (e.g. 10 Tests)") },
@@ -190,7 +191,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Button(
                             onClick = {
                                 val limit = if (mockTestLimitOption == "All") "All" else mockTestCustomLimit.text.ifBlank { "Custom" }
-                                val featureStr = "Mock Test ($mockTestExamSelected): $limit"
+                                val examStr = if (mockTestExamsSelected.isEmpty()) "All Exams" else mockTestExamsSelected.joinToString(", ")
+                                val featureStr = "Mock Test ($examStr): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (mockTestLimitOption == "Custom") {
@@ -215,11 +217,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Text("Questions Benefit", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.weight(1.2f)) {
-                                GenericDropdownMenu(
-                                    label = "Select Exam",
-                                    selectedOption = questionsExamSelected,
-                                    options = examOptions,
-                                    onOptionSelected = { questionsExamSelected = it }
+                                MultiSelectExamDropdownMenu(
+                                    label = "Select Exams",
+                                    selectedExams = questionsExamsSelected,
+                                    examOptions = examTitles
                                 )
                             }
                             Box(modifier = Modifier.weight(0.8f)) {
@@ -232,7 +233,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                             }
                         }
                         if (questionsLimitOption == "Custom") {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = questionsCustomLimit,
                                 onValueChange = { questionsCustomLimit = it },
                                 label = { Text("Limit Details (e.g. 500 Qs)") },
@@ -243,7 +244,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Button(
                             onClick = {
                                 val limit = if (questionsLimitOption == "All") "All" else questionsCustomLimit.text.ifBlank { "Custom" }
-                                val featureStr = "Questions ($questionsExamSelected): $limit"
+                                val examStr = if (questionsExamsSelected.isEmpty()) "All Exams" else questionsExamsSelected.joinToString(", ")
+                                val featureStr = "Questions ($examStr): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (questionsLimitOption == "Custom") {
@@ -268,11 +270,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Text("Study Notes Benefit", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.weight(1.2f)) {
-                                GenericDropdownMenu(
-                                    label = "Select Exam",
-                                    selectedOption = studyNotesExamSelected,
-                                    options = examOptions,
-                                    onOptionSelected = { studyNotesExamSelected = it }
+                                MultiSelectExamDropdownMenu(
+                                    label = "Select Exams",
+                                    selectedExams = studyNotesExamsSelected,
+                                    examOptions = examTitles
                                 )
                             }
                             Box(modifier = Modifier.weight(0.8f)) {
@@ -285,7 +286,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                             }
                         }
                         if (studyNotesLimitOption == "Custom") {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = studyNotesCustomLimit,
                                 onValueChange = { studyNotesCustomLimit = it },
                                 label = { Text("Limit Details (e.g. 50 Notes)") },
@@ -296,7 +297,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Button(
                             onClick = {
                                 val limit = if (studyNotesLimitOption == "All") "All" else studyNotesCustomLimit.text.ifBlank { "Custom" }
-                                val featureStr = "Study Notes ($studyNotesExamSelected): $limit"
+                                val examStr = if (studyNotesExamsSelected.isEmpty()) "All Exams" else studyNotesExamsSelected.joinToString(", ")
+                                val featureStr = "Study Notes ($examStr): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (studyNotesLimitOption == "Custom") {
@@ -321,11 +323,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Text("Current Affairs Benefit", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.weight(1.2f)) {
-                                GenericDropdownMenu(
-                                    label = "Select Exam",
-                                    selectedOption = currentAffairsExamSelected,
-                                    options = examOptions,
-                                    onOptionSelected = { currentAffairsExamSelected = it }
+                                MultiSelectExamDropdownMenu(
+                                    label = "Select Exams",
+                                    selectedExams = currentAffairsExamsSelected,
+                                    examOptions = examTitles
                                 )
                             }
                             Box(modifier = Modifier.weight(0.8f)) {
@@ -338,7 +339,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                             }
                         }
                         if (currentAffairsLimitOption == "Custom") {
-                            OutlinedTextField(
+                            SafeOutlinedTextField(
                                 value = currentAffairsCustomLimit,
                                 onValueChange = { currentAffairsCustomLimit = it },
                                 label = { Text("Limit Details (e.g. 12 Months)") },
@@ -349,7 +350,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                         Button(
                             onClick = {
                                 val limit = if (currentAffairsLimitOption == "All") "All" else currentAffairsCustomLimit.text.ifBlank { "Custom" }
-                                val featureStr = "Current Affairs ($currentAffairsExamSelected): $limit"
+                                val examStr = if (currentAffairsExamsSelected.isEmpty()) "All Exams" else currentAffairsExamsSelected.joinToString(", ")
+                                val featureStr = "Current Affairs ($examStr): $limit"
                                 featuresList.add(featureStr)
                                 contentsList.add(featureStr)
                                 if (currentAffairsLimitOption == "Custom") {
@@ -416,7 +418,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 ) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Custom Benefit / Feature", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        OutlinedTextField(
+                        SafeOutlinedTextField(
                             value = customFeatureInput,
                             onValueChange = { customFeatureInput = it },
                             label = { Text("Enter Custom Benefit Text") },
@@ -544,7 +546,7 @@ fun GenericDropdownMenu(label: String, selectedOption: String, options: List<Str
         expanded = expanded,
         onExpandedChange = { expanded = !expanded }
     ) {
-        OutlinedTextField(
+        SafeOutlinedTextField(
             value = selectedOption,
             onValueChange = {},
             readOnly = true,
@@ -562,6 +564,71 @@ fun GenericDropdownMenu(label: String, selectedOption: String, options: List<Str
                     onClick = {
                         onOptionSelected(option)
                         expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MultiSelectExamDropdownMenu(
+    label: String,
+    selectedExams: MutableList<String>,
+    examOptions: List<String>
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        SafeOutlinedTextField(
+            value = if (selectedExams.isEmpty()) "All Exams" else selectedExams.joinToString(", "),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = selectedExams.isEmpty(),
+                            onCheckedChange = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("All Exams", fontWeight = FontWeight.Bold)
+                    }
+                },
+                onClick = {
+                    selectedExams.clear()
+                }
+            )
+            examOptions.forEach { option ->
+                val isSelected = selectedExams.contains(option)
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(option)
+                        }
+                    },
+                    onClick = {
+                        if (isSelected) {
+                            selectedExams.remove(option)
+                        } else {
+                            selectedExams.add(option)
+                        }
                     }
                 )
             }
