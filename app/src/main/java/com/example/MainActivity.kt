@@ -52,6 +52,15 @@ class MainActivity : ComponentActivity() {
             val currentScreen by viewModel.currentScreen.collectAsState()
             val language by viewModel.language.collectAsState()
             val showPremiumPaywall by viewModel.showPremiumPaywall.collectAsState()
+            val syncToastMessage by viewModel.syncToastMessage.collectAsState()
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            LaunchedEffect(syncToastMessage) {
+                syncToastMessage?.let { msg ->
+                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                    viewModel.clearSyncToastMessage()
+                }
+            }
 
             val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
 

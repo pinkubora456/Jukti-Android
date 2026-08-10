@@ -15,6 +15,14 @@ object UserSessionManager {
         activeSessions.value = currentMap
     }
 
+    fun unregisterSession(email: String) {
+        val normalizedEmail = email.trim().lowercase()
+        if (normalizedEmail.isBlank()) return
+        val currentMap = activeSessions.value.toMutableMap()
+        currentMap.remove(normalizedEmail)
+        activeSessions.value = currentMap
+    }
+
     fun getActiveDeviceId(email: String): String? {
         val normalizedEmail = email.trim().lowercase()
         return activeSessions.value[normalizedEmail]

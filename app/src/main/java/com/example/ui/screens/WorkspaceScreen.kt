@@ -11,11 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 
@@ -54,6 +59,64 @@ fun WorkspaceScreen(viewModel: JuktiViewModel) {
 
 @Composable
 fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
+    val context = LocalContext.current
+    val pendingQueue by viewModel.pendingSyncQueue.collectAsState()
+    val isSyncingActive by viewModel.isSyncUploading.collectAsState()
+    var showConfirmPrompt by remember { mutableStateOf(false) }
+    var isUploadingLocal by remember { mutableStateOf(false) }
+    var resultPromptMessage by remember { mutableStateOf<String?>(null) }
+
+    val isBusy = isSyncingActive || isUploadingLocal
+    val pendingCount = pendingQueue.size
+
+    if (showConfirmPrompt) {
+        AlertDialog(
+            onDismissRequest = { if (!isBusy) showConfirmPrompt = false },
+            title = { Text("Upload All Workspace Changes", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (pendingCount > 0)
+                        "There are $pendingCount pending change(s) waiting to be uploaded to Firebase Firestore. Upload all now?"
+                    else
+                        "All pending changes are up to date! Would you like to force a full workspace sync to Firebase Firestore?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirmPrompt = false
+                        isUploadingLocal = true
+                        viewModel.uploadWorkspaceChangesToFirebase { success, message ->
+                            isUploadingLocal = false
+                            resultPromptMessage = message
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                ) {
+                    Text("Sync Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmPrompt = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (resultPromptMessage != null) {
+        AlertDialog(
+            onDismissRequest = { resultPromptMessage = null },
+            title = { Text("Upload Confirmation", fontWeight = FontWeight.Bold) },
+            text = { Text(resultPromptMessage ?: "") },
+            confirmButton = {
+                Button(onClick = { resultPromptMessage = null }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -61,6 +124,61 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Upload Changes / Sync Status Card for Admin and Owner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isBusy) { showConfirmPrompt = true },
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (pendingCount > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (pendingCount > 0) Icons.Default.SyncProblem else Icons.Default.CloudDone,
+                        contentDescription = "Sync Status",
+                        tint = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isBusy) "Syncing with Firestore..." else if (pendingCount > 0) "⏳ $pendingCount Pending Sync(s)" else "☁️ All Synced with Firestore",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Text(
+                        text = if (pendingCount > 0) "Tap to force immediate upload of pending changes" else "All changes auto-uploaded. Tap to trigger Sync Now.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = (if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer).copy(alpha = 0.85f)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                FilledTonalButton(
+                    onClick = { showConfirmPrompt = true },
+                    enabled = !isBusy
+                ) {
+                    Text("Sync Now", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
         if (isOwner) {
             WorkspaceBannerCard(
                 title = "Owner Dashboard",

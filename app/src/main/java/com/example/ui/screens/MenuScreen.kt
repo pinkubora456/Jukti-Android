@@ -147,14 +147,16 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                     onClick = { viewModel.navigateTo(Screen.PROFILE) }
                 )
 
-                MenuItemCard(
-                    title = "Workspace",
-                    description = "Workspace & Dashboard for Admins & Owners",
-                    icon = Icons.Default.Work,
-                    badge = "Admin / Owner",
-                    badgeColor = MaterialTheme.colorScheme.primary,
-                    onClick = { viewModel.navigateTo(Screen.WORKSPACE) }
-                )
+                if (isAdminOrOwner) {
+                    MenuItemCard(
+                        title = "Workspace",
+                        description = "Workspace & Dashboard for Admins & Owners",
+                        icon = Icons.Default.Work,
+                        badge = "Admin / Owner",
+                        badgeColor = MaterialTheme.colorScheme.primary,
+                        onClick = { viewModel.navigateTo(Screen.WORKSPACE) }
+                    )
+                }
 
                 MenuItemCard(
                     title = "Settings",

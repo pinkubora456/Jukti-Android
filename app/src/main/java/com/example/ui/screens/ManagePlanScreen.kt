@@ -4,21 +4,54 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.local.PlanEntity
 import com.example.ui.viewmodel.JuktiViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManagePlanScreen(viewModel: JuktiViewModel) {
+    var planToEdit by remember { mutableStateOf<PlanEntity?>(null) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
+
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { Text("Success", fontWeight = FontWeight.Bold) },
+            text = { Text(successMessage) },
+            confirmButton = {
+                TextButton(onClick = { showSuccessDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (planToEdit != null) {
+        EditPlanDialog(
+            plan = planToEdit!!,
+            onDismiss = { planToEdit = null },
+            onSave = { updatedPlan ->
+                viewModel.requestOrCreatePlan(updatedPlan) { _, message ->
+                    successMessage = message
+                    showSuccessDialog = true
+                }
+                planToEdit = null
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,7 +73,10 @@ fun ManagePlanScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            ManagePlanGrid(viewModel)
+            ManagePlanContent(
+                viewModel = viewModel,
+                onEditPlan = { plan -> planToEdit = plan }
+            )
         }
     }
 }
@@ -48,8 +84,13 @@ fun ManagePlanScreen(viewModel: JuktiViewModel) {
 data class ManagePlanItem(val title: String, val icon: ImageVector, val onClick: () -> Unit = {})
 
 @Composable
-fun ManagePlanGrid(viewModel: JuktiViewModel) {
-    val items = listOf(
+fun ManagePlanContent(
+    viewModel: JuktiViewModel,
+    onEditPlan: (PlanEntity) -> Unit
+) {
+    val plans by viewModel.plans.collectAsState()
+
+    val actionItems = listOf(
         ManagePlanItem("Create Plan", Icons.Default.AddCard) {
             viewModel.navigateTo(com.example.ui.viewmodel.Screen.CREATE_PLAN)
         },
@@ -62,8 +103,67 @@ fun ManagePlanGrid(viewModel: JuktiViewModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items) { item ->
+        items(actionItems) { item ->
             ManagePlanBannerCard(item)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Created Plans",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = "${plans.size} Plans",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+
+        if (plans.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No plans created yet. Tap 'Create Plan' above to add your first subscription plan.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            itemsIndexed(plans, key = { index, plan -> if (plan.id != 0L) plan.id else "plan_${plan.planName}_$index" }) { _, plan ->
+                PlanManageCard(
+                    plan = plan,
+                    onEdit = { onEditPlan(plan) },
+                    onDelete = { viewModel.deletePlan(plan) }
+                )
+            }
         }
     }
 }

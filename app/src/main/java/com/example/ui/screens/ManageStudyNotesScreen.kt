@@ -41,18 +41,20 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     var noteType by remember { mutableStateOf("Free") }
     var typeDropdownExpanded by remember { mutableStateOf(false) }
 
-    var subject by remember { mutableStateOf("Assam History") }
-    var chapter by remember { mutableStateOf("Ahom Dynasty") }
+    var subject by remember { mutableStateOf("") }
+    var chapter by remember { mutableStateOf("") }
     var chapterDropdownExpanded by remember { mutableStateOf(false) }
-    val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.distinct()
-    val chaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
+
+    val subjectsList = remember(allSubjectsChapters) {
+        allSubjectsChapters.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    }
+    val chaptersList = remember(allSubjectsChapters, subject) {
+        allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.filter { it.isNotBlank() }.distinct()
+    }
 
     var contentEn by remember { mutableStateOf("") }
     var contentAs by remember { mutableStateOf("") }
-
-        val rawSubj = allSubjectsChapters.map { it.subject }.distinct()
-    val subjectsList: List<String> = if (rawSubj.isEmpty()) listOf("Assam History", "Assam Geography", "Assam Culture", "Polity", "General Studies", "Quantitative Aptitude", "Logical Reasoning", "English") else rawSubj
 
     Scaffold(
         topBar = {
@@ -74,10 +76,10 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                 onClick = {
                     titleEn = ""
                     titleAs = ""
-                    selectedExam = exams.firstOrNull()?.title ?: "ADRE 2.0"
+                    selectedExam = exams.firstOrNull()?.title ?: ""
                     noteType = "Free"
-                    subject = "Assam History"
-                    chapter = "Ahom Dynasty"
+                    subject = subjectsList.firstOrNull() ?: ""
+                    chapter = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.filter { it.isNotBlank() }.distinct().firstOrNull() ?: ""
                     contentEn = ""
                     contentAs = ""
                     showAddDialog = true
@@ -276,8 +278,9 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                         ) {
                             SafeOutlinedTextField(
                                 value = subject,
-                                onValueChange = { subject = it },
-                                label = { Text("Subject (Optional)") },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Subject") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
                                 modifier = Modifier.menuAnchor().fillMaxWidth()
                             )
@@ -285,14 +288,23 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                                 expanded = subjectDropdownExpanded,
                                 onDismissRequest = { subjectDropdownExpanded = false }
                             ) {
-                                subjectsList.forEach { subj ->
+                                if (subjectsList.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text(subj) },
-                                        onClick = {
-                                            subject = subj
-                                            subjectDropdownExpanded = false
-                                        }
+                                        text = { Text("No subjects available", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) },
+                                        onClick = { subjectDropdownExpanded = false }
                                     )
+                                } else {
+                                    subjectsList.forEach { subj ->
+                                        DropdownMenuItem(
+                                            text = { Text(subj) },
+                                            onClick = {
+                                                subject = subj
+                                                val availChaps = allSubjectsChapters.filter { it.subject == subj }.map { it.chapter }.filter { it.isNotBlank() }.distinct()
+                                                chapter = availChaps.firstOrNull() ?: ""
+                                                subjectDropdownExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -304,8 +316,9 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                         ) {
                             SafeOutlinedTextField(
                                 value = chapter,
-                                onValueChange = { chapter = it },
-                                label = { Text("Chapter / Topic (Optional)") },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Chapter / Topic") },
                                 modifier = Modifier.fillMaxWidth().menuAnchor(),
                                 singleLine = true,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterDropdownExpanded) }
@@ -314,14 +327,21 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                                 expanded = chapterDropdownExpanded,
                                 onDismissRequest = { chapterDropdownExpanded = false }
                             ) {
-                                chaptersList.forEach { chap ->
+                                if (chaptersList.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text(chap) },
-                                        onClick = {
-                                            chapter = chap
-                                            chapterDropdownExpanded = false
-                                        }
+                                        text = { Text(if (subject.isBlank()) "Select a Subject first" else "No chapters available", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) },
+                                        onClick = { chapterDropdownExpanded = false }
                                     )
+                                } else {
+                                    chaptersList.forEach { chap ->
+                                        DropdownMenuItem(
+                                            text = { Text(chap) },
+                                            onClick = {
+                                                chapter = chap
+                                                chapterDropdownExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

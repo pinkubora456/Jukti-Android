@@ -7,21 +7,50 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 
-fun sanitizeInput(oldVal: String, newVal: String): String {
-    // If double typing occurred in web emulator or browser preview,
-    // a single keystroke might insert two identical characters (e.g. oldVal + "cc" instead of oldVal + "c").
-    if (newVal.length == oldVal.length + 2) {
-        val char1 = newVal[newVal.length - 2]
-        val char2 = newVal[newVal.length - 1]
-        if (char1 == char2) {
-            return oldVal + char1
+private class InputTracker {
+    var lastInputTime: Long = 0L
+    var lastInsertedChar: Char? = null
+    var lastInsertionIdx: Int = -1
+}
+
+fun deduplicateStringInput(oldVal: String, newVal: String): String {
+    if (newVal.length > oldVal.length + 1) {
+        var prefixLen = 0
+        while (prefixLen < oldVal.length && prefixLen < newVal.length && oldVal[prefixLen] == newVal[prefixLen]) {
+            prefixLen++
+        }
+        var suffixLen = 0
+        while (suffixLen < (oldVal.length - prefixLen) &&
+            suffixLen < (newVal.length - prefixLen) &&
+            oldVal[oldVal.length - 1 - suffixLen] == newVal[newVal.length - 1 - suffixLen]
+        ) {
+            suffixLen++
+        }
+        val insertedLen = newVal.length - prefixLen - suffixLen
+        if (insertedLen > 1) {
+            val inserted = newVal.substring(prefixLen, prefixLen + insertedLen)
+            val firstChar = inserted[0]
+            if (inserted.all { it == firstChar }) {
+                return newVal.removeRange(prefixLen, prefixLen + insertedLen - 1)
+            }
         }
     }
-    // Also handle case where empty input becomes "aa" on first keystroke
-    if (oldVal.isEmpty() && newVal.length == 2 && newVal[0] == newVal[1]) {
-        return newVal[0].toString()
+    return newVal
+}
+
+fun deduplicateTextFieldValue(oldVal: TextFieldValue, newVal: TextFieldValue): TextFieldValue {
+    val sanitizedText = deduplicateStringInput(oldVal.text, newVal.text)
+    if (sanitizedText != newVal.text) {
+        val diff = newVal.text.length - sanitizedText.length
+        val newCursor = (newVal.selection.start - diff).coerceIn(0, sanitizedText.length)
+        return TextFieldValue(
+            text = sanitizedText,
+            selection = TextRange(newCursor)
+        )
     }
     return newVal
 }
@@ -51,11 +80,38 @@ fun SafeOutlinedTextField(
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
+    val tracker = remember { InputTracker() }
+
     OutlinedTextField(
         value = value,
-        onValueChange = { newVal ->
-            val sanitized = sanitizeInput(value, newVal)
-            onValueChange(sanitized)
+        onValueChange = { newValue ->
+            val deduplicated = deduplicateStringInput(value, newValue)
+            val now = System.currentTimeMillis()
+            val timeDiff = now - tracker.lastInputTime
+
+            if (deduplicated.length == value.length + 1) {
+                var insertIndex = 0
+                while (insertIndex < value.length && insertIndex < deduplicated.length && value[insertIndex] == deduplicated[insertIndex]) {
+                    insertIndex++
+                }
+                if (insertIndex < deduplicated.length) {
+                    val insertedChar = deduplicated[insertIndex]
+                    if (timeDiff <= 50L && insertedChar == tracker.lastInsertedChar &&
+                        (insertIndex == tracker.lastInsertionIdx || insertIndex == tracker.lastInsertionIdx + 1)
+                    ) {
+                        return@OutlinedTextField
+                    }
+                    tracker.lastInsertedChar = insertedChar
+                    tracker.lastInsertionIdx = insertIndex
+                    tracker.lastInputTime = now
+                }
+            } else if (deduplicated != value) {
+                tracker.lastInsertedChar = null
+                tracker.lastInsertionIdx = -1
+                tracker.lastInputTime = now
+            }
+
+            onValueChange(deduplicated)
         },
         modifier = modifier,
         enabled = enabled,
@@ -82,8 +138,8 @@ fun SafeOutlinedTextField(
 
 @Composable
 fun SafeOutlinedTextField(
-    value: androidx.compose.ui.text.input.TextFieldValue,
-    onValueChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     readOnly: Boolean = false,
@@ -105,15 +161,40 @@ fun SafeOutlinedTextField(
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
+    val tracker = remember { InputTracker() }
+
     OutlinedTextField(
         value = value,
-        onValueChange = { newVal ->
-            val sanitizedText = sanitizeInput(value.text, newVal.text)
-            if (sanitizedText != newVal.text) {
-                onValueChange(value.copy(text = sanitizedText))
-            } else {
-                onValueChange(newVal)
+        onValueChange = { newValue ->
+            val deduplicated = deduplicateTextFieldValue(value, newValue)
+            val now = System.currentTimeMillis()
+            val timeDiff = now - tracker.lastInputTime
+            val oldText = value.text
+            val newText = deduplicated.text
+
+            if (newText.length == oldText.length + 1) {
+                var insertIndex = 0
+                while (insertIndex < oldText.length && insertIndex < newText.length && oldText[insertIndex] == newText[insertIndex]) {
+                    insertIndex++
+                }
+                if (insertIndex < newText.length) {
+                    val insertedChar = newText[insertIndex]
+                    if (timeDiff <= 50L && insertedChar == tracker.lastInsertedChar &&
+                        (insertIndex == tracker.lastInsertionIdx || insertIndex == tracker.lastInsertionIdx + 1)
+                    ) {
+                        return@OutlinedTextField
+                    }
+                    tracker.lastInsertedChar = insertedChar
+                    tracker.lastInsertionIdx = insertIndex
+                    tracker.lastInputTime = now
+                }
+            } else if (newText != oldText) {
+                tracker.lastInsertedChar = null
+                tracker.lastInsertionIdx = -1
+                tracker.lastInputTime = now
             }
+
+            onValueChange(deduplicated)
         },
         modifier = modifier,
         enabled = enabled,

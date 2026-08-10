@@ -115,32 +115,37 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addSubjectChapter(subject: String, chapter: String) {
         viewModelScope.launch {
-            repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = chapter))
+            val res = repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = chapter))
+            _syncToastMessage.value = res.second
         }
     }
 
     fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity) {
         viewModelScope.launch {
-            repository.deleteSubjectChapter(subjectChapter)
+            val res = repository.deleteSubjectChapter(subjectChapter)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun addExam(title: String, subtitle: String, status: String = "Active") {
         logActivity("Added exam: $title")
         viewModelScope.launch {
-            repository.insertExam(ExamEntity(title = title, subtitle = subtitle, status = status))
+            val res = repository.insertExam(ExamEntity(title = title, subtitle = subtitle, status = status))
+            _syncToastMessage.value = res.second
         }
     }
 
     fun updateExam(exam: ExamEntity) {
         viewModelScope.launch {
-            repository.updateExam(exam)
+            val res = repository.updateExam(exam)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun deleteExam(exam: ExamEntity) {
         viewModelScope.launch {
-            repository.deleteExam(exam)
+            val res = repository.deleteExam(exam)
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -174,8 +179,58 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionMessage = MutableStateFlow<String?>(null)
     val sessionMessage: StateFlow<String?> = _sessionMessage.asStateFlow()
 
+    private val _isRefreshingFromFirebase = MutableStateFlow(false)
+    val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
+
+    private val _refreshStatusMessage = MutableStateFlow<String?>(null)
+    val refreshStatusMessage: StateFlow<String?> = _refreshStatusMessage.asStateFlow()
+
+    fun clearRefreshStatusMessage() {
+        _refreshStatusMessage.value = null
+    }
+
+    fun refreshDataFromFirebase() {
+        viewModelScope.launch {
+            _isRefreshingFromFirebase.value = true
+            val result = repository.refreshDataFromFirebase()
+            if (result.isSuccess) {
+                _refreshStatusMessage.value = result.getOrDefault("Data updated successfully from Firebase!")
+            } else {
+                _refreshStatusMessage.value = "Failed to refresh data: ${result.exceptionOrNull()?.localizedMessage ?: "Unknown error"}"
+            }
+            _isRefreshingFromFirebase.value = false
+        }
+    }
+
+    fun uploadWorkspaceChangesToFirebase(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val (success, message) = repository.uploadAllWorkspaceChangesToFirebase()
+            showSyncToast(message)
+            onComplete(success, message)
+        }
+    }
+
     private val _showPremiumPaywall = MutableStateFlow(false)
     val showPremiumPaywall: StateFlow<Boolean> = _showPremiumPaywall.asStateFlow()
+
+    private val _syncToastMessage = MutableStateFlow<String?>(null)
+    val syncToastMessage: StateFlow<String?> = _syncToastMessage.asStateFlow()
+
+    val pendingSyncQueue = repository.syncManager.allSyncQueueFlow.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val isSyncUploading = repository.syncManager.isUploading.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+
+    fun clearSyncToastMessage() {
+        _syncToastMessage.value = null
+    }
+
+    fun showSyncToast(message: String) {
+        _syncToastMessage.value = message
+    }
 
     fun showPaywall() {
         if (isUserPremium.value) return
@@ -279,7 +334,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addFaq(questionEn: String, questionAs: String, answerEn: String, answerAs: String) {
         viewModelScope.launch {
-            repository.addFaq(
+            val res = repository.addFaq(
                 FaqEntity(
                     questionEn = questionEn,
                     questionAs = questionAs,
@@ -287,18 +342,21 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     answerAs = answerAs
                 )
             )
+            _syncToastMessage.value = res.second
         }
     }
 
     fun updateFaq(faq: FaqEntity) {
         viewModelScope.launch {
-            repository.updateFaq(faq)
+            val res = repository.updateFaq(faq)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun deleteFaq(faq: FaqEntity) {
         viewModelScope.launch {
-            repository.deleteFaq(faq)
+            val res = repository.deleteFaq(faq)
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -361,6 +419,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
+            com.example.data.migration.AppVersionMigrationManager.checkAndRunAppMigrations(getApplication(), database)
             repository.initializeSeedDataIfNeeded()
             cleanUpOldLogs()
         }
@@ -380,31 +439,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                                 val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
                                 if (activeInManager == null) {
                                     UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
-                                } else if (activeInManager != prof.currentDeviceId) {
-                                    logoutDueToOtherDeviceLogin()
                                 }
                             }
                         }
                     } else {
-                        // Just update the session manager quietly
                         if (prof.isLoggedIn && prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
                             val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
                             if (activeInManager == null) {
                                 UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
-                            } else if (activeInManager != prof.currentDeviceId) {
-                                logoutDueToOtherDeviceLogin()
                             }
-                        }
-                    }
-                }
-            }
-        }
-        viewModelScope.launch {
-            userProfile.collect { prof ->
-                if (prof != null && prof.isLoggedIn && prof.email.isNotBlank()) {
-                    UserSessionManager.observeActiveDeviceId(prof.email).collect { activeId ->
-                        if (activeId != null && prof.currentDeviceId.isNotBlank() && activeId != prof.currentDeviceId) {
-                            logoutDueToOtherDeviceLogin()
                         }
                     }
                 }
@@ -619,7 +662,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addMockTest(mock: MockTestEntity, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
-            repository.addMockTest(mock)
+            val res = repository.addMockTest(mock)
+            _syncToastMessage.value = res.second
             onComplete()
         }
     }
@@ -627,20 +671,23 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun updateMockTest(mock: MockTestEntity, onComplete: () -> Unit = {}) {
         logActivity("Updated mock test: ${mock.titleEn}")
         viewModelScope.launch {
-            repository.updateMockTest(mock)
+            val res = repository.updateMockTest(mock)
+            _syncToastMessage.value = res.second
             onComplete()
         }
     }
 
     fun deleteMockTest(mock: MockTestEntity) {
         viewModelScope.launch {
-            repository.deleteMockTest(mock)
+            val res = repository.deleteMockTest(mock)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun addStudyNote(note: StudyNoteEntity, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
-            repository.addStudyNote(note)
+            val res = repository.addStudyNote(note)
+            _syncToastMessage.value = res.second
             onComplete()
         }
     }
@@ -648,14 +695,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun updateStudyNote(note: StudyNoteEntity, onComplete: () -> Unit = {}) {
         logActivity("Updated study note: ${note.titleEn}")
         viewModelScope.launch {
-            repository.updateStudyNote(note)
+            val res = repository.updateStudyNote(note)
+            _syncToastMessage.value = res.second
             onComplete()
         }
     }
 
     fun deleteStudyNote(note: StudyNoteEntity) {
         viewModelScope.launch {
-            repository.deleteStudyNote(note)
+            val res = repository.deleteStudyNote(note)
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -727,15 +776,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loginWithEmail(emailInput: String, nameInput: String = "") {
+        val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
+        val deviceId = java.util.UUID.randomUUID().toString()
+
+        UserSessionManager.registerSession(trimmedEmail, deviceId)
+
         viewModelScope.launch {
-            val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
             val currentProf = userProfile.value ?: SampleData.initialUserProfile
             val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
             val isAdminEmail = trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
             val newRole = when {
                 isOwnerEmail -> "OWNER"
                 isAdminEmail -> "ADMIN"
-                else -> currentProf.role.ifBlank { "USER" }
+                else -> if (currentProf.role.isNotBlank() && currentProf.role != "GUEST") currentProf.role else "USER"
             }
             val defaultName = when {
                 isOwnerEmail -> "Jukti Education"
@@ -743,9 +796,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 else -> trimmedEmail.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
             val newName = if (nameInput.isNotBlank()) nameInput else defaultName
-            val deviceId = java.util.UUID.randomUUID().toString()
-
-            UserSessionManager.registerSession(trimmedEmail, deviceId)
 
             val updatedProf = currentProf.copy(
                 email = trimmedEmail,
@@ -756,14 +806,27 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 activeDeviceId = deviceId
             )
             repository.updateUserProfile(updatedProf)
+            _isGuestMode.value = false
             _sessionMessage.value = null
             _currentScreen.value = Screen.HOME
+
+            // Perform background sync with Firebase without blocking login UI or throwing uncaught errors
+            launch {
+                try {
+                    repository.syncUserProfileWithFirebase(trimmedEmail)
+                } catch (e: Exception) {
+                    android.util.Log.e("JuktiViewModel", "Non-fatal background sync during login", e)
+                }
+            }
         }
     }
 
     fun logout() {
         viewModelScope.launch {
             val currentProf = userProfile.value ?: SampleData.initialUserProfile
+            if (currentProf.email.isNotBlank()) {
+                UserSessionManager.unregisterSession(currentProf.email)
+            }
             val updatedProf = currentProf.copy(
                 isLoggedIn = false,
                 currentDeviceId = "",
@@ -779,6 +842,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val currentProf = userProfile.value ?: return@launch
             if (!currentProf.isLoggedIn) return@launch
+            if (currentProf.email.isNotBlank()) {
+                UserSessionManager.unregisterSession(currentProf.email)
+            }
             val updatedProf = currentProf.copy(
                 isLoggedIn = false,
                 currentDeviceId = "",
@@ -927,8 +993,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addQuestion(question: QuestionEntity, onComplete: (Long) -> Unit) {
         viewModelScope.launch {
-            val id = repository.addQuestion(question)
-            onComplete(id)
+            val res = repository.addQuestion(question)
+            _syncToastMessage.value = res.second
+            onComplete(question.id.takeIf { it != 0L } ?: System.currentTimeMillis())
         }
     }
 
@@ -953,40 +1020,45 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addPlan(plan: PlanEntity, onComplete: () -> Unit) { 
         viewModelScope.launch { 
-            repository.insertPlan(plan)
+            val res = repository.insertPlan(plan)
+            _syncToastMessage.value = res.second
             onComplete() 
         } 
     }
 
     fun deletePlan(plan: PlanEntity) { 
         viewModelScope.launch { 
-            repository.deletePlan(plan) 
+            val res = repository.deletePlan(plan)
+            _syncToastMessage.value = res.second
         } 
     }
 
     fun reportQuestion(question: QuestionEntity) {
         viewModelScope.launch {
-            repository.updateQuestion(question.copy(isReported = true))
+            val res = repository.updateQuestion(question.copy(isReported = true))
+            _syncToastMessage.value = res.second
         }
     }
     
     fun resolveReportedQuestion(question: QuestionEntity) {
         viewModelScope.launch {
-            repository.updateQuestion(question.copy(isReported = false))
+            val res = repository.updateQuestion(question.copy(isReported = false))
+            _syncToastMessage.value = res.second
         }
     }
     
     fun deleteQuestion(question: QuestionEntity) {
         logActivity("Deleted question ID: ${question.id}")
         viewModelScope.launch {
-            repository.deleteQuestion(question)
+            val res = repository.deleteQuestion(question)
+            _syncToastMessage.value = res.second
         }
     }
 
-
     fun updateQuestionAndResolve(question: QuestionEntity) {
         viewModelScope.launch {
-            repository.updateQuestion(question.copy(isReported = false))
+            val res = repository.updateQuestion(question.copy(isReported = false))
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -1020,31 +1092,36 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addExamUpdate(update: ExamUpdateEntity) {
         viewModelScope.launch {
-            repository.addExamUpdate(update)
+            val res = repository.addExamUpdate(update)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun updateExamUpdate(update: ExamUpdateEntity) {
         viewModelScope.launch {
-            repository.updateExamUpdate(update)
+            val res = repository.updateExamUpdate(update)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun deleteExamUpdate(update: ExamUpdateEntity) {
         viewModelScope.launch {
-            repository.deleteExamUpdate(update)
+            val res = repository.deleteExamUpdate(update)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun addBanner(banner: BannerEntity) {
         viewModelScope.launch {
-            repository.addBanner(banner)
+            val res = repository.addBanner(banner)
+            _syncToastMessage.value = res.second
         }
     }
 
     fun updateBanner(banner: BannerEntity) {
         viewModelScope.launch {
-            repository.updateBanner(banner)
+            val res = repository.updateBanner(banner)
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -1077,7 +1154,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteBanner(banner: BannerEntity) {
         viewModelScope.launch {
-            repository.deleteBanner(banner)
+            val res = repository.deleteBanner(banner)
+            _syncToastMessage.value = res.second
         }
     }
 
@@ -1177,25 +1255,35 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun requestOrCreatePlan(plan: PlanEntity, onResult: (Boolean, String) -> Unit) {
-        if (isOwner.value) {
+        if (isAdminOrOwner.value) {
             viewModelScope.launch {
-                repository.insertPlan(plan)
-                onResult(true, "Plan created successfully.")
+                try {
+                    repository.insertPlan(plan)
+                    onResult(true, "Plan created successfully.")
+                } catch (e: Exception) {
+                    android.util.Log.e("JuktiViewModel", "Error creating plan", e)
+                    onResult(false, e.localizedMessage ?: "Failed to create plan in Firebase/Database.")
+                }
             }
         } else {
             viewModelScope.launch {
-                val req = PendingRequestEntity(
-                    requestType = "CREATE_PLAN",
-                    title = "Create Plan: ${plan.planName}",
-                    description = "Create plan ${plan.planName} at ${plan.finalPrice} with validity ${plan.offerValidity}",
-                    targetId = "",
-                    payloadJson = "${plan.planName}|${plan.finalPrice}|${plan.planPrice}|${plan.offerValidity}",
-                    requestedBy = userProfile.value?.email ?: "admin@jukti.in",
-                    timestamp = "Just now",
-                    status = "PENDING"
-                )
-                repository.insertPendingRequest(req)
-                onResult(false, "Sent a request to Owner Dashboard to approve or reject.")
+                try {
+                    val req = PendingRequestEntity(
+                        requestType = "CREATE_PLAN",
+                        title = "Create Plan: ${plan.planName}",
+                        description = "Create plan ${plan.planName} at ${plan.finalPrice} with validity ${plan.offerValidity}",
+                        targetId = "",
+                        payloadJson = "${plan.planName}|${plan.finalPrice}|${plan.planPrice}|${plan.offerValidity}",
+                        requestedBy = userProfile.value?.email ?: "admin@jukti.in",
+                        timestamp = "Just now",
+                        status = "PENDING"
+                    )
+                    repository.insertPendingRequest(req)
+                    onResult(true, "Sent a request to Owner Dashboard to approve or reject.")
+                } catch (e: Exception) {
+                    android.util.Log.e("JuktiViewModel", "Error submitting plan request", e)
+                    onResult(false, e.localizedMessage ?: "Failed to submit plan request.")
+                }
             }
         }
     }

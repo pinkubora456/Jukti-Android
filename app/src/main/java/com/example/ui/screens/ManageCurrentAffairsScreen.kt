@@ -28,7 +28,6 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
     val allNotes by viewModel.studyNotes.collectAsState()
     val notes = remember(allNotes) { allNotes.filter { it.subject.contains("Current Affairs", ignoreCase = true) } }
     val exams by viewModel.examsList.collectAsState()
-    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
@@ -42,18 +41,8 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
     var noteType by remember { mutableStateOf("Free") }
     var typeDropdownExpanded by remember { mutableStateOf(false) }
 
-    var subject by remember { mutableStateOf("Current Affairs") }
-    var chapter by remember { mutableStateOf("") }
-    var chapterDropdownExpanded by remember { mutableStateOf(false) }
-    val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.distinct()
-    val chaptersList: List<String> = if (rawChapters.isEmpty()) listOf("General") else rawChapters
-    var subjectDropdownExpanded by remember { mutableStateOf(false) }
-
     var contentEn by remember { mutableStateOf("") }
     var contentAs by remember { mutableStateOf("") }
-
-        val rawSubj = allSubjectsChapters.map { it.subject }.distinct()
-    val subjectsList: List<String> = if (rawSubj.isEmpty()) listOf("Assam History", "Assam Geography", "Assam Culture", "Polity", "General Studies", "Quantitative Aptitude", "Logical Reasoning", "English") else rawSubj
 
     Scaffold(
         topBar = {
@@ -78,8 +67,6 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                     selectedExams.clear()
                     exams.firstOrNull()?.let { selectedExams.add(it.title) }
                     noteType = "Free"
-                    subject = "Assam History"
-                    chapter = "Ahom Dynasty"
                     contentEn = ""
                     contentAs = ""
                     showAddDialog = true
@@ -128,9 +115,11 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                                         editingNote = note
                                         titleEn = note.titleEn
                                         titleAs = note.titleAs
+                                        selectedExams.clear()
+                                        if (note.topic.isNotBlank()) {
+                                            note.topic.split(",").map { it.trim() }.filter { it.isNotBlank() }.forEach { selectedExams.add(it) }
+                                        }
                                         noteType = if (note.isPremium) "Premium" else "Free"
-                                        subject = note.subject
-                                        chapter = note.topic
                                         contentEn = note.contentEn
                                         contentAs = note.contentAs
                                     }) {
@@ -164,7 +153,7 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Subject: ${note.subject} • ${note.topic}",
+                                    text = if (note.topic.isNotBlank()) "Target: ${note.topic}" else "Current Affairs",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -285,63 +274,6 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                         }
                     }
                     item {
-                        ExposedDropdownMenuBox(
-                            expanded = subjectDropdownExpanded,
-                            onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
-                        ) {
-                            SafeOutlinedTextField(
-                                value = subject,
-                                onValueChange = { subject = it },
-                                label = { Text("Subject (Optional)") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = subjectDropdownExpanded,
-                                onDismissRequest = { subjectDropdownExpanded = false }
-                            ) {
-                                subjectsList.forEach { subj ->
-                                    DropdownMenuItem(
-                                        text = { Text(subj) },
-                                        onClick = {
-                                            subject = subj
-                                            subjectDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    item {
-                        ExposedDropdownMenuBox(
-                            expanded = chapterDropdownExpanded,
-                            onExpandedChange = { chapterDropdownExpanded = !chapterDropdownExpanded }
-                        ) {
-                            SafeOutlinedTextField(
-                                value = chapter,
-                                onValueChange = { chapter = it },
-                                label = { Text("Chapter / Topic (Optional)") },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
-                                singleLine = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterDropdownExpanded) }
-                            )
-                            ExposedDropdownMenu(
-                                expanded = chapterDropdownExpanded,
-                                onDismissRequest = { chapterDropdownExpanded = false }
-                            ) {
-                                chaptersList.forEach { chap ->
-                                    DropdownMenuItem(
-                                        text = { Text(chap) },
-                                        onClick = {
-                                            chapter = chap
-                                            chapterDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    item {
                         SafeOutlinedTextField(
                             value = contentEn,
                             onValueChange = { contentEn = it },
@@ -367,8 +299,8 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                         if (titleEn.isNotBlank() && contentEn.isNotBlank()) {
                             val newNote = StudyNoteEntity(
                                 id = editingNote?.id ?: 0,
-                                subject = subject.ifBlank { "General" },
-                                topic = chapter.ifBlank { selectedExams.joinToString(", ") },
+                                subject = "Current Affairs",
+                                topic = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "General",
                                 titleEn = titleEn.trim(),
                                 titleAs = titleAs.ifBlank { titleEn }.trim(),
                                 contentEn = contentEn.trim(),

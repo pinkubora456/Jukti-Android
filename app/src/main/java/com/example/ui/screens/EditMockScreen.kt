@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -128,7 +129,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 item {
                     Text("Select a Mock Test to Edit:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                items(mocks, key = { it.id }) { mock ->
+                itemsIndexed(mocks, key = { index, mock -> if (mock.id != 0L) mock.id else "mock_${mock.titleEn}_$index" }) { _, mock ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -418,7 +419,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            items(filteredQuestions, key = { it.id }) { q ->
+                            itemsIndexed(filteredQuestions, key = { index, q -> if (q.id != 0L) q.id else "q_${q.questionEn.hashCode()}_$index" }) { _, q ->
                                 val isSelected = selectedQuestionIds.contains(q.id)
                                 Row(
                                     modifier = Modifier

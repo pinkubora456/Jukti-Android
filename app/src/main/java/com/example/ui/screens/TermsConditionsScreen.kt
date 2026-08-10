@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.SafeOutlinedTextField
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 
@@ -199,7 +200,7 @@ Email: support@jukti.in"""
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedTextField(
+                    SafeOutlinedTextField(
                         value = editedContent,
                         onValueChange = { editedContent = it },
                         label = { Text("Terms & Conditions Content") },

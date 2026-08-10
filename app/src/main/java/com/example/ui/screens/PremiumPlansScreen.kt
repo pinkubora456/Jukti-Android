@@ -185,6 +185,21 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
                 ) {
                     Column {
                         Text(plan.planName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (plan.planValidity.isNotBlank()) {
+                            Text(
+                                text = "Validity: ${plan.planValidity}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (plan.offerValidity.isNotBlank()) {
+                            Text(
+                                text = "Offer: ${plan.offerValidity}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     Text("₹${plan.finalPrice}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                 }

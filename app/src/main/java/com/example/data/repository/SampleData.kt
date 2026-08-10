@@ -7,7 +7,45 @@ object SampleData {
     val sampleMockTests = emptyList<MockTestEntity>()
     val sampleStudyNotes = emptyList<StudyNoteEntity>()
     val sampleExamUpdates = emptyList<ExamUpdateEntity>()
-    val sampleBanners = emptyList<BannerEntity>()
+    val sampleBanners = listOf(
+        BannerEntity(
+            id = 1L,
+            titleEn = "Assam Competitive Exam Prep 2026",
+            titleAs = "অসম প্ৰতিযোগিতামূলক পৰীক্ষা প্ৰস্তুতি ২০২৬",
+            subtitleEn = "Comprehensive Practice Tests, Study Notes & Daily Quizzes for ADRE, APDCL & Assam Police.",
+            subtitleAs = "ADRE, APDCL আৰু অসম পুলিচৰ বাবে সম্পূৰ্ণ প্ৰস্তুতি।",
+            badgeText = "FEATURED",
+            type = "INFORMATION",
+            actionType = "Link",
+            isActive = true
+        ),
+        BannerEntity(
+            id = 2L,
+            titleEn = "Full Mock Test Series & QBank",
+            titleAs = "সম্পূৰ্ণ মক টেষ্ট শৃংখলা আৰু প্ৰশ্ন বেংক",
+            subtitleEn = "Attempt real-exam level mock tests with detailed performance analysis and ranking.",
+            subtitleAs = "বাস্তৱ পৰীক্ষাৰ দৰে মক টেষ্ট দিয়ক আৰু আপোনাৰ স্থান জানক।",
+            badgeText = "MOCK TESTS",
+            type = "INFORMATION",
+            actionType = "Mock Test",
+            isActive = true
+        ),
+        BannerEntity(
+            id = 3L,
+            titleEn = "Unlock All Exam Resources with Premium",
+            titleAs = "প্ৰিমিয়ামৰ সৈতে সকলো সম্পদ অনলক কৰক",
+            subtitleEn = "Get unlimited access to all Mock Tests, Subject Chapters & Study Notes.",
+            subtitleAs = "সকলো মক টেষ্ট আৰু নোটছৰ বাবে অসীমিত প্ৰৱেশাধিকাৰ পাওক।",
+            badgeText = "SPECIAL OFFER",
+            type = "PROMOTIONAL",
+            actionType = "Link",
+            planPrice = "999",
+            discount = "50% OFF",
+            finalPrice = "499",
+            offerValidity = "1 Year Validity",
+            isActive = true
+        )
+    )
     val sampleNotifications = emptyList<NotificationEntity>()
     val initialFaqs = emptyList<FaqEntity>()
     val samplePlans = emptyList<PlanEntity>()

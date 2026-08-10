@@ -106,7 +106,11 @@ data class BannerEntity(
     val actionUrl: String = "",
     val isActive: Boolean = true,
     val imageUrl: String = "",
-    val actionType: String = "Link" // "Mock Test", "Study Notes", "Link"
+    val actionType: String = "Link", // "Mock Test", "Study Notes", "Link"
+    val offerValidity: String = "",
+    val planPrice: String = "",
+    val discount: String = "",
+    val finalPrice: String = ""
 )
 
 @Entity(tableName = "notifications")
@@ -181,6 +185,7 @@ data class PlanEntity(
     val discount: String,
     val finalPrice: String,
     val offerValidity: String,
+    val planValidity: String = "",
     val contents: String = "", // JSON string of contents added
     val features: String = "", // JSON string or comma-separated features
     val isActive: Boolean = true
@@ -257,9 +262,15 @@ data class NotificationCategoryEntity(
 data class SyncQueueEntity(
     @PrimaryKey(autoGenerate = true) val syncId: Long = 0,
     val entityId: String,
-    val dataType: String,
-    val operation: String,
+    val dataType: String, // "QUESTION", "MOCK_TEST", "STUDY_NOTE", "EXAM_UPDATE", "BANNER", "PLAN", "FAQ", "SUBJECT_CHAPTER", "EXAM", "NOTIFICATION"
+    val operation: String, // "CREATE", "UPDATE", "DELETE"
+    val payloadJson: String = "",
     val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
     val retryCount: Int = 0,
-    val syncStatus: String = "PENDING"
+    val lastAttemptAt: Long = 0L,
+    val lastError: String? = null,
+    val syncStatus: String = "PENDING", // "PENDING", "UPLOADING", "SYNCED", "FAILED"
+    val priority: Int = 1,
+    val version: Long = 1L
 )

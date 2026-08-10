@@ -37,6 +37,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val userProfile by viewModel.userProfile.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
     val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
+    val isRefreshingFromFirebase by viewModel.isRefreshingFromFirebase.collectAsState()
+    val refreshStatusMessage by viewModel.refreshStatusMessage.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = LocalContext.current
 
@@ -119,9 +121,11 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -144,7 +148,36 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                         )
                     }
 
+                    HorizontalDivider()
 
+                    ListItem(
+                        headlineContent = {
+                            Text("Refresh Data from Firebase", fontWeight = FontWeight.SemiBold)
+                        },
+                        supportingContent = {
+                            Text(
+                                "Fetch & update latest MCQs, tests, notes and exams from Firebase",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Data", tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingContent = {
+                            if (isRefreshingFromFirebase) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Sync, contentDescription = "Refresh", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        modifier = Modifier.clickable(enabled = !isRefreshingFromFirebase) {
+                            viewModel.refreshDataFromFirebase()
+                        }
+                    )
                 }
             }
 
@@ -345,6 +378,26 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             dismissButton = {
                 TextButton(onClick = { showDeleteAccountDialog = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (refreshStatusMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearRefreshStatusMessage() },
+            title = {
+                Text("Firebase Refresh Status", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(refreshStatusMessage ?: "")
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.clearRefreshStatusMessage() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("OK")
                 }
             }
         )

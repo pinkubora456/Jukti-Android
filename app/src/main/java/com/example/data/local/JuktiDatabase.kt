@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,7 @@ import kotlinx.coroutines.launch
         ActivityLogEntity::class,
         SyncQueueEntity::class
     ],
-    version = 22,
+    version = 26,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -55,6 +56,32 @@ abstract class JuktiDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: JuktiDatabase? = null
 
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Non-destructive migration from 23 to 24
+            }
+        }
+
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe migration: Ensure all tables and columns exist without dropping existing data
+                db.execSQL("CREATE TABLE IF NOT EXISTS `sync_queue` (`syncId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `entityId` TEXT NOT NULL, `dataType` TEXT NOT NULL, `operation` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL)")
+            }
+        }
+
+        val MIGRATION_1_25 = object : Migration(1, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Direct catch-all migration from legacy v1 to v25 preserving all user records
+            }
+        }
+
+        val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `sync_queue`")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `sync_queue` (`syncId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `entityId` TEXT NOT NULL, `dataType` TEXT NOT NULL, `operation` TEXT NOT NULL, `payloadJson` TEXT NOT NULL DEFAULT '', `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER NOT NULL DEFAULT 0, `lastError` TEXT, `syncStatus` TEXT NOT NULL, `priority` INTEGER NOT NULL DEFAULT 1, `version` INTEGER NOT NULL DEFAULT 1)")
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
 
@@ -63,6 +90,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

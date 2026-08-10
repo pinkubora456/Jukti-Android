@@ -117,6 +117,9 @@ interface BannerDao {
     @Update
     suspend fun updateBanner(banner: BannerEntity)
 
+    @Query("DELETE FROM banners WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Delete
     suspend fun deleteBanner(banner: BannerEntity)
 }
@@ -127,7 +130,7 @@ interface NotificationDao {
     fun getAllNotifications(): Flow<List<NotificationEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNotification(notification: NotificationEntity)
+    suspend fun insertNotification(notification: NotificationEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(notifications: List<NotificationEntity>)
@@ -168,6 +171,9 @@ interface PlanDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlan(plan: PlanEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(plans: List<PlanEntity>)
 
     @Delete
     suspend fun deletePlan(plan: PlanEntity)
@@ -282,8 +288,17 @@ interface NotificationCategoryDao {
 
 @Dao
 interface SyncQueueDao {
-    @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' ORDER BY createdAt ASC")
+    @Query("SELECT * FROM sync_queue ORDER BY createdAt ASC")
+    fun getAllSyncQueueFlow(): Flow<List<SyncQueueEntity>>
+
+    @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' OR syncStatus = 'FAILED' OR syncStatus = 'UPLOADING' ORDER BY createdAt ASC")
     fun getPendingSyncs(): Flow<List<SyncQueueEntity>>
+
+    @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' OR syncStatus = 'FAILED' OR syncStatus = 'UPLOADING' ORDER BY createdAt ASC")
+    suspend fun getPendingSyncsList(): List<SyncQueueEntity>
+
+    @Query("SELECT * FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId LIMIT 1")
+    suspend fun getSyncByEntity(dataType: String, entityId: String): SyncQueueEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSync(sync: SyncQueueEntity): Long
@@ -293,4 +308,13 @@ interface SyncQueueDao {
 
     @Delete
     suspend fun deleteSync(sync: SyncQueueEntity)
+
+    @Query("DELETE FROM sync_queue WHERE syncId = :syncId")
+    suspend fun deleteSyncById(syncId: Long)
+
+    @Query("DELETE FROM sync_queue WHERE syncStatus = 'SYNCED'")
+    suspend fun clearSyncedItems()
+
+    @Query("DELETE FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId")
+    suspend fun deleteSyncByEntity(dataType: String, entityId: String)
 }

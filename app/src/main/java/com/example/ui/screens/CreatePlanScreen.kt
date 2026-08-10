@@ -19,6 +19,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.text.style.TextDecoration
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePlanScreen(viewModel: JuktiViewModel) {
@@ -28,6 +34,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var planPrice by remember { mutableStateOf(TextFieldValue("")) }
     var discount by remember { mutableStateOf(TextFieldValue("")) }
     var finalPrice by remember { mutableStateOf(TextFieldValue("")) }
+    var planValidity by remember { mutableStateOf(TextFieldValue("")) }
+    var offerValidity by remember { mutableStateOf(TextFieldValue("")) }
     
 
     // Content & Benefits Lists
@@ -62,6 +70,187 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var isAnalyzePageEnabled by remember { mutableStateOf(true) }
 
     var customFeatureInput by remember { mutableStateOf(TextFieldValue("")) }
+    
+    var isSubmitting by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
+    var createdPlanPreview by remember { mutableStateOf<com.example.data.local.PlanEntity?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    
+    if (showSuccessDialog && createdPlanPreview != null) {
+        val plan = createdPlanPreview!!
+        AlertDialog(
+            onDismissRequest = {
+                showSuccessDialog = false
+                createdPlanPreview = null
+                viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN)
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Success",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Plan Created Successfully",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Your new plan has been published and added to your plan list.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = plan.planName,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ) {
+                                    Text(
+                                        text = "₹${plan.finalPrice}",
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            
+                            if (plan.planPrice.isNotBlank() && plan.planPrice != plan.finalPrice) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Original: ₹${plan.planPrice}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textDecoration = TextDecoration.LineThrough,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (plan.discount.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "(${plan.discount}% OFF)",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            if (plan.planValidity.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Validity: ${plan.planValidity}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            if (plan.offerValidity.isNotBlank()) {
+                                Text(
+                                    text = "Offer Note: ${plan.offerValidity}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            val featList = plan.features.split("|").filter { it.isNotBlank() }
+                            if (featList.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Features Included:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                featList.take(4).forEach { feat ->
+                                    Text("• $feat", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (featList.size > 4) {
+                                    Text("+ ${featList.size - 4} more benefits", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        createdPlanPreview = null
+                        viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK & Return to Plan List")
+                }
+            }
+        )
+    }
+
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Creation Failed",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Text(
+                    text = errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showErrorDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
 
     Scaffold(
@@ -147,6 +336,24 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+            item {
+                SafeOutlinedTextField(
+                    value = planValidity,
+                    onValueChange = { planValidity = it },
+                    label = { Text("Plan Validity (e.g. 1 Month, 1 Year) *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+            item {
+                SafeOutlinedTextField(
+                    value = offerValidity,
+                    onValueChange = { offerValidity = it },
+                    label = { Text("Offer Validity (e.g. Ends Tonight!, 2 Days Left)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
             }
 
@@ -487,28 +694,79 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
 
             item {
                 Button(
+                    enabled = !isSubmitting,
                     onClick = {
-                        if (planName.text.isNotBlank() && finalPrice.text.isNotBlank()) {
+                        if (isSubmitting) return@Button
+                        if (planName.text.isNotBlank() && finalPrice.text.isNotBlank() && planValidity.text.isNotBlank()) {
+                            val allFeatures = mutableListOf<String>()
+                            if (featuresList.isNotEmpty()) {
+                                allFeatures.addAll(featuresList)
+                            } else {
+                                if (mockTestExamsSelected.isNotEmpty() || mockTestLimitOption != "None") {
+                                    val examStr = if (mockTestExamsSelected.isEmpty()) "All Exams" else mockTestExamsSelected.joinToString(", ")
+                                    allFeatures.add("Mock Tests: $mockTestLimitOption ($examStr)")
+                                }
+                                if (questionsExamsSelected.isNotEmpty() || questionsLimitOption != "None") {
+                                    val examStr = if (questionsExamsSelected.isEmpty()) "All Exams" else questionsExamsSelected.joinToString(", ")
+                                    allFeatures.add("MCQs Practice: $questionsLimitOption ($examStr)")
+                                }
+                                if (studyNotesExamsSelected.isNotEmpty() || studyNotesLimitOption != "None") {
+                                    val examStr = if (studyNotesExamsSelected.isEmpty()) "All Exams" else studyNotesExamsSelected.joinToString(", ")
+                                    allFeatures.add("Study Notes: $studyNotesLimitOption ($examStr)")
+                                }
+                                if (currentAffairsExamsSelected.isNotEmpty() || currentAffairsLimitOption != "None") {
+                                    val examStr = if (currentAffairsExamsSelected.isEmpty()) "All Exams" else currentAffairsExamsSelected.joinToString(", ")
+                                    allFeatures.add("Current Affairs: $currentAffairsLimitOption ($examStr)")
+                                }
+                                if (isAnalyzePageEnabled) {
+                                    allFeatures.add("Analyze Performance Page Enabled")
+                                }
+                            }
+
                             val newPlan = com.example.data.local.PlanEntity(
                                 planName = planName.text,
-                                planPrice = planPrice.text,
+                                planPrice = planPrice.text.ifBlank { finalPrice.text },
                                 discount = discount.text,
                                 finalPrice = finalPrice.text,
-                                offerValidity = "", // Removed per user request
+                                planValidity = planValidity.text,
+                                offerValidity = offerValidity.text,
                                 contents = contentsList.joinToString(separator = "|"),
-                                features = featuresList.joinToString(separator = "|")
+                                features = allFeatures.joinToString(separator = "|")
                             )
-                            viewModel.requestOrCreatePlan(newPlan) { _, message ->
-                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
-                                viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN)
+                            isSubmitting = true
+                            viewModel.requestOrCreatePlan(newPlan) { isSuccess, message ->
+                                isSubmitting = false
+                                if (isSuccess) {
+                                    createdPlanPreview = newPlan
+                                    successMessage = if (message.isNotBlank()) message else "Plan Created Successfully"
+                                    showSuccessDialog = true
+                                } else {
+                                    errorMessage = if (message.isNotBlank()) message else "Failed to create plan. Please try again."
+                                    showErrorDialog = true
+                                }
                             }
                         } else {
-                            android.widget.Toast.makeText(context, "Please fill in plan name and price.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, "Please fill in plan name, price, and plan validity.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                 ) {
-                    Text("Create Plan")
+                    if (isSubmitting) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Creating Plan...")
+                        }
+                    } else {
+                        Text("Create Plan")
+                    }
                 }
             }
         }

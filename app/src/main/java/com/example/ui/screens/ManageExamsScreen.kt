@@ -5,6 +5,7 @@ import com.example.ui.components.SafeOutlinedTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -64,7 +65,7 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(examsList, key = { it.id }) { exam ->
+                itemsIndexed(examsList, key = { index, exam -> if (exam.firebaseId.isNotBlank()) exam.firebaseId else if (exam.id != 0L) exam.id.toString() else "exam_${exam.title}_$index" }) { _, exam ->
                     ExamCard(
                         exam = exam,
                         onEdit = { editingExam = exam },

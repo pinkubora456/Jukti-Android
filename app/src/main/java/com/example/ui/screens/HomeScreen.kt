@@ -172,7 +172,107 @@ Row(
             Spacer(modifier = Modifier.height(24.dp))
 
             val context = androidx.compose.ui.platform.LocalContext.current
+            var selectedBannerForDetails by remember { mutableStateOf<com.example.data.local.BannerEntity?>(null) }
             
+            if (selectedBannerForDetails != null) {
+                val banner = selectedBannerForDetails!!
+                AlertDialog(
+                    onDismissRequest = { selectedBannerForDetails = null },
+                    title = {
+                        Column {
+                            if (banner.badgeText.isNotBlank()) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = banner.badgeText,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSecondary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            com.example.ui.components.BilingualText(
+                                textEn = banner.titleEn,
+                                textAs = banner.titleAs.ifEmpty { banner.titleEn },
+                                language = language,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (banner.imageUrl.isNotEmpty()) {
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                ) {
+                                    coil.compose.AsyncImage(
+                                        model = banner.imageUrl,
+                                        contentDescription = "Banner Image",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
+                                }
+                            }
+                            com.example.ui.components.BilingualText(
+                                textEn = banner.subtitleEn,
+                                textAs = banner.subtitleAs.ifEmpty { banner.subtitleEn },
+                                language = language,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (banner.offerValidity.isNotBlank()) {
+                                Text(
+                                    text = "Note: ${banner.offerValidity}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        if (banner.actionType == "Link" && banner.actionUrl.isNotEmpty()) {
+                            Button(onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(banner.actionUrl))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Invalid link URL", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                selectedBannerForDetails = null
+                            }) {
+                                Text("Visit Link")
+                            }
+                        } else if (banner.type == "PROMOTIONAL" || banner.actionType == "Plan") {
+                            Button(onClick = {
+                                selectedBannerForDetails = null
+                                viewModel.navigateTo(Screen.PREMIUM_PLANS)
+                            }) {
+                                Text("View Premium Plans")
+                            }
+                        } else {
+                            Button(onClick = { selectedBannerForDetails = null }) {
+                                Text("Close")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        if ((banner.actionType == "Link" && banner.actionUrl.isNotEmpty()) || banner.type == "PROMOTIONAL" || banner.actionType == "Plan") {
+                            TextButton(onClick = { selectedBannerForDetails = null }) {
+                                Text("Close")
+                            }
+                        }
+                    }
+                )
+            }
+
             // Banners Carousel / Section (Promotional & Admin Info Banners)
             AutoShiftingBannerCarousel(
                 banners = banners,
@@ -216,12 +316,18 @@ Row(
                                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(banner.actionUrl))
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "Invalid link URL", android.widget.Toast.LENGTH_SHORT).show()
+                                    selectedBannerForDetails = banner
                                 }
+                            } else {
+                                selectedBannerForDetails = banner
                             }
                         }
-                        else -> {
+                        "Plan" -> {
                             viewModel.navigateTo(Screen.PREMIUM_PLANS)
+                        }
+                        else -> {
+                            // Information banner or general details -> show Information Banner Details
+                            selectedBannerForDetails = banner
                         }
                     }
                 }
@@ -460,6 +566,65 @@ fun PromotionalBannersSection(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.9f)
                     )
+
+                    if (banner.planPrice.isNotBlank() || banner.discount.isNotBlank() || banner.finalPrice.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (banner.finalPrice.isNotBlank()) {
+                                Text(
+                                    text = "₹${banner.finalPrice}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFFFEB3B)
+                                )
+                            }
+                            if (banner.planPrice.isNotBlank()) {
+                                Text(
+                                    text = "₹${banner.planPrice}",
+                                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                            if (banner.discount.isNotBlank()) {
+                                Surface(
+                                    color = Color(0xFFD32F2F),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = banner.discount,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (banner.offerValidity.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFFFFEB3B),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Validity: ${banner.offerValidity}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFEB3B)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onUpgradeClick,

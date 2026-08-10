@@ -3,8 +3,11 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,36 +26,167 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun FeaturedPlanBanner(
     plan: PlanEntity,
-    onBuyClick: () -> Unit
+    onBuyClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var showDetailsDialog by remember { mutableStateOf(false) }
 
     if (showDetailsDialog) {
         AlertDialog(
             onDismissRequest = { showDetailsDialog = false },
-            title = { Text(text = plan.planName, fontWeight = FontWeight.Bold) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = plan.planName,
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+            },
             text = {
-                Column {
-                    Text(text = "Final Price: ₹${plan.finalPrice}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "Benefits included:", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .fillMaxWidth()
+                ) {
+                    if (plan.planPrice.isNotBlank() || plan.discount.isNotBlank() || plan.finalPrice.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            if (plan.finalPrice.isNotBlank()) {
+                                Text(
+                                    text = "₹${plan.finalPrice}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (plan.planPrice.isNotBlank()) {
+                                Text(
+                                    text = "₹${plan.planPrice}",
+                                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                            if (plan.discount.isNotBlank()) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.error,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = plan.discount,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onError,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (plan.planValidity.isNotBlank()) {
+                        Text(
+                            text = "Plan Validity: ${plan.planValidity}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    if (plan.offerValidity.isNotBlank()) {
+                        Text(
+                            text = "Offer Validity: ${plan.offerValidity}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Benefits Included:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
                     val benefits = plan.features.split("|").filter { it.isNotBlank() }
                     benefits.forEach { b ->
-                        Text(text = "• $b")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = b,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
+
                     val contents = plan.contents.split("|").filter { it.isNotBlank() }
                     if (contents.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "Contents included:", fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Contents included:",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
                         contents.forEach { c ->
-                            Text(text = "• $c")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = c,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Button(
+                        onClick = {
+                            showDetailsDialog = false
+                            onBuyClick()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Buy Now", fontWeight = FontWeight.Bold)
                     }
                 }
             },
-            confirmButton = {
+            confirmButton = {},
+            dismissButton = {
                 TextButton(onClick = { showDetailsDialog = false }) {
                     Text("Close")
                 }
@@ -61,9 +195,9 @@ fun FeaturedPlanBanner(
     }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .height(210.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
@@ -82,11 +216,11 @@ fun FeaturedPlanBanner(
 
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(
                     brush = Brush.horizontalGradient(colors = gradientColors)
                 )
-                .clickable { onBuyClick() }
+                .clickable { showDetailsDialog = true }
         ) {
             Icon(
                 imageVector = Icons.Default.Star,
@@ -98,38 +232,109 @@ fun FeaturedPlanBanner(
                     .offset(x = 40.dp, y = 20.dp)
             )
             Column(
-                modifier = Modifier.padding(20.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Featured",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "FEATURED PLAN",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = plan.planName,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Only ₹${plan.finalPrice}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Pricing Info Section (Plan Price, Discount, Pay Only)
+                if (plan.planPrice.isNotBlank() || plan.discount.isNotBlank() || plan.finalPrice.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (plan.finalPrice.isNotBlank()) {
+                            Text(
+                                text = "₹${plan.finalPrice}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = androidx.compose.ui.graphics.Color(0xFFFFEB3B)
+                            )
+                        }
+                        if (plan.planPrice.isNotBlank()) {
+                            Text(
+                                text = "₹${plan.planPrice}",
+                                style = MaterialTheme.typography.bodyMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                        if (plan.discount.isNotBlank()) {
+                            Surface(
+                                color = androidx.compose.ui.graphics.Color(0xFFD32F2F),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = if (plan.discount.endsWith("%")) "${plan.discount.replace("%", "").trim()}% Off" else "${plan.discount}% Off",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Plan & Offer Validity Section
+                if (plan.planValidity.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = androidx.compose.ui.graphics.Color(0xFFFFEB3B),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Validity: ${plan.planValidity}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = androidx.compose.ui.graphics.Color(0xFFFFEB3B)
+                        )
+                    }
+                }
+
+                // Benefits Section
+                val benefits = plan.features.split("|").filter { it.isNotBlank() }
+                if (benefits.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    benefits.take(2).forEach { b ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 1.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = androidx.compose.ui.graphics.Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = b,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = androidx.compose.ui.graphics.Color.White,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

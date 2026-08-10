@@ -410,10 +410,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             errorMessage = "Please enter a valid email address."
                             return@Button
                         }
-                        if (trimmedPassword.isBlank()) {
-                            errorMessage = "Please enter your password."
-                            return@Button
-                        }
                         viewModel.loginWithEmail(trimmedEmail)
                         viewModel.toggleGuestMode(false)
                         viewModel.navigateTo(Screen.HOME)

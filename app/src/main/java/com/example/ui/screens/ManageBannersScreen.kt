@@ -8,6 +8,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -61,14 +63,21 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
     var actionUrl by remember { mutableStateOf("") } // holds link, or mock test ID, or study note ID
     var imageUrl by remember { mutableStateOf("") }
     var isActive by remember { mutableStateOf(true) }
+    var bannerType by remember { mutableStateOf("INFORMATION") } // "INFORMATION", "PROMOTIONAL", "CAROUSEL"
+    var offerValidity by remember { mutableStateOf("") }
+    var planPrice by remember { mutableStateOf("") }
+    var discount by remember { mutableStateOf("") }
+    var finalPrice by remember { mutableStateOf("") }
 
     // Dropdowns and UI flags
     var actionTypeExpanded by remember { mutableStateOf(false) }
+    var bannerTypeExpanded by remember { mutableStateOf(false) }
     var mockTestExpanded by remember { mutableStateOf(false) }
     var studyNoteExpanded by remember { mutableStateOf(false) }
     var isFormVisible by remember { mutableStateOf(false) }
 
     val actionTypes = listOf("Link", "Mock Test", "Study Notes", "None")
+    val bannerTypes = listOf("INFORMATION", "PROMOTIONAL", "CAROUSEL")
 
     val presetImages = listOf(
         PresetImage("None", ""),
@@ -84,11 +93,16 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
         titleAs = ""
         subtitleEn = ""
         subtitleAs = ""
-        badgeText = "UPDATED"
+        badgeText = ""
         actionType = "Link"
         actionUrl = ""
         imageUrl = ""
         isActive = true
+        bannerType = "INFORMATION"
+        offerValidity = ""
+        planPrice = ""
+        discount = ""
+        finalPrice = ""
         isFormVisible = false
     }
 
@@ -103,6 +117,11 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
         actionUrl = banner.actionUrl
         imageUrl = banner.imageUrl
         isActive = banner.isActive
+        bannerType = banner.type
+        offerValidity = banner.offerValidity
+        planPrice = banner.planPrice
+        discount = banner.discount
+        finalPrice = banner.finalPrice
         isFormVisible = true
     }
 
@@ -149,6 +168,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // Edit / Add Form Section
             AnimatedVisibility(visible = isFormVisible) {
@@ -182,60 +202,64 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                             }
                         }
 
-                        // Title (English)
+                        // Title
                         SafeOutlinedTextField(
                             value = titleEn,
                             onValueChange = { titleEn = it },
-                            label = { Text("Banner Title (English) *") },
+                            label = { Text("Banner Title *") },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("banner_title_en_input"),
                             singleLine = true
                         )
 
-                        // Title (Assamese - Optional)
-                        SafeOutlinedTextField(
-                            value = titleAs,
-                            onValueChange = { titleAs = it },
-                            label = { Text("Banner Title (Assamese) - Optional") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("banner_title_as_input"),
-                            singleLine = true
-                        )
-
-                        // Notice Details (English)
+                        // Notice Details
                         SafeOutlinedTextField(
                             value = subtitleEn,
                             onValueChange = { subtitleEn = it },
-                            label = { Text("Notice Details (English) *") },
+                            label = { Text("Notice Details *") },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("banner_details_en_input"),
                             minLines = 2
                         )
 
-                        // Notice Details (Assamese - Optional)
-                        SafeOutlinedTextField(
-                            value = subtitleAs,
-                            onValueChange = { subtitleAs = it },
-                            label = { Text("Notice Details (Assamese) - Optional") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("banner_details_as_input"),
-                            minLines = 2
-                        )
+                        // Promotional Banner specific fields
+                        if (bannerType == "PROMOTIONAL") {
+                            Text("Promotional Banner pricing & validity (optional)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            
+                            SafeOutlinedTextField(
+                                value = planPrice,
+                                onValueChange = { planPrice = it },
+                                label = { Text("Plan Price (e.g., 599)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
 
-                        // Badge / Tag
-                        SafeOutlinedTextField(
-                            value = badgeText,
-                            onValueChange = { badgeText = it },
-                            label = { Text("Banner Tag / Badge (e.g. UPDATED, LIVE, NEW)") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("banner_badge_input"),
-                            singleLine = true
-                        )
+                            SafeOutlinedTextField(
+                                value = discount,
+                                onValueChange = { discount = it },
+                                label = { Text("Discount (e.g., 30% OFF)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            SafeOutlinedTextField(
+                                value = finalPrice,
+                                onValueChange = { finalPrice = it },
+                                label = { Text("Pay Only Amount (e.g., 399)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            SafeOutlinedTextField(
+                                value = offerValidity,
+                                onValueChange = { offerValidity = it },
+                                label = { Text("Offer Validity (e.g., Ends Tonight!)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                        }
 
                         // Action Button Dropdown Selector
                         ExposedDropdownMenuBox(
@@ -463,12 +487,16 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                                         titleAs = titleAs.trim(),
                                         subtitleEn = subtitleEn.trim(),
                                         subtitleAs = subtitleAs.trim(),
-                                        badgeText = badgeText.trim().ifEmpty { "UPDATED" },
-                                        type = "INFORMATION",
+                                        badgeText = badgeText.trim(),
+                                        type = bannerType,
                                         actionUrl = actionUrl,
                                         isActive = isActive,
                                         imageUrl = imageUrl.trim(),
-                                        actionType = actionType
+                                        actionType = actionType,
+                                        offerValidity = offerValidity.trim(),
+                                        planPrice = planPrice.trim(),
+                                        discount = discount.trim(),
+                                        finalPrice = finalPrice.trim()
                                     )
 
                                     if (editingBanner == null) {
@@ -603,17 +631,19 @@ fun BannerAdminCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = banner.badgeText,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                        if (banner.badgeText.isNotBlank()) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = banner.badgeText,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
 
                         Surface(
@@ -667,6 +697,33 @@ fun BannerAdminCard(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Type: ${banner.type}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    if (banner.type == "PROMOTIONAL") {
+                        if (banner.planPrice.isNotBlank() || banner.discount.isNotBlank() || banner.finalPrice.isNotBlank()) {
+                            Text(
+                                text = "Promo: ₹${banner.planPrice} | ${banner.discount} | Pay ₹${banner.finalPrice}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (banner.offerValidity.isNotBlank()) {
+                            Text(
+                                text = "Validity: ${banner.offerValidity}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
                 if (banner.imageUrl.isNotEmpty()) {
