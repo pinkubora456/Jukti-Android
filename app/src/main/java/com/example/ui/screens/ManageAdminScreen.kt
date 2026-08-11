@@ -29,6 +29,7 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val aboutConfig by viewModel.aboutConfig.collectAsState()
+    val isOwner by viewModel.isOwner.collectAsState()
     
     var emailInput by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
@@ -223,14 +224,16 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
                                     }
                                 }
 
-                                IconButton(
-                                    onClick = { viewModel.removeAdminEmail(adminEmail) }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Remove Admin",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                                if (isOwner) {
+                                    IconButton(
+                                        onClick = { viewModel.removeAdminEmail(adminEmail) }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Remove Admin",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }

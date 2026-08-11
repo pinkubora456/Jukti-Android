@@ -40,7 +40,7 @@ fun ExportReportsScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            ExportReportsGrid()
+            ExportReportsGrid(viewModel)
         }
     }
 }
@@ -48,11 +48,13 @@ fun ExportReportsScreen(viewModel: JuktiViewModel) {
 data class ExportReportsItem(val title: String, val icon: ImageVector, val onClick: () -> Unit = {})
 
 @Composable
-fun ExportReportsGrid() {
+fun ExportReportsGrid(viewModel: JuktiViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val items = listOf(
-        ExportReportsItem("User Report", Icons.Default.PeopleOutline),
-        ExportReportsItem("Admin Activity Report", Icons.Default.AdminPanelSettings),
-        ExportReportsItem("Revenue Report", Icons.Default.AttachMoney)
+        ExportReportsItem("User Report", Icons.Default.PeopleOutline, { viewModel.exportUsersCsv(context) }),
+        ExportReportsItem("Purchases & Revenue", Icons.Default.AttachMoney, { viewModel.exportPurchasesCsv(context) }),
+        ExportReportsItem("Mocks Report", Icons.Default.Quiz, { viewModel.exportMocksCsv(context) }),
+        ExportReportsItem("Questions Report", Icons.Default.QuestionAnswer, { viewModel.exportQuestionsCsv(context) })
     )
 
     LazyColumn(

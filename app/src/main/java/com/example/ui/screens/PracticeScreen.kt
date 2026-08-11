@@ -154,13 +154,16 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (isSessionStarted) {
-                                if (isSmartPractice) "Smart Practice" else
-                                when (selectedSubjectKey) {
-                                    "General Knowledge" -> "General Knowledge"
-                                    "General English" -> "General English"
-                                    "Mathematics", "General Mathematics" -> "Mathematics"
-                                    "Reasoning" -> "Reasoning"
-                                    else -> "All Subjects"
+                                if (isSmartPractice) {
+                                    "Smart Practice"
+                                } else {
+                                    when (selectedSubjectKey) {
+                                        "General Knowledge" -> "General Knowledge"
+                                        "General English" -> "General English"
+                                        "Mathematics", "General Mathematics" -> "Mathematics"
+                                        "Reasoning" -> "Reasoning"
+                                        else -> "All Subjects"
+                                    }
                                 }
                             } else {
                                 "Practice"

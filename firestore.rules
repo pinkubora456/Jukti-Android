@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isSignedIn() && (
+        request.auth.token.owner == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER' &&
+         request.auth.token.owner == true) ||
+        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null && 
+         request.auth.token.email.matches('(?i)juktieducation@gmail\\.com') && request.auth.token.owner == true)
+      );
+    }
+
+    function isAdminOrOwner() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.owner == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER') &&
+         (request.auth.token.admin == true || request.auth.token.owner == true)) ||
+        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null && 
+         request.auth.token.email.matches('(?i)borapinku151@gmail\\.com') && request.auth.token.admin == true)
+      );
+    }
+
+    // Default catch-all rule: Deny all reads and writes unless explicitly allowed below
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
+      allow update: if isSignedIn() && request.auth.uid == userId 
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']))
+                    || isOwner();
+      allow create: if isSignedIn() && request.auth.uid == userId 
+                    && request.resource.data.role == 'USER' 
+                    && request.resource.data.isPremium == false
+                    || isOwner();
+    }
+
+    match /users/{userId}/purchases/{purchaseId} {
+      allow read: if isSignedIn() && request.auth.uid == userId || isOwner();
+      allow write: if isSignedIn() && request.auth.uid == userId 
+                   && request.resource.data.status == 'PENDING'
+                   || isOwner();
+    }
+
+    match /users/{userId}/entitlements/{entitlementId} {
+      allow read: if isSignedIn() && request.auth.uid == userId || isOwner();
+      allow write: if isOwner();
+    }
+
+    match /users/{userId}/entitlement_history/{historyId} {
+      allow read: if isOwner();
+      allow write: if isOwner();
+    }
+    
+    // Question Progress (Subcollection)
+    match /users/{userId}/question_progress/{progressId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Sync Test
+    match /firestore_sync_test/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Content management collections: ADMIN or OWNER only
+    match /questions/{questionId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /mock_tests/{testId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /study_notes/{noteId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /exams/{examId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /exam_updates/{updateId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /subjects_chapters/{scId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    match /pending_requests/{reqId} {
+      allow read: if isAdminOrOwner();
+      allow write: if isAdminOrOwner();
+    }
+
+    match /activity_logs/{logId} {
+      allow read: if isAdminOrOwner();
+      allow write: if isAdminOrOwner();
+    }
+
+    // Monetization & Subscription Plans: ADMIN or OWNER
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+
+    // Payment / Financial records: Read restricted, write OWNER only
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isOwner());
+      allow write: if isOwner();
+    }
+
+    // Leaderboards & Global stats: ADMIN or OWNER only
+    match /leaderboard/{docId} {
+      allow read: if true;
+      allow write: if isAdminOrOwner();
+    }
+  }
+}

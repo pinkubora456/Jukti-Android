@@ -1,6 +1,8 @@
 package com.example.data.repository
 
 import com.example.data.local.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
@@ -23,11 +25,20 @@ class JuktiRepository(
     private val faqDao: FaqDao,
     private val questionProgressDao: QuestionProgressDao,
     private val activityLogDao: ActivityLogDao,
+    private val entitlementDao: EntitlementDao,
     val syncManager: FirebaseSyncManager
 ) {
     private val firebaseRepository = FirebaseRepository()
 
-    val activityLogs: Flow<List<ActivityLogEntity>> = activityLogDao.getAllLogs()
+    val activityLogs: Flow<List<ActivityLogEntity>> = combine(
+        firebaseRepository.observeActivityLogs(),
+        activityLogDao.getAllLogs()
+    ) { remote, local ->
+        val map = HashMap<Long, ActivityLogEntity>()
+        local.forEach { map[it.id] = it }
+        remote.forEach { map[it.id] = it }
+        map.values.sortedByDescending { it.timestamp }
+    }
 
     val allQuestions: Flow<List<QuestionEntity>> = combine(
         firebaseRepository.observeQuestions(),
@@ -135,6 +146,11 @@ class JuktiRepository(
 
     val allNotifications: Flow<List<NotificationEntity>> = notificationDao.getAllNotifications()
     val userProfile: Flow<UserProfileEntity?> = userProfileDao.getUserProfile()
+    
+    fun getUserEntitlement(userId: String): Flow<EntitlementEntity?> {
+        return entitlementDao.getEntitlement(userId)
+    }
+    
     val aboutConfig: Flow<AboutConfigEntity?> = aboutConfigDao.getAboutConfig()
 
     val allPlans: Flow<List<PlanEntity>> = combine(
@@ -153,7 +169,15 @@ class JuktiRepository(
 
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
     val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = firebaseRepository.observeSubjectsChapters()
-    val allPendingRequests: Flow<List<PendingRequestEntity>> = pendingRequestDao.getAllPendingRequests()
+    val allPendingRequests: Flow<List<PendingRequestEntity>> = combine(
+        firebaseRepository.observePendingRequests(),
+        pendingRequestDao.getAllPendingRequests()
+    ) { remote, local ->
+        val map = HashMap<Long, PendingRequestEntity>()
+        local.forEach { map[it.id] = it }
+        remote.forEach { map[it.id] = it }
+        map.values.sortedByDescending { it.id }
+    }
 
     val allFaqs: Flow<List<FaqEntity>> = combine(
         firebaseRepository.observeFaqs(),
@@ -237,17 +261,30 @@ class JuktiRepository(
         return syncManager.enqueueAndSync("QUESTION", question.id.toString(), "DELETE")
     }
 
-    suspend fun bulkInsertQuestions(questions: List<QuestionEntity>): Pair<Boolean, String> {
-        val updatedList = questions.map { q ->
-            val id = if (q.id == 0L) System.currentTimeMillis() + (0..1000).random() else q.id
+    suspend fun bulkInsertQuestions(questions: List<QuestionEntity>): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        if (questions.isEmpty()) return@withContext Pair(true, "No questions to insert.")
+        val baseTime = System.currentTimeMillis()
+        val updatedList = questions.mapIndexed { index, q ->
+            val id = if (q.id == 0L) baseTime + index + 1 else q.id
             q.copy(id = id)
         }
         questionDao.insertAll(updatedList)
-        var lastRes = Pair(true, "✅ ${updatedList.size} questions saved locally.")
-        updatedList.forEach { q ->
-            lastRes = syncManager.enqueueAndSync("QUESTION", q.id.toString(), "CREATE", syncManager.questionToMap(q))
+
+        val now = System.currentTimeMillis()
+        val syncItems = updatedList.map { q ->
+            SyncQueueEntity(
+                entityId = q.id.toString(),
+                dataType = "QUESTION",
+                operation = "CREATE",
+                payloadJson = syncManager.mapToJson(syncManager.questionToMap(q)),
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "PENDING"
+            )
         }
-        return if (lastRes.first) Pair(true, "✅ ${updatedList.size} questions uploaded successfully to Firebase.") else Pair(false, "⚠️ Saved ${updatedList.size} questions locally. Firebase upload will retry automatically.")
+        syncManager.enqueueBatch(syncItems)
+
+        return@withContext syncManager.uploadAllWorkspaceChangesToFirebase()
     }
 
     // Mock Actions
@@ -399,6 +436,14 @@ class JuktiRepository(
         try {
             val localProfile = userProfileDao.getUserProfileDirect()
             val remoteProfile = firebaseRepository.fetchUserProfile(email)
+            val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email)
+            
+            if (remoteEntitlement != null) {
+                entitlementDao.insertEntitlement(remoteEntitlement)
+            } else {
+                entitlementDao.deleteEntitlement(firebaseRepository.getSanitizedUserDocId(email))
+            }
+
             if (remoteProfile != null) {
                 val merged = if (localProfile != null) {
                     localProfile.copy(
@@ -408,8 +453,8 @@ class JuktiRepository(
                         dailyStreak = maxOf(localProfile.dailyStreak, remoteProfile.dailyStreak),
                         totalSolved = maxOf(localProfile.totalSolved, remoteProfile.totalSolved),
                         totalTimeMinutes = maxOf(localProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes),
-                        isPremium = remoteProfile.isPremium || localProfile.isPremium,
-                        role = if (remoteProfile.role != "USER") remoteProfile.role else localProfile.role,
+                        isPremium = remoteProfile.isPremium,
+                        role = remoteProfile.role,
                         isLoggedIn = true,
                         currentDeviceId = localProfile.currentDeviceId.ifBlank { remoteProfile.currentDeviceId },
                         activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId }
@@ -460,6 +505,31 @@ class JuktiRepository(
     suspend fun updateFirebaseProjectId(newProjectId: String) {
         val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
         userProfileDao.insertOrUpdateProfile(profile.copy(firebaseProjectId = newProjectId))
+    }
+
+    suspend fun fetchAllUsersDirect(): List<UserProfileEntity> {
+        return firebaseRepository.fetchAllUsers()
+    }
+
+    suspend fun updateUserRoleInFirebase(email: String, newRole: String): Boolean {
+        return try {
+            val users = firebaseRepository.fetchAllUsers()
+            val target = users.find { it.email.equals(email, ignoreCase = true) }
+            if (target != null) {
+                firebaseRepository.saveUserProfile(target.copy(role = newRole), merge = true)
+                true
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun retrySingleSync(item: SyncQueueEntity): Pair<Boolean, String> {
+        return syncManager.retrySingleItem(item)
+    }
+
+    suspend fun runMinimalDiagnosticTest(): Pair<Boolean, String> {
+        return syncManager.runMinimalDiagnosticTest()
     }
 
     suspend fun updateAboutConfig(config: AboutConfigEntity) {
@@ -522,15 +592,20 @@ class JuktiRepository(
 
     // Pending Requests
     suspend fun insertPendingRequest(request: PendingRequestEntity): Long {
-        return pendingRequestDao.insertRequest(request)
+        val id = pendingRequestDao.insertRequest(request)
+        val updated = request.copy(id = id)
+        syncManager.enqueueAndSync("PENDING_REQUEST", id.toString(), "CREATE", syncManager.pendingRequestToMap(updated))
+        return id
     }
 
     suspend fun updatePendingRequest(request: PendingRequestEntity) {
         pendingRequestDao.updateRequest(request)
+        syncManager.enqueueAndSync("PENDING_REQUEST", request.id.toString(), "UPDATE", syncManager.pendingRequestToMap(request))
     }
 
     suspend fun deletePendingRequest(request: PendingRequestEntity) {
         pendingRequestDao.deleteRequest(request)
+        syncManager.enqueueAndSync("PENDING_REQUEST", request.id.toString(), "DELETE", emptyMap())
     }
 
     suspend fun deleteQuestionById(id: Long) {
@@ -656,7 +731,9 @@ class JuktiRepository(
     }
 
     suspend fun insertActivityLog(log: ActivityLogEntity) {
-        activityLogDao.insertLog(log)
+        val id = activityLogDao.insertLog(log)
+        val updated = log.copy(id = id)
+        syncManager.enqueueAndSync("ACTIVITY_LOG", id.toString(), "CREATE", syncManager.activityLogToMap(updated))
     }
 
     suspend fun deleteOldAdminLogs(thresholdTime: Long) {
@@ -744,7 +821,7 @@ class JuktiRepository(
             val totalCount = itemCount + exams.size
             Pair(true, "✅ Firebase Updated Successfully\nAll $totalCount workspace items uploaded to Firebase.")
         } catch (e: Exception) {
-            Pair(false, "❌ Firebase Update Failed\nYour changes are safely saved locally. Firebase upload will be retried automatically.")
+            Pair(false, "❌ Firebase Update Failed: ${e.localizedMessage ?: e.javaClass.simpleName}\nYour changes are safely saved locally. Firebase upload will be retried automatically.")
         }
     }
 }

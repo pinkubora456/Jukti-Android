@@ -1,0 +1,7 @@
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("JuktiViewModel", "Firebase auth failed", e)
+                // If it fails, maybe we should not proceed, but for this app we'll let it proceed if we want it to work offline
+                withContext(Dispatchers.Main) {
+                     _sessionMessage.value = "Login failed: ${e.localizedMessage}"
+                }

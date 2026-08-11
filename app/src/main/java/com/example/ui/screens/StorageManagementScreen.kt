@@ -8,10 +8,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageManagementScreen(viewModel: JuktiViewModel) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -25,15 +27,23 @@ fun StorageManagementScreen(viewModel: JuktiViewModel) {
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            Text("Question Cache Size: ~12 MB", style = MaterialTheme.typography.titleMedium)
+            Text("Clear Activity Logs", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Keep only the last 7 days of logs.", style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Number of Cached Questions: 1,450", style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { /* clear cache logic */ }) {
-                Text("Clear Question Cache")
+            Button(onClick = { viewModel.clearOldActivityLogs(context) }) {
+                Text("Clear Old Logs & Requests")
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text("Clear Cache", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Deletes temporary files and cached images.", style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Note: Saved questions, frequently incorrect questions, and important statistics will not be deleted.", style = MaterialTheme.typography.bodySmall)
+            Button(onClick = { viewModel.clearCacheFiles(context) }) {
+                Text("Clear Local Cache")
+            }
         }
     }
 }

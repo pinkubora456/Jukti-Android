@@ -274,3 +274,17 @@ data class SyncQueueEntity(
     val priority: Int = 1,
     val version: Long = 1L
 )
+
+@Entity(tableName = "entitlements")
+data class EntitlementEntity(
+    @PrimaryKey val userId: String,
+    val planId: String,
+    val planName: String,
+    val status: String = "EXPIRED", // "ACTIVE", "EXPIRED", "REVOKED"
+    val validFrom: Long = 0L,
+    val validUntil: Long = 0L,
+    val benefits: String = "", // comma-separated
+    val source: String = "", // "GOOGLE_PLAY", "OWNER", "MIGRATION"
+    val purchaseId: String = "",
+    val updatedAt: Long = 0L
+)

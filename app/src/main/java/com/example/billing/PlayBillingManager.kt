@@ -15,8 +15,8 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
     private val _billingStatus = MutableStateFlow<String?>(null)
     val billingStatus: StateFlow<String?> = _billingStatus.asStateFlow()
 
-    private val _isPurchaseSuccessful = MutableStateFlow(false)
-    val isPurchaseSuccessful: StateFlow<Boolean> = _isPurchaseSuccessful.asStateFlow()
+    private val _pendingVerificationPurchase = MutableStateFlow<Purchase?>(null)
+    val pendingVerificationPurchase: StateFlow<Purchase?> = _pendingVerificationPurchase.asStateFlow()
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -128,11 +128,29 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
                 _billingStatus.value = "Purchase canceled by user."
             }
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
-                _isPurchaseSuccessful.value = true
-                _billingStatus.value = "Plan is already active on this Google Account."
+                // We should ideally query purchases and verify
+                _billingStatus.value = "Plan is already active on this Google Account. Please wait while we verify."
+                queryPurchases()
             }
             else -> {
                 _billingStatus.value = "Google Play Billing Error (${billingResult.responseCode}): ${billingResult.debugMessage}"
+            }
+        }
+    }
+
+    private fun queryPurchases() {
+        billingClient.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
+        ) { billingResult, purchases ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                purchases.forEach { handlePurchase(it) }
+            }
+            billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
+            ) { inAppResult, inAppPurchases ->
+                if (inAppResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    inAppPurchases.forEach { handlePurchase(it) }
+                }
             }
         }
     }
@@ -145,15 +163,15 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
                     .build()
                 billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        _isPurchaseSuccessful.value = true
-                        _billingStatus.value = "Payment Successful via Google Play! Premium plan activated."
+                        _pendingVerificationPurchase.value = purchase
+                        _billingStatus.value = "Payment Acknowledged via Google Play! Submitting for verification..."
                     } else {
                         _billingStatus.value = "Failed to acknowledge Google Play purchase: ${billingResult.debugMessage}"
                     }
                 }
             } else {
-                _isPurchaseSuccessful.value = true
-                _billingStatus.value = "Subscription active via Google Play."
+                _pendingVerificationPurchase.value = purchase
+                _billingStatus.value = "Google Play Purchase detected. Submitting for verification..."
             }
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
             _billingStatus.value = "Payment is pending completion in Google Play Store."

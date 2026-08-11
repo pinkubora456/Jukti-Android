@@ -39,7 +39,9 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
     
     val billingManager = remember { PlayBillingManager(context) }
     val billingStatus by billingManager.billingStatus.collectAsState()
-    val isPurchaseSuccessful by billingManager.isPurchaseSuccessful.collectAsState()
+    val pendingVerificationPurchase by billingManager.pendingVerificationPurchase.collectAsState()
+    val entitlement by viewModel.userEntitlement.collectAsState()
+    val hasActivePlan = isUserPremium
 
     LaunchedEffect(Unit) {
         billingManager.startConnection()
@@ -54,6 +56,19 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
     LaunchedEffect(billingStatus) {
         billingStatus?.let { statusMsg ->
             Toast.makeText(context, statusMsg, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    LaunchedEffect(pendingVerificationPurchase) {
+        pendingVerificationPurchase?.let { purchase ->
+            selectedPlan?.let { plan ->
+                viewModel.verifyAndProvisionPurchase(
+                    purchaseToken = purchase.purchaseToken,
+                    purchaseId = purchase.orderId ?: purchase.purchaseToken,
+                    planId = plan.id.toString(),
+                    planName = plan.planName
+                )
+            }
         }
     }
 
@@ -238,7 +253,7 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
 
         Button(
             onClick = {
-                if (isUserPremium) return@Button
+                if (hasActivePlan) return@Button
                 val currentPlan = selectedPlan
                 if (currentPlan != null) {
                     if (activity != null) {
@@ -256,11 +271,11 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            enabled = !isUserPremium || isPurchaseSuccessful
+            enabled = !hasActivePlan
         ) {
             Icon(Icons.Default.ShoppingBag, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (isAdminOrOwner) "✅ Subscription Active (Admin/Owner)" else if (isUserPremium) "✅ Subscription Active" else "Buy via Google Play Billing")
+            Text(if (isAdminOrOwner) "✅ Subscription Active (Admin/Owner)" else if (hasActivePlan) "✅ Subscription Active" else "Buy via Google Play Billing")
         }
     }
 }

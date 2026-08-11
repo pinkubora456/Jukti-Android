@@ -50,7 +50,7 @@ object AppVersionMigrationManager {
                         val mergedProfile = userProfile.copy(
                             xp = maxOf(userProfile.xp, remoteProfile.xp),
                             level = maxOf(userProfile.level, remoteProfile.level),
-                            isPremium = remoteProfile.isPremium || userProfile.isPremium,
+                            isPremium = remoteProfile.isPremium,
                             role = if (remoteProfile.role != "USER") remoteProfile.role else userProfile.role,
                             dailyStreak = maxOf(userProfile.dailyStreak, remoteProfile.dailyStreak),
                             totalSolved = maxOf(userProfile.totalSolved, remoteProfile.totalSolved),

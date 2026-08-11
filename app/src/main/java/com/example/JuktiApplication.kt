@@ -19,6 +19,7 @@ class JuktiApplication : Application() {
             Log.e("JuktiApplication", "Failed to initialize Firebase", e)
         }
         createNotificationChannel()
+        com.example.data.worker.FirestoreSyncWorker.scheduleSync(this)
     }
 
     private fun createNotificationChannel() {

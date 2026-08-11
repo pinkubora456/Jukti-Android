@@ -1,0 +1,19 @@
+--- firestore.rules
++++ firestore.rules
+@@ -82,6 +82,16 @@
+       allow write: if isAdminOrOwner();
+     }
+ 
++    match /pending_requests/{reqId} {
++      allow read: if isAdminOrOwner();
++      allow write: if isAdminOrOwner();
++    }
++
++    match /activity_logs/{logId} {
++      allow read: if isAdminOrOwner();
++      allow write: if isAdminOrOwner();
++    }
++
+     // Monetization & Subscription Plans: ADMIN or OWNER
+     match /plans/{planId} {
+       allow read: if true;

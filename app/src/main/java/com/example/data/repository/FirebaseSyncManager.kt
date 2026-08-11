@@ -22,6 +22,16 @@ sealed class SyncState {
     data class Error(val failedCount: Int, val pendingCount: Int, val lastErrorMessage: String?) : SyncState()
 }
 
+data class SyncProgressState(
+    val isUploading: Boolean = false,
+    val stage: String = "Idle",
+    val currentItem: Int = 0,
+    val totalItems: Int = 0,
+    val successCount: Int = 0,
+    val failCount: Int = 0,
+    val message: String = ""
+)
+
 class FirebaseSyncManager(
     private val database: JuktiDatabase
 ) {
@@ -44,45 +54,101 @@ class FirebaseSyncManager(
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
+    private val _syncProgressState = MutableStateFlow(SyncProgressState())
+    val syncProgressState: StateFlow<SyncProgressState> = _syncProgressState.asStateFlow()
+
+    fun updateSyncProgress(
+        isUploading: Boolean,
+        stage: String,
+        currentItem: Int = 0,
+        totalItems: Int = 0,
+        successCount: Int = 0,
+        failCount: Int = 0,
+        message: String = ""
+    ) {
+        _isUploading.value = isUploading
+        _syncProgressState.value = SyncProgressState(
+            isUploading = isUploading,
+            stage = stage,
+            currentItem = currentItem,
+            totalItems = totalItems,
+            successCount = successCount,
+            failCount = failCount,
+            message = message
+        )
+    }
+
     // --- JSON Conversion Helpers --- //
 
     fun mapToJson(map: Map<String, Any?>): String {
+        return try {
+            mapToJsonObject(map).toString()
+        } catch (e: Exception) {
+            Log.e("FirebaseSyncManager", "Error in mapToJson", e)
+            "{}"
+        }
+    }
+
+    private fun mapToJsonObject(map: Map<String, Any?>): JSONObject {
         val json = JSONObject()
         map.forEach { (key, value) ->
-            when (value) {
-                null -> json.put(key, JSONObject.NULL)
-                is List<*> -> json.put(key, JSONArray(value))
-                else -> json.put(key, value)
-            }
+            json.put(key, wrapJsonValue(value))
         }
-        return json.toString()
+        return json
+    }
+
+    private fun wrapJsonValue(value: Any?): Any {
+        return when (value) {
+            null -> JSONObject.NULL
+            is Map<*, *> -> {
+                @Suppress("UNCHECKED_CAST")
+                mapToJsonObject(value as Map<String, Any?>)
+            }
+            is List<*> -> {
+                val jsonArray = JSONArray()
+                value.forEach { item ->
+                    jsonArray.put(wrapJsonValue(item))
+                }
+                jsonArray
+            }
+            else -> value
+        }
     }
 
     fun jsonToMap(jsonStr: String): Map<String, Any?> {
         if (jsonStr.isBlank()) return emptyMap()
         return try {
             val json = JSONObject(jsonStr)
-            val map = mutableMapOf<String, Any?>()
-            val keys = json.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = json.get(key)
-                when {
-                    value == JSONObject.NULL -> map[key] = null
-                    value is JSONArray -> {
-                        val list = mutableListOf<Any?>()
-                        for (i in 0 until value.length()) {
-                            list.add(value.get(i))
-                        }
-                        map[key] = list
-                    }
-                    else -> map[key] = value
-                }
-            }
-            map
+            parseJsonObjectToMap(json)
         } catch (e: Exception) {
             Log.e("FirebaseSyncManager", "Error parsing json payload", e)
             emptyMap()
+        }
+    }
+
+    private fun parseJsonObjectToMap(json: JSONObject): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = json.get(key)
+            map[key] = unwrapJsonValue(value)
+        }
+        return map
+    }
+
+    private fun unwrapJsonValue(value: Any?): Any? {
+        return when {
+            value == null || value == JSONObject.NULL -> null
+            value is JSONObject -> parseJsonObjectToMap(value)
+            value is JSONArray -> {
+                val list = mutableListOf<Any?>()
+                for (i in 0 until value.length()) {
+                    list.add(unwrapJsonValue(value.get(i)))
+                }
+                list
+            }
+            else -> value
         }
     }
 
@@ -239,6 +305,27 @@ class FirebaseSyncManager(
         "isRead" to n.isRead
     )
 
+    fun pendingRequestToMap(r: PendingRequestEntity): Map<String, Any?> = mapOf(
+        "id" to r.id,
+        "requestType" to r.requestType,
+        "title" to r.title,
+        "description" to r.description,
+        "targetId" to r.targetId,
+        "payloadJson" to r.payloadJson,
+        "requestedBy" to r.requestedBy,
+        "timestamp" to r.timestamp,
+        "status" to r.status
+    )
+
+    fun activityLogToMap(a: ActivityLogEntity): Map<String, Any?> = mapOf(
+        "id" to a.id,
+        "role" to a.role,
+        "action" to a.actionDetails,
+        "userEmail" to a.userEmail,
+        "timestamp" to a.timestamp,
+        "details" to a.actionDetails
+    )
+
     private fun getCollectionName(dataType: String): String {
         return when (dataType.uppercase()) {
             "QUESTION" -> "questions"
@@ -251,11 +338,18 @@ class FirebaseSyncManager(
             "SUBJECT_CHAPTER" -> "subjects_chapters"
             "EXAM" -> "exams"
             "NOTIFICATION" -> "notifications"
+            "PENDING_REQUEST" -> "pending_requests"
+            "ACTIVITY_LOG" -> "activity_logs"
             else -> dataType.lowercase() + "s"
         }
     }
 
     // --- Core Enqueue & Auto-Sync Engine --- //
+
+    suspend fun enqueueBatch(items: List<SyncQueueEntity>) = withContext(Dispatchers.IO) {
+        if (items.isEmpty()) return@withContext
+        syncQueueDao.insertAllSyncs(items)
+    }
 
     suspend fun enqueueAndSync(
         dataType: String,
@@ -303,25 +397,36 @@ class FirebaseSyncManager(
             Pair(true, "✅ Uploaded successfully to Firebase.")
         } else {
             Log.w("FirebaseSyncManager", "Immediate sync failed for $dataType #$entityId: $errorMsg")
-            Pair(false, "⚠️ Saved locally. Firebase upload failed. We will retry automatically.")
+            Pair(false, "⚠️ Saved locally. Firebase upload failed: $errorMsg\n\nWe will retry automatically.")
         }
     }
 
     suspend fun executeSingleSync(item: SyncQueueEntity): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val db = firestore
         if (db == null) {
-            val error = "Firestore instance is null or uninitialized."
+            val error = "[UNAVAILABLE] Firestore instance is null or uninitialized."
             updateItemFailure(item, error)
             return@withContext Pair(false, error)
         }
 
-        try {
-            val collectionName = getCollectionName(item.dataType)
-            val docRef = db.collection(collectionName).document(item.entityId)
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Throwable) { null }
+        val currentUser = auth?.currentUser
+        val collectionName = getCollectionName(item.dataType)
+        val path = "$collectionName/${item.entityId}"
 
+        if (currentUser == null) {
+            val errorMsg = "[UNAUTHENTICATED] Authentication required for Firestore upload. Please log in as Admin/Owner. | Path: $path"
+            Log.w("FirebaseSyncManager", "Upload halted: $errorMsg")
+            updateItemFailure(item, errorMsg)
+            return@withContext Pair(false, errorMsg)
+        }
+
+        val docRef = db.collection(collectionName).document(item.entityId)
+        val authUid = currentUser.uid
+
+        try {
             if (item.operation == "DELETE") {
                 docRef.delete().await()
-                // Secondary check for id query deletion if string matching differs
                 val queryId = item.entityId.toLongOrNull()
                 if (queryId != null) {
                     val querySnap = db.collection(collectionName).whereEqualTo("id", queryId).get().await()
@@ -331,20 +436,39 @@ class FirebaseSyncManager(
                 val payloadMap = jsonToMap(item.payloadJson)
                 if (payloadMap.isNotEmpty()) {
                     docRef.set(payloadMap, SetOptions.merge()).await()
+                } else {
+                    throw IllegalStateException("Payload JSON is empty or invalid for entity $path")
                 }
             }
 
             // Sync successful: remove from pending queue
             syncQueueDao.deleteSync(item)
+            Log.i("FirebaseSyncManager", "Successfully synced $path to Firestore (AuthUID: $authUid)")
             Pair(true, "Synced")
+        } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+            val codeName = e.code.name // e.g., PERMISSION_DENIED, UNAUTHENTICATED, UNAVAILABLE
+            var errorMsg = "[$codeName] ${e.message ?: "Firestore Exception"} | Path: $path | AuthUID: $authUid"
+            if (codeName.contains("PERMISSION_DENIED")) {
+                errorMsg = "Permission Denied: Please update your Firestore Security Rules in the Firebase Console."
+            }
+            Log.e("FirebaseSyncManager", "Firestore error on $path: $errorMsg", e)
+            updateItemFailure(item, errorMsg)
+            Pair(false, errorMsg)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Throwable) {
-            val errorMsg = e.localizedMessage ?: "Network or Firestore write failure"
-            Log.e("FirebaseSyncManager", "Failed syncing item #${item.syncId} (${item.dataType}/${item.entityId})", e)
+            val exceptionClass = e.javaClass.simpleName
+            val errorMsg = "[$exceptionClass] ${e.localizedMessage ?: "Network or Firestore write failure"} | Path: $path | AuthUID: $authUid"
+            Log.e("FirebaseSyncManager", "Failed syncing item #${item.syncId} ($path)", e)
             updateItemFailure(item, errorMsg)
             Pair(false, errorMsg)
         }
+    }
+
+    suspend fun retrySingleItem(item: SyncQueueEntity): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val updating = item.copy(syncStatus = "UPLOADING", updatedAt = System.currentTimeMillis())
+        syncQueueDao.updateSync(updating)
+        executeSingleSync(updating)
     }
 
     private suspend fun updateItemFailure(item: SyncQueueEntity, errorMsg: String) {
@@ -357,41 +481,119 @@ class FirebaseSyncManager(
         syncQueueDao.updateSync(updated)
     }
 
+    suspend fun runMinimalDiagnosticTest(): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val db = firestore
+        if (db == null) return@withContext Pair(false, "Firestore instance is null")
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Throwable) { null }
+        val currentUser = auth?.currentUser
+        if (currentUser == null) return@withContext Pair(false, "Authentication required. currentUser is null.")
+
+        val path = "firestore_sync_test/${currentUser.uid}"
+        val docRef = db.collection("firestore_sync_test").document(currentUser.uid)
+
+        try {
+            val payload = mapOf(
+                "test" to true,
+                "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )
+            docRef.set(payload, SetOptions.merge()).await()
+            Pair(true, "✅ Minimal write test SUCCESS to $path")
+        } catch (e: Exception) {
+            val codeName = if (e is com.google.firebase.firestore.FirebaseFirestoreException) e.code.name else e.javaClass.simpleName
+            var errorMsg = "❌ Minimal write test FAILED on $path: [$codeName] ${e.message}"
+            if (codeName.contains("PERMISSION_DENIED")) {
+                errorMsg = "Permission Denied: Please update your Firestore Security Rules in the Firebase Console."
+            }
+            Log.e("FirebaseSyncManager", errorMsg, e)
+            Pair(false, errorMsg)
+        }
+    }
+
     // --- Bulk Workspace Upload ("Sync Now") --- //
 
     suspend fun uploadAllWorkspaceChangesToFirebase(): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        _isUploading.value = true
+        updateSyncProgress(
+            isUploading = true,
+            stage = "Preparing",
+            currentItem = 0,
+            totalItems = 0,
+            message = "Preparing data for upload..."
+        )
+        
+        var successCount = 0
+        var failCount = 0
+        var totalCount = 0
+        var resultMessage = ""
+
         try {
             val pendingList = syncQueueDao.getPendingSyncsList()
             if (pendingList.isEmpty()) {
-                _isUploading.value = false
-                return@withContext Pair(true, "☁️ All changes synced! No pending updates.")
+                resultMessage = "☁️ All changes synced! No pending updates."
+                return@withContext Pair(true, resultMessage)
             }
 
-            var successCount = 0
-            var failCount = 0
+            totalCount = pendingList.size
+            updateSyncProgress(
+                isUploading = true,
+                stage = "Uploading",
+                currentItem = 0,
+                totalItems = totalCount,
+                message = "Uploading 0 of $totalCount changes..."
+            )
 
-            for (item in pendingList) {
-                val (ok, _) = executeSingleSync(item)
+            var lastErrStr = ""
+            for ((index, item) in pendingList.withIndex()) {
+                val currentNum = index + 1
+                updateSyncProgress(
+                    isUploading = true,
+                    stage = "Uploading",
+                    currentItem = currentNum,
+                    totalItems = totalCount,
+                    successCount = successCount,
+                    failCount = failCount,
+                    message = "Uploading $currentNum of $totalCount changes..."
+                )
+
+                val (ok, err) = executeSingleSync(item)
                 if (ok) {
                     successCount++
                 } else {
                     failCount++
+                    lastErrStr = err
                 }
             }
 
-            _isUploading.value = false
+            updateSyncProgress(
+                isUploading = true,
+                stage = "Verifying",
+                currentItem = totalCount,
+                totalItems = totalCount,
+                successCount = successCount,
+                failCount = failCount,
+                message = "Verifying Firebase data..."
+            )
 
-            val message = when {
-                failCount == 0 -> "✅ Firebase Updated Successfully\nAll $successCount changes have been uploaded to Firebase."
-                successCount > 0 -> "⚠️ Firebase Update Partially Completed\n$successCount changes uploaded successfully.\n$failCount changes are still pending and will retry automatically."
-                else -> "❌ Firebase Update Failed\nYour changes are safely saved locally. Firebase upload will be retried automatically."
+            resultMessage = when {
+                failCount == 0 -> "✅ Firebase Updated Successfully\nAll $successCount changes uploaded to Firebase."
+                successCount > 0 -> "⚠️ Firebase Update Partially Completed\n$successCount changes uploaded successfully.\n$failCount changes are pending retry.\nLast error: $lastErrStr"
+                else -> "❌ Firebase Update Failed\nReason: $lastErrStr\nData is saved locally. Firebase sync will retry automatically."
             }
 
-            Pair(failCount == 0, message)
+            Pair(failCount == 0, resultMessage)
         } catch (e: Exception) {
-            _isUploading.value = false
-            Pair(false, "❌ Firebase Update Failed: ${e.localizedMessage ?: "Unknown error"}")
+            Log.e("FirebaseSyncManager", "Exception during bulk upload", e)
+            resultMessage = "❌ Firebase Update Failed: ${e.localizedMessage ?: "Unknown error"}"
+            Pair(false, resultMessage)
+        } finally {
+            updateSyncProgress(
+                isUploading = false,
+                stage = if (failCount == 0 && totalCount > 0) "Success" else if (successCount > 0) "Partial Failure" else "Failure",
+                currentItem = totalCount,
+                totalItems = totalCount,
+                successCount = successCount,
+                failCount = failCount,
+                message = resultMessage
+            )
         }
     }
 

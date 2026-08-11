@@ -1,3 +1,54 @@
 <resources>
     <string name="app_name">Jukti</string>
+
+    <!-- Authentication Messages -->
+    <string name="auth_invalid_credentials">Invalid credentials. Please check and try again.</string>
+    <string name="auth_invalid_otp">Invalid OTP. Please enter the correct OTP.</string>
+    <string name="auth_expired_otp">OTP has expired. Please request a new OTP.</string>
+    <string name="auth_too_many_attempts">Too many attempts. Please try again later.</string>
+    <string name="auth_failed_network">Unable to complete sign-in right now. Please try again.</string>
+    <string name="auth_session_expired">Your session has expired. Please log in again.</string>
+    <string name="auth_unknown_error">Authentication failed. Please check your credentials and network.</string>
+
+    <!-- Network Messages -->
+    <string name="network_no_internet">No internet connection. Please check your connection and try again.</string>
+    <string name="network_temp_failure">Unable to connect right now. Please try again.</string>
+    <string name="network_timeout">The request took too long. Please try again.</string>
+
+    <!-- Database / Firestore Messages -->
+    <string name="db_permission_denied">You don\'t have permission to perform this action.</string>
+    <string name="error_owner_protected">This account is protected and cannot be deleted or banned.</string>
+    <string name="db_read_failure">Unable to load data. Please try again.</string>
+    <string name="db_write_failure">Unable to save your changes. Please try again.</string>
+    <string name="db_delete_failure">Unable to delete the item. Please try again.</string>
+    <string name="db_upload_failure">Upload failed. Please try again.</string>
+    <string name="db_service_unavailable">Service is temporarily unavailable. Please try again later.</string>
+    <string name="db_unknown_failure">Something went wrong. Please try again.</string>
+
+    <!-- Success Confirmations -->
+    <string name="success_plan_created">Plan created successfully.</string>
+    <string name="success_plan_updated">Plan updated successfully.</string>
+    <string name="success_plan_deleted">Plan deleted successfully.</string>
+    <string name="success_user_updated">User updated successfully.</string>
+    <string name="success_changes_saved">Changes saved successfully.</string>
+    <string name="success_upload_completed">Upload completed successfully.</string>
+    <string name="success_sync_completed">Data synchronized successfully.</string>
+    <string name="success_question_deleted">Question deleted successfully.</string>
+    <string name="success_mock_uploaded">Mock uploaded successfully.</string>
+    <string name="success_mock_updated">Mock Test updated successfully.</string>
+    <string name="success_question_reported">Question reported successfully.</string>
+    <string name="success_current_affairs_added">Current Affairs added successfully!</string>
+    <string name="success_current_affairs_updated">Current Affairs updated successfully!</string>
+    <string name="success_study_note_updated">Study Note updated successfully!</string>
+    <string name="success_notifications_sent">Notification Sent Successfully!</string>
+
+    <!-- Offline Sync Messages -->
+    <string name="offline_saved_locally">Changes saved locally. They will be synced when the connection is available.</string>
+    <string name="sync_partial_failure">Some changes could not be synced. Please try again.</string>
+
+    <!-- Loading State Messages -->
+    <string name="loading_creating_plan">Creating plan...</string>
+    <string name="loading_saving_changes">Saving changes...</string>
+    <string name="loading_uploading_mock">Uploading mock...</string>
+    <string name="loading_synchronizing_data">Synchronizing data...</string>
 </resources>

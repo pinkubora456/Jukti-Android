@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.viewmodel.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,11 +63,13 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
     val context = LocalContext.current
     val pendingQueue by viewModel.pendingSyncQueue.collectAsState()
     val isSyncingActive by viewModel.isSyncUploading.collectAsState()
+    val syncProgress by viewModel.syncProgressState.collectAsState()
     var showConfirmPrompt by remember { mutableStateOf(false) }
     var isUploadingLocal by remember { mutableStateOf(false) }
     var resultPromptMessage by remember { mutableStateOf<String?>(null) }
 
-    val isBusy = isSyncingActive || isUploadingLocal
+    var showQueueDetails by remember { mutableStateOf(false) }
+    val isBusy = isSyncingActive || isUploadingLocal || syncProgress.isUploading
     val pendingCount = pendingQueue.size
 
     if (showConfirmPrompt) {
@@ -88,8 +91,9 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
                         isUploadingLocal = true
                         viewModel.uploadWorkspaceChangesToFirebase { success, message ->
                             isUploadingLocal = false
-                            resultPromptMessage = message
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            val translated = LocalMessageTranslator.translateGeneralMessage(context, message)
+                            resultPromptMessage = translated
+                            Toast.makeText(context, translated, Toast.LENGTH_LONG).show()
                         }
                     }
                 ) {
@@ -135,48 +139,185 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(16.dp)
             ) {
-                if (isBusy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
-                        strokeWidth = 3.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (pendingCount > 0) Icons.Default.SyncProblem else Icons.Default.CloudDone,
-                        contentDescription = "Sync Status",
-                        tint = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isBusy) "Syncing with Firestore..." else if (pendingCount > 0) "⏳ $pendingCount Pending Sync(s)" else "☁️ All Synced with Firestore",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    Text(
-                        text = if (pendingCount > 0) "Tap to force immediate upload of pending changes" else "All changes auto-uploaded. Tap to trigger Sync Now.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = (if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer).copy(alpha = 0.85f)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                FilledTonalButton(
-                    onClick = { showConfirmPrompt = true },
-                    enabled = !isBusy
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Sync Now", fontWeight = FontWeight.Bold)
+                    if (isBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (pendingCount > 0) Icons.Default.SyncProblem else Icons.Default.CloudDone,
+                            contentDescription = "Sync Status",
+                            tint = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isBusy) "Syncing (${syncProgress.stage})..." else if (pendingCount > 0) "⏳ $pendingCount Pending Sync(s)" else "☁️ All Synced with Firestore",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            text = if (isBusy)
+                                syncProgress.message.ifBlank { "Uploading workspace changes to Firebase..." }
+                            else if (pendingCount > 0)
+                                "Tap to force immediate upload of pending changes"
+                            else
+                                "All changes auto-uploaded. Tap to trigger Sync Now.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = (if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer).copy(alpha = 0.85f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledTonalButton(
+                        onClick = { showConfirmPrompt = true },
+                        enabled = !isBusy
+                    ) {
+                        Text("Sync Now", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (isBusy) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (syncProgress.totalItems > 0) {
+                        LinearProgressIndicator(
+                            progress = { (syncProgress.currentItem.toFloat() / syncProgress.totalItems.toFloat()).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (pendingCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+
+                if (pendingCount > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showQueueDetails = !showQueueDetails },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (showQueueDetails) "Hide Error Diagnostics" else "Show Pending Items & Error Diagnostics (${pendingQueue.size})",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Icon(
+                            imageVector = if (showQueueDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = "Toggle queue details",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+
+                    if (showQueueDetails) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            pendingQueue.take(15).forEach { item ->
+                                val lastAttemptTimeStr = if (item.lastAttemptAt > 0) {
+                                    java.text.SimpleDateFormat("MMM dd, HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(item.lastAttemptAt))
+                                } else "Never"
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 2.dp,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "${item.operation} • ${item.dataType}",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            OutlinedButton(
+                                                onClick = { viewModel.retrySingleSyncItem(item) },
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Text("Retry Now", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                        Text(
+                                            text = "Document ID: ${item.entityId}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "Status: ${item.syncStatus} • Retries: ${item.retryCount} • Last attempt: $lastAttemptTimeStr",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (!item.lastError.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Firebase Diagnostic: ${item.lastError}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (pendingQueue.size > 15) {
+                                Text(
+                                    text = "...and ${pendingQueue.size - 15} more pending items",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        // Diagnostic Button
+        var isRunningTest by remember { mutableStateOf(false) }
+        Button(
+            onClick = {
+                isRunningTest = true
+                viewModel.runMinimalDiagnosticTest { success, msg ->
+                    isRunningTest = false
+                    resultPromptMessage = msg
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+            enabled = !isRunningTest
+        ) {
+            if (isRunningTest) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondary, strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text("Run Minimal Diagnostic Test")
         }
 
         if (isOwner) {

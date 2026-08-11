@@ -418,7 +418,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                 
                 var searchQuery by remember { mutableStateOf("") }
                 
-                val isPremium = userProfile?.isPremium == true
+                val isPremium by viewModel.isUserPremium.collectAsState()
                 val availableQuestions = if (isPremium) questions.size else questions.count { !it.isPremium }
                 val solvedQuestions = userProfile?.totalSolved ?: 0
                 val availableMocks = if (isPremium) mockTests.size else mockTests.count { !it.isPremium }
@@ -717,7 +717,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     // Session State
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var selectedOptionIndex by remember { mutableStateOf<Int?>(null) }
-    var studiedQuestionsCountInSession by remember { mutableStateOf(0) }
+    val initialSolvedCount = userProfile?.totalSolved ?: 0
+    var studiedQuestionsCountInSession by remember(userProfile?.id) { mutableStateOf(initialSolvedCount) }
     var secondsTimer by remember { mutableStateOf(0) }
     var showLimitModal by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }

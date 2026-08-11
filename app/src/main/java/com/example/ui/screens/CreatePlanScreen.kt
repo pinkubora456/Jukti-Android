@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.LocalMessageTranslator
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -738,10 +739,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 isSubmitting = false
                                 if (isSuccess) {
                                     createdPlanPreview = newPlan
-                                    successMessage = if (message.isNotBlank()) message else "Plan Created Successfully"
+                                    successMessage = LocalMessageTranslator.translateGeneralMessage(context, if (message.isNotBlank()) message else "plan_created")
                                     showSuccessDialog = true
                                 } else {
-                                    errorMessage = if (message.isNotBlank()) message else "Failed to create plan. Please try again."
+                                    errorMessage = LocalMessageTranslator.translateGeneralMessage(context, if (message.isNotBlank()) message else "save plan failed")
                                     showErrorDialog = true
                                 }
                             }

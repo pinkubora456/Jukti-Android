@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
+import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.components.getLogoIcon
 import com.example.ui.components.SafeOutlinedTextField
 
@@ -111,7 +112,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             viewModel.loginWithEmail("borapinku151@gmail.com", "Pinku Bora")
                             viewModel.toggleGuestMode(false)
                             showGoogleAccountDialog = false
-                            viewModel.navigateTo(Screen.HOME)
+                            
                         },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
@@ -143,7 +144,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             viewModel.loginWithEmail("juktieducation@gmail.com", "Jukti Education")
                             viewModel.toggleGuestMode(false)
                             showGoogleAccountDialog = false
-                            viewModel.navigateTo(Screen.HOME)
+                            
                         },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
@@ -175,7 +176,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             viewModel.loginWithEmail("scholar.assam@gmail.com", "Assam Scholar")
                             viewModel.toggleGuestMode(false)
                             showGoogleAccountDialog = false
-                            viewModel.navigateTo(Screen.HOME)
+                            
                         },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
@@ -215,7 +216,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         viewModel.loginWithEmail(email)
                         viewModel.toggleGuestMode(false)
                         showGoogleAccountDialog = false
-                        viewModel.navigateTo(Screen.HOME)
+                        
                     }
                 ) {
                     Text("Continue")
@@ -291,6 +292,14 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(20.dp))
 
             if (sessionMessage != null) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val translatedMessage = remember(sessionMessage) {
+                    if (sessionMessage!!.startsWith("Login failed: Firebase API Key is missing")) {
+                        sessionMessage!!
+                    } else {
+                        LocalMessageTranslator.translateAuthError(context, sessionMessage)
+                    }
+                }
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(8.dp),
@@ -303,7 +312,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = sessionMessage!!,
+                            text = translatedMessage,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -410,9 +419,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             errorMessage = "Please enter a valid email address."
                             return@Button
                         }
-                        viewModel.loginWithEmail(trimmedEmail)
+                        viewModel.loginWithEmail(trimmedEmail, "", trimmedPassword)
                         viewModel.toggleGuestMode(false)
-                        viewModel.navigateTo(Screen.HOME)
+                        
                     } else {
                         val trimmedName = nameInput.trim()
                         if (trimmedName.isBlank()) {
@@ -431,9 +440,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             errorMessage = "Passwords do not match."
                             return@Button
                         }
-                        viewModel.loginWithEmail(trimmedEmail, trimmedName)
+                        viewModel.loginWithEmail(trimmedEmail, trimmedName, trimmedPassword, isRegister = true)
                         viewModel.toggleGuestMode(false)
-                        viewModel.navigateTo(Screen.HOME)
+                        
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

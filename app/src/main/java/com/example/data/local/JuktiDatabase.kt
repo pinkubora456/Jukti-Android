@@ -28,12 +28,14 @@ import kotlinx.coroutines.launch
         FaqEntity::class,
         QuestionProgressEntity::class,
         ActivityLogEntity::class,
-        SyncQueueEntity::class
+        SyncQueueEntity::class,
+        EntitlementEntity::class
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
+
     abstract fun questionDao(): QuestionDao
     abstract fun mockTestDao(): MockTestDao
     abstract fun studyNoteDao(): StudyNoteDao
@@ -51,6 +53,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun questionProgressDao(): QuestionProgressDao
     abstract fun activityLogDao(): ActivityLogDao
     abstract fun syncQueueDao(): SyncQueueDao
+    abstract fun entitlementDao(): EntitlementDao
 
     companion object {
         @Volatile
@@ -82,15 +85,20 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `entitlements` (`userId` TEXT NOT NULL, `planId` TEXT NOT NULL, `planName` TEXT NOT NULL, `status` TEXT NOT NULL, `validFrom` INTEGER NOT NULL, `validUntil` INTEGER NOT NULL, `benefits` TEXT NOT NULL, `source` TEXT NOT NULL, `purchaseId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))")
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
-
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

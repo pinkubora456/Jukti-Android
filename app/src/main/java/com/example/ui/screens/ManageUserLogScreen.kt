@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
-
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +22,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.LocalMessageTranslator
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +31,39 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     
-    // Mock user data
-    val mockUsers = remember {
-        mutableStateListOf<UserLog>()
+    val mockUsers = remember { mutableStateListOf<UserLog>() }
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(true) }
+    val plans by viewModel.plans.collectAsState()
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        val users = viewModel.fetchAllUsersDirect()
+        val userLogs = users.map { 
+            val uid = it.email.replace("@", "_at_").replace(".", "_dot_")
+            val entitlement = viewModel.fetchUserEntitlementDirect(it.email)
+            val planName = entitlement?.planName ?: ""
+            val currentPlan = if (planName.isBlank()) "Basic Plan" else planName
+            val validUntil = entitlement?.validUntil ?: 0L
+            val validity = if (validUntil > System.currentTimeMillis()) {
+                java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(validUntil))
+            } else if (entitlement?.status == "ACTIVE") "Lifetime" else "Expired"
+
+            val userRole = viewModel.getUserRole(it.email, it.role)
+
+            UserLog(
+                id = uid,
+                name = it.name,
+                email = it.email,
+                currentPlan = currentPlan,
+                validity = validity,
+                isBlocked = it.role == "BLOCKED",
+                role = userRole
+            )
+        }
+        mockUsers.clear()
+        mockUsers.addAll(userLogs)
+        isLoading = false
     }
 
     val filteredUsers = mockUsers.filter {
@@ -49,8 +80,8 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -60,7 +91,6 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Search Bar
             SafeOutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -72,56 +102,65 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
-
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(filteredUsers, key = { it.id }) { user ->
-                    UserLogCard(
-                        user = user,
-                        onBlockUser = { 
-                            viewModel.requestOrBlockUser(user.id, user.name, user.email) { isDirect, message ->
-                                if (isDirect) {
-                                    val index = mockUsers.indexOfFirst { it.id == user.id }
-                                    if (index != -1) {
-                                        mockUsers[index] = mockUsers[index].copy(isBlocked = !mockUsers[index].isBlocked)
+            
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(filteredUsers, key = { it.id }) { user ->
+                        val canDeleteOrBan = viewModel.canActorDeleteOrBanUser(user.email, user.role.name)
+                        UserLogCard(
+                            user = user,
+                            plans = plans,
+                            canDeleteOrBan = canDeleteOrBan,
+                            onBlockUser = { 
+                                viewModel.requestOrBlockUser(user.id, user.name, user.email) { isDirect, message ->
+                                    if (isDirect) {
+                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        if (index != -1) {
+                                            mockUsers[index] = mockUsers[index].copy(isBlocked = !mockUsers[index].isBlocked)
+                                        }
                                     }
+                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        onDeleteUser = {
-                            viewModel.requestOrDeleteUser(user.id, user.name, user.email) { isDirect, message ->
-                                if (isDirect) {
-                                    mockUsers.removeAll { it.id == user.id }
-                                }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        onChangePlan = { newPlan ->
-                            viewModel.requestOrUpgradePlan(user.id, user.name, user.email, newPlan, user.validity) { isDirect, message ->
-                                if (isDirect) {
-                                    val index = mockUsers.indexOfFirst { it.id == user.id }
-                                    if (index != -1) {
-                                        mockUsers[index] = mockUsers[index].copy(currentPlan = newPlan)
+                             },
+                            onDeleteUser = {
+                                viewModel.requestOrDeleteUser(user.id, user.name, user.email) { isDirect, message ->
+                                    if (isDirect) {
+                                        mockUsers.removeAll { it.id == user.id }
                                     }
+                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        onChangeValidity = { newValidity ->
-                            viewModel.requestOrUpgradePlan(user.id, user.name, user.email, user.currentPlan, newValidity) { isDirect, message ->
-                                if (isDirect) {
-                                    val index = mockUsers.indexOfFirst { it.id == user.id }
-                                    if (index != -1) {
-                                        mockUsers[index] = mockUsers[index].copy(validity = newValidity)
+                            },
+                            onChangePlan = { newPlan ->
+                                viewModel.requestOrUpgradePlan(user.id, user.name, user.email, newPlan, user.validity) { isDirect, message ->
+                                    if (isDirect) {
+                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        if (index != -1) {
+                                            mockUsers[index] = mockUsers[index].copy(currentPlan = newPlan)
+                                        }
                                     }
+                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            },
+                            onChangeValidity = { newValidity ->
+                                viewModel.requestOrUpgradePlan(user.id, user.name, user.email, user.currentPlan, newValidity) { isDirect, message ->
+                                    if (isDirect) {
+                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        if (index != -1) {
+                                            mockUsers[index] = mockUsers[index].copy(validity = newValidity)
+                                        }
+                                    }
+                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -134,12 +173,16 @@ data class UserLog(
     val email: String,
     val currentPlan: String,
     val validity: String,
-    val isBlocked: Boolean
+    val isBlocked: Boolean,
+    val role: com.example.ui.viewmodel.UserRole = com.example.ui.viewmodel.UserRole.USER
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserLogCard(
     user: UserLog,
+    plans: List<com.example.data.local.PlanEntity>,
+    canDeleteOrBan: Boolean,
     onBlockUser: () -> Unit,
     onDeleteUser: () -> Unit,
     onChangePlan: (String) -> Unit,
@@ -167,7 +210,7 @@ fun UserLogCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = user.name,
                         style = MaterialTheme.typography.titleMedium,
@@ -181,25 +224,48 @@ fun UserLogCard(
                     )
                 }
                 
-                if (user.isBlocked) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val (roleLabel, containerColor, contentColor) = when (user.role) {
+                        com.example.ui.viewmodel.UserRole.OWNER -> Triple("OWNER 👑", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                        com.example.ui.viewmodel.UserRole.ADMIN -> Triple("ADMIN ⚡", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                        com.example.ui.viewmodel.UserRole.USER -> Triple("USER", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.errorContainer
+                        color = containerColor
                     ) {
                         Text(
-                            text = "Blocked",
+                            text = roleLabel,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            color = contentColor,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    if (user.isBlocked) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Text(
+                                text = "Blocked",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -257,19 +323,21 @@ fun UserLogCard(
                         tint = MaterialTheme.colorScheme.secondary
                     )
                 }
-                IconButton(onClick = { showBlockDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Block,
-                        contentDescription = if (user.isBlocked) "Unblock User" else "Block User",
-                        tint = if (user.isBlocked) Color.Gray else MaterialTheme.colorScheme.error
-                    )
-                }
-                IconButton(onClick = { showDeleteDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete User",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                if (canDeleteOrBan) {
+                    IconButton(onClick = { showBlockDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Block,
+                            contentDescription = if (user.isBlocked) "Unblock User" else "Block User",
+                            tint = if (user.isBlocked) Color.Gray else MaterialTheme.colorScheme.error
+                        )
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete User",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -301,14 +369,14 @@ fun UserLogCard(
         val actionText = if (user.isBlocked) "unblock" else "block"
         AlertDialog(
             onDismissRequest = { showBlockDialog = false },
-            title = { Text("${"${actionText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }}"} User") },
+            title = { Text("${actionText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }} User") },
             text = { Text("Are you sure you want to $actionText ${user.name}?") },
             confirmButton = {
                 TextButton(onClick = { 
                     onBlockUser()
                     showBlockDialog = false
                 }) {
-                    Text("${actionText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }}")
+                    Text(actionText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() })
                 }
             },
             dismissButton = {
@@ -320,18 +388,60 @@ fun UserLogCard(
     }
 
     if (showChangePlanDialog) {
+        var expandedPlanDropdown by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showChangePlanDialog = false },
             title = { Text("Change Plan") },
             text = { 
                 Column {
                     Text("Select a new plan for ${user.name}:")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SafeOutlinedTextField(
-                        value = newPlanInput,
-                        onValueChange = { newPlanInput = it },
-                        label = { Text("New Plan") }
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    ExposedDropdownMenuBox(
+                        expanded = expandedPlanDropdown,
+                        onExpandedChange = { expandedPlanDropdown = !expandedPlanDropdown }
+                    ) {
+                        SafeOutlinedTextField(
+                            value = newPlanInput,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Selected Plan") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPlanDropdown) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedPlanDropdown,
+                            onDismissRequest = { expandedPlanDropdown = false }
+                        ) {
+                            if (plans.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Basic Plan") },
+                                    onClick = {
+                                        newPlanInput = "Basic Plan"
+                                        expandedPlanDropdown = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Premium Access") },
+                                    onClick = {
+                                        newPlanInput = "Premium Access"
+                                        expandedPlanDropdown = false
+                                    }
+                                )
+                            } else {
+                                plans.forEach { plan ->
+                                    DropdownMenuItem(
+                                        text = { Text(plan.planName) },
+                                        onClick = {
+                                            newPlanInput = plan.planName
+                                            expandedPlanDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -350,19 +460,59 @@ fun UserLogCard(
         )
     }
 
+    var showDatePicker by remember { mutableStateOf(false) }
+
     if (showChangeValidityDialog) {
+        var expandedValidityDropdown by remember { mutableStateOf(false) }
+        val validityOptions = listOf("1 Month", "3 Months", "6 Months", "1 Year", "Lifetime", "Custom Date")
+
         AlertDialog(
             onDismissRequest = { showChangeValidityDialog = false },
             title = { Text("Edit Plan Validity") },
             text = { 
                 Column {
-                    Text("Update validity for ${user.name}:")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SafeOutlinedTextField(
-                        value = newValidityInput,
-                        onValueChange = { newValidityInput = it },
-                        label = { Text("New Validity") }
-                    )
+                    Text("Select validity preset or a custom date for ${user.name}:")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    ExposedDropdownMenuBox(
+                        expanded = expandedValidityDropdown,
+                        onExpandedChange = { expandedValidityDropdown = !expandedValidityDropdown }
+                    ) {
+                        SafeOutlinedTextField(
+                            value = newValidityInput,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Validity Period") },
+                            trailingIcon = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { showDatePicker = true }) {
+                                        Icon(Icons.Default.EditCalendar, contentDescription = "Select Date")
+                                    }
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedValidityDropdown)
+                                }
+                            },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedValidityDropdown,
+                            onDismissRequest = { expandedValidityDropdown = false }
+                        ) {
+                            validityOptions.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = { Text(opt) },
+                                    onClick = {
+                                        if (opt == "Custom Date") {
+                                            showDatePicker = true
+                                        } else {
+                                            newValidityInput = opt
+                                        }
+                                        expandedValidityDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -379,5 +529,33 @@ fun UserLogCard(
                 }
             }
         )
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedMillis = datePickerState.selectedDateMillis
+                        if (selectedMillis != null) {
+                            val formattedDate = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(selectedMillis))
+                            newValidityInput = formattedDate
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }

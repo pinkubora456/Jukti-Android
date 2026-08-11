@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.local.QuestionEntity
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.viewmodel.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +69,7 @@ fun ReportedQuestionsScreen(viewModel: JuktiViewModel) {
                             onEdit = { editingQuestion = question },
                             onDelete = { 
                                 viewModel.requestOrDeleteQuestion(question) { _, message ->
-                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
                             },
                             onNoIssue = { viewModel.resolveReportedQuestion(question) }

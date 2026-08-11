@@ -27,6 +27,7 @@ import com.example.data.local.QuestionEntity
 import com.example.ui.components.BilingualText
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.viewmodel.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -390,7 +391,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 Text("Firebase Refresh Status", fontWeight = FontWeight.Bold)
             },
             text = {
-                Text(refreshStatusMessage ?: "")
+                Text(LocalMessageTranslator.translateGeneralMessage(LocalContext.current, refreshStatusMessage ?: ""))
             },
             confirmButton = {
                 Button(

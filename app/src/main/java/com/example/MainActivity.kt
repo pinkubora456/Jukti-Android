@@ -28,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
+import com.example.ui.viewmodel.LocalMessageTranslator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -57,7 +58,8 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(syncToastMessage) {
                 syncToastMessage?.let { msg ->
-                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                    val translated = LocalMessageTranslator.translateGeneralMessage(context, msg)
+                    android.widget.Toast.makeText(context, translated, android.widget.Toast.LENGTH_SHORT).show()
                     viewModel.clearSyncToastMessage()
                 }
             }

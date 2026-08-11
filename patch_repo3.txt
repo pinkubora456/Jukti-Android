@@ -1,0 +1,70 @@
+--- app/src/main/java/com/example/data/repository/FirebaseRepository.kt
++++ app/src/main/java/com/example/data/repository/FirebaseRepository.kt
+@@ -1186,2 +1186,84 @@
+     }
++
++    fun observePendingRequests(): Flow<List<PendingRequestEntity>> = callbackFlow {
++        var listener: ListenerRegistration? = null
++        try {
++            val db = firestore
++            if (db == null) {
++                trySend(emptyList())
++            } else {
++                listener = db.collection("pending_requests")
++                    .addSnapshotListener { snapshot, error ->
++                        if (error != null) return@addSnapshotListener
++                        if (snapshot != null) {
++                            val list = snapshot.documents.mapNotNull { doc ->
++                                try {
++                                    PendingRequestEntity(
++                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
++                                        requestType = doc.getString("requestType") ?: "",
++                                        title = doc.getString("title") ?: "",
++                                        description = doc.getString("description") ?: "",
++                                        targetId = doc.getString("targetId") ?: "",
++                                        payloadJson = doc.getString("payloadJson") ?: "",
++                                        requestedBy = doc.getString("requestedBy") ?: "",
++                                        timestamp = doc.getString("timestamp") ?: "",
++                                        status = doc.getString("status") ?: "PENDING"
++                                    )
++                                } catch (e: Throwable) { null }
++                            }
++                            trySend(list)
++                        }
++                    }
++            }
++        } catch (e: Throwable) { trySend(emptyList()) }
++        awaitClose { listener?.remove() }
++    }
++
++    fun observeActivityLogs(): Flow<List<ActivityLogEntity>> = callbackFlow {
++        var listener: ListenerRegistration? = null
++        try {
++            val db = firestore
++            if (db == null) {
++                trySend(emptyList())
++            } else {
++                listener = db.collection("activity_logs")
++                    .addSnapshotListener { snapshot, error ->
++                        if (error != null) return@addSnapshotListener
++                        if (snapshot != null) {
++                            val list = snapshot.documents.mapNotNull { doc ->
++                                try {
++                                    ActivityLogEntity(
++                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
++                                        role = doc.getString("role") ?: "",
++                                        action = doc.getString("action") ?: "",
++                                        userEmail = doc.getString("userEmail") ?: "",
++                                        timestamp = doc.getLong("timestamp") ?: 0L,
++                                        details = doc.getString("details") ?: ""
++                                    )
++                                } catch (e: Throwable) { null }
++                            }
++                            trySend(list)
++                        }
++                    }
++            }
++        } catch (e: Throwable) { trySend(emptyList()) }
++        awaitClose { listener?.remove() }
++    }
+ }

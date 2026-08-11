@@ -173,7 +173,8 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                     userLevel = userProfile?.level ?: 8,
                     userMockAvg = mockAvg,
                     isAssamese = isAssamese,
-                    examsList = examsList
+                    examsList = examsList,
+                    userProfile = userProfile
                 )
             } else {
             // MY ANALYTICS TAB (REBUILT WITH ALL NEW USER REQUIREMENTS)
@@ -1417,7 +1418,8 @@ fun LeaderboardTabContent(
     userLevel: Int,
     userMockAvg: Float,
     isAssamese: Boolean,
-    examsList: List<com.example.data.local.ExamEntity>
+    examsList: List<com.example.data.local.ExamEntity>,
+    userProfile: com.example.data.local.UserProfileEntity? = null
 ) {
     var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam, 2 = Mock Test Avg
     var selectedExamIndex by remember { mutableStateOf(0) } // Default: ADRE Grade III & IV
@@ -1442,10 +1444,13 @@ fun LeaderboardTabContent(
     val safeExamIndex = if (selectedExamIndex in examOptionsEn.indices) selectedExamIndex else 0
     val activeSelectedExam = examOptionsEn[safeExamIndex]
 
-    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs) {
+    val userName = userProfile?.name.takeIf { !it.isNullOrBlank() } ?: "You"
+    val displayNameOnBoard = if (userName.equals("You", ignoreCase = true)) "You" else "$userName (You)"
+
+    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs, displayNameOnBoard) {
         listOf(
             TopRanker(
-                name = "You",
+                name = displayNameOnBoard,
                 city = "Assam",
                 xp = userXp,
                 level = userLevel,

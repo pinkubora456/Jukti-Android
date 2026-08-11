@@ -1,0 +1,16 @@
+--- app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
++++ app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
+@@ -928,7 +928,12 @@
+                 android.util.Log.e("JuktiViewModel", "Firebase auth failed", e)
+                 // If it fails, maybe we should not proceed, but for this app we'll let it proceed if we want it to work offline
+                 withContext(Dispatchers.Main) { 
+-                     _sessionMessage.value = "Login failed: ${e.localizedMessage}"
++                    val msg = e.message ?: ""
++                    if (msg.contains("API key not valid", ignoreCase = true) || msg.contains("INVALID_KEY", ignoreCase = true)) {
++                        _sessionMessage.value = "Login failed: Firebase API Key is missing. Please upload your valid google-services.json file."
++                    } else {
++                        _sessionMessage.value = "Login failed: ${e.localizedMessage}"
++                    }
+                 }
+             }
+         }

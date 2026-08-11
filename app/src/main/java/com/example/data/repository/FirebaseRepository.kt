@@ -21,6 +21,11 @@ class FirebaseRepository {
         }
 
     fun getSanitizedUserDocId(email: String): String {
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+        val uid = auth?.currentUser?.uid
+        if (uid != null) {
+            return uid
+        }
         val trimmed = email.trim().lowercase()
         if (trimmed.isBlank()) return "scholar_jukti_in"
         return trimmed.replace("@", "_at_").replace(".", "_dot_")
@@ -29,7 +34,7 @@ class FirebaseRepository {
     suspend fun saveUserProfile(profile: UserProfileEntity, merge: Boolean = true) {
         try {
             val docId = getSanitizedUserDocId(profile.email)
-            val userMap = mapOf(
+            val userMap = mutableMapOf<String, Any?>(
                 "id" to profile.id,
                 "name" to profile.name,
                 "email" to profile.email,
@@ -42,8 +47,6 @@ class FirebaseRepository {
                 "totalSolved" to profile.totalSolved,
                 "correctCount" to profile.correctCount,
                 "totalTimeMinutes" to profile.totalTimeMinutes,
-                "isPremium" to profile.isPremium,
-                "role" to profile.role,
                 "firebaseProjectId" to profile.firebaseProjectId,
                 "joinedDate" to profile.joinedDate,
                 "isLoggedIn" to profile.isLoggedIn,
@@ -51,6 +54,12 @@ class FirebaseRepository {
                 "activeDeviceId" to profile.activeDeviceId,
                 "lastSyncedAt" to System.currentTimeMillis()
             )
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val isOwnerUser = profile.role == "OWNER" || auth?.currentUser?.email?.contains("juktieducation", ignoreCase = true) == true
+            if (isOwnerUser || !merge) {
+                userMap["isPremium"] = profile.isPremium
+                userMap["role"] = profile.role
+            }
             if (merge) {
                 firestore?.collection("users")?.document(docId)?.set(userMap, SetOptions.merge())?.await()
             } else {
@@ -93,6 +102,67 @@ class FirebaseRepository {
         catch (e: Throwable) {
             Log.e("FirebaseRepository", "Error fetching user profile from Firebase", e)
             null
+        }
+    }
+
+    suspend fun fetchUserEntitlement(email: String): EntitlementEntity? {
+        return try {
+            val docId = getSanitizedUserDocId(email)
+            val snapshot = firestore?.collection("users")?.document(docId)
+                ?.collection("entitlements")?.document("current")?.get()?.await()
+            
+            if (snapshot != null && snapshot.exists()) {
+                EntitlementEntity(
+                    userId = docId,
+                    planId = snapshot.getString("planId") ?: "",
+                    planName = snapshot.getString("planName") ?: "",
+                    status = snapshot.getString("status") ?: "EXPIRED",
+                    validFrom = snapshot.getLong("validFrom") ?: 0L,
+                    validUntil = snapshot.getLong("validUntil") ?: 0L,
+                    benefits = (snapshot.get("benefits") as? List<*>)?.joinToString(",") ?: "",
+                    source = snapshot.getString("source") ?: "",
+                    purchaseId = snapshot.getString("purchaseId") ?: "",
+                    updatedAt = snapshot.getLong("updatedAt") ?: 0L
+                )
+            } else null
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Throwable) {
+            Log.e("FirebaseRepository", "Error fetching user entitlement", e)
+            null
+        }
+    }
+
+    suspend fun fetchAllUsers(): List<UserProfileEntity> {
+        return try {
+            val snapshot = firestore?.collection("users")?.get()?.await()
+            val users = mutableListOf<UserProfileEntity>()
+            snapshot?.documents?.forEach { doc ->
+                users.add(UserProfileEntity(
+                    id = doc.getLong("id")?.toInt() ?: 1,
+                    name = doc.getString("name") ?: "Assam Scholar",
+                    email = doc.getString("email") ?: "",
+                    mobile = doc.getString("mobile") ?: "",
+                    district = doc.getString("district") ?: "",
+                    examGoal = doc.getString("examGoal") ?: "",
+                    xp = doc.getLong("xp")?.toInt() ?: 0,
+                    level = doc.getLong("level")?.toInt() ?: 1,
+                    dailyStreak = doc.getLong("dailyStreak")?.toInt() ?: 0,
+                    totalSolved = doc.getLong("totalSolved")?.toInt() ?: 0,
+                    correctCount = doc.getLong("correctCount")?.toInt() ?: 0,
+                    totalTimeMinutes = doc.getLong("totalTimeMinutes")?.toInt() ?: 0,
+                    isPremium = doc.getBoolean("isPremium") ?: false,
+                    role = doc.getString("role") ?: "USER",
+                    firebaseProjectId = doc.getString("firebaseProjectId") ?: "jukti-26035",
+                    joinedDate = doc.getString("joinedDate") ?: "Jul 2026",
+                    isLoggedIn = doc.getBoolean("isLoggedIn") ?: true,
+                    currentDeviceId = doc.getString("currentDeviceId") ?: "",
+                    activeDeviceId = doc.getString("activeDeviceId") ?: ""
+                ))
+            }
+            users
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error fetching all users", e)
+            emptyList()
         }
     }
 
@@ -478,33 +548,34 @@ class FirebaseRepository {
         val db = firestore ?: return@withContext 0
         var totalUploaded = 0
 
-        val allOperations = mutableListOf<Pair<com.google.firebase.firestore.DocumentReference, Map<String, Any?>>>()
-
-        questions.forEach { allOperations.add(db.collection("questions").document(it.id.toString()) to questionToMap(it)) }
-        mockTests.forEach { allOperations.add(db.collection("mock_tests").document(it.id.toString()) to mockTestToMap(it)) }
-        studyNotes.forEach { allOperations.add(db.collection("study_notes").document(it.id.toString()) to studyNoteToMap(it)) }
-        plans.forEach { allOperations.add(db.collection("plans").document(it.id.toString()) to planToMap(it)) }
-        subjectChapters.forEach { allOperations.add(db.collection("subjects_chapters").document(it.id.toString()) to subjectChapterToMap(it)) }
-        banners.forEach { allOperations.add(db.collection("banners").document(it.id.toString()) to bannerToMap(it)) }
-        examUpdates.forEach { allOperations.add(db.collection("exam_updates").document(it.id.toString()) to examUpdateToMap(it)) }
-        faqs.forEach { allOperations.add(db.collection("faqs").document(it.id.toString()) to faqToMap(it)) }
-
-        if (allOperations.isEmpty()) return@withContext 0
-
-        val chunks = allOperations.chunked(400)
-        chunks.forEach { chunk ->
-            try {
-                val batch = db.batch()
-                chunk.forEach { (docRef, dataMap) ->
-                    batch.set(docRef, dataMap, SetOptions.merge())
+        suspend fun saveCollection(collectionName: String, items: List<Pair<com.google.firebase.firestore.DocumentReference, Map<String, Any?>>>) {
+            if (items.isEmpty()) return
+            val chunks = items.chunked(400)
+            chunks.forEach { chunk ->
+                try {
+                    val batch = db.batch()
+                    chunk.forEach { (docRef, dataMap) ->
+                        batch.set(docRef, dataMap, SetOptions.merge())
+                    }
+                    batch.commit().await()
+                    totalUploaded += chunk.size
+                    Log.d("FirebaseRepository", "Successfully synced ${chunk.size} documents for collection: $collectionName")
+                } catch (e: kotlinx.coroutines.CancellationException) { 
+                    throw e 
+                } catch (e: Throwable) {
+                    Log.e("FirebaseRepository", "Error committing batch chunk for collection $collectionName. Error: ${e.localizedMessage ?: e.javaClass.simpleName}", e)
                 }
-                batch.commit().await()
-                totalUploaded += chunk.size
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Throwable) {
-                Log.e("FirebaseRepository", "Error committing batch chunk", e)
             }
         }
+
+        saveCollection("questions", questions.map { db.collection("questions").document(it.id.toString()) to questionToMap(it) })
+        saveCollection("mock_tests", mockTests.map { db.collection("mock_tests").document(it.id.toString()) to mockTestToMap(it) })
+        saveCollection("study_notes", studyNotes.map { db.collection("study_notes").document(it.id.toString()) to studyNoteToMap(it) })
+        saveCollection("plans", plans.map { db.collection("plans").document(it.id.toString()) to planToMap(it) })
+        saveCollection("subjects_chapters", subjectChapters.map { db.collection("subjects_chapters").document(it.id.toString()) to subjectChapterToMap(it) })
+        saveCollection("banners", banners.map { db.collection("banners").document(it.id.toString()) to bannerToMap(it) })
+        saveCollection("exam_updates", examUpdates.map { db.collection("exam_updates").document(it.id.toString()) to examUpdateToMap(it) })
+        saveCollection("faqs", faqs.map { db.collection("faqs").document(it.id.toString()) to faqToMap(it) })
 
         return@withContext totalUploaded
     }
@@ -1113,6 +1184,70 @@ class FirebaseRepository {
             Log.e("FirebaseRepository", "Error setting up faqs observer", e)
             trySend(emptyList())
         }
+        awaitClose { listener?.remove() }
+    }
+
+    fun observePendingRequests(): Flow<List<PendingRequestEntity>> = callbackFlow {
+        var listener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            if (db == null) {
+                trySend(emptyList())
+            } else {
+                listener = db.collection("pending_requests")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) return@addSnapshotListener
+                        if (snapshot != null) {
+                            val list = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    PendingRequestEntity(
+                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        requestType = doc.getString("requestType") ?: "",
+                                        title = doc.getString("title") ?: "",
+                                        description = doc.getString("description") ?: "",
+                                        targetId = doc.getString("targetId") ?: "",
+                                        payloadJson = doc.getString("payloadJson") ?: "",
+                                        requestedBy = doc.getString("requestedBy") ?: "",
+                                        timestamp = doc.getString("timestamp") ?: "",
+                                        status = doc.getString("status") ?: "PENDING"
+                                    )
+                                } catch (e: Throwable) { null }
+                            }
+                            trySend(list)
+                        }
+                    }
+            }
+        } catch (e: Throwable) { trySend(emptyList()) }
+        awaitClose { listener?.remove() }
+    }
+
+    fun observeActivityLogs(): Flow<List<ActivityLogEntity>> = callbackFlow {
+        var listener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            if (db == null) {
+                trySend(emptyList())
+            } else {
+                listener = db.collection("activity_logs")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) return@addSnapshotListener
+                        if (snapshot != null) {
+                            val list = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    ActivityLogEntity(
+                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        role = doc.getString("role") ?: "",
+                                        actionDetails = doc.getString("action") ?: doc.getString("details") ?: "",
+                                        userEmail = doc.getString("userEmail") ?: "",
+                                        timestamp = doc.getLong("timestamp") ?: 0L
+                                    )
+                                } catch (e: Throwable) { null }
+                            }
+                            trySend(list)
+                        }
+                    }
+            }
+        } catch (e: Throwable) { trySend(emptyList()) }
         awaitClose { listener?.remove() }
     }
 }

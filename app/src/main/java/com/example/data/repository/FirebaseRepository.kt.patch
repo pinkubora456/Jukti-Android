@@ -1,0 +1,33 @@
+--- app/src/main/java/com/example/data/repository/FirebaseRepository.kt
++++ app/src/main/java/com/example/data/repository/FirebaseRepository.kt
+@@ -107,2 +107,31 @@
+     }
++
++    suspend fun fetchUserEntitlement(email: String): EntitlementEntity? {
++        return try {
++            val docId = getSanitizedUserDocId(email)
++            val snapshot = firestore?.collection("users")?.document(docId)
++                ?.collection("entitlements")?.document("current")?.get()?.await()
++            
++            if (snapshot != null && snapshot.exists()) {
++                EntitlementEntity(
++                    userId = docId,
++                    planId = snapshot.getString("planId") ?: "",
++                    planName = snapshot.getString("planName") ?: "",
++                    status = snapshot.getString("status") ?: "EXPIRED",
++                    validFrom = snapshot.getLong("validFrom") ?: 0L,
++                    validUntil = snapshot.getLong("validUntil") ?: 0L,
++                    benefits = (snapshot.get("benefits") as? List<*>)?.joinToString(",") ?: "",
++                    source = snapshot.getString("source") ?: "",
++                    purchaseId = snapshot.getString("purchaseId") ?: "",
++                    updatedAt = snapshot.getLong("updatedAt") ?: 0L
++                )
++            } else {
++                null
++            }
++        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
++        catch (e: Throwable) {
++            Log.e("FirebaseRepository", "Error fetching user entitlement", e)
++            null
++        }
++    }

@@ -1,0 +1,52 @@
+--- app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
++++ app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
+@@ -860,25 +860,21 @@
+         }
+     }
+ 
+-    fun loginWithEmail(emailInput: String, nameInput: String = "", passwordInput: String = "") {
++    fun loginWithEmail(emailInput: String, nameInput: String = "", passwordInput: String = "", isRegister: Boolean = false) {
+         val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
+         val deviceId = java.util.UUID.randomUUID().toString()
+         val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+         viewModelScope.launch(Dispatchers.IO) {
+             try {
+-                // Ensure Firebase auth happens
+                 val pwd = if (passwordInput.isNotBlank()) passwordInput else "juktipass123"
+                 try {
+-                    auth.signInWithEmailAndPassword(trimmedEmail, pwd).await()
++                    if (isRegister) {
++                        auth.createUserWithEmailAndPassword(trimmedEmail, pwd).await()
++                    } else {
++                        auth.signInWithEmailAndPassword(trimmedEmail, pwd).await()
++                    }
+                 } catch (e: Exception) {
+-                    val msg = e.message ?: ""
+-                    try {
+-                        if (msg.contains("There is no user record") || e is com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+-                            auth.createUserWithEmailAndPassword(trimmedEmail, pwd).await()
+-                        } else if (passwordInput.isBlank()) {
+-                            auth.signInAnonymously().await()
+-                        } else {
+-                            throw e
+-                        }
+-                    } catch (e2: Exception) {
+-                        throw e2
++                    if (!isRegister && passwordInput.isBlank()) {
++                        auth.signInAnonymously().await()
++                    } else {
++                        throw e
+                     }
+                 }
+                 
+@@ -936,7 +932,10 @@
+                     val msg = e.message ?: ""
+                     if (msg.contains("API key not valid", ignoreCase = true) || msg.contains("INVALID_KEY", ignoreCase = true)) {
+                         _sessionMessage.value = "Login failed: Firebase API Key is missing. Please upload your valid google-services.json file to the app folder."
+-                    } else if (msg.contains("authentication credentials is incorrect, malformed or has expired", ignoreCase = true)) {
+-                        _sessionMessage.value = "Login failed: API key is restricted or Email/Password Auth is disabled in Firebase Console."
++                    } else {
++                        _sessionMessage.value = "Auth failed: ${e.localizedMessage}"
+                     }
+                 }
+             }

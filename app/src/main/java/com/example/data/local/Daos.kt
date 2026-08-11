@@ -228,6 +228,9 @@ interface PendingRequestDao {
 
     @Delete
     suspend fun deleteRequest(request: PendingRequestEntity)
+
+    @Query("DELETE FROM pending_requests WHERE status != 'PENDING' AND timestamp < :thresholdTime")
+    suspend fun deleteOldRequests(thresholdTime: String)
 }
 
 @Dao
@@ -261,7 +264,7 @@ interface QuestionProgressDao {
 @Dao
 interface ActivityLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLog(log: ActivityLogEntity)
+    suspend fun insertLog(log: ActivityLogEntity): Long
 
     @Query("SELECT * FROM activity_logs ORDER BY timestamp DESC")
     fun getAllLogs(): Flow<List<ActivityLogEntity>>
@@ -271,6 +274,9 @@ interface ActivityLogDao {
 
     @Query("DELETE FROM activity_logs WHERE role = 'OWNER' AND timestamp < :thresholdTime")
     suspend fun deleteOldOwnerLogs(thresholdTime: Long)
+
+    @Query("DELETE FROM activity_logs WHERE timestamp < :thresholdTime")
+    suspend fun deleteLogsOlderThan(thresholdTime: Long)
 }
 
 
@@ -303,6 +309,9 @@ interface SyncQueueDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSync(sync: SyncQueueEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllSyncs(syncs: List<SyncQueueEntity>)
+
     @Update
     suspend fun updateSync(sync: SyncQueueEntity)
 
@@ -317,4 +326,19 @@ interface SyncQueueDao {
 
     @Query("DELETE FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId")
     suspend fun deleteSyncByEntity(dataType: String, entityId: String)
+}
+
+@Dao
+interface EntitlementDao {
+    @Query("SELECT * FROM entitlements WHERE userId = :userId LIMIT 1")
+    fun getEntitlement(userId: String): Flow<EntitlementEntity?>
+
+    @Query("SELECT * FROM entitlements WHERE userId = :userId LIMIT 1")
+    suspend fun getEntitlementDirect(userId: String): EntitlementEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntitlement(entitlement: EntitlementEntity)
+
+    @Query("DELETE FROM entitlements WHERE userId = :userId")
+    suspend fun deleteEntitlement(userId: String)
 }

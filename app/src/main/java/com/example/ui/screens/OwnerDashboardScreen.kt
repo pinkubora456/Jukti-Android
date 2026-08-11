@@ -2,97 +2,167 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
+import com.example.ui.viewmodel.Screen
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerDashboardScreen(viewModel: JuktiViewModel) {
+    var emailQuery by remember { mutableStateOf("") }
+    var searchResult by remember { mutableStateOf<String?>(null) }
+    var expandedAssignPlan by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Owner Dashboard", fontWeight = FontWeight.Bold) },
+                title = { Text("Owner Dashboard") },
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }) {
+                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         Column(
             modifier = Modifier
+                .padding(padding)
                 .fillMaxSize()
-                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OwnerDashboardGrid(viewModel)
+            // Assign Plan Banner
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clickable { expandedAssignPlan = !expandedAssignPlan }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CardMembership, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "Assign Plan to User",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Icon(
+                            imageVector = if (expandedAssignPlan) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    if (expandedAssignPlan) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = emailQuery,
+                            onValueChange = { emailQuery = it },
+                            label = { Text("User Email") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                if (emailQuery.isNotBlank()) {
+                                    scope.launch {
+                                        val success = viewModel.grantPlanToUser(emailQuery, "Premium Pass", "1 Year")
+                                        if (success) {
+                                            searchResult = "Granted Premium Pass to $emailQuery"
+                                        } else {
+                                            searchResult = "Failed to grant Premium Pass"
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Premium Pass")
+                        }
+                        searchResult?.let {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+
+            Text("Management", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+            // Other Action Banners
+            OwnerActionBanner(
+                title = "Manage User Log",
+                description = "View, block or delete users, change plans",
+                icon = Icons.Default.People,
+                onClick = { viewModel.navigateTo(Screen.MANAGE_USER_LOG) }
+            )
+            
+            OwnerActionBanner(
+                title = "Manage Admins",
+                description = "Add or remove admin privileges",
+                icon = Icons.Default.AdminPanelSettings,
+                onClick = { viewModel.navigateTo(Screen.MANAGE_ADMIN) }
+            )
+            
+            OwnerActionBanner(
+                title = "Admin Activity Log",
+                description = "Track actions performed by admins",
+                icon = Icons.Default.List,
+                onClick = { viewModel.navigateTo(Screen.ADMIN_ACTIVITY_LOG) }
+            )
+            
+            OwnerActionBanner(
+                title = "Export Reports",
+                description = "Download app analytics and usage reports",
+                icon = Icons.Default.Download,
+                onClick = { viewModel.navigateTo(Screen.EXPORT_REPORTS) }
+            )
         }
     }
 }
 
-data class OwnerDashboardItem(
-    val title: String, 
-    val icon: ImageVector, 
-    val badgeCount: Int = 0,
-    val onClick: () -> Unit = {}
-)
-
 @Composable
-fun OwnerDashboardGrid(viewModel: JuktiViewModel) {
-    val pendingReqs by viewModel.pendingRequests.collectAsState()
-    val pendingCount = pendingReqs.count { it.status == "PENDING" }
-
-    val items = listOf(
-        OwnerDashboardItem("Manage Admin", Icons.Default.AdminPanelSettings) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_ADMIN)
-        },
-        OwnerDashboardItem("Activity Logs", Icons.Default.History) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.ADMIN_ACTIVITY_LOG)
-        },
-        OwnerDashboardItem("Export reports", Icons.Default.FileDownload) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.EXPORT_REPORTS)
-        },
-        OwnerDashboardItem("Pending Requests", Icons.Default.PendingActions, badgeCount = pendingCount) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.PENDING_REQUESTS)
-        }
-    )
-
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(items) { item ->
-            OwnerDashboardBannerCard(item)
-        }
-    }
-}
-
-@Composable
-fun OwnerDashboardBannerCard(item: OwnerDashboardItem) {
+fun OwnerActionBanner(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { item.onClick() },
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -100,42 +170,25 @@ fun OwnerDashboardBannerCard(item: OwnerDashboardItem) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            if (item.badgeCount > 0) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                ) {
-                    Text("${item.badgeCount} pending", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-            }
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
             )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

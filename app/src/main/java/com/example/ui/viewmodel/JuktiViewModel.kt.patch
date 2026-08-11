@@ -1,0 +1,6 @@
+--- app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
++++ app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt
+@@ -107,2 +107,3 @@
+         database.activityLogDao(),
++        database.entitlementDao(),
+         com.example.data.repository.FirebaseSyncManager(database)

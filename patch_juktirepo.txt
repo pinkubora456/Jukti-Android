@@ -1,0 +1,11 @@
+--- app/src/main/java/com/example/data/repository/JuktiRepository.kt
++++ app/src/main/java/com/example/data/repository/JuktiRepository.kt
+@@ -140,2 +140,11 @@
+     val userProfile: Flow<UserProfileEntity?> = userProfileDao.getUserProfile()
++
++    val userEntitlement: Flow<EntitlementEntity?> = userProfile.map { profile ->
++        profile?.email?.let { email ->
++            val uid = firebaseRepository.getSanitizedUserDocId(email)
++            entitlementDao.getEntitlementDirect(uid)
++        }
++    }
