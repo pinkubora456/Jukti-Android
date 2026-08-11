@@ -161,7 +161,11 @@ fun ManagePlanContent(
                 PlanManageCard(
                     plan = plan,
                     onEdit = { onEditPlan(plan) },
-                    onDelete = { viewModel.deletePlan(plan) }
+                    onDelete = { viewModel.deletePlan(plan) },
+                    onToggleArchive = {
+                        val updatedPlan = plan.copy(isActive = !plan.isActive)
+                        viewModel.requestOrCreatePlan(updatedPlan) { _, _ -> }
+                    }
                 )
             }
         }

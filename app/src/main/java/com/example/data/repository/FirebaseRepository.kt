@@ -326,7 +326,8 @@ class FirebaseRepository {
         "planValidity" to p.planValidity,
         "contents" to p.contents,
         "features" to p.features,
-        "isActive" to p.isActive
+        "isActive" to p.isActive,
+        "imageUrl" to p.imageUrl
     )
 
     private fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(
@@ -623,7 +624,8 @@ class FirebaseRepository {
                     planValidity = doc.getString("planValidity") ?: "",
                     features = doc.getString("features") ?: "",
                     contents = doc.getString("contents") ?: "",
-                    isActive = doc.getBoolean("isActive") ?: true
+                    isActive = doc.getBoolean("isActive") ?: true,
+                    imageUrl = doc.getString("imageUrl") ?: ""
                 )
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -1055,7 +1057,8 @@ class FirebaseRepository {
                                         planValidity = doc.getString("planValidity") ?: "",
                                         features = doc.getString("features") ?: "",
                                         contents = doc.getString("contents") ?: "",
-                                        isActive = doc.getBoolean("isActive") ?: true
+                                        isActive = doc.getBoolean("isActive") ?: true,
+                                        imageUrl = doc.getString("imageUrl") ?: ""
                                     )
                                 } catch (e: Throwable) {
                                     null

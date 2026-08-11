@@ -1447,19 +1447,40 @@ fun LeaderboardTabContent(
     val userName = userProfile?.name.takeIf { !it.isNullOrBlank() } ?: "You"
     val displayNameOnBoard = if (userName.equals("You", ignoreCase = true)) "You" else "$userName (You)"
 
-    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs, displayNameOnBoard) {
-        listOf(
-            TopRanker(
-                name = displayNameOnBoard,
-                city = "Assam",
-                xp = userXp,
-                level = userLevel,
-                badge = "Rising Star",
-                examPlanEn = activeSelectedExam,
-                examPlanAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else activeSelectedExam,
-                avgMockScore = userMockAvg
-            )
+    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs, displayNameOnBoard, examOptionsEn) {
+        val baseExam = if (examOptionsEn.isNotEmpty()) examOptionsEn[safeExamIndex] else "ADRE Grade III & IV"
+        val baseExamAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else baseExam
+
+        val peers = listOf(
+            TopRanker("Rahul Das", "Guwahati", 4850, 12, "State Topper", baseExam, baseExamAs, 92.5f),
+            TopRanker("Priyanka Gogoi", "Dibrugarh", 4320, 11, "Elite Scholar", baseExam, baseExamAs, 88.0f),
+            TopRanker("Abhijit Borah", "Jorhat", 3900, 10, "Expert Aspirant", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 85.5f),
+            TopRanker("Sneha Sarma", "Silchar", 3650, 9, "Rising Star", baseExam, baseExamAs, 84.0f),
+            TopRanker("Debajit Hazarika", "Tezpur", 3400, 9, "Expert Aspirant", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 81.5f),
+            TopRanker("Ananya Phukan", "Tinsukia", 3100, 8, "Rising Star", baseExam, baseExamAs, 79.0f),
+            TopRanker("Bikash Sharma", "Nagaon", 2950, 8, "Dedicated", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 77.5f),
+            TopRanker("Mousumi Kalita", "Barpeta", 2700, 7, "Dedicated", baseExam, baseExamAs, 75.0f),
+            TopRanker("Tridip Saikia", "Sivasagar", 2500, 7, "Rising Star", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 73.0f),
+            TopRanker("Kangkana Deka", "Nalbari", 2300, 6, "Active", baseExam, baseExamAs, 70.5f),
+            TopRanker("Ratul Barman", "Goalpara", 2100, 6, "Active", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 68.0f),
+            TopRanker("Jinti Moran", "Dhemaji", 1900, 5, "Active", baseExam, baseExamAs, 65.5f),
+            TopRanker("Dipankar Kalita", "Mangaldai", 1750, 5, "Beginner", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 62.0f),
+            TopRanker("Bornali Sonowal", "Dibrugarh", 1500, 4, "Beginner", baseExam, baseExamAs, 59.5f),
+            TopRanker("Manash Pratim", "Guwahati", 1200, 4, "Beginner", baseExam, baseExamAs, 55.0f)
         )
+
+        val userRanker = TopRanker(
+            name = displayNameOnBoard,
+            city = "Assam",
+            xp = userXp,
+            level = userLevel,
+            badge = if (userXp > 3000) "Elite Scholar" else if (userXp > 1500) "Expert Aspirant" else "Rising Star",
+            examPlanEn = activeSelectedExam,
+            examPlanAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else activeSelectedExam,
+            avgMockScore = userMockAvg
+        )
+
+        peers + userRanker
     }
 
     val filteredList = remember(leaderboardMode, safeExamIndex, allRankers, examOptionsEn) {

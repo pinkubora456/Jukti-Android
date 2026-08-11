@@ -431,8 +431,9 @@ fun UserLogCard(
                                 )
                             } else {
                                 plans.forEach { plan ->
+                                    val displayText = if (plan.isActive) plan.planName else "${plan.planName} (Archived)"
                                     DropdownMenuItem(
-                                        text = { Text(plan.planName) },
+                                        text = { Text(displayText) },
                                         onClick = {
                                             newPlanInput = plan.planName
                                             expandedPlanDropdown = false

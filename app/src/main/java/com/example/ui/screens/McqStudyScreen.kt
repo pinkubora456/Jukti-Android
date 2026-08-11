@@ -483,9 +483,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         badgeText = "🧠 Smart"
                     )
 
-                    // 4. Mock Exams
+                    // 4. Mock Tests
                     StudyFeatureCard(
-                        title = "Mock Exams",
+                        title = "Mock Tests",
                         description = "Attempt full-length exam simulations.",
                         actionText = "Attempt Test",
                         icon = Icons.Default.Assignment,

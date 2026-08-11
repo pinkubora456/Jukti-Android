@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -112,12 +113,12 @@ fun EditPlanScreen(viewModel: JuktiViewModel) {
 
 
 @Composable
-fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit) {
+fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit, onToggleArchive: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = if (plan.isActive) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -126,7 +127,23 @@ fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = plan.planName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = plan.planName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (!plan.isActive) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Text(
+                                    text = "Archived",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
                     Text(text = "₹${plan.finalPrice}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     if (plan.offerValidity.isNotBlank()) {
                         Text(text = "Validity: ${plan.offerValidity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -147,6 +164,12 @@ fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit) {
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                TextButton(onClick = { onToggleArchive() }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)) {
+                    Icon(if (plan.isActive) Icons.Default.Archive else Icons.Default.Unarchive, contentDescription = "Archive")
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (plan.isActive) "Archive" else "Unarchive")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = { onEdit() }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit")
                     Spacer(modifier = Modifier.width(4.dp))
@@ -175,6 +198,7 @@ fun EditPlanDialog(
     var finalPrice by remember { mutableStateOf(plan.finalPrice) }
     var planValidity by remember { mutableStateOf(plan.planValidity) }
     var offerValidity by remember { mutableStateOf(plan.offerValidity) }
+    var imageUrl by remember { mutableStateOf(plan.imageUrl) }
     var isActive by remember { mutableStateOf(plan.isActive) }
 
     AlertDialog(
@@ -191,6 +215,13 @@ fun EditPlanDialog(
                     value = planName,
                     onValueChange = { planName = it },
                     label = { Text("Plan Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                SafeOutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Promotional Banner Image URL (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -248,7 +279,7 @@ fun EditPlanDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Is Active")
+                    Text("Active (Visible to Users)")
                     Switch(checked = isActive, onCheckedChange = { isActive = it })
                 }
             }
@@ -265,7 +296,8 @@ fun EditPlanDialog(
                             finalPrice = finalPrice,
                             planValidity = planValidity,
                             offerValidity = offerValidity,
-                            isActive = isActive
+                            isActive = isActive,
+                            imageUrl = imageUrl
                         )
                     )
                 } else {

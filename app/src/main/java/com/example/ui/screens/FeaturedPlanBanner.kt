@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 
 @Composable
@@ -142,37 +143,16 @@ fun FeaturedPlanBanner(
                         }
                     }
 
-                    val contents = plan.contents.split("|").filter { it.isNotBlank() }
-                    if (contents.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Contents included:",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        contents.forEach { c ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = c,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(24.dp))
                     
+                    Text(
+                        text = "NOT REFUNDABLE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        color = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
                     Button(
                         onClick = {
                             showDetailsDialog = false
@@ -201,27 +181,41 @@ fun FeaturedPlanBanner(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-        val gradientColors = if (isDark) {
-            listOf(
-                MaterialTheme.colorScheme.tertiary,
-                MaterialTheme.colorScheme.primary
-            )
-        } else {
-            listOf(
-                androidx.compose.ui.graphics.Color(0xFF0F766E), // Deep Teal
-                androidx.compose.ui.graphics.Color(0xFF1D4ED8)  // Deep Blue
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(colors = gradientColors)
+        if (plan.imageUrl.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { showDetailsDialog = true }
+            ) {
+                coil.compose.AsyncImage(
+                    model = plan.imageUrl,
+                    contentDescription = plan.planName,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-                .clickable { showDetailsDialog = true }
-        ) {
+            }
+        } else {
+            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val gradientColors = if (isDark) {
+                listOf(
+                    MaterialTheme.colorScheme.tertiary,
+                    MaterialTheme.colorScheme.primary
+                )
+            } else {
+                listOf(
+                    androidx.compose.ui.graphics.Color(0xFF0F766E), // Deep Teal
+                    androidx.compose.ui.graphics.Color(0xFF1D4ED8)  // Deep Blue
+                )
+            }
+    
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.horizontalGradient(colors = gradientColors)
+                    )
+                    .clickable { showDetailsDialog = true }
+            ) {
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
@@ -358,6 +352,7 @@ fun FeaturedPlanBanner(
                     }
                 }
             }
+        }
         }
     }
 }

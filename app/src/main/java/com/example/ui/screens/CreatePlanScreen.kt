@@ -37,6 +37,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var finalPrice by remember { mutableStateOf(TextFieldValue("")) }
     var planValidity by remember { mutableStateOf(TextFieldValue("")) }
     var offerValidity by remember { mutableStateOf(TextFieldValue("")) }
+    var imageUrl by remember { mutableStateOf(TextFieldValue("")) }
     
 
     // Content & Benefits Lists
@@ -287,6 +288,21 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                     label = { Text("Plan Name") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
+                )
+            }
+            item {
+                SafeOutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Promotional Banner Image URL (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Text(
+                    text = "If provided, this image will be shown on the Home Page instead of the default plan card.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             }
             item {
@@ -732,7 +748,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 planValidity = planValidity.text,
                                 offerValidity = offerValidity.text,
                                 contents = contentsList.joinToString(separator = "|"),
-                                features = allFeatures.joinToString(separator = "|")
+                                features = allFeatures.joinToString(separator = "|"),
+                                imageUrl = imageUrl.text
                             )
                             isSubmitting = true
                             viewModel.requestOrCreatePlan(newPlan) { isSuccess, message ->

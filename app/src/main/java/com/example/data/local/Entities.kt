@@ -188,7 +188,8 @@ data class PlanEntity(
     val planValidity: String = "",
     val contents: String = "", // JSON string of contents added
     val features: String = "", // JSON string or comma-separated features
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val imageUrl: String = ""
 )
 
 @Entity(tableName = "exams")

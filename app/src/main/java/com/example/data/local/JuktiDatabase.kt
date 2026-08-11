@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
         SyncQueueEntity::class,
         EntitlementEntity::class
     ],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {

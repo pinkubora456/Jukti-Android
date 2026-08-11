@@ -83,7 +83,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
         PresetImage("None", ""),
         PresetImage("Pass Pro", "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop"),
         PresetImage("Live Quiz", "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=500&auto=format&fit=crop"),
-        PresetImage("Mock Exam", "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop"),
+        PresetImage("Mock Test", "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop"),
         PresetImage("Announcement", "https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=500&auto=format&fit=crop")
     )
 

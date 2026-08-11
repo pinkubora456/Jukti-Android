@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.billing.PlayBillingManager
 import com.example.data.local.PlanEntity
 import com.example.ui.viewmodel.JuktiViewModel
@@ -250,6 +252,14 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
         }
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "NOT REFUNDABLE",
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
         Button(
             onClick = {

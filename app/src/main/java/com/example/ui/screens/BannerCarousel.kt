@@ -145,9 +145,33 @@ fun InfoBannerContent(
                         language = language,
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val buttonText = when (banner.actionType) {
+                        "Mock Test" -> if (language == com.example.ui.viewmodel.AppLanguage.ASSAMESE) "মক টেষ্ট কৰক" else "Take Mock Test"
+                        "Study Notes" -> if (language == com.example.ui.viewmodel.AppLanguage.ASSAMESE) "নোটছ পঢ়ক" else "Read Study Notes"
+                        "Link" -> if (language == com.example.ui.viewmodel.AppLanguage.ASSAMESE) "অধিক জানক" else "Learn More"
+                        else -> if (language == com.example.ui.viewmodel.AppLanguage.ASSAMESE) "খোলক" else "Open"
+                    }
+
+                    Button(
+                        onClick = {
+                            showDetailsDialog = false
+                            if (onBannerClick != null) {
+                                onBannerClick(banner)
+                            } else {
+                                onUpgradeClick()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(text = buttonText, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
-            confirmButton = {
+            confirmButton = {},
+            dismissButton = {
                 TextButton(onClick = { showDetailsDialog = false }) {
                     Text("Close")
                 }
@@ -163,30 +187,46 @@ fun InfoBannerContent(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-        val gradientColors = if (isDark) {
-            listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.tertiary
-            )
-        } else {
-            listOf(
-                Color(0xFF1E3A8A), // Deep Blue
-                Color(0xFF3730A3)  // Deep Indigo
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(colors = gradientColors),
-                    shape = RoundedCornerShape(16.dp)
+        if (banner.imageUrl.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        showDetailsDialog = true
+                    }
+            ) {
+                coil.compose.AsyncImage(
+                    model = banner.imageUrl,
+                    contentDescription = banner.titleEn,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-                .clickable {
-                    showDetailsDialog = true
-                }
-        ) {
+            }
+        } else {
+            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val gradientColors = if (isDark) {
+                listOf(
+                    MaterialTheme.colorScheme.primary,
+                    MaterialTheme.colorScheme.tertiary
+                )
+            } else {
+                listOf(
+                    Color(0xFF1E3A8A), // Deep Blue
+                    Color(0xFF3730A3)  // Deep Indigo
+                )
+            }
+    
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.horizontalGradient(colors = gradientColors),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .clickable {
+                        showDetailsDialog = true
+                    }
+            ) {
             // Subtle Jaapi pattern in the background
             androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
                 // Draw a few faint Jaapis
@@ -403,6 +443,7 @@ fun InfoBannerContent(
                     }
                 }
             }
+        }
         }
     }
 }
