@@ -143,7 +143,8 @@ data class UserProfileEntity(
     val joinedDate: String = "Jul 2026",
     val isLoggedIn: Boolean = false,
     val currentDeviceId: String = "",
-    val activeDeviceId: String = ""
+    val activeDeviceId: String = "",
+    val uid: String = ""
 )
 
 @Entity(tableName = "about_config")

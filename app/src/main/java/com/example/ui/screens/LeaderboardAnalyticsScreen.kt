@@ -48,7 +48,8 @@ data class TopRanker(
     val badge: String,
     val examPlanEn: String,
     val examPlanAs: String,
-    val avgMockScore: Float = 0f
+    val avgMockScore: Float = 0f,
+    val uid: String = ""
 )
 
 data class ChapterAccuracy(
@@ -169,6 +170,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
             if (tab == 0) {
                 // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
                 LeaderboardTabContent(
+                    viewModel = viewModel,
                     userXp = userProfile?.xp ?: 2350,
                     userLevel = userProfile?.level ?: 8,
                     userMockAvg = mockAvg,
@@ -1414,6 +1416,7 @@ fun MockTestHistorySection(
 // -----------------------------------------------------------------------------
 @Composable
 fun LeaderboardTabContent(
+    viewModel: JuktiViewModel,
     userXp: Int,
     userLevel: Int,
     userMockAvg: Float,
@@ -1424,6 +1427,21 @@ fun LeaderboardTabContent(
     var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam, 2 = Mock Test Avg
     var selectedExamIndex by remember { mutableStateOf(0) } // Default: ADRE Grade III & IV
     var isDropdownExpanded by remember { mutableStateOf(false) }
+
+    var realUsers by remember { mutableStateOf<List<UserProfileEntity>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        try {
+            val users = viewModel.fetchAllUsersDirect()
+            realUsers = users
+        } catch (e: Exception) {
+            realUsers = emptyList()
+        } finally {
+            isLoading = false
+        }
+    }
 
     val examOptionsEn = remember(examsList) {
         if (examsList.isNotEmpty()) {
@@ -1444,62 +1462,86 @@ fun LeaderboardTabContent(
     val safeExamIndex = if (selectedExamIndex in examOptionsEn.indices) selectedExamIndex else 0
     val activeSelectedExam = examOptionsEn[safeExamIndex]
 
-    val userName = userProfile?.name.takeIf { !it.isNullOrBlank() } ?: "You"
-    val displayNameOnBoard = if (userName.equals("You", ignoreCase = true)) "You" else "$userName (You)"
+    val allRankers = remember(realUsers, userProfile, userXp, userLevel, userMockAvg, activeSelectedExam) {
+        val currentAuthUid = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "" } catch (e: Exception) { "" }
+        val mutableUsers = realUsers.toMutableList()
 
-    val allRankers = remember(userXp, userLevel, userMockAvg, activeSelectedExam, safeExamIndex, examOptionsAs, displayNameOnBoard, examOptionsEn) {
-        val baseExam = if (examOptionsEn.isNotEmpty()) examOptionsEn[safeExamIndex] else "ADRE Grade III & IV"
-        val baseExamAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else baseExam
-
-        val peers = listOf(
-            TopRanker("Rahul Das", "Guwahati", 4850, 12, "State Topper", baseExam, baseExamAs, 92.5f),
-            TopRanker("Priyanka Gogoi", "Dibrugarh", 4320, 11, "Elite Scholar", baseExam, baseExamAs, 88.0f),
-            TopRanker("Abhijit Borah", "Jorhat", 3900, 10, "Expert Aspirant", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 85.5f),
-            TopRanker("Sneha Sarma", "Silchar", 3650, 9, "Rising Star", baseExam, baseExamAs, 84.0f),
-            TopRanker("Debajit Hazarika", "Tezpur", 3400, 9, "Expert Aspirant", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 81.5f),
-            TopRanker("Ananya Phukan", "Tinsukia", 3100, 8, "Rising Star", baseExam, baseExamAs, 79.0f),
-            TopRanker("Bikash Sharma", "Nagaon", 2950, 8, "Dedicated", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 77.5f),
-            TopRanker("Mousumi Kalita", "Barpeta", 2700, 7, "Dedicated", baseExam, baseExamAs, 75.0f),
-            TopRanker("Tridip Saikia", "Sivasagar", 2500, 7, "Rising Star", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 73.0f),
-            TopRanker("Kangkana Deka", "Nalbari", 2300, 6, "Active", baseExam, baseExamAs, 70.5f),
-            TopRanker("Ratul Barman", "Goalpara", 2100, 6, "Active", if (examOptionsEn.size > 1) examOptionsEn[1 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 1) examOptionsAs[1 % examOptionsAs.size] else baseExamAs, 68.0f),
-            TopRanker("Jinti Moran", "Dhemaji", 1900, 5, "Active", baseExam, baseExamAs, 65.5f),
-            TopRanker("Dipankar Kalita", "Mangaldai", 1750, 5, "Beginner", if (examOptionsEn.size > 2) examOptionsEn[2 % examOptionsEn.size] else baseExam, if (examOptionsAs.size > 2) examOptionsAs[2 % examOptionsAs.size] else baseExamAs, 62.0f),
-            TopRanker("Bornali Sonowal", "Dibrugarh", 1500, 4, "Beginner", baseExam, baseExamAs, 59.5f),
-            TopRanker("Manash Pratim", "Guwahati", 1200, 4, "Beginner", baseExam, baseExamAs, 55.0f)
-        )
-
-        val userRanker = TopRanker(
-            name = displayNameOnBoard,
-            city = "Assam",
+        val currentProfileEntity = userProfile ?: UserProfileEntity(
+            name = "Assam Scholar",
             xp = userXp,
             level = userLevel,
-            badge = if (userXp > 3000) "Elite Scholar" else if (userXp > 1500) "Expert Aspirant" else "Rising Star",
-            examPlanEn = activeSelectedExam,
-            examPlanAs = if (examOptionsAs.isNotEmpty() && safeExamIndex < examOptionsAs.size) examOptionsAs[safeExamIndex] else activeSelectedExam,
-            avgMockScore = userMockAvg
+            district = "Assam",
+            examGoal = activeSelectedExam,
+            uid = currentAuthUid
         )
 
-        peers + userRanker
+        val effectiveProfile = currentProfileEntity.copy(
+            xp = userXp,
+            level = userLevel,
+            uid = if (currentAuthUid.isNotBlank()) currentAuthUid else currentProfileEntity.uid,
+            name = userProfile?.name?.takeIf { !it.isNullOrBlank() } ?: "Assam Scholar"
+        )
+
+        val existingIndex = mutableUsers.indexOfFirst { 
+            (currentAuthUid.isNotBlank() && it.uid == currentAuthUid) || it.email.equals(effectiveProfile.email, ignoreCase = true) 
+        }
+        if (existingIndex >= 0) {
+            mutableUsers[existingIndex] = effectiveProfile
+        } else {
+            mutableUsers.add(effectiveProfile)
+        }
+
+        mutableUsers.map { u ->
+            val isCurrent = !currentAuthUid.isNullOrBlank() && u.uid == currentAuthUid
+            TopRanker(
+                name = u.name.ifBlank { "Assam Aspirant" },
+                city = u.district.ifBlank { "Assam" },
+                xp = if (isCurrent) userXp else u.xp,
+                level = if (isCurrent) userLevel else u.level,
+                badge = if ((if (isCurrent) userXp else u.xp) > 3000) "Elite Scholar" else if ((if (isCurrent) userXp else u.xp) > 1500) "Expert Aspirant" else "Rising Star",
+                examPlanEn = u.examGoal.ifBlank { activeSelectedExam },
+                examPlanAs = u.examGoal.ifBlank { activeSelectedExam },
+                avgMockScore = if (isCurrent) userMockAvg else 75.0f,
+                uid = u.uid
+            )
+        }
     }
 
-    val filteredList = remember(leaderboardMode, safeExamIndex, allRankers, examOptionsEn) {
-        if (leaderboardMode == 0) {
-            allRankers.sortedByDescending { it.xp }
-        } else if (leaderboardMode == 1) {
-            val examRankers = allRankers.filter { 
-                it.examPlanEn == activeSelectedExam || it.name.contains("You") 
-            }.map { ranker ->
-                if (ranker.name.contains("You")) {
-                    ranker.copy(
-                        examPlanEn = activeSelectedExam,
-                        examPlanAs = examOptionsAs[safeExamIndex]
-                    )
-                } else ranker
-            }
-            examRankers.sortedByDescending { it.xp }
+    val fullSortedList = remember(leaderboardMode, safeExamIndex, allRankers, activeSelectedExam) {
+        val authUid = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid } catch (e: Exception) { null }
+        when (leaderboardMode) {
+            0 -> allRankers.sortedWith(compareByDescending<TopRanker> { it.xp }.thenBy { it.name })
+            1 -> allRankers.filter { it.examPlanEn.equals(activeSelectedExam, ignoreCase = true) || (!authUid.isNullOrBlank() && it.uid == authUid) }
+                .sortedWith(compareByDescending<TopRanker> { it.xp }.thenBy { it.name })
+            else -> allRankers.sortedWith(compareByDescending<TopRanker> { it.avgMockScore }.thenByDescending<TopRanker> { it.xp }.thenBy { it.name })
+        }
+    }
+
+    val top50List = remember(fullSortedList) {
+        fullSortedList.take(50)
+    }
+
+    val currentUserIndex = remember(fullSortedList) {
+        val authUid = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid } catch (e: Exception) { null }
+        if (!authUid.isNullOrBlank()) {
+            fullSortedList.indexOfFirst { it.uid == authUid }
         } else {
-            allRankers.sortedByDescending { it.avgMockScore }
+            -1
+        }
+    }
+
+    val isUserOutsideTop50 = currentUserIndex >= 50
+    val currentUserRank = if (currentUserIndex >= 0) currentUserIndex + 1 else -1
+
+    val aroundYouList = remember(fullSortedList, currentUserIndex, isUserOutsideTop50) {
+        if (isUserOutsideTop50 && currentUserIndex >= 0) {
+            val start = maxOf(0, currentUserIndex - 2)
+            val end = minOf(fullSortedList.lastIndex, currentUserIndex + 2)
+            (start..end).map { idx ->
+                Triple(idx + 1, fullSortedList[idx], idx == currentUserIndex)
+            }
+        } else {
+            emptyList()
         }
     }
 
@@ -1741,9 +1783,9 @@ fun LeaderboardTabContent(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // TOP 3 PODIUM DISPLAY
-                    if (filteredList.size >= 3) {
+                    if (fullSortedList.size >= 3) {
                         PodiumShowcase(
-                            topThree = filteredList.take(3),
+                            topThree = fullSortedList.take(3),
                             leaderboardMode = leaderboardMode,
                             isAssamese = isAssamese
                         )
@@ -1752,124 +1794,266 @@ fun LeaderboardTabContent(
             }
         }
 
-        // LEADERBOARD LIST HEADER
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (leaderboardMode == 0) {
-                        "All Assam Top Rankers"
-                    } else if (leaderboardMode == 1) {
-                        "Candidates: $activeSelectedExam"
-                    } else {
-                        "Mock Avg Rankers"
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "${filteredList.size} ${"Candidates"}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        if (fullSortedList.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No Registered Aspirants Found",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Start practicing questions and earning XP to appear on the Assam Leaderboard!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
-        }
-
-        // ALL USERS RANKED TOP TO BOTTOM
-        itemsIndexed(filteredList, key = { _, it -> it.name + it.examPlanEn }) { index, ranker ->
-            val isUser = ranker.name.contains("You")
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                ),
-                border = if (isUser) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else CardDefaults.outlinedCardBorder()
-            ) {
+        } else {
+            // LEADERBOARD LIST HEADER
+            item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (leaderboardMode == 0) {
+                            "All Assam Top Rankers (Top 50)"
+                        } else if (leaderboardMode == 1) {
+                            "Candidates: $activeSelectedExam"
+                        } else {
+                            "Mock Avg Rankers"
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = "${top50List.size} ${"Candidates"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // TOP 50 USERS RANKED TOP TO BOTTOM
+            itemsIndexed(top50List, key = { _, it -> it.uid.ifBlank { it.name } + it.examPlanEn + it.xp }) { index, ranker ->
+                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val currentUserUid = currentUser?.uid
+                val isUser = !currentUserUid.isNullOrBlank() && !ranker.uid.isNullOrBlank() && ranker.uid == currentUserUid
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                    ),
+                    border = if (isUser) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else CardDefaults.outlinedCardBorder()
                 ) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = when (index) {
-                                0 -> Color(0xFFFFD700) // Gold
-                                1 -> Color(0xFFC0C0C0) // Silver
-                                2 -> Color(0xFFCD7F32) // Bronze
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            modifier = Modifier.size(36.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
+                            Surface(
+                                shape = CircleShape,
+                                color = when (index) {
+                                    0 -> Color(0xFFFFD700) // Gold
+                                    1 -> Color(0xFFC0C0C0) // Silver
+                                    2 -> Color(0xFFCD7F32) // Bronze
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "#${index + 1}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (index < 3) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = ranker.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (isUser) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Text(
+                                                text = "YOU",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
                                 Text(
-                                    text = "#${index + 1}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (index < 3) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "${ranker.city} • Lvl ${ranker.level} (${ranker.badge})",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Text(
+                                    text = ranker.examPlanEn,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
 
-                        Column {
+                        Text(
+                            text = if (leaderboardMode == 2) "${String.format("%.1f", ranker.avgMockScore)}%" else "${ranker.xp} XP",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // AROUND YOU SECTION IF LOGGED-IN USER IS OUTSIDE TOP 50
+            if (isUserOutsideTop50 && aroundYouList.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = ranker.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                Icon(
+                                    imageVector = Icons.Default.MyLocation,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                if (isUser) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.primary
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Your Rank & Around You (#$currentUserRank)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            aroundYouList.forEach { (rankNum, ranker, _) ->
+                                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                val currentUserUid = currentUser?.uid
+                                val isCurrent = !currentUserUid.isNullOrBlank() && !ranker.uid.isNullOrBlank() && ranker.uid == currentUserUid
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = if (isCurrent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                text = "#$rankNum",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = ranker.name,
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    if (isCurrent) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Surface(
+                                                            shape = RoundedCornerShape(4.dp),
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        ) {
+                                                            Text(
+                                                                text = "YOU",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.ExtraBold,
+                                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Text(
+                                                    text = "${ranker.city} • Lvl ${ranker.level}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
                                         Text(
-                                            text = "YOU",
-                                            style = MaterialTheme.typography.labelSmall,
+                                            text = "${ranker.xp} XP",
+                                            style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
                             }
-
-                            Text(
-                                text = "${ranker.city} • Lvl ${ranker.level} (${ranker.badge})",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Text(
-                                text = ranker.examPlanEn,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
                         }
                     }
-
-                    Text(
-                        text = if (leaderboardMode == 2) "${String.format("%.1f", ranker.avgMockScore)}%" else "${ranker.xp} XP",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
         }

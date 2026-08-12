@@ -61,13 +61,13 @@ fun FeaturedPlanBanner(
                     if (plan.planPrice.isNotBlank() || plan.discount.isNotBlank() || plan.finalPrice.isNotBlank()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(bottom = 16.dp)
                         ) {
                             if (plan.finalPrice.isNotBlank()) {
                                 Text(
                                     text = "₹${plan.finalPrice}",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -75,21 +75,23 @@ fun FeaturedPlanBanner(
                             if (plan.planPrice.isNotBlank()) {
                                 Text(
                                     text = "₹${plan.planPrice}",
-                                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                    style = MaterialTheme.typography.titleMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             }
-                            if (plan.discount.isNotBlank()) {
+                            if (plan.discount.isNotBlank() && plan.discount != "0") {
+                                val cleanDisc = plan.discount.replace(Regex("(?i)off"), "").replace("%", "").trim()
+                                val discountText = if (cleanDisc.isNotEmpty()) "$cleanDisc % Off" else plan.discount
                                 Surface(
                                     color = MaterialTheme.colorScheme.error,
-                                    shape = RoundedCornerShape(4.dp)
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
-                                        text = plan.discount,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        text = discountText,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.onError,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
                             }

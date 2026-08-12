@@ -34,6 +34,8 @@ class FirebaseRepository {
     suspend fun saveUserProfile(profile: UserProfileEntity, merge: Boolean = true) {
         try {
             val docId = getSanitizedUserDocId(profile.email)
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val authUid = auth?.currentUser?.uid ?: docId
             val userMap = mutableMapOf<String, Any?>(
                 "id" to profile.id,
                 "name" to profile.name,
@@ -52,9 +54,9 @@ class FirebaseRepository {
                 "isLoggedIn" to profile.isLoggedIn,
                 "currentDeviceId" to profile.currentDeviceId,
                 "activeDeviceId" to profile.activeDeviceId,
+                "uid" to profile.uid.ifBlank { authUid },
                 "lastSyncedAt" to System.currentTimeMillis()
             )
-            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
             val isOwnerUser = profile.role == "OWNER" || auth?.currentUser?.email?.contains("juktieducation", ignoreCase = true) == true
             if (isOwnerUser || !merge) {
                 userMap["isPremium"] = profile.isPremium
@@ -95,7 +97,8 @@ class FirebaseRepository {
                     joinedDate = snapshot.getString("joinedDate") ?: "Jul 2026",
                     isLoggedIn = snapshot.getBoolean("isLoggedIn") ?: true,
                     currentDeviceId = snapshot.getString("currentDeviceId") ?: "",
-                    activeDeviceId = snapshot.getString("activeDeviceId") ?: ""
+                    activeDeviceId = snapshot.getString("activeDeviceId") ?: "",
+                    uid = snapshot.getString("uid") ?: docId
                 )
             } else null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -156,7 +159,8 @@ class FirebaseRepository {
                     joinedDate = doc.getString("joinedDate") ?: "Jul 2026",
                     isLoggedIn = doc.getBoolean("isLoggedIn") ?: true,
                     currentDeviceId = doc.getString("currentDeviceId") ?: "",
-                    activeDeviceId = doc.getString("activeDeviceId") ?: ""
+                    activeDeviceId = doc.getString("activeDeviceId") ?: "",
+                    uid = doc.getString("uid") ?: doc.id
                 ))
             }
             users
