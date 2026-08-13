@@ -148,7 +148,12 @@ interface UserProfileDao {
     suspend fun getUserProfileDirect(): UserProfileEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateProfile(profile: UserProfileEntity)
+    suspend fun insertOrUpdateProfileRaw(profile: UserProfileEntity)
+
+    @Transaction
+    suspend fun insertOrUpdateProfile(profile: UserProfileEntity) {
+        insertOrUpdateProfileRaw(profile.withResolvedName())
+    }
 }
 
 @Dao

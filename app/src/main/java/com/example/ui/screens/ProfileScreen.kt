@@ -42,7 +42,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMyPlanDialog by remember { mutableStateOf(false) }
 
-    var editName by remember { mutableStateOf(userProfile?.name ?: "") }
+    var editName by remember { mutableStateOf(userProfile?.profileName?.ifBlank { userProfile?.name } ?: "") }
     var editMobile by remember { mutableStateOf(userProfile?.mobile ?: "") }
     var editDistrict by remember { mutableStateOf(userProfile?.district ?: "") }
     val selectedGoals = remember {
@@ -53,23 +53,8 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     var customGoalInput by remember { mutableStateOf("") }
     val exams by viewModel.examsList.collectAsState()
 
-    val standardExamGoals = remember {
-        listOf(
-            "ADRE Grade III & IV",
-            "APSC CCE Prelims / Mains",
-            "Assam Police (SI / Constable)",
-            "Assam TET / Teacher Recruitment",
-            "APDCL & State Departments",
-            "DHFWS / Health Sector Exams",
-            "SSC (CGL / CHSL / GD)",
-            "Banking (IBPS / SBI / RRB)",
-            "Railways (RRB NTPC / Group D)",
-            "UPSC Civil Services"
-        )
-    }
-
     val availableExamOptions = remember(exams) {
-        (standardExamGoals + exams.map { it.title }).filter { it.isNotBlank() }.distinct()
+        exams.map { it.title }.filter { it.isNotBlank() }.distinct()
     }
 
     if (showEditNameDialog) {
@@ -291,7 +276,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     onClick = {
                         userProfile?.let { prof ->
                             val updated = prof.copy(
-                                name = editName.trim().ifEmpty { prof.name },
+                                profileName = editName.trim(),
                                 mobile = editMobile.trim(),
                                 district = editDistrict.trim(),
                                 examGoal = if (selectedGoals.isEmpty()) "ADRE Grade III & IV" else selectedGoals.joinToString(", ")
@@ -443,7 +428,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
             )
             IconButton(
                 onClick = {
-                    quickNameInput = userProfile?.name ?: ""
+                    quickNameInput = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                     showEditNameDialog = true
                 },
                 modifier = Modifier.size(32.dp)
@@ -477,7 +462,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     label = "Full Name",
                     value = userProfile?.name.takeIf { !it.isNullOrBlank() } ?: "Not Set",
                     onClick = {
-                        quickNameInput = userProfile?.name ?: ""
+                        quickNameInput = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                         showEditNameDialog = true
                     }
                 )
@@ -489,7 +474,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     label = "Mobile Number",
                     value = userProfile?.mobile.takeIf { !it.isNullOrBlank() } ?: "Not Provided (Optional)",
                     onClick = {
-                        editName = userProfile?.name ?: ""
+                        editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                         editMobile = userProfile?.mobile ?: ""
                         editDistrict = userProfile?.district ?: ""
                         selectedGoals.clear()
@@ -503,7 +488,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     label = "District",
                     value = userProfile?.district.takeIf { !it.isNullOrBlank() } ?: "Kamrup Metropolitan",
                     onClick = {
-                        editName = userProfile?.name ?: ""
+                        editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                         editMobile = userProfile?.mobile ?: ""
                         editDistrict = userProfile?.district ?: ""
                         selectedGoals.clear()
@@ -536,7 +521,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
 
         Button(
             onClick = {
-                editName = userProfile?.name ?: ""
+                editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                 editMobile = userProfile?.mobile ?: ""
                 editDistrict = userProfile?.district ?: ""
                 selectedGoals.clear()

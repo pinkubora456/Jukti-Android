@@ -204,6 +204,10 @@ class JuktiRepository(
         if (currentFaqs.isNullOrEmpty()) {
             faqDao.insertAll(SampleData.initialFaqs)
         }
+        val currentSubjects = subjectChapterDao.getAllSubjectsChapters().firstOrNull()
+        if (currentSubjects.isNullOrEmpty()) {
+            subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
+        }
     }
 
     // Question Actions
@@ -457,7 +461,10 @@ class JuktiRepository(
                         role = remoteProfile.role,
                         isLoggedIn = true,
                         currentDeviceId = localProfile.currentDeviceId.ifBlank { remoteProfile.currentDeviceId },
-                        activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId }
+                        activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId },
+                        profileName = localProfile.profileName.ifBlank { remoteProfile.profileName },
+                        registrationName = localProfile.registrationName.ifBlank { remoteProfile.registrationName },
+                        googleName = localProfile.googleName.ifBlank { remoteProfile.googleName }
                     )
                 } else {
                     remoteProfile.copy(

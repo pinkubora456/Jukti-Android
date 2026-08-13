@@ -199,6 +199,7 @@ fun EditPlanDialog(
     var planValidity by remember { mutableStateOf(plan.planValidity) }
     var offerValidity by remember { mutableStateOf(plan.offerValidity) }
     var imageUrl by remember { mutableStateOf(plan.imageUrl) }
+    var examTarget by remember { mutableStateOf(plan.examTarget) }
     var isActive by remember { mutableStateOf(plan.isActive) }
 
     AlertDialog(
@@ -274,6 +275,13 @@ fun EditPlanDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                SafeOutlinedTextField(
+                    value = examTarget,
+                    onValueChange = { examTarget = it },
+                    label = { Text("Exam Target") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -297,7 +305,8 @@ fun EditPlanDialog(
                             planValidity = planValidity,
                             offerValidity = offerValidity,
                             isActive = isActive,
-                            imageUrl = imageUrl
+                            imageUrl = imageUrl,
+                            examTarget = examTarget
                         )
                     )
                 } else {

@@ -479,6 +479,55 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
+    fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
+        val entitlement = userEntitlement.value
+        val now = System.currentTimeMillis()
+        if (entitlement != null && entitlement.status == "ACTIVE") {
+            val matchesId = entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true)
+            val matchesName = entitlement.planName.equals(plan.planName, ignoreCase = true)
+            val isValid = entitlement.validUntil <= 0L || entitlement.validUntil > now
+            if ((matchesId || matchesName) && isValid) {
+                return true
+            }
+        }
+        return false
+    }
+
+    suspend fun validatePurchaseEligibility(plan: com.example.data.local.PlanEntity): Pair<Boolean, String> {
+        val prof = userProfile.value
+        if (prof != null && prof.email.isNotBlank()) {
+            val docId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val doc = db.collection("users").document(docId)
+                    .collection("entitlements").document("current").get().await()
+                if (doc.exists()) {
+                    val status = doc.getString("status") ?: ""
+                    val planId = doc.getString("planId") ?: ""
+                    val planName = doc.getString("planName") ?: ""
+                    val validUntil = doc.getLong("validUntil") ?: 0L
+
+                    val isMatch = (planId == plan.id.toString()) ||
+                                  (planId.equals(plan.planName, ignoreCase = true)) ||
+                                  (planName.equals(plan.planName, ignoreCase = true))
+                    val isValid = validUntil <= 0L || validUntil > System.currentTimeMillis()
+
+                    if (status == "ACTIVE" && isMatch && isValid) {
+                        return Pair(false, "You already have an active subscription for '${plan.planName}'. Duplicate purchases of the same plan are not allowed.")
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback to local check if offline
+            }
+        }
+
+        if (isSpecificPlanActive(plan)) {
+            return Pair(false, "You already have an active subscription for '${plan.planName}'.")
+        }
+
+        return Pair(true, "")
+    }
+
     val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlement) { profile, admin, entitlement ->
         val isUserAdminOrOwner = admin || profile?.role == "ADMIN" || profile?.role == "OWNER"
         if (isUserAdminOrOwner) {
@@ -1016,11 +1065,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         else -> trimmedEmail.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                     }
                     val newName = if (nameInput.isNotBlank()) nameInput else defaultName
+                    val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    val gName = fbUser?.displayName?.trim() ?: ""
 
                     val updatedProf = currentProf.copy(
                         email = trimmedEmail,
                         role = newRole,
-                        name = newName,
+                        registrationName = newName,
+                        googleName = gName,
                         isLoggedIn = true,
                         currentDeviceId = deviceId,
                         activeDeviceId = deviceId
@@ -1108,7 +1160,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun updateUserName(newName: String) {
         viewModelScope.launch {
             val prof = userProfile.value ?: SampleData.initialUserProfile
-            val updated = prof.copy(name = newName.trim())
+            val updated = prof.copy(profileName = newName.trim())
             repository.updateUserProfile(updated)
         }
     }
@@ -1310,6 +1362,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         logActivity("Deleted question ID: ${question.id}")
         viewModelScope.launch {
             val res = repository.deleteQuestion(question)
+            _syncToastMessage.value = res.second
+        }
+    }
+
+    fun updateQuestion(question: QuestionEntity) {
+        viewModelScope.launch {
+            val res = repository.updateQuestion(question)
             _syncToastMessage.value = res.second
         }
     }
@@ -1752,57 +1811,48 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun verifyAndProvisionPurchase(purchaseToken: String, purchaseId: String, planId: String, planName: String) {
+    fun verifyAndProvisionPurchase(
+        purchaseToken: String,
+        purchaseId: String,
+        planId: String,
+        planName: String,
+        validity: String = "1 year",
+        productId: String = ""
+    ) {
         viewModelScope.launch {
             val user = userProfile.value ?: return@launch
-            val uid = user.email.replace("@", "_at_").replace(".", "_dot_")
+            val email = user.email.trim().lowercase(java.util.Locale.ROOT)
+            if (email.isBlank()) return@launch
+            val uid = email.replace("@", "_at_").replace(".", "_dot_")
             
-            val purchaseMap = mapOf(
+            val now = System.currentTimeMillis()
+            
+            val requestData = mapOf(
                 "purchaseId" to purchaseId,
                 "purchaseToken" to purchaseToken,
                 "planId" to planId,
                 "planName" to planName,
-                "timestamp" to System.currentTimeMillis(),
-                "status" to "PENDING"
+                "productId" to productId,
+                "packageName" to "com.aistudio.jukti.examprep.app",
+                "validity" to validity,
+                "userEmail" to email,
+                "status" to "PENDING_VERIFICATION",
+                "createdAt" to now,
+                "updatedAt" to now
             )
             
             try {
                 val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val purchaseRef = db.collection("users").document(uid).collection("purchases").document(purchaseId)
+                val reqRef = db.collection("users").document(uid).collection("purchaseRequests").document(purchaseId)
                 
-                // Purchase Replay Protection using atomic transaction
-                val alreadyExists = db.runTransaction { tx ->
-                    val snap = tx.get(purchaseRef)
-                    if (snap.exists()) {
-                        val currentStatus = snap.getString("status")
-                        if (currentStatus == "COMPLETED" || currentStatus == "PROVISIONED") {
-                            return@runTransaction true
-                        }
-                    }
-                    tx.set(purchaseRef, purchaseMap, com.google.firebase.firestore.SetOptions.merge())
-                    false
-                }.await()
-                
-                if (alreadyExists) {
-                    android.util.Log.w("JuktiViewModel", "Purchase already processed (Replay Protection)")
-                    return@launch
-                }
-                
-                // Create Pending Request for Owner to approve purchase
-                val req = PendingRequestEntity(
-                    requestType = "UPGRADE_PLAN",
-                    title = "Verify Purchase: $planName",
-                    description = "User ${user.email} purchased $planName. Token: $purchaseToken",
-                    targetId = uid,
-                    payloadJson = "$planName|1 year|${user.email}",
-                    requestedBy = user.email,
-                    timestamp = "Just now",
-                    status = "PENDING"
-                )
-                repository.insertPendingRequest(req)
+                reqRef.set(requestData, com.google.firebase.firestore.SetOptions.merge()).await()
+                android.util.Log.d("JuktiViewModel", "Submitted purchase verification request for $purchaseId")
+
+                // Sync local profile from server to pick up any server-verified entitlements
+                repository.syncUserProfileWithFirebase(email)
                 
             } catch (e: Exception) {
-                android.util.Log.e("JuktiViewModel", "Verify purchase error", e)
+                android.util.Log.e("JuktiViewModel", "Error submitting purchase verification request", e)
             }
         }
     }

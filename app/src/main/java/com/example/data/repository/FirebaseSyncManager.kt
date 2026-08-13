@@ -270,7 +270,8 @@ class FirebaseSyncManager(
         "contents" to p.contents,
         "features" to p.features,
         "isActive" to p.isActive,
-        "imageUrl" to p.imageUrl
+        "imageUrl" to p.imageUrl,
+        "examTarget" to p.examTarget
     )
 
     fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(

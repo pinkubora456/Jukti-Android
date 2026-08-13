@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextDecoration
 @Composable
 fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var planName by remember { mutableStateOf(TextFieldValue("")) }
+    var googlePlayProductId by remember { mutableStateOf(TextFieldValue("")) }
     
     // Pricing
     var planPrice by remember { mutableStateOf(TextFieldValue("")) }
@@ -38,6 +39,9 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var planValidity by remember { mutableStateOf(TextFieldValue("")) }
     var offerValidity by remember { mutableStateOf(TextFieldValue("")) }
     var imageUrl by remember { mutableStateOf(TextFieldValue("")) }
+    
+    // State for Exam Target
+    val examTargetExamsSelected = remember { mutableStateListOf<String>() }
     
 
     // Content & Benefits Lists
@@ -292,6 +296,21 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
             }
             item {
                 SafeOutlinedTextField(
+                    value = googlePlayProductId,
+                    onValueChange = { googlePlayProductId = it },
+                    label = { Text("Google Play Product ID (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Text(
+                    text = "Product ID configured in Google Play Console (e.g. jukti_yearly_pass). If left blank, it is generated automatically from plan name.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            item {
+                SafeOutlinedTextField(
                     value = imageUrl,
                     onValueChange = { imageUrl = it },
                     label = { Text("Promotional Banner Image URL (Optional)") },
@@ -304,6 +323,24 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
+            }
+            item {
+                Text("Exam Target", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Select Exam Targets for this Plan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        MultiSelectExamDropdownMenu(
+                            label = "Exam Target(s)",
+                            selectedExams = examTargetExamsSelected,
+                            examOptions = examTitles
+                        )
+                    }
+                }
             }
             item {
                 Text("Pricing (Mandatory)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -749,7 +786,9 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 offerValidity = offerValidity.text,
                                 contents = contentsList.joinToString(separator = "|"),
                                 features = allFeatures.joinToString(separator = "|"),
-                                imageUrl = imageUrl.text
+                                imageUrl = imageUrl.text,
+                                examTarget = if (examTargetExamsSelected.isEmpty()) "All Exams" else examTargetExamsSelected.joinToString(", "),
+                                googlePlayProductId = googlePlayProductId.text.trim()
                             )
                             isSubmitting = true
                             viewModel.requestOrCreatePlan(newPlan) { isSuccess, message ->

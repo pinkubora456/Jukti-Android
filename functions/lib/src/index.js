@@ -1,0 +1,350 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteUserCompletely = exports.toggleUserBlockState = exports.approvePendingRequest = exports.processPurchaseRequest = exports.grantPlanToUser = exports.assignCustomClaims = void 0;
+const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
+const googleapis_1 = require("googleapis");
+admin.initializeApp();
+const db = admin.firestore();
+// Helpers for Server-Side Authorization
+async function requireOwner(context) {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+    // Safe migration/claims check
+    const uid = context.auth.uid;
+    const token = context.auth.token;
+    const userDoc = await db.collection("users").document(uid).get();
+    const dbRole = userDoc.exists ? userDoc.data()?.role : null;
+    if (token.owner !== true && dbRole !== "OWNER") {
+        throw new functions.https.HttpsError("permission-denied", "Owner privileges required");
+    }
+}
+async function requireAdminOrOwner(context) {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+    const uid = context.auth.uid;
+    const token = context.auth.token;
+    const userDoc = await db.collection("users").document(uid).get();
+    const dbRole = userDoc.exists ? userDoc.data()?.role : null;
+    if (token.owner !== true && token.admin !== true && dbRole !== "OWNER" && dbRole !== "ADMIN") {
+        throw new functions.https.HttpsError("permission-denied", "Admin or Owner privileges required");
+    }
+}
+// 1. Assign Custom Claims
+exports.assignCustomClaims = functions.https.onCall(async (data, context) => {
+    await requireOwner(context);
+    const { targetUid, role } = data;
+    if (!targetUid || !role) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing targetUid or role");
+    }
+    const claims = role === "OWNER" ? { owner: true } : role === "ADMIN" ? { admin: true } : {};
+    await admin.auth().setCustomUserClaims(targetUid, claims);
+    // Write trust audit log
+    await db.collection("activity_logs").add({
+        actorUid: context.auth.uid,
+        actorRole: "OWNER",
+        action: `Assigned custom claims: ${JSON.stringify(claims)} to user ${targetUid}`,
+        targetUid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        result: "SUCCESS"
+    });
+    return { success: true, message: `Custom claims set to ${role} successfully` };
+});
+// 2. Grant Plan to User (Owner-Only)
+exports.grantPlanToUser = functions.https.onCall(async (data, context) => {
+    await requireOwner(context);
+    const { targetEmail, planName, durationMs } = data;
+    if (!targetEmail || !planName || !durationMs) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing parameters");
+    }
+    const sanitizedEmail = targetEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_");
+    const purchaseId = "manual_server_" + Date.now();
+    const entitlementMap = {
+        planId: "manual",
+        planName: planName,
+        status: "ACTIVE",
+        validFrom: Date.now(),
+        validUntil: Date.now() + durationMs,
+        benefits: "premium_content,ad_free,mock_tests",
+        source: "OWNER",
+        purchaseId: purchaseId,
+        updatedAt: Date.now()
+    };
+    const batch = db.batch();
+    const userRef = db.collection("users").document(sanitizedEmail);
+    const entitlementRef = userRef.collection("entitlements").document("current");
+    const historyRef = userRef.collection("entitlement_history").document(purchaseId);
+    batch.set(entitlementRef, entitlementMap);
+    batch.set(historyRef, entitlementMap);
+    batch.update(userRef, { isPremium: true });
+    await batch.commit();
+    // Audit log
+    await db.collection("activity_logs").add({
+        actorUid: context.auth.uid,
+        actorRole: "OWNER",
+        action: `Granted plan ${planName} to user ${targetEmail}`,
+        targetUid: sanitizedEmail,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        result: "SUCCESS"
+    });
+    return { success: true };
+});
+// 3. Google Play Purchase Verification & Entitlement Provisioning
+exports.processPurchaseRequest = functions.firestore
+    .document("users/{uid}/purchaseRequests/{requestId}")
+    .onCreate(async (snap, context) => {
+    const data = snap.data();
+    const { uid, requestId } = context.params;
+    if (data.status !== "PENDING_VERIFICATION") {
+        functions.logger.info(`Request ${requestId} is not PENDING_VERIFICATION, skipping.`);
+        return;
+    }
+    const { purchaseToken, productId, packageName } = data;
+    if (!purchaseToken || !productId || !packageName) {
+        functions.logger.error(`Request ${requestId} missing required fields.`);
+        await snap.ref.update({ status: "FAILED", error: "Missing verification parameters" });
+        return;
+    }
+    // Security: Only allow the configured production package name
+    const EXPECTED_PACKAGE_NAME = "com.aistudio.jukti.examprep.app";
+    if (packageName !== EXPECTED_PACKAGE_NAME) {
+        functions.logger.error(`Request ${requestId} has invalid package name: ${packageName}`);
+        await snap.ref.update({ status: "FAILED", error: "PACKAGE_MISMATCH" });
+        return;
+    }
+    // Set up Google Play Developer API Client using Google service account key
+    // Normally configured via Firebase config secrets.
+    const authClient = new googleapis_1.google.auth.GoogleAuth({
+        scopes: ["https://www.googleapis.com/auth/androidpublisher"]
+    });
+    const playDeveloperApi = googleapis_1.google.androidpublisher({
+        version: "v3",
+        auth: authClient
+    });
+    try {
+        // 1. Query the Play Console for in-app product details
+        // Assuming Jukti uses one-time in-app products for plans. If using subscriptions, this would need purchases.subscriptionsv2.get
+        const response = await playDeveloperApi.purchases.products.get({
+            packageName,
+            productId,
+            token: purchaseToken
+        });
+        const purchaseState = response.data.purchaseState; // 0 = purchased, 1 = canceled, 2 = pending
+        if (purchaseState !== 0) {
+            functions.logger.warn(`Purchase ${requestId} invalid state: ${purchaseState}`);
+            await snap.ref.update({ status: "FAILED", error: "NOT_PURCHASED" });
+            return;
+        }
+        // 2. Replay Protection & Idempotency check via Firestore transaction
+        const purchaseId = "play_" + purchaseToken.substring(0, 20);
+        const purchaseRef = db.collection("users").document(uid).collection("purchases").document(purchaseId);
+        // We will create individual entitlements per plan as requested by rules
+        const entitlementRef = db.collection("users").document(uid).collection("entitlements").document(productId);
+        const historyRef = db.collection("users").document(uid).collection("entitlement_history").document(purchaseId);
+        await db.runTransaction(async (transaction) => {
+            const purchaseDoc = await transaction.get(purchaseRef);
+            if (purchaseDoc.exists && (purchaseDoc.data()?.status === "COMPLETED" || purchaseDoc.data()?.status === "PROVISIONED")) {
+                // Already processed, just update the request status
+                transaction.update(snap.ref, { status: "VERIFIED_ALREADY_PROCESSED" });
+                return;
+            }
+            const now = Date.now();
+            // Acknowledge the purchase if needed
+            if (response.data.acknowledgementState === 0) { // 0 = Yet to be acknowledged, 1 = Acknowledged
+                try {
+                    await playDeveloperApi.purchases.products.acknowledge({
+                        packageName,
+                        productId,
+                        token: purchaseToken,
+                        requestBody: { developerPayload: "acknowledged_by_server" }
+                    });
+                }
+                catch (ackError) {
+                    functions.logger.error("Failed to acknowledge purchase, proceeding anyway but could cause refund", ackError);
+                    // We continue provisioning even if ack fails, though in production you might want to retry or handle it.
+                }
+            }
+            // Provision authoritative entitlement
+            // Determine validity on server. Assuming 1 year if not specified by a backend configuration.
+            // For one-time products, Google Play doesn't return expiry, so we set it.
+            const durationMs = 365 * 24 * 60 * 60 * 1000;
+            const entitlementMap = {
+                planId: productId,
+                planName: data.planName || "Play subscription/product",
+                status: "ACTIVE",
+                validFrom: now,
+                validUntil: now + durationMs,
+                benefits: "premium_content,ad_free,mock_tests",
+                source: "GOOGLE_PLAY",
+                purchaseId: purchaseId,
+                updatedAt: now
+            };
+            const purchaseMap = {
+                purchaseId,
+                purchaseToken,
+                productId,
+                packageName,
+                timestamp: now,
+                status: "COMPLETED",
+                verificationStatus: "VERIFIED"
+            };
+            transaction.set(purchaseRef, purchaseMap);
+            transaction.set(entitlementRef, entitlementMap);
+            transaction.set(historyRef, entitlementMap);
+            // Optionally keep "current" for backward compatibility, but we now rely on individual entitlements
+            transaction.set(db.collection("users").document(uid).collection("entitlements").document("current"), entitlementMap);
+            transaction.update(db.collection("users").document(uid), { isPremium: true });
+            // Update request document
+            transaction.update(snap.ref, {
+                status: "VERIFIED",
+                resolvedAt: now,
+                purchaseId: purchaseId
+            });
+        });
+        functions.logger.info(`Successfully verified and provisioned purchase ${purchaseId} for user ${uid}`);
+    }
+    catch (err) {
+        functions.logger.error("Play purchase verification failed", err);
+        // Determine if error is a 400 (invalid token, mismatch) or 500 (API down)
+        const isGoogleApiError = err.response && err.response.status;
+        const errorCode = isGoogleApiError ? `GOOGLE_API_${err.response.status}` : "VERIFICATION_ERROR";
+        await snap.ref.update({ status: "FAILED", error: errorCode, errorDetails: err.message });
+    }
+});
+// 4. Atomic Pending Request Approval
+exports.approvePendingRequest = functions.https.onCall(async (data, context) => {
+    await requireAdminOrOwner(context);
+    const { requestId } = data;
+    if (!requestId) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing request ID");
+    }
+    const reqRef = db.collection("pending_requests").document(requestId);
+    try {
+        const result = await db.runTransaction(async (transaction) => {
+            const reqDoc = await transaction.get(reqRef);
+            if (!reqDoc.exists) {
+                throw new functions.https.HttpsError("not-found", "Request not found");
+            }
+            const status = reqDoc.data()?.status;
+            if (status !== "PENDING") {
+                throw new functions.https.HttpsError("failed-precondition", `Request already in state ${status}`);
+            }
+            // Transition to PROCESSING atomically
+            transaction.update(reqRef, { status: "PROCESSING" });
+            return reqDoc.data();
+        });
+        // Execute actual execution inside function or handoff to backend
+        // Finally update status to APPROVED
+        await reqRef.update({ status: "APPROVED", resolvedBy: context.auth.uid, resolvedAt: Date.now() });
+        // Trust Audit Log
+        await db.collection("activity_logs").add({
+            actorUid: context.auth.uid,
+            actorRole: context.auth.token.admin ? "ADMIN" : "OWNER",
+            action: `Approved and processed request: ${requestId}`,
+            targetUid: result?.targetId || "",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            result: "SUCCESS"
+        });
+        return { success: true };
+    }
+    catch (err) {
+        throw new functions.https.HttpsError("internal", err.message || "Approval process failed");
+    }
+});
+// 5. Trusted User Blocking
+exports.toggleUserBlockState = functions.https.onCall(async (data, context) => {
+    await requireOwner(context);
+    const { targetUid, block } = data;
+    if (!targetUid) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing targetUid");
+    }
+    // 1. Disable/Enable in Firebase Authentication
+    await admin.auth().updateUser(targetUid, { disabled: block });
+    // 2. Revoke Refresh Tokens to immediately invalidate active sessions
+    if (block) {
+        await admin.auth().revokeRefreshTokens(targetUid);
+    }
+    // 3. Update Firestore Document
+    await db.collection("users").document(targetUid).update({
+        role: block ? "BLOCKED" : "USER",
+        isPremium: block ? false : admin.firestore.FieldValue.increment(0)
+    });
+    // 4. Audit Log
+    await db.collection("activity_logs").add({
+        actorUid: context.auth.uid,
+        actorRole: "OWNER",
+        action: `${block ? "Blocked" : "Unblocked"} user UID: ${targetUid}`,
+        targetUid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        result: "SUCCESS"
+    });
+    return { success: true };
+});
+// 6. Trusted User Deletion
+exports.deleteUserCompletely = functions.https.onCall(async (data, context) => {
+    await requireOwner(context);
+    const { targetUid } = data;
+    if (!targetUid) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing targetUid");
+    }
+    // 1. Delete/Disable from Firebase Auth
+    await admin.auth().deleteUser(targetUid);
+    // 2. Invalidate refresh tokens
+    await admin.auth().revokeRefreshTokens(targetUid);
+    // 3. Clean up Firestore user profile & entitlements
+    const userRef = db.collection("users").document(targetUid);
+    await userRef.collection("entitlements").document("current").delete();
+    await userRef.update({
+        role: "DELETED",
+        isPremium: false,
+        name: "Deleted User",
+        email: "deleted@jukti.in",
+        deletedAt: Date.now()
+    });
+    // 4. Audit Log
+    await db.collection("activity_logs").add({
+        actorUid: context.auth.uid,
+        actorRole: "OWNER",
+        action: `Permanently deleted user auth and profile for UID: ${targetUid}`,
+        targetUid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        result: "SUCCESS"
+    });
+    return { success: true };
+});
+//# sourceMappingURL=index.js.map

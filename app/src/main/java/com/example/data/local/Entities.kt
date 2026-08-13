@@ -144,8 +144,70 @@ data class UserProfileEntity(
     val isLoggedIn: Boolean = false,
     val currentDeviceId: String = "",
     val activeDeviceId: String = "",
-    val uid: String = ""
-)
+    val uid: String = "",
+    val profileName: String = "",
+    val registrationName: String = "",
+    val googleName: String = ""
+) {
+    fun getResolvedName(): String {
+        // Priority 1 — Name added/edited by the user in the Jukti Profile section
+        val pName = profileName.trim()
+        if (pName.isNotBlank() && 
+            !pName.equals("null", ignoreCase = true) && 
+            !pName.equals("Guest User", ignoreCase = true) &&
+            !pName.equals("Assam Scholar", ignoreCase = true) &&
+            !pName.equals("User", ignoreCase = true)) {
+            return pName
+        }
+
+        // Priority 2 — Name provided during Jukti registration/login setup
+        val rName = registrationName.trim()
+        if (rName.isNotBlank() && 
+            !rName.equals("null", ignoreCase = true) && 
+            !rName.equals("Guest User", ignoreCase = true) &&
+            !rName.equals("Assam Scholar", ignoreCase = true) &&
+            !rName.equals("User", ignoreCase = true)) {
+            return rName
+        }
+
+        // Priority 3 — Google account name from the local database or Firebase
+        val gName = googleName.trim()
+        if (gName.isNotBlank() && 
+            !gName.equals("null", ignoreCase = true) && 
+            !gName.equals("Guest User", ignoreCase = true) &&
+            !gName.equals("Assam Scholar", ignoreCase = true) &&
+            !gName.equals("User", ignoreCase = true)) {
+            return gName
+        }
+
+        val fbUser = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser } catch (e: Exception) { null }
+        val fbDisplayName = fbUser?.displayName?.trim() ?: ""
+        if (fbDisplayName.isNotBlank() && 
+            !fbDisplayName.equals("null", ignoreCase = true) && 
+            !fbDisplayName.equals("Guest User", ignoreCase = true) &&
+            !fbDisplayName.equals("Assam Scholar", ignoreCase = true) &&
+            !fbDisplayName.equals("User", ignoreCase = true)) {
+            return fbDisplayName
+        }
+
+        // Legacy name check
+        val legacyName = name.trim()
+        if (legacyName.isNotBlank() && 
+            !legacyName.equals("null", ignoreCase = true) && 
+            !legacyName.equals("Guest User", ignoreCase = true) &&
+            !legacyName.equals("Assam Scholar", ignoreCase = true) &&
+            !legacyName.equals("User", ignoreCase = true) &&
+            !legacyName.contains("@")) {
+            return legacyName
+        }
+
+        return "User"
+    }
+
+    fun withResolvedName(): UserProfileEntity {
+        return this.copy(name = getResolvedName())
+    }
+}
 
 @Entity(tableName = "about_config")
 data class AboutConfigEntity(
@@ -190,7 +252,9 @@ data class PlanEntity(
     val contents: String = "", // JSON string of contents added
     val features: String = "", // JSON string or comma-separated features
     val isActive: Boolean = true,
-    val imageUrl: String = ""
+    val imageUrl: String = "",
+    val examTarget: String = "",
+    val googlePlayProductId: String = ""
 )
 
 @Entity(tableName = "exams")

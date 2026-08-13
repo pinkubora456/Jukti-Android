@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.local.QuestionEntity
+import com.example.ui.components.EditQuestionDialog
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.viewmodel.Screen
@@ -132,80 +133,4 @@ fun ReportedQuestionCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditQuestionDialog(
-    question: QuestionEntity,
-    onDismiss: () -> Unit,
-    onSave: (QuestionEntity) -> Unit
-) {
-    var questionText by remember { mutableStateOf(question.questionEn) }
-    var optionA by remember { mutableStateOf(question.optionAEn) }
-    var optionB by remember { mutableStateOf(question.optionBEn) }
-    var optionC by remember { mutableStateOf(question.optionCEn) }
-    var optionD by remember { mutableStateOf(question.optionDEn) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Question") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                SafeOutlinedTextField(
-                    value = questionText,
-                    onValueChange = { questionText = it },
-                    label = { Text("Question") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                SafeOutlinedTextField(
-                    value = optionA,
-                    onValueChange = { optionA = it },
-                    label = { Text("Option A") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                SafeOutlinedTextField(
-                    value = optionB,
-                    onValueChange = { optionB = it },
-                    label = { Text("Option B") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                SafeOutlinedTextField(
-                    value = optionC,
-                    onValueChange = { optionC = it },
-                    label = { Text("Option C") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                SafeOutlinedTextField(
-                    value = optionD,
-                    onValueChange = { optionD = it },
-                    label = { Text("Option D") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(
-                    question.copy(
-                        questionEn = questionText,
-                        optionAEn = optionA,
-                        optionBEn = optionB,
-                        optionCEn = optionC,
-                        optionDEn = optionD,
-                        isReported = false
-                    )
-                )
-            }) {
-                Text("Save & Resolve")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}

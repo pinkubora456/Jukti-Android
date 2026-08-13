@@ -94,23 +94,84 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                SafeOutlinedTextField(
-                    value = subject,
-                    onValueChange = { subject = it },
-                    label = { Text("Subject") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                ExposedDropdownMenuBox(
+                    expanded = subjectExpanded,
+                    onExpandedChange = { subjectExpanded = !subjectExpanded }
+                ) {
+                    SafeOutlinedTextField(
+                        value = subject,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Subject") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = subjectExpanded,
+                        onDismissRequest = { subjectExpanded = false }
+                    ) {
+                        if (subjectsList.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No subjects available in workspace") },
+                                onClick = { subjectExpanded = false }
+                            )
+                        } else {
+                            subjectsList.forEach { selSubject ->
+                                DropdownMenuItem(
+                                    text = { Text(selSubject) },
+                                    onClick = {
+                                        subject = selSubject
+                                        chapter = "" // reset chapter on subject change
+                                        subjectExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             item {
-                SafeOutlinedTextField(
-                    value = chapter,
-                    onValueChange = { chapter = it },
-                    label = { Text("Chapter") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                ExposedDropdownMenuBox(
+                    expanded = chapterExpanded,
+                    onExpandedChange = { chapterExpanded = !chapterExpanded }
+                ) {
+                    SafeOutlinedTextField(
+                        value = chapter,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Chapter") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = chapterExpanded,
+                        onDismissRequest = { chapterExpanded = false }
+                    ) {
+                        if (chaptersList.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text(if (subject.isBlank()) "Select a subject first" else "No chapters available") },
+                                onClick = { chapterExpanded = false }
+                            )
+                        } else {
+                            chaptersList.forEach { selChapter ->
+                                DropdownMenuItem(
+                                    text = { Text(selChapter) },
+                                    onClick = {
+                                        chapter = selChapter
+                                        chapterExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             item {
-                Box(modifier = Modifier.fillMaxWidth().clickable { targetExamDialogVisible = true }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { targetExamDialogVisible = true }
+                ) {
                     SafeOutlinedTextField(
                         value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
                         onValueChange = {},
@@ -125,6 +186,11 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                             disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { targetExamDialogVisible = true }
                     )
                 }
             }
@@ -423,34 +489,38 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             onDismissRequest = { targetExamDialogVisible = false },
             title = { Text("Select Target Exams") },
             text = {
-                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                    items(exams) { exam ->
-                        val isSelected = selectedExams.contains(exam.title)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (isSelected) {
-                                        selectedExams.remove(exam.title)
-                                    } else {
-                                        selectedExams.add(exam.title)
+                if (exams.isEmpty()) {
+                    Text("No exams available. Please add exams in Manage Exams first.", color = MaterialTheme.colorScheme.error)
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(exams) { exam ->
+                            val isSelected = selectedExams.contains(exam.title)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedExams.remove(exam.title)
+                                        } else {
+                                            selectedExams.add(exam.title)
+                                        }
                                     }
-                                }
-                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
-                                        if (!selectedExams.contains(exam.title)) selectedExams.add(exam.title)
-                                    } else {
-                                        selectedExams.remove(exam.title)
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            if (!selectedExams.contains(exam.title)) selectedExams.add(exam.title)
+                                        } else {
+                                            selectedExams.remove(exam.title)
+                                        }
                                     }
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(exam.title, style = MaterialTheme.typography.bodyLarge)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(exam.title, style = MaterialTheme.typography.bodyLarge)
+                            }
                         }
                     }
                 }

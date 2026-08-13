@@ -50,7 +50,64 @@ object SampleData {
     val initialFaqs = emptyList<FaqEntity>()
     val samplePlans = emptyList<PlanEntity>()
     val sampleExams = emptyList<ExamEntity>()
-    val sampleSubjectsChapters = emptyList<SubjectChapterEntity>()
+    val sampleSubjectsChapters = listOf(
+        // 1. Assam History & Culture
+        SubjectChapterEntity(id = 1L, subject = "Assam History & Culture", chapter = "Ancient and Medieval Assam"),
+        SubjectChapterEntity(id = 2L, subject = "Assam History & Culture", chapter = "Ahom Kingdom and Administration"),
+        SubjectChapterEntity(id = 3L, subject = "Assam History & Culture", chapter = "British Rule and Freedom Struggle in Assam"),
+        SubjectChapterEntity(id = 4L, subject = "Assam History & Culture", chapter = "Art, Culture, Festivals and Traditions of Assam"),
+
+        // 2. Assam Geography & Economy
+        SubjectChapterEntity(id = 5L, subject = "Assam Geography & Economy", chapter = "Physiography, Climate and River Systems of Assam"),
+        SubjectChapterEntity(id = 6L, subject = "Assam Geography & Economy", chapter = "National Parks, Wildlife Sanctuaries and Biodiversity"),
+        SubjectChapterEntity(id = 7L, subject = "Assam Geography & Economy", chapter = "Minerals, Industries and Natural Resources"),
+        SubjectChapterEntity(id = 8L, subject = "Assam Geography & Economy", chapter = "Demography, Agriculture and Economy of Assam"),
+
+        // 3. Indian Polity & Constitution
+        SubjectChapterEntity(id = 9L, subject = "Indian Polity & Constitution", chapter = "Preamble, Fundamental Rights and DPSP"),
+        SubjectChapterEntity(id = 10L, subject = "Indian Polity & Constitution", chapter = "Union Executive and Parliament"),
+        SubjectChapterEntity(id = 11L, subject = "Indian Polity & Constitution", chapter = "Judiciary and Constitutional Bodies"),
+        SubjectChapterEntity(id = 12L, subject = "Indian Polity & Constitution", chapter = "Panchayati Raj and Local Government"),
+
+        // 4. Indian History & National Movement
+        SubjectChapterEntity(id = 13L, subject = "Indian History & National Movement", chapter = "Indus Valley Civilization & Vedic Period"),
+        SubjectChapterEntity(id = 14L, subject = "Indian History & National Movement", chapter = "Maurya, Gupta and Mughal Empires"),
+        SubjectChapterEntity(id = 15L, subject = "Indian History & National Movement", chapter = "Revolt of 1857 and Social Reform Movements"),
+        SubjectChapterEntity(id = 16L, subject = "Indian History & National Movement", chapter = "Indian National Movement (1885-1947)"),
+
+        // 5. General English
+        SubjectChapterEntity(id = 17L, subject = "General English", chapter = "Grammar & Sentence Correction"),
+        SubjectChapterEntity(id = 18L, subject = "General English", chapter = "Synonyms, Antonyms & Vocabulary"),
+        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "Idioms, Phrases & One-Word Substitution"),
+        SubjectChapterEntity(id = 20L, subject = "General English", chapter = "Reading Comprehension & Para Jumbles"),
+
+        // 6. General Mathematics
+        SubjectChapterEntity(id = 21L, subject = "General Mathematics", chapter = "Number System, LCM & HCF"),
+        SubjectChapterEntity(id = 22L, subject = "General Mathematics", chapter = "Percentage, Ratio & Proportion"),
+        SubjectChapterEntity(id = 23L, subject = "General Mathematics", chapter = "Profit, Loss, Discount & Simple/Compound Interest"),
+        SubjectChapterEntity(id = 24L, subject = "General Mathematics", chapter = "Time, Work, Speed, Distance & Mensuration"),
+
+        // 7. Logical Reasoning & Mental Ability
+        SubjectChapterEntity(id = 25L, subject = "Logical Reasoning & Mental Ability", chapter = "Coding-Decoding, Series & Analogy"),
+        SubjectChapterEntity(id = 26L, subject = "Logical Reasoning & Mental Ability", chapter = "Blood Relations & Direction Sense Test"),
+        SubjectChapterEntity(id = 27L, subject = "Logical Reasoning & Mental Ability", chapter = "Seating Arrangement, Puzzles & Venn Diagrams"),
+        SubjectChapterEntity(id = 28L, subject = "Logical Reasoning & Mental Ability", chapter = "Syllogism, Statements & Assumptions"),
+
+        // 8. General Science
+        SubjectChapterEntity(id = 29L, subject = "General Science", chapter = "Physics: Mechanics, Light & Electricity"),
+        SubjectChapterEntity(id = 30L, subject = "General Science", chapter = "Chemistry: Elements, Compounds & Reactions"),
+        SubjectChapterEntity(id = 31L, subject = "General Science", chapter = "Biology: Human Anatomy, Nutrition & Diseases"),
+
+        // 9. Computer Knowledge
+        SubjectChapterEntity(id = 32L, subject = "Computer Knowledge", chapter = "Computer Fundamentals & Architecture"),
+        SubjectChapterEntity(id = 33L, subject = "Computer Knowledge", chapter = "Operating Systems & MS Office (Word, Excel, PowerPoint)"),
+        SubjectChapterEntity(id = 34L, subject = "Computer Knowledge", chapter = "Internet, Networking & Cyber Security"),
+
+        // 10. Current Affairs & General Awareness
+        SubjectChapterEntity(id = 35L, subject = "Current Affairs & General Awareness", chapter = "National Current Affairs (2025-2026)"),
+        SubjectChapterEntity(id = 36L, subject = "Current Affairs & General Awareness", chapter = "State (Assam) Current Affairs & Government Schemes"),
+        SubjectChapterEntity(id = 37L, subject = "Current Affairs & General Awareness", chapter = "Sports, Awards and Important Personalities")
+    )
 
     val initialUserProfile = UserProfileEntity(
         id = 1,

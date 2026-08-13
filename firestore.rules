@@ -6,27 +6,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdminOrOwnerEmail() {
+      return request.auth != null && request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null &&
+             request.auth.token.email.matches('(?i)(juktieducation@gmail\\.com|borapinku151@gmail\\.com)');
+    }
+
     function isOwner() {
       return isSignedIn() && (
+        isAdminOrOwnerEmail() ||
         request.auth.token.owner == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER' &&
-         request.auth.token.owner == true) ||
-        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null && 
-         request.auth.token.email.matches('(?i)juktieducation@gmail\\.com') && request.auth.token.owner == true)
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER')
       );
     }
 
     function isAdminOrOwner() {
       return isSignedIn() && (
+        isOwner() ||
+        isAdminOrOwnerEmail() ||
         request.auth.token.admin == true ||
         request.auth.token.owner == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER') &&
-         (request.auth.token.admin == true || request.auth.token.owner == true)) ||
-        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null && 
-         request.auth.token.email.matches('(?i)borapinku151@gmail\\.com') && request.auth.token.admin == true)
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER'))
       );
     }
 
@@ -39,30 +41,40 @@ service cloud.firestore {
     // User profiles collection
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
-      allow update: if isSignedIn() && request.auth.uid == userId 
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']))
-                    || isOwner();
-      allow create: if isSignedIn() && request.auth.uid == userId 
-                    && request.resource.data.role == 'USER' 
-                    && request.resource.data.isPremium == false
-                    || isOwner();
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId && 
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']) || isAdminOrOwnerEmail())
+      ) || isOwner();
+      allow create: if isSignedIn() && (
+        (request.auth.uid == userId && request.resource.data.role == 'USER' && request.resource.data.isPremium == false) ||
+        isAdminOrOwnerEmail()
+      ) || isOwner();
     }
 
     match /users/{userId}/purchases/{purchaseId} {
-      allow read: if isSignedIn() && request.auth.uid == userId || isOwner();
-      allow write: if isSignedIn() && request.auth.uid == userId 
-                   && request.resource.data.status == 'PENDING'
-                   || isOwner();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
+      allow write: if isOwner();
     }
 
     match /users/{userId}/entitlements/{entitlementId} {
-      allow read: if isSignedIn() && request.auth.uid == userId || isOwner();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
       allow write: if isOwner();
     }
 
     match /users/{userId}/entitlement_history/{historyId} {
-      allow read: if isOwner();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
       allow write: if isOwner();
+    }
+
+    match /users/{userId}/purchaseRequests/{requestId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
+      allow create: if isSignedIn() && request.auth.uid == userId
+                    && request.resource.data.status == 'PENDING_VERIFICATION'
+                    && !('isPremium' in request.resource.data)
+                    && !('validUntil' in request.resource.data)
+                    && !('verificationStatus' in request.resource.data)
+                    && !('entitlementStatus' in request.resource.data);
+      allow update, delete: if isOwner();
     }
     
     // Question Progress (Subcollection)

@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
         SyncQueueEntity::class,
         EntitlementEntity::class
     ],
-    version = 28,
+    version = 31,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -91,6 +91,26 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `uid` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `examTarget` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `profileName` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `registrationName` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `googleName` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -98,7 +118,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

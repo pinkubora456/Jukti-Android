@@ -55,6 +55,9 @@ class FirebaseRepository {
                 "currentDeviceId" to profile.currentDeviceId,
                 "activeDeviceId" to profile.activeDeviceId,
                 "uid" to profile.uid.ifBlank { authUid },
+                "profileName" to profile.profileName,
+                "registrationName" to profile.registrationName,
+                "googleName" to profile.googleName,
                 "lastSyncedAt" to System.currentTimeMillis()
             )
             val isOwnerUser = profile.role == "OWNER" || auth?.currentUser?.email?.contains("juktieducation", ignoreCase = true) == true
@@ -98,7 +101,10 @@ class FirebaseRepository {
                     isLoggedIn = snapshot.getBoolean("isLoggedIn") ?: true,
                     currentDeviceId = snapshot.getString("currentDeviceId") ?: "",
                     activeDeviceId = snapshot.getString("activeDeviceId") ?: "",
-                    uid = snapshot.getString("uid") ?: docId
+                    uid = snapshot.getString("uid") ?: docId,
+                    profileName = snapshot.getString("profileName") ?: "",
+                    registrationName = snapshot.getString("registrationName") ?: "",
+                    googleName = snapshot.getString("googleName") ?: ""
                 )
             } else null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -331,7 +337,8 @@ class FirebaseRepository {
         "contents" to p.contents,
         "features" to p.features,
         "isActive" to p.isActive,
-        "imageUrl" to p.imageUrl
+        "imageUrl" to p.imageUrl,
+        "examTarget" to p.examTarget
     )
 
     private fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(
@@ -629,7 +636,8 @@ class FirebaseRepository {
                     features = doc.getString("features") ?: "",
                     contents = doc.getString("contents") ?: "",
                     isActive = doc.getBoolean("isActive") ?: true,
-                    imageUrl = doc.getString("imageUrl") ?: ""
+                    imageUrl = doc.getString("imageUrl") ?: "",
+                    examTarget = doc.getString("examTarget") ?: ""
                 )
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }

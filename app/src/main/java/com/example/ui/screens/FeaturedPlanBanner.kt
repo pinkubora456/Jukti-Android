@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.sp
 fun FeaturedPlanBanner(
     plan: PlanEntity,
     onBuyClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isPlanActive: Boolean = false
 ) {
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -145,25 +146,32 @@ fun FeaturedPlanBanner(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     
                     Text(
-                        text = "NOT REFUNDABLE",
+                        text = "NOT REFUNDABLE • Secure transaction via Google Play Billing",
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = androidx.compose.ui.graphics.Color.White,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
                     Button(
                         onClick = {
-                            showDetailsDialog = false
-                            onBuyClick()
+                            if (!isPlanActive) {
+                                showDetailsDialog = false
+                                onBuyClick()
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        enabled = !isPlanActive,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPlanActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                            contentColor = if (isPlanActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
-                        Text("Buy Now", fontWeight = FontWeight.Bold)
+                        Text(if (isPlanActive) "✅ Active Plan" else "Buy Now", fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -343,14 +351,14 @@ fun FeaturedPlanBanner(
                         Text("More Info", fontWeight = FontWeight.Bold)
                     }
                     Button(
-                        onClick = onBuyClick,
+                        onClick = { showDetailsDialog = true },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.onPrimary,
-                            contentColor = MaterialTheme.colorScheme.primary
+                            containerColor = if (isPlanActive) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f) else MaterialTheme.colorScheme.onPrimary,
+                            contentColor = if (isPlanActive) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.primary
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Buy Now", fontWeight = FontWeight.Bold)
+                        Text(if (isPlanActive) "✅ Active" else "Buy Now", fontWeight = FontWeight.Bold)
                     }
                 }
             }

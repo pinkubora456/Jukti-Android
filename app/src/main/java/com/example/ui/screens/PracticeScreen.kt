@@ -770,6 +770,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 onDismissRequest = { showReportDialog = false },
                 onSubmitReport = { reason, details ->
                     showReportDialog = false
+                    viewModel.reportQuestion(currentQuestion)
                     android.widget.Toast.makeText(context, "Question reported successfully", android.widget.Toast.LENGTH_SHORT).show()
                 }
             )
