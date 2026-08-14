@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.components.getLogoIcon
 import com.example.ui.viewmodel.JuktiViewModel
 import kotlinx.coroutines.delay
@@ -39,7 +40,7 @@ fun SplashScreen(viewModel: JuktiViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC)), // Very light blue/white
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -52,12 +53,27 @@ fun SplashScreen(viewModel: JuktiViewModel) {
                 modifier = Modifier.size(100.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = getLogoIcon(aboutConfig.logoIconName),
-                        contentDescription = "App Logo",
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
+                    if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(localLogo)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "App Logo",
+                            modifier = Modifier.size(64.dp),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                            error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
+                            fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = getLogoIcon(aboutConfig.logoIconName),
+                            contentDescription = "App Logo",
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             
@@ -73,9 +89,12 @@ fun SplashScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "Jukti Test Your Knowledge",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = aboutConfig.appSubtitleEn.ifEmpty { "Test Your Knowledge" },
+                style = MaterialTheme.typography.titleMedium.copy(
+                    letterSpacing = 1.2.sp
+                ),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(48.dp))

@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
         SyncQueueEntity::class,
         EntitlementEntity::class
     ],
-    version = 31,
+    version = 32,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -110,6 +110,13 @@ abstract class JuktiDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `googleName` TEXT NOT NULL DEFAULT ''")
             }
         }
+        
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `about_config` ADD COLUMN `logoUrl` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `about_config` ADD COLUMN `logoUpdatedAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -118,7 +125,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

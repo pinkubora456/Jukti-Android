@@ -45,6 +45,7 @@ import com.example.ui.components.getLogoIcon
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(viewModel: JuktiViewModel) {
+    val localContext = androidx.compose.ui.platform.LocalContext.current
     val language by viewModel.language.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val isOwner by viewModel.isOwner.collectAsState()
@@ -347,8 +348,12 @@ fun AboutScreen(viewModel: JuktiViewModel) {
     if (showLogoPickerOnly && isOwner) {
         OwnerLogoPickerDialog(
             currentIconName = aboutConfig.logoIconName,
-            onSelectIcon = { newIconName ->
-                viewModel.updateAboutConfig(aboutConfig.copy(logoIconName = newIconName))
+            onSelectIcon = { newIconName, uri ->
+                if (uri != null) {
+                    viewModel.uploadLogoAndSaveConfig(uri, aboutConfig, localContext)
+                } else {
+                    viewModel.updateAboutConfig(aboutConfig.copy(logoIconName = newIconName))
+                }
                 showLogoPickerOnly = false
             },
             onDismiss = { showLogoPickerOnly = false }
@@ -359,8 +364,12 @@ fun AboutScreen(viewModel: JuktiViewModel) {
     if (showEditDialog && isOwner) {
         OwnerEditAboutDialog(
             currentConfig = aboutConfig,
-            onSave = { updated ->
-                viewModel.updateAboutConfig(updated)
+            onSave = { updated, uri ->
+                if (uri != null) {
+                    viewModel.uploadLogoAndSaveConfig(uri, updated, localContext)
+                } else {
+                    viewModel.updateAboutConfig(updated)
+                }
                 showEditDialog = false
             },
             onDismiss = { showEditDialog = false }
@@ -378,7 +387,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
 @Composable
 fun OwnerLogoPickerDialog(
     currentIconName: String,
-    onSelectIcon: (String) -> Unit,
+    onSelectIcon: (String, Uri?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -386,14 +395,7 @@ fun OwnerLogoPickerDialog(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val file = File(context.filesDir, "custom_logo_${System.currentTimeMillis()}.jpg")
-            inputStream?.use { input ->
-                file.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-            onSelectIcon("custom_logo:${file.absolutePath}")
+            onSelectIcon(uri.toString(), uri)
         }
     }
 
@@ -452,7 +454,7 @@ fun OwnerLogoPickerDialog(
                         val iconVector = getLogoIcon(iconKey)
 
                         Surface(
-                            onClick = { onSelectIcon(iconKey) },
+                            onClick = { onSelectIcon(iconKey, null) },
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                             border = androidx.compose.foundation.BorderStroke(
@@ -496,7 +498,7 @@ fun OwnerLogoPickerDialog(
 @Composable
 fun OwnerEditAboutDialog(
     currentConfig: AboutConfigEntity,
-    onSave: (AboutConfigEntity) -> Unit,
+    onSave: (AboutConfigEntity, Uri?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var title by remember { mutableStateOf(currentConfig.appTitle) }
@@ -519,18 +521,13 @@ fun OwnerEditAboutDialog(
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val context = LocalContext.current
+    var selectedLogoUri by remember { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val file = File(context.filesDir, "custom_logo_${System.currentTimeMillis()}.jpg")
-            inputStream?.use { input ->
-                file.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-            logoIconName = "custom_logo:${file.absolutePath}"
+            selectedLogoUri = uri
+            logoIconName = uri.toString()
         }
     }
 
@@ -825,15 +822,14 @@ fun OwnerEditAboutDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(
-                        currentConfig.copy(
+                    val updatedConfig = currentConfig.copy(
                             appTitle = title,
                             appSubtitleEn = subtitleEn,
                             appSubtitleAs = subtitleAs,
                             versionText = versionText,
                             missionEn = missionEn,
                             missionAs = missionAs,
-                            logoIconName = logoIconName,
+                            logoIconName = if (selectedLogoUri != null) currentConfig.logoIconName else logoIconName,
                             developerTagline = developerTagline,
                             copyrightText = copyrightText,
                             founderName = founderName,
@@ -844,7 +840,7 @@ fun OwnerEditAboutDialog(
                             founderPhotoUrl = founderPhotoUrl,
                             playStoreUrl = playStoreUrl
                         )
-                    )
+                    onSave(updatedConfig, selectedLogoUri)
                 }
             ) {
                 Text("Save Changes")

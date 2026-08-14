@@ -1172,6 +1172,70 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    
+    fun uploadLogoAndSaveConfig(uri: android.net.Uri, config: com.example.data.local.AboutConfigEntity, context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
+                val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
+                val ref = storage.reference.child("assets/logo.jpg")
+                val uploadTask = ref.putBytes(bytes).await()
+                val downloadUrl = ref.downloadUrl.await().toString()
+                
+                val updatedConfig = config.copy(
+                    logoUrl = downloadUrl,
+                    logoUpdatedAt = System.currentTimeMillis()
+                )
+                updateAboutConfig(updatedConfig)
+                // Also cache locally
+                try {
+                    val file = java.io.File(context.filesDir, "cached_logo.jpg")
+                    java.io.FileOutputStream(file).use { it.write(bytes) }
+                } catch(e: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("JuktiViewModel", "Error uploading logo", e)
+            }
+        }
+    }
+
+    
+    init {
+        viewModelScope.launch {
+            aboutConfig.collect { config ->
+                if (config.logoUrl.isNotEmpty()) {
+                    syncLogoLocally(config.logoUrl, config.logoUpdatedAt)
+                }
+            }
+        }
+    }
+
+    private fun syncLogoLocally(url: String, updatedAt: Long) {
+        val app = getApplication<android.app.Application>()
+        val prefs = app.getSharedPreferences("jukti_prefs", android.content.Context.MODE_PRIVATE)
+        val cachedUpdatedAt = prefs.getLong("logo_updated_at", 0L)
+        
+        if (updatedAt > cachedUpdatedAt) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val request = okhttp3.Request.Builder().url(url).build()
+                    val client = okhttp3.OkHttpClient()
+                    val response = client.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        response.body?.byteStream()?.use { input ->
+                            val file = java.io.File(app.filesDir, "cached_logo.jpg")
+                            java.io.FileOutputStream(file).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        prefs.edit().putLong("logo_updated_at", updatedAt).apply()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("JuktiViewModel", "Error syncing logo", e)
+                }
+            }
+        }
+    }
+
     fun updateAboutConfig(config: AboutConfigEntity) {
         logActivity("Updated About/Config settings")
         viewModelScope.launch {

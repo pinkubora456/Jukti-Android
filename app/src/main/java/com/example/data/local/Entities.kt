@@ -219,6 +219,8 @@ data class AboutConfigEntity(
     val missionEn: String = "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam. We provide comprehensive practice modules, high-yield Assam history and current affairs notes, full-length timed mock tests, and real-time state ranking analytics.",
     val missionAs: String = "যুক্তি এপ্পৰ প্ৰধান উদ্দেশ্য হৈছে অসমৰ সকলো প্ৰতিযোগীতামূলক পৰীক্ষাৰ (APSC, ADRE 2.0, Assam Police, SLRC, TET) প্ৰাৰ্থীসকলক উচ্চমানদণ্ডৰ মক টেষ্ট, বিগত বৰ্ষৰ প্ৰশ্ন আৰু অধ্যয়ন সমল সম্পূৰ্ণ বিনামূলীয়াকৈ তথা সহজ ভাষাত যোগান ধৰা।",
     val logoIconName: String = "School", // "School", "Book", "Library", "Star", "Sparkles", "Psychology", "Award", "Trophy", "Balance", "Gavel"
+    val logoUrl: String = "",
+    val logoUpdatedAt: Long = 0L,
     val copyrightText: String = "Copyright © 2026 Jukti Education Portal. All rights reserved.",
     val developerTagline: String = "Designed & Developed for Assam Aspirants",
     val contactEmail: String = "support@jukti.in",
