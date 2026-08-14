@@ -717,20 +717,40 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     // Session State
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var selectedOptionIndex by remember { mutableStateOf<Int?>(null) }
-    val initialSolvedCount = userProfile?.totalSolved ?: 0
-    var studiedQuestionsCountInSession by remember(userProfile?.id) { mutableStateOf(initialSolvedCount) }
-    var secondsTimer by remember { mutableStateOf(0) }
+    
+    // Remember the initial solved count when the session starts
+    var sessionInitialSolvedCount by remember { mutableStateOf(userProfile?.totalSolved ?: 0) }
+    var studiedQuestionsCountInSession by remember(userProfile?.id) { mutableStateOf(userProfile?.totalSolved ?: 0) }
+    
+    val learnedQuestionIds = remember { mutableStateOf(setOf<Long>()) }
+    val markQuestionLearned: (Long) -> Unit = { questionId ->
+        if (!learnedQuestionIds.value.contains(questionId)) {
+            learnedQuestionIds.value = learnedQuestionIds.value + questionId
+            studiedQuestionsCountInSession++
+            viewModel.recordStudyProgress(1, 10)
+            if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
+                viewModel.showPaywall()
+            }
+        }
+    }
+
+    var sessionTotalSeconds by remember { mutableStateOf(0) }
     var showLimitModal by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showSummaryDialog by remember { mutableStateOf(false) }
+    var finalSessionQuestions by remember { mutableStateOf(0) }
+    var finalSessionTime by remember { mutableStateOf(0) }
 
-    // Live Timer Coroutine per Question
-    LaunchedEffect(currentQuestionIndex, isStudySessionStarted) {
-        secondsTimer = 0
+    // Live Timer Coroutine per Session
+    LaunchedEffect(isStudySessionStarted) {
         if (isStudySessionStarted) {
+            learnedQuestionIds.value = emptySet()
+            sessionInitialSolvedCount = userProfile?.totalSolved ?: 0
+            sessionTotalSeconds = 0
             while (true) {
                 delay(1000L)
-                secondsTimer++
-                if (secondsTimer % 30 == 0 && studiedQuestionsCountInSession > 0) {
+                sessionTotalSeconds++
+                if (sessionTotalSeconds % 30 == 0 && studiedQuestionsCountInSession > sessionInitialSolvedCount) {
                     viewModel.recordStudyProgress(0, 30)
                 }
             }
@@ -941,8 +961,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        val mins = secondsTimer / 60
-                        val secs = secondsTimer % 60
+                        val mins = sessionTotalSeconds / 60
+                        val secs = sessionTotalSeconds % 60
                         val timeStr = String.format(Locale.US, "%02d:%02d", mins, secs)
                         Text(
                             text = timeStr,
@@ -1124,13 +1144,6 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 .clickable {
                                     if (selectedOptionIndex == null) {
                                         selectedOptionIndex = optIndex
-                                        studiedQuestionsCountInSession++
-                                        viewModel.recordStudyProgress(1, 10)
-
-                                        // Free plan limit check: 25 questions
-                                        if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
-                                            viewModel.showPaywall()
-                                        }
                                     }
                                 },
                             shape = RoundedCornerShape(12.dp),
@@ -1269,6 +1282,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         // Next Button (>)
                         Button(
                             onClick = {
+                                markQuestionLearned(currentQuestion.id)
                                 if (currentQuestionIndex < studyQuestionsList.size - 1) {
                                     currentQuestionIndex++
                                     selectedOptionIndex = null
@@ -1282,9 +1296,82 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next", modifier = Modifier.size(18.dp))
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // End Learning Button
+                    OutlinedButton(
+                        onClick = {
+                            markQuestionLearned(currentQuestion.id)
+                            finalSessionTime = sessionTotalSeconds
+                            finalSessionQuestions = studiedQuestionsCountInSession - sessionInitialSolvedCount
+                            isStudySessionStarted = false
+                            showSummaryDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = "End Learning", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("End Learning", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
+    }
+
+    // Learning Summary Dialog
+    if (showSummaryDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showSummaryDialog = false
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = { Text("Learning Session Summary", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        text = "Great job! Here is a summary of your study session:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Questions Learned:", fontWeight = FontWeight.Medium)
+                        Text("$finalSessionQuestions", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Time Spent:", fontWeight = FontWeight.Medium)
+                        val m = finalSessionTime / 60
+                        val s = finalSessionTime % 60
+                        Text("${m} min ${s} sec", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSummaryDialog = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Done")
+                }
+            }
+        )
     }
 
         // Free Plan Limit Dialog

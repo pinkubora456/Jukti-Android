@@ -49,6 +49,11 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     var testTypeExpanded by remember { mutableStateOf(false) }
     val testTypeOptions = listOf("Full-Length", "Subject-wise", "Chapter-wise")
 
+    var selectedMockSubject by remember { mutableStateOf("") }
+    var mockSubjectExpanded by remember { mutableStateOf(false) }
+    var selectedMockChapter by remember { mutableStateOf("") }
+    var mockChapterExpanded by remember { mutableStateOf(false) }
+
     var planType by remember { mutableStateOf("Free") }
     var planTypeExpanded by remember { mutableStateOf(false) }
     val planTypeOptions = listOf("Free", "Premium")
@@ -298,6 +303,79 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                 }
             }
 
+            if (testType == "Subject-wise" || testType == "Chapter-wise") {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val mockSubjectsList = allSubjectsChapters.map { it.subject }.distinct()
+                        ExposedDropdownMenuBox(
+                            expanded = mockSubjectExpanded,
+                            onExpandedChange = { mockSubjectExpanded = !mockSubjectExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            SafeOutlinedTextField(
+                                value = selectedMockSubject,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Mock Subject") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mockSubjectExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = mockSubjectExpanded,
+                                onDismissRequest = { mockSubjectExpanded = false }
+                            ) {
+                                mockSubjectsList.forEach { subj ->
+                                    DropdownMenuItem(
+                                        text = { Text(subj) },
+                                        onClick = {
+                                            selectedMockSubject = subj
+                                            selectedMockChapter = ""
+                                            mockSubjectExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (testType == "Chapter-wise") {
+                            val mockChaptersList = allSubjectsChapters.filter { it.subject == selectedMockSubject }.map { it.chapter }.distinct()
+                            ExposedDropdownMenuBox(
+                                expanded = mockChapterExpanded,
+                                onExpandedChange = { mockChapterExpanded = !mockChapterExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                SafeOutlinedTextField(
+                                    value = selectedMockChapter,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Mock Chapter") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mockChapterExpanded) },
+                                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = mockChapterExpanded,
+                                    onDismissRequest = { mockChapterExpanded = false }
+                                ) {
+                                    mockChaptersList.forEach { chap ->
+                                        DropdownMenuItem(
+                                            text = { Text(chap) },
+                                            onClick = {
+                                                selectedMockChapter = chap
+                                                mockChapterExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -437,33 +515,81 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             item {
                 Button(
                     onClick = {
-                        if (mockTitleEn.isNotBlank() && selectedExams.isNotEmpty()) {
-                            val duration = durationMinutes.toIntOrNull() ?: 90
-                            val markPerQ = markPerQuestion.toFloatOrNull() ?: 1.0f
-                            val totalQ = selectedQuestionIds.size.coerceAtLeast(1)
-                            val totalMarksInt = (totalQ * markPerQ).toInt()
-
-                            val newMock = MockTestEntity(
-                                titleEn = mockTitleEn.trim(),
-                                titleAs = mockTitleAs.trim().ifBlank { mockTitleEn.trim() },
-                                category = selectedExams.joinToString(", "),
-                                durationMinutes = duration,
-                                totalQuestions = totalQ,
-                                totalMarks = totalMarksInt,
-                                testType = testType,
-                                subjectOrChapter = selectedSubjectFilter,
-                                negativeMarking = negativeMarking,
-                                isPremium = planType.equals("Premium", ignoreCase = true),
-                                questionIds = selectedQuestionIds.joinToString(","),
-                                markPerQuestion = markPerQ
-                            )
-
-                            viewModel.addMockTest(newMock) {
-                                Toast.makeText(context, "Mock Test created successfully!", Toast.LENGTH_SHORT).show()
-                                viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
-                            }
-                        } else {
+                        if (mockTitleEn.isBlank() || selectedExams.isEmpty()) {
                             Toast.makeText(context, "Please enter mock title and select target exam(s).", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        var finalSubjectOrChapter = selectedSubjectFilter
+                        var finalQuestionIds = selectedQuestionIds.toList()
+                        
+                        if (testType == "Subject-wise") {
+                            if (selectedMockSubject.isBlank()) {
+                                Toast.makeText(context, "Please select a Subject.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val questionsInSubject = allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
+                            if (questionsInSubject.isEmpty()) {
+                                Toast.makeText(context, "No questions found for the selected Subject.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            finalSubjectOrChapter = selectedMockSubject
+                            finalQuestionIds = emptyList() // Will be fetched dynamically
+                        } else if (testType == "Chapter-wise") {
+                            if (selectedMockSubject.isBlank() || selectedMockChapter.isBlank()) {
+                                Toast.makeText(context, "Please select both Subject and Chapter.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val questionsInChapter = allQuestions.filter { 
+                                it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true)
+                            }
+                            if (questionsInChapter.isEmpty()) {
+                                Toast.makeText(context, "No questions found for the selected Chapter.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            finalSubjectOrChapter = "$selectedMockSubject||$selectedMockChapter"
+                            finalQuestionIds = emptyList() // Will be fetched dynamically
+                        } else {
+                            // Full-Length mock requires manually selected questions or a default number
+                            if (finalQuestionIds.isEmpty()) {
+                                Toast.makeText(context, "Please add questions for this Full-Length mock.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                        }
+
+                        val duration = durationMinutes.toIntOrNull() ?: 90
+                        val markPerQ = markPerQuestion.toFloatOrNull() ?: 1.0f
+                        
+                        // For Subject-wise and Chapter-wise, totalQ could be the total number of questions they want in the mock, or the actual number of questions in that category.
+                        // Wait, they have a field for `totalQuestionsText` maybe? There is no field to specify how many questions to pick. Let's just use the count of questions available.
+                        val totalQ = if (testType == "Subject-wise") {
+                            allQuestions.count { it.subject.equals(selectedMockSubject, ignoreCase = true) }
+                        } else if (testType == "Chapter-wise") {
+                            allQuestions.count { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
+                        } else {
+                            finalQuestionIds.size.coerceAtLeast(1)
+                        }
+
+                        val totalMarksInt = (totalQ * markPerQ).toInt()
+
+                        val newMock = MockTestEntity(
+                            titleEn = mockTitleEn.trim(),
+                            titleAs = mockTitleAs.trim().ifBlank { mockTitleEn.trim() },
+                            category = selectedExams.joinToString(", "),
+                            durationMinutes = duration,
+                            totalQuestions = totalQ,
+                            totalMarks = totalMarksInt,
+                            testType = testType,
+                            subjectOrChapter = finalSubjectOrChapter,
+                            negativeMarking = negativeMarking,
+                            isPremium = planType.equals("Premium", ignoreCase = true),
+                            questionIds = finalQuestionIds.joinToString(","),
+                            markPerQuestion = markPerQ
+                        )
+
+                        viewModel.addMockTest(newMock) {
+                            Toast.makeText(context, "Mock Test created successfully!", Toast.LENGTH_SHORT).show()
+                            viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp)

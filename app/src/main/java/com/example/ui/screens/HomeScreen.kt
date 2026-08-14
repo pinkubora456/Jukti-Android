@@ -1083,17 +1083,7 @@ fun MockTestCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = mock.category,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+
                 Text(
                     text = "${mock.durationMinutes} Mins • ${mock.totalQuestions} Qs",
                     style = MaterialTheme.typography.labelSmall,

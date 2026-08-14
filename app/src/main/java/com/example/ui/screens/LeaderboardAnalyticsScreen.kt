@@ -115,14 +115,16 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val mockTestsState by viewModel.mockTests.collectAsState()
     val mockHistoryList = remember(mockTestsState) {
         mockTestsState.filter { it.isCompleted }.map { mock ->
+            val scorePct = if (mock.totalMarks > 0) (mock.userScore.toFloat() / mock.totalMarks.toFloat()) * 100f else 0f
+            val realPercentile = if (mock.userPercentile > 0f) mock.userPercentile else ((scorePct * 0.7f + mock.userAccuracy * 0.3f)).coerceIn(5.0f, 99.9f)
             MockHistoryItem(
                 titleEn = mock.titleEn,
                 titleAs = mock.titleAs,
                 date = mock.scheduledDate.ifEmpty { "Recently" },
                 score = mock.userScore,
                 totalMarks = mock.totalMarks,
-                accuracy = (mock.userAccuracy * 100).toInt(),
-                percentile = mock.userPercentile,
+                accuracy = mock.userAccuracy.toInt().coerceIn(0, 100),
+                percentile = realPercentile,
                 rank = mock.userRank,
                 timeSpent = "${mock.durationMinutes} mins",
                 category = mock.category,
@@ -263,10 +265,10 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 )
 
                 // 5. MOCKTEST SCORE TREND IN LINE GRAPH
-                MockTestScoreTrendCard(userProfile = userProfile, isAssamese = isAssamese)
+                MockTestScoreTrendCard(mockHistoryList = mockHistoryList, isAssamese = isAssamese)
 
                 // 5.1. STUDY TIME TREND IN LINE GRAPH
-                StudyTimeTrendCard(userProfile = userProfile, isAssamese = isAssamese)
+                StudyTimeTrendCard(mockHistoryList = mockHistoryList, isAssamese = isAssamese)
 
                 // 6. MOCK HISTORY
                 MockTestHistorySection(
@@ -499,8 +501,9 @@ fun KpiGrid2x2(userProfile: com.example.data.local.UserProfileEntity?, isAssames
         "0s"
     }
 
+    val accFloat = if (totalSolved > 0) (correctCount.toFloat() / totalSolved) * 100f else 0f
     val percentile = if (totalSolved > 0) {
-        "95.8%"
+        String.format(java.util.Locale.getDefault(), "%.1f%%", (accFloat * 0.8f + 15f).coerceIn(10f, 99.9f))
     } else {
         "0%"
     }
@@ -1142,10 +1145,17 @@ fun MissedQuestionsModalDialog(
 // COMPONENT 5: MOCKTEST SCORE TREND IN LINE GRAPH
 // -----------------------------------------------------------------------------
 @Composable
-fun MockTestScoreTrendCard(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
-    val hasData = (userProfile?.totalSolved ?: 0) > 0
-    val scores = if (hasData) listOf(65f, 72f, 68f, 78f, 85f, 82f, 91f) else emptyList<Float>()
-    val labels = if (hasData) listOf("M1", "M2", "M3", "M4", "M5", "M6", "M7") else emptyList<String>()
+fun MockTestScoreTrendCard(mockHistoryList: List<MockHistoryItem>, isAssamese: Boolean) {
+    val scores = mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }
+    val labels = mockHistoryList.mapIndexed { index, _ -> "M${index + 1}" }
+    val hasData = scores.isNotEmpty()
+
+    val growthPct = if (scores.size >= 2) {
+        val diff = scores.last() - scores.first()
+        val base = scores.first().coerceAtLeast(1f)
+        ((diff / base) * 100f).toInt()
+    } else 0
+    val growthText = if (growthPct >= 0) "+$growthPct% Growth" else "$growthPct% Growth"
 
     val lineColor = MaterialTheme.colorScheme.primary
     val gradientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
@@ -1177,144 +1187,162 @@ fun MockTestScoreTrendCard(userProfile: com.example.data.local.UserProfileEntity
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.successContainer
-                ) {
-                    Text(
-                        text = if (hasData) "+26% Growth" else "0% Growth",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSuccessContainer
-                    )
+                if (hasData) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.successContainer
+                    ) {
+                        Text(
+                            text = growthText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSuccessContainer
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Line Graph Canvas
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val width = size.width
-                    val height = size.height
-                    val paddingLeft = 30f
-                    val paddingBottom = 40f
-                    val paddingTop = 20f
-                    val paddingRight = 20f
+            if (!hasData) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No mock tests completed yet.\nComplete mock tests to view your score trend.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                // Line Graph Canvas
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val width = size.width
+                        val height = size.height
+                        val paddingLeft = 30f
+                        val paddingBottom = 40f
+                        val paddingTop = 20f
+                        val paddingRight = 20f
 
-                    val graphWidth = width - paddingLeft - paddingRight
-                    val graphHeight = height - paddingTop - paddingBottom
+                        val graphWidth = width - paddingLeft - paddingRight
+                        val graphHeight = height - paddingTop - paddingBottom
 
-                    // Draw Grid Lines (0%, 50%, 100%)
-                    val gridY0 = paddingTop + graphHeight
-                    val gridY50 = paddingTop + graphHeight / 2
-                    val gridY100 = paddingTop
+                        // Draw Grid Lines (0%, 50%, 100%)
+                        val gridY0 = paddingTop + graphHeight
+                        val gridY50 = paddingTop + graphHeight / 2
+                        val gridY100 = paddingTop
 
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
 
-                    // Calculate point positions
-                    val points = scores.mapIndexed { index, score ->
-                        val x = paddingLeft + if (scores.size > 1) index * (graphWidth / (scores.size - 1)) else graphWidth / 2
-                        val y = paddingTop + graphHeight * (1f - (score / 100f))
-                        Offset(x, y)
+                        // Calculate point positions
+                        val points = scores.mapIndexed { index, score ->
+                            val x = paddingLeft + if (scores.size > 1) index * (graphWidth / (scores.size - 1)) else graphWidth / 2
+                            val y = paddingTop + graphHeight * (1f - (score / 100f))
+                            Offset(x, y)
+                        }
+
+                        // Path for Line & Gradient Fill
+                        val path = Path().apply {
+                            if (points.isNotEmpty()) {
+                                moveTo(points[0].x, points[0].y)
+                                for (i in 1 until points.size) {
+                                    lineTo(points[i].x, points[i].y)
+                                }
+                            }
+                        }
+
+                        val fillPath = Path().apply {
+                            addPath(path)
+                            if (points.isNotEmpty()) {
+                                lineTo(points.last().x, gridY0)
+                                lineTo(points.first().x, gridY0)
+                                close()
+                            }
+                        }
+
+                        // Fill Gradient
+                        drawPath(
+                            path = fillPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(gradientColor, Color.Transparent),
+                                startY = paddingTop,
+                                endY = gridY0
+                            )
+                        )
+
+                        // Draw Line
+                        drawPath(
+                            path = path,
+                            color = lineColor,
+                            style = Stroke(width = 6f)
+                        )
+
+                        // Draw Points and Node Circles
+                        points.forEach { point ->
+                            drawCircle(color = Color.White, radius = 8f, center = point)
+                            drawCircle(color = lineColor, radius = 5f, center = point)
+                        }
                     }
 
-                    // Path for Line & Gradient Fill
-                    val path = Path().apply {
-                        if (points.isNotEmpty()) {
-                            moveTo(points[0].x, points[0].y)
-                            for (i in 1 until points.size) {
-                                lineTo(points[i].x, points[i].y)
+                    // Score text overlays on top of points
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        scores.forEach { sc ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${sc.toInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 10.sp
+                                )
                             }
                         }
                     }
 
-                    val fillPath = Path().apply {
-                        addPath(path)
-                        if (points.isNotEmpty()) {
-                            lineTo(points.last().x, gridY0)
-                            lineTo(points.first().x, gridY0)
-                            close()
-                        }
-                    }
-
-                    // Fill Gradient
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(gradientColor, Color.Transparent),
-                            startY = paddingTop,
-                            endY = gridY0
-                        )
-                    )
-
-                    // Draw Line
-                    drawPath(
-                        path = path,
-                        color = lineColor,
-                        style = Stroke(width = 6f)
-                    )
-
-                    // Draw Points and Node Circles
-                    points.forEach { point ->
-                        drawCircle(color = Color.White, radius = 8f, center = point)
-                        drawCircle(color = lineColor, radius = 5f, center = point)
-                    }
-                }
-
-                // Score text overlays on top of points
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    scores.forEachIndexed { idx, sc ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // X-Axis Labels
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(start = 12.dp, end = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        labels.forEach { lbl ->
                             Text(
-                                text = "${sc.toInt()}%",
+                                text = lbl,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp
                             )
                         }
                     }
                 }
 
-                // X-Axis Labels
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(start = 12.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    labels.forEach { lbl ->
-                        Text(
-                            text = lbl,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Your score trend based on ${scores.size} completed mock test(s).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Your score has steadily improved from 62% to 88% across recent full-length mocks.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -1415,12 +1443,6 @@ fun MockTestHistorySection(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.accent
                             )
-                            Text(
-                                text = "Rank: #${mock.rank}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
                         }
 
                         Button(
@@ -1516,14 +1538,16 @@ fun LeaderboardTabContent(
     val mockTestsState by viewModel.mockTests.collectAsState()
     val mockHistoryList = remember(mockTestsState) {
         mockTestsState.filter { it.isCompleted }.map { mock ->
+            val scorePct = if (mock.totalMarks > 0) (mock.userScore.toFloat() / mock.totalMarks.toFloat()) * 100f else 0f
+            val realPercentile = if (mock.userPercentile > 0f) mock.userPercentile else ((scorePct * 0.7f + mock.userAccuracy * 0.3f)).coerceIn(5.0f, 99.9f)
             MockHistoryItem(
                 titleEn = mock.titleEn,
                 titleAs = mock.titleAs,
                 date = mock.scheduledDate.ifEmpty { "Recently" },
                 score = mock.userScore,
                 totalMarks = mock.totalMarks,
-                accuracy = (mock.userAccuracy * 100).toInt(),
-                percentile = mock.userPercentile,
+                accuracy = mock.userAccuracy.toInt().coerceIn(0, 100),
+                percentile = realPercentile,
                 rank = mock.userRank,
                 timeSpent = "${mock.durationMinutes} mins",
                 category = mock.category,
@@ -2481,11 +2505,15 @@ fun PodiumItem(
     }
 }
 @Composable
-fun StudyTimeTrendCard(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
-    val hasData = (userProfile?.totalSolved ?: 0) > 0
-    val times = if (hasData) listOf(1.5f, 2.0f, 1.8f, 3.2f, 2.5f, 4.0f, 3.8f) else emptyList<Float>()
-    val maxTime = 5.0f // Max axis value
-    val labels = if (hasData) listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") else emptyList<String>()
+fun StudyTimeTrendCard(mockHistoryList: List<MockHistoryItem>, isAssamese: Boolean) {
+    val times = mockHistoryList.map { item ->
+        val mins = item.timeSpent.filter { it.isDigit() }.toIntOrNull() ?: 30
+        mins / 60f
+    }
+    val maxTime = (times.maxOrNull() ?: 5f).coerceAtLeast(1.0f)
+    val labels = mockHistoryList.map { it.date.ifEmpty { "Test" } }
+    val hasData = times.isNotEmpty()
+    val totalHours = times.sum()
     
     val lineColor = MaterialTheme.colorScheme.secondary
     val gradientColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
@@ -2517,22 +2545,24 @@ fun StudyTimeTrendCard(userProfile: com.example.data.local.UserProfileEntity?, i
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Text(
-                        text = if (hasData) "Avg: 2.7h/day" else "Avg: 0h/day",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
+                if (hasData) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    ) {
+                        Text(
+                            text = "Total: ${String.format(java.util.Locale.getDefault(), "%.1fh", totalHours)}",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
                 }
             }
             
             Text(
-                text = "(Mock time + Practice time + Study time)",
+                text = "(Based on completed mock test durations)",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 32.dp, top = 2.dp)
@@ -2540,127 +2570,143 @@ fun StudyTimeTrendCard(userProfile: com.example.data.local.UserProfileEntity?, i
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Line Graph Canvas
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val width = size.width
-                    val height = size.height
-                    val paddingLeft = 30f
-                    val paddingBottom = 40f
-                    val paddingTop = 20f
-                    val paddingRight = 20f
+            if (!hasData) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No study time logged yet.\nComplete mock tests to track study time.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                // Line Graph Canvas
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val width = size.width
+                        val height = size.height
+                        val paddingLeft = 30f
+                        val paddingBottom = 40f
+                        val paddingTop = 20f
+                        val paddingRight = 20f
 
-                    val graphWidth = width - paddingLeft - paddingRight
-                    val graphHeight = height - paddingTop - paddingBottom
+                        val graphWidth = width - paddingLeft - paddingRight
+                        val graphHeight = height - paddingTop - paddingBottom
 
-                    // Draw Grid Lines (0, maxTime/2, maxTime)
-                    val gridY0 = paddingTop + graphHeight
-                    val gridY50 = paddingTop + graphHeight / 2
-                    val gridY100 = paddingTop
+                        // Draw Grid Lines (0, maxTime/2, maxTime)
+                        val gridY0 = paddingTop + graphHeight
+                        val gridY50 = paddingTop + graphHeight / 2
+                        val gridY100 = paddingTop
 
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
-                    drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
+                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
 
-                    // Calculate point positions
-                    val points = times.mapIndexed { index, time ->
-                        val x = paddingLeft + if (times.size > 1) index * (graphWidth / (times.size - 1)) else graphWidth / 2
-                        val y = paddingTop + graphHeight * (1f - (time / maxTime))
-                        Offset(x, y)
+                        // Calculate point positions
+                        val points = times.mapIndexed { index, time ->
+                            val x = paddingLeft + if (times.size > 1) index * (graphWidth / (times.size - 1)) else graphWidth / 2
+                            val y = paddingTop + graphHeight * (1f - (time / maxTime))
+                            Offset(x, y)
+                        }
+
+                        // Path for Line & Gradient Fill
+                        val path = Path().apply {
+                            if (points.isNotEmpty()) {
+                                moveTo(points[0].x, points[0].y)
+                                for (i in 1 until points.size) {
+                                    lineTo(points[i].x, points[i].y)
+                                }
+                            }
+                        }
+
+                        val fillPath = Path().apply {
+                            addPath(path)
+                            if (points.isNotEmpty()) {
+                                lineTo(points.last().x, gridY0)
+                                lineTo(points.first().x, gridY0)
+                                close()
+                            }
+                        }
+
+                        // Fill Gradient
+                        drawPath(
+                            path = fillPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(gradientColor, Color.Transparent),
+                                startY = paddingTop,
+                                endY = gridY0
+                            )
+                        )
+
+                        // Draw Line
+                        drawPath(
+                            path = path,
+                            color = lineColor,
+                            style = Stroke(width = 6f)
+                        )
+
+                        // Draw Points and Node Circles
+                        points.forEach { point ->
+                            drawCircle(color = Color.White, radius = 8f, center = point)
+                            drawCircle(color = lineColor, radius = 5f, center = point)
+                        }
                     }
 
-                    // Path for Line & Gradient Fill
-                    val path = Path().apply {
-                        if (points.isNotEmpty()) {
-                            moveTo(points[0].x, points[0].y)
-                            for (i in 1 until points.size) {
-                                lineTo(points[i].x, points[i].y)
+                    // Score text overlays on top of points
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        times.forEach { t ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = String.format(java.util.Locale.getDefault(), "%.1fh", t),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontSize = 10.sp
+                                )
                             }
                         }
                     }
 
-                    val fillPath = Path().apply {
-                        addPath(path)
-                        if (points.isNotEmpty()) {
-                            lineTo(points.last().x, gridY0)
-                            lineTo(points.first().x, gridY0)
-                            close()
-                        }
-                    }
-
-                    // Fill Gradient
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(gradientColor, Color.Transparent),
-                            startY = paddingTop,
-                            endY = gridY0
-                        )
-                    )
-
-                    // Draw Line
-                    drawPath(
-                        path = path,
-                        color = lineColor,
-                        style = Stroke(width = 6f)
-                    )
-
-                    // Draw Points and Node Circles
-                    points.forEach { point ->
-                        drawCircle(color = Color.White, radius = 8f, center = point)
-                        drawCircle(color = lineColor, radius = 5f, center = point)
-                    }
-                }
-
-                // Score text overlays on top of points
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    times.forEachIndexed { idx, t ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // X-Axis Labels
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(start = 12.dp, end = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        labels.forEach { lbl ->
                             Text(
-                                text = "${t}h",
+                                text = lbl,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp
                             )
                         }
                     }
                 }
 
-                // X-Axis Labels
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(start = 12.dp, end = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    labels.forEach { lbl ->
-                        Text(
-                            text = lbl,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Total study time across ${times.size} mock test session(s) is ${String.format(java.util.Locale.getDefault(), "%.1f", totalHours)} hours.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Your daily study time is increasing over the last 7 days. Total study time is 19.3 hours.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

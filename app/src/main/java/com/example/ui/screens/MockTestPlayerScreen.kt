@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.ReportQuestionDialog
 import androidx.compose.material.icons.filled.Report
@@ -51,7 +52,30 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
 
-    val activeMockQuestions = questions.take(mockTest?.totalQuestions ?: 10)
+    val activeMockQuestions = remember(mockTest, questions) {
+        val mock = mockTest ?: return@remember emptyList()
+        var filtered = questions
+        
+        if (mock.testType == "Subject-wise") {
+            filtered = filtered.filter { it.subject.equals(mock.subjectOrChapter, ignoreCase = true) }
+        } else if (mock.testType == "Chapter-wise") {
+            val parts = mock.subjectOrChapter.split("||")
+            val subj = parts.getOrNull(0) ?: ""
+            val chap = parts.getOrNull(1) ?: ""
+            filtered = filtered.filter { 
+                it.subject.equals(subj, ignoreCase = true) && it.topic.equals(chap, ignoreCase = true) 
+            }
+        } else {
+            // Full-Length or Exam-wise mock functionality
+            if (mock.questionIds.isNotBlank()) {
+                val ids = mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }.toSet()
+                filtered = filtered.filter { it.id in ids }
+            }
+        }
+        
+        filtered.shuffled().take(mock.totalQuestions)
+    }
+
     val currentQuestion = activeMockQuestions.getOrNull(currentQuestionIndex)
 
     val minutesLeft = timeRemainingSeconds / 60
@@ -106,6 +130,20 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
         )
     }
 
+    if (activeMockQuestions.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(Icons.Default.CloudOff, contentDescription = "Offline", modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                Text("No questions available for this mock test.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Please check your internet connection or Refresh App Data to cache questions offline.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                Button(onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }) {
+                    Text("Go Back")
+                }
+            }
+        }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -146,6 +184,25 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.error
                             )
+                            
+                            val mockType = mockTest?.testType
+                            val subjectOrChapter = mockTest?.subjectOrChapter
+                            if (mockType == "Subject-wise" && !subjectOrChapter.isNullOrBlank()) {
+                                Text(
+                                    text = "«Subject: $subjectOrChapter»",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else if (mockType == "Chapter-wise" && !subjectOrChapter.isNullOrBlank()) {
+                                val parts = subjectOrChapter.split("||")
+                                val subj = parts.getOrNull(0) ?: ""
+                                val chap = parts.getOrNull(1) ?: ""
+                                Text(
+                                    text = "«Subject: $subj\nChapter: $chap»",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

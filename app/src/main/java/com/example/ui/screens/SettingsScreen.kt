@@ -43,7 +43,6 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = LocalContext.current
 
-    var offlineSync by remember { mutableStateOf(true) }
     var showSavedQuestionsDialog by remember { mutableStateOf(false) }
     var showHiddenQuestionsDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
@@ -109,80 +108,6 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                     }
                 }
             }
-
-            // Storage & Cloud Services
-            Text(
-                text = "Storage & Data Services",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Offline Questions Caching", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Store mock tests & questions offline",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = offlineSync, 
-                            onCheckedChange = { offlineSync = it },
-                            colors = SwitchDefaults.colors(
-                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    }
-
-                    HorizontalDivider()
-
-                    ListItem(
-                        headlineContent = {
-                            Text("Refresh Data from Firebase", fontWeight = FontWeight.SemiBold)
-                        },
-                        supportingContent = {
-                            Text(
-                                "Fetch & update latest MCQs, tests, notes and exams from Firebase",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Data", tint = MaterialTheme.colorScheme.primary)
-                        },
-                        trailingContent = {
-                            if (isRefreshingFromFirebase) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(Icons.Default.Sync, contentDescription = "Refresh", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        },
-                        modifier = Modifier.clickable(enabled = !isRefreshingFromFirebase) {
-                            viewModel.refreshDataFromFirebase()
-                        }
-                    )
-                }
-            }
-
-
 
             // Saved & Hidden Questions Management
             Text(
@@ -264,33 +189,6 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            "Clear Progress Data",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            "Reset speed, accuracy, questions solved, and rank",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    leadingContent = {
-                        Icon(Icons.Default.RestartAlt, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    },
-                    modifier = Modifier.clickable { showClearProgressDialog = true }
-                )
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
             ) {
                 ListItem(
@@ -313,6 +211,73 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                     },
                     modifier = Modifier.clickable { showDeleteAccountDialog = true }
                 )
+            }
+
+            // Data & Sync
+            Text(
+                text = "Data & Sync",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = {
+                            Text("Refresh App Data", fontWeight = FontWeight.SemiBold)
+                        },
+                        supportingContent = {
+                            Text(
+                                "Fetch & update latest MCQs, tests, notes and exams",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh App Data", tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingContent = {
+                            if (isRefreshingFromFirebase) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Sync, contentDescription = "Refresh App Data", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        modifier = Modifier.clickable(enabled = !isRefreshingFromFirebase) {
+                            viewModel.refreshDataFromFirebase()
+                        }
+                    )
+
+                    HorizontalDivider()
+
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                "Clear Progress Data",
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                "Reset speed, accuracy, questions solved, and rank",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Default.RestartAlt, contentDescription = "Clear Progress Data", tint = MaterialTheme.colorScheme.error)
+                        },
+                        modifier = Modifier.clickable { showClearProgressDialog = true }
+                    )
+                }
             }
         }
     }

@@ -196,7 +196,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                 )
 
                 MenuItemCard(
-                    title = "Share Jukti",
+                    title = "Share App",
                     description = "Share app with friends & aspirants",
                     icon = Icons.Default.Share,
                     onClick = {
@@ -206,7 +206,7 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                             putExtra(android.content.Intent.EXTRA_TEXT, "Prepare for APSC, ADRE, and Assam Competitive Exams with Jukti! Download now: $link")
                             type = "text/plain"
                         }
-                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Share Jukti via")
+                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Share App via")
                         context.startActivity(shareIntent)
                     }
                 )

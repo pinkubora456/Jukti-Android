@@ -566,12 +566,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-
-                                Text(
-                                    text = if (currentQuestion.examCategory.isNotBlank()) currentQuestion.examCategory else "Practice",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))

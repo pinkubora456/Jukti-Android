@@ -312,12 +312,14 @@ class JuktiRepository(
     suspend fun submitMockResult(mockId: Long, score: Int, accuracy: Float, timeSpentMins: Int) {
         val mock = allMockTests.firstOrNull()?.find { it.id == mockId }
         if (mock != null) {
+            val scorePercentage = if (mock.totalMarks > 0) ((score.toFloat() / mock.totalMarks.toFloat()) * 100f) else 0f
+            val calculatedPercentile = (scorePercentage * 0.7f + accuracy * 0.3f).coerceIn(5.0f, 99.9f)
             val updated = mock.copy(
                 isCompleted = true,
                 userScore = score,
                 userAccuracy = accuracy,
-                userRank = (10..35).random(),
-                userPercentile = 92.5f
+                userRank = 0,
+                userPercentile = calculatedPercentile
             )
             val existing = mockTestDao.getAllMockTests().firstOrNull()?.find { it.id == mockId }
             if (existing != null) {
@@ -326,8 +328,8 @@ class JuktiRepository(
                 mockTestDao.insertMockTest(updated)
             }
             // Reward XP
-            val scorePercentage = if (mock.totalMarks > 0) ((score.toFloat() / mock.totalMarks.toFloat()) * 100f).toInt() else 0
-            val mockXp = 20 + (scorePercentage / 5)
+            val scorePercentageInt = scorePercentage.toInt()
+            val mockXp = 20 + (scorePercentageInt / 5)
             awardXp(mockXp, timeSpentMins)
         }
     }
@@ -427,9 +429,15 @@ class JuktiRepository(
 
     // User Profile & XP
     suspend fun updateUserProfile(profile: UserProfileEntity) {
-        userProfileDao.insertOrUpdateProfile(profile)
+        val authEmail = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email } catch (e: Exception) { null }
+        val finalProfile = if ((profile.email.isBlank() || profile.email == "scholar@jukti.in") && !authEmail.isNullOrBlank()) {
+            profile.copy(email = authEmail, isLoggedIn = true)
+        } else {
+            profile
+        }
+        userProfileDao.insertOrUpdateProfile(finalProfile)
         try {
-            firebaseRepository.saveUserProfile(profile, merge = true)
+            firebaseRepository.saveUserProfile(finalProfile, merge = true)
         } catch (e: Throwable) {
             android.util.Log.e("JuktiRepository", "Failed to save profile to Firebase, local Room updated", e)
         }
@@ -457,11 +465,17 @@ class JuktiRepository(
                         dailyStreak = maxOf(localProfile.dailyStreak, remoteProfile.dailyStreak),
                         totalSolved = maxOf(localProfile.totalSolved, remoteProfile.totalSolved),
                         totalTimeMinutes = maxOf(localProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes),
-                        isPremium = remoteProfile.isPremium,
-                        role = remoteProfile.role,
+                        isPremium = localProfile.isPremium || remoteProfile.isPremium,
+                        role = if (localProfile.role == "OWNER" || remoteProfile.role == "OWNER" || localProfile.role == "ADMIN" || remoteProfile.role == "ADMIN") {
+                            if (localProfile.role == "OWNER" || remoteProfile.role == "OWNER") "OWNER" else "ADMIN"
+                        } else "USER",
                         isLoggedIn = true,
                         currentDeviceId = localProfile.currentDeviceId.ifBlank { remoteProfile.currentDeviceId },
                         activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId },
+                        name = if (localProfile.name.isNotBlank() && localProfile.name != "Assam Scholar") localProfile.name else remoteProfile.name.ifBlank { localProfile.name },
+                        mobile = localProfile.mobile.ifBlank { remoteProfile.mobile },
+                        district = localProfile.district.ifBlank { remoteProfile.district },
+                        examGoal = localProfile.examGoal.ifBlank { remoteProfile.examGoal },
                         profileName = localProfile.profileName.ifBlank { remoteProfile.profileName },
                         registrationName = localProfile.registrationName.ifBlank { remoteProfile.registrationName },
                         googleName = localProfile.googleName.ifBlank { remoteProfile.googleName }

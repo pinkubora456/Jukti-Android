@@ -95,91 +95,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    if (showTargetGoalDialog) {
-        AlertDialog(
-            onDismissRequest = { showTargetGoalDialog = false },
-            title = { Text("Select Target Exam Goals", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Select the exams you are preparing for:", style = MaterialTheme.typography.bodyMedium)
 
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        availableExamOptions.forEach { goal ->
-                            val isSelected = selectedGoals.contains(goal)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    if (isSelected) {
-                                        selectedGoals.remove(goal)
-                                    } else {
-                                        selectedGoals.add(goal)
-                                    }
-                                },
-                                label = { Text(goal) },
-                                leadingIcon = if (isSelected) {
-                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SafeOutlinedTextField(
-                            value = customGoalInput,
-                            onValueChange = { customGoalInput = it },
-                            label = { Text("Add Other Exam Goal") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = {
-                                val trimmed = customGoalInput.trim()
-                                if (trimmed.isNotBlank() && !selectedGoals.contains(trimmed)) {
-                                    selectedGoals.add(trimmed)
-                                    customGoalInput = ""
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.AddCircle, contentDescription = "Add Goal", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        userProfile?.let { prof ->
-                            val newGoalsStr = if (selectedGoals.isEmpty()) "ADRE Grade III & IV" else selectedGoals.joinToString(", ")
-                            val updated = prof.copy(examGoal = newGoalsStr)
-                            viewModel.updateUserProfile(updated)
-                            android.widget.Toast.makeText(context, "Target goals updated!", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                        showTargetGoalDialog = false
-                    }
-                ) {
-                    Text("Save Goals")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTargetGoalDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 
     if (showEditProfileDialog) {
         AlertDialog(
@@ -213,62 +129,6 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-
-                    Text(
-                        text = "Target Exam Goals:",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        availableExamOptions.forEach { goal ->
-                            val isSelected = selectedGoals.contains(goal)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    if (isSelected) {
-                                        selectedGoals.remove(goal)
-                                    } else {
-                                        selectedGoals.add(goal)
-                                    }
-                                },
-                                label = { Text(goal) },
-                                leadingIcon = if (isSelected) {
-                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SafeOutlinedTextField(
-                            value = customGoalInput,
-                            onValueChange = { customGoalInput = it },
-                            label = { Text("Add Other Exam Goal") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = {
-                                val trimmed = customGoalInput.trim()
-                                if (trimmed.isNotBlank() && !selectedGoals.contains(trimmed)) {
-                                    selectedGoals.add(trimmed)
-                                    customGoalInput = ""
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.AddCircle, contentDescription = "Add Goal", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
                 }
             },
             confirmButton = {
@@ -278,8 +138,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                             val updated = prof.copy(
                                 profileName = editName.trim(),
                                 mobile = editMobile.trim(),
-                                district = editDistrict.trim(),
-                                examGoal = if (selectedGoals.isEmpty()) "ADRE Grade III & IV" else selectedGoals.joinToString(", ")
+                                district = editDistrict.trim()
                             )
                             viewModel.updateUserProfile(updated)
                             android.widget.Toast.makeText(context, "Profile updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
@@ -496,17 +355,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                         showEditProfileDialog = true
                     }
                 )
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                ProfileDetailRow(
-                    icon = Icons.Default.Flag,
-                    label = "Target Goal",
-                    value = userProfile?.examGoal ?: "ADRE Grade III & IV",
-                    onClick = {
-                        selectedGoals.clear()
-                        selectedGoals.addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
-                        showTargetGoalDialog = true
-                    }
-                )
+
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 ProfileDetailRow(
                     icon = Icons.Default.WorkspacePremium,
