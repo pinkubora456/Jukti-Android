@@ -45,22 +45,14 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Question Bank (${questions.size})", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Question Bank (${questions.size})",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
                 actions = {
                     IconButton(onClick = { viewModel.exportQuestionsCsv(context) }) {
                         Icon(Icons.Default.Download, contentDescription = "Export CSV")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         }
     ) { innerPadding ->

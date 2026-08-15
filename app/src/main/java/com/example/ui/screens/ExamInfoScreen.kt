@@ -79,55 +79,31 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // TOP APP BAR WITH BACK BUTTON
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 3.dp
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
+        com.example.ui.components.JuktiTopAppBar(
+            title = "Exam Pattern & Cutoff Hub",
+            subtitle = "Syllabus, Exam Patterns & Category Cutoffs",
+            onBackClick = { viewModel.navigateTo(Screen.HOME) },
+            actions = {
+                if (isAdminOrOwner) {
+                    IconButton(
+                        onClick = { viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF) },
+                        modifier = Modifier.testTag("admin_edit_exam_info_btn")
+                    ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Manage Syllabus & Cutoffs",
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Column {
-                        Text(
-                            text = "Exam Pattern & Cutoff Hub",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Syllabus, Exam Patterns & Category Cutoffs",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (isAdminOrOwner) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(
-                            onClick = { viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF) },
-                            modifier = Modifier.testTag("admin_edit_exam_info_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Manage Syllabus & Cutoffs",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
                     }
                 }
+            }
+        )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 1.dp
+        ) {
+            Column {
                 // HERO BAR FOR SYLLABUS, EXAM PATTERN, CUTOFF, NOTIFICATIONS
                 LazyRow(
                     modifier = Modifier

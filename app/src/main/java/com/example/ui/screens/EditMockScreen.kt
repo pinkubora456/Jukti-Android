@@ -98,23 +98,15 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (selectedMock == null) "Edit Mock Tests" else "Editing: ${selectedMock?.titleEn}", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (selectedMock != null) {
-                            selectedMock = null
-                        } else {
-                            viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
-                        }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            com.example.ui.components.JuktiTopAppBar(
+                title = if (selectedMock == null) "Edit Mock Tests" else "Editing: ${selectedMock?.titleEn}",
+                onBackClick = {
+                    if (selectedMock != null) {
+                        selectedMock = null
+                    } else {
+                        viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         }
     ) { innerPadding ->

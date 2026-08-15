@@ -54,7 +54,6 @@ fun HomeScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.questions.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
-    val lastSessionType by viewModel.lastSessionType.collectAsState()
 
     var showPomodoroDialog by remember { mutableStateOf(false) }
 
@@ -334,20 +333,6 @@ Row(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-            
-            ContinueLearningCard(
-                language = language,
-                sessionType = lastSessionType,
-                onClick = {
-                    when (lastSessionType) {
-                        "practice" -> viewModel.navigateTo(Screen.PRACTICE)
-                        "study" -> viewModel.navigateTo(Screen.STUDY_NOTES)
-                        else -> viewModel.navigateTo(Screen.MOCK_TESTS)
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Quick Navigation Grid
             QuickNavGrid(
@@ -439,67 +424,6 @@ fun UserWelcomeHeader(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ContinueLearningCard(
-    language: AppLanguage,
-    sessionType: String,
-    onClick: () -> Unit
-) {
-    val titleTextEn = when (sessionType) {
-        "practice" -> "Resume Last Practice"
-        "study" -> "Resume Last Study"
-        else -> "Resume Last Mock"
-    }
-    val titleTextAs = when (sessionType) {
-        "practice" -> "শেহতীয়া অনুশীলন চলাই যাওক"
-        "study" -> "শেহতীয়া অধ্যয়ন চলাই যাওক"
-        else -> "শেহতীয়া মক টেষ্ট চলাই যাওক"
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Continue",
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(36.dp)
-                )
-                Column {
-                    Text(
-                        text = "Continue Learning",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Text(
-                        text = titleTextEn,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }

@@ -71,7 +71,7 @@ You possess the right to access, update, or request deletion of your personal pr
 
 12. Contact Information
 If you have questions, concerns, or requests regarding this Privacy Policy or data practices, please reach out to our privacy support team at:
-Email: support@jukti.in"""
+Email: ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}"""
 
     val currentContent = if (aboutConfig.privacyPolicyContent.isNotBlank()) {
         aboutConfig.privacyPolicyContent
@@ -81,16 +81,10 @@ Email: support@jukti.in"""
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Privacy Policy", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(Screen.MENU) },
-                        modifier = Modifier.testTag("privacy_policy_back_btn")
-                    ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Privacy Policy",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                backTestTag = "privacy_policy_back_btn",
                 actions = {
                     if (isAdminOrOwner) {
                         IconButton(
@@ -103,10 +97,7 @@ Email: support@jukti.in"""
                             Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Privacy Policy")
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { innerPadding ->
@@ -184,7 +175,7 @@ Email: support@jukti.in"""
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "For privacy inquiries, contact support@jukti.in",
+                        text = "For privacy inquiries, contact ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
@@ -220,8 +211,10 @@ Email: support@jukti.in"""
                     onClick = {
                         viewModel.updateAboutConfig(
                             aboutConfig.copy(privacyPolicyContent = editedContent)
-                        )
-                        Toast.makeText(context, "Privacy Policy updated successfully!", Toast.LENGTH_SHORT).show()
+                        ) { success, msg ->
+                            val confirmText = if (success) "Privacy Policy saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+                            Toast.makeText(context, confirmText, Toast.LENGTH_LONG).show()
+                        }
                         showEditDialog = false
                     },
                     modifier = Modifier.testTag("save_privacy_policy_btn")

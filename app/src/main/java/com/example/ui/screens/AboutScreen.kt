@@ -59,13 +59,9 @@ fun AboutScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("About Jukti App", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "About Jukti App",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) },
                 actions = {
                     if (isOwner) {
                         FilledTonalIconButton(
@@ -382,7 +378,10 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                 if (uri != null) {
                     viewModel.uploadLogoAndSaveConfig(uri, updated, localContext)
                 } else {
-                    viewModel.updateAboutConfig(updated)
+                    viewModel.updateAboutConfig(updated) { success, msg ->
+                        val confirmText = if (success) "About section saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+                        android.widget.Toast.makeText(localContext, confirmText, android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }
                 showEditDialog = false
             },
@@ -913,7 +912,7 @@ fun GamificationInfoDialog(
                         Icon(Icons.Default.Analytics, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Exam Clearance Probability",
+                            text = "Exam Clearance Probability (Estimate)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -921,7 +920,7 @@ fun GamificationInfoDialog(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "This is calculated based on your average mock test scores, practice accuracy, and consistency. It gives you an estimate of your chances of clearing the real exam.",
+                        text = "This is an automated in-app estimate calculated from your mock test scores, practice question accuracy, and daily study consistency. It is provided for personal practice tracking only and does NOT guarantee or predict that you will pass, clear, qualify, or fail any examination. Real exam results depend on multiple external factors, and Jukti is not responsible for official examination outcomes.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

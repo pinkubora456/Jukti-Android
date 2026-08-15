@@ -1,5 +1,10 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,8 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -18,8 +26,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.example.data.local.PlanEntity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.ui.viewmodel.JuktiViewModel
 
 import androidx.compose.runtime.mutableStateOf
@@ -66,17 +77,9 @@ fun EditPlanScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Edit Plans", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Edit Plans",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }
             )
         }
     ) { innerPadding ->
@@ -192,6 +195,7 @@ fun EditPlanDialog(
     onDismiss: () -> Unit,
     onSave: (PlanEntity) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var planName by remember { mutableStateOf(plan.planName) }
     var planPrice by remember { mutableStateOf(plan.planPrice) }
     var discount by remember { mutableStateOf(plan.discount) }
@@ -201,6 +205,28 @@ fun EditPlanDialog(
     var imageUrl by remember { mutableStateOf(plan.imageUrl) }
     var examTarget by remember { mutableStateOf(plan.examTarget) }
     var isActive by remember { mutableStateOf(plan.isActive) }
+    var isUploading by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isUploading = true
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val file = java.io.File(context.filesDir, "plan_banner_${System.currentTimeMillis()}.jpg")
+                    java.io.FileOutputStream(file).use { it.write(bytes) }
+                    imageUrl = file.absolutePath
+                    Toast.makeText(context, "Photo loaded successfully", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EditPlanDialog", "Error loading photo", e)
+            } finally {
+                isUploading = false
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -219,13 +245,88 @@ fun EditPlanDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                SafeOutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("Promotional Banner Image URL (Optional)") },
+
+                // Photo upload and preview
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Promotional Banner Photo",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        if (imageUrl.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(110.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                            ) {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Plan Banner Preview",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                IconButton(
+                                    onClick = { imageUrl = "" },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove photo",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isUploading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Loading...")
+                            } else {
+                                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (imageUrl.isBlank()) "Choose Photo" else "Change Photo")
+                            }
+                        }
+
+                        SafeOutlinedTextField(
+                            value = imageUrl,
+                            onValueChange = { imageUrl = it },
+                            label = { Text("Or Image URL (Optional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
                 SafeOutlinedTextField(
                     value = planPrice,
                     onValueChange = { 

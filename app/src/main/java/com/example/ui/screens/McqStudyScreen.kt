@@ -289,57 +289,35 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Top Bar Navigation Header
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            if (activeStudySubView != null) {
-                                activeStudySubView = null
-                            } else {
-                                viewModel.navigateTo(Screen.HOME)
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column {
-                            Text(
-                                text = when (activeStudySubView) {
-                                    "STUDY_MCQS" -> "Learn"
-                                    "POMODORO" -> "Pomodoro Study Timer"
-                                    "CURRENT_AFFAIRS" -> "Current Affairs"
-                                    else -> "Study Hub"
-                                },
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = when (activeStudySubView) {
-                                    "STUDY_MCQS" -> "Learn chapter-wise MCQs"
-                                    "POMODORO" -> "Stay focused with timed study sessions"
-                                    "CURRENT_AFFAIRS" -> "Daily updated news capsules & study notes"
-                                    else -> "Choose a module to start learning"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+        val titleText = when (activeStudySubView) {
+            "STUDY_MCQS" -> "Learn"
+            "POMODORO" -> "Pomodoro Study Timer"
+            "CURRENT_AFFAIRS" -> "Current Affairs"
+            else -> "Study Hub"
+        }
+        val subtitleText = when (activeStudySubView) {
+            "STUDY_MCQS" -> "Learn chapter-wise MCQs"
+            "POMODORO" -> "Stay focused with timed study sessions"
+            "CURRENT_AFFAIRS" -> "Daily updated news capsules & study notes"
+            else -> "Choose a module to start learning"
+        }
 
+        com.example.ui.components.JuktiTopAppBar(
+            title = titleText,
+            subtitle = subtitleText,
+            onBackClick = {
+                if (activeStudySubView != null) {
+                    activeStudySubView = null
+                } else {
+                    viewModel.navigateTo(Screen.HOME)
+                }
+            },
+            actions = {
+                if (activeStudySubView != "CURRENT_AFFAIRS") {
                     Surface(
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -361,42 +339,42 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         }
                     }
                 }
+            }
+        )
 
-                if (activeStudySubView == "STUDY_MCQS") {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                    // Question Language Switcher Bar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.ENGLISH,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
-                                label = { Text("English", fontSize = 11.sp) },
-                                modifier = Modifier.height(30.dp)
+        if (activeStudySubView == "STUDY_MCQS") {
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 1.dp) {
+                // Question Language Switcher Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.ENGLISH,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
+                            label = { Text("English", fontSize = 11.sp) },
+                            modifier = Modifier.height(30.dp)
+                        )
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.ASSAMESE,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
+                            label = { Text("অসমীয়া", fontSize = 11.sp) },
+                            modifier = Modifier.height(30.dp)
+                        )
+                        FilterChip(
+                            selected = questionLanguage == AppLanguage.BOTH,
+                            onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
+                            label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            modifier = Modifier.height(30.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.ASSAMESE,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
-                                label = { Text("অসমীয়া", fontSize = 11.sp) },
-                                modifier = Modifier.height(30.dp)
-                            )
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.BOTH,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
-                                label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                modifier = Modifier.height(30.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            )
-                        }
+                        )
                     }
                 }
             }
@@ -727,7 +705,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         if (!learnedQuestionIds.value.contains(questionId)) {
             learnedQuestionIds.value = learnedQuestionIds.value + questionId
             studiedQuestionsCountInSession++
-            viewModel.recordStudyProgress(1, 10)
+            viewModel.recordStudyProgress(0, 10)
             if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
                 viewModel.showPaywall()
             }
@@ -757,37 +735,50 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         }
     }
 
-    // Filtered & Automatically Shuffled Questions List
-    val studyQuestionsList = remember(questions, selectedSubjectTab, selectedChapters) {
-        val filtered = questions.filter { q ->
-            if (q.isHidden) return@filter false
-            val matchSubject = when (selectedSubjectTab) {
-                "All Subject", "All Subjects" -> true
-                "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                "General English" -> q.subject == "General English"
-                "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                "Reasoning" -> q.subject == "Reasoning"
-                else -> q.subject == selectedSubjectTab
+    var activeStudySessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
+    var lastStudyStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
+
+    LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters) {
+        if (isStudySessionStarted) {
+            val filtered = questions.filter { q ->
+                if (q.isHidden) return@filter false
+                val matchSubject = when (selectedSubjectTab) {
+                    "All Subject", "All Subjects" -> true
+                    "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                    "General English" -> q.subject == "General English"
+                    "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                    "Reasoning" -> q.subject == "Reasoning"
+                    else -> q.subject == selectedSubjectTab
+                }
+                val matchChapter = if (selectedChapters.isEmpty()) {
+                    true
+                } else {
+                    q.topic in selectedChapters || q.subject in selectedChapters
+                }
+                matchSubject && matchChapter
+            }.shuffled().toMutableList()
+
+            if (filtered.size > 1 && filtered[0].id == lastStudyStartingQuestionId) {
+                val temp = filtered[0]
+                filtered[0] = filtered[1]
+                filtered[1] = temp
             }
-            val matchChapter = if (selectedChapters.isEmpty()) {
-                true
-            } else {
-                q.topic in selectedChapters || q.subject in selectedChapters
+            if (filtered.isNotEmpty()) {
+                lastStudyStartingQuestionId = filtered[0].id
             }
-            matchSubject && matchChapter
+            activeStudySessionQuestions = filtered
+            currentQuestionIndex = 0
+            selectedOptionIndex = null
+        } else {
+            activeStudySessionQuestions = emptyList()
         }
-        filtered.shuffled()
     }
+
+    val studyQuestionsList = if (isStudySessionStarted && activeStudySessionQuestions.isNotEmpty()) activeStudySessionQuestions else questions.filter { !it.isHidden }
 
     var showHideNotice by remember { mutableStateOf(false) }
 
     val currentQuestion = studyQuestionsList.getOrNull(currentQuestionIndex)
-
-    // Reset index when filters change
-    LaunchedEffect(selectedSubjectTab, selectedChapters) {
-        currentQuestionIndex = 0
-        selectedOptionIndex = null
-    }
 
     Column(
         modifier = Modifier
@@ -1087,6 +1078,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             }
                             IconButton(onClick = {
                                 viewModel.toggleHideQuestion(currentQuestion)
+                                activeStudySessionQuestions = activeStudySessionQuestions.filter { it.id != currentQuestion.id }
                                 showHideNotice = true
                             }) {
                                 Icon(
@@ -1690,12 +1682,11 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             onClick = {
                                 if (selectedOptionIndex != null) {
                                     isSubmitted = true
-                                    viewModel.recordStudyProgress(1, 10)
                                     val isAnsCorrect = (selectedOptionIndex == currentQuestion.correctOptionIndex)
                                     if (isAnsCorrect) {
                                         scoreCount += 10
                                     }
-                                    viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect)
+                                    viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)
                                 }
                             },
                             enabled = selectedOptionIndex != null,
@@ -2099,7 +2090,8 @@ fun QuestionStudyCard(
     language: AppLanguage,
     onBookmarkToggle: () -> Unit,
     onLikeToggle: () -> Unit,
-    onReportClick: () -> Unit
+    onReportClick: () -> Unit,
+    onHideClick: (() -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -2144,6 +2136,15 @@ fun QuestionStudyCard(
                             contentDescription = "Bookmark",
                             tint = if (question.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    if (onHideClick != null) {
+                        IconButton(onClick = onHideClick) {
+                            Icon(
+                                imageVector = Icons.Outlined.VisibilityOff,
+                                contentDescription = "Hide Question",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

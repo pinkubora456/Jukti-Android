@@ -58,7 +58,7 @@ Please review our billing, cancellation, and refund guidelines below regarding J
 • Refund Eligibility: Refund requests are evaluated and considered within 3 (three) days of purchase exclusively in cases of verified technical delivery failure or duplicate billing.
 • Non-Refundable Conditions: Digital study notes, downloaded content, or mock tests heavily consumed or attempted after purchase are non-refundable.
 • Legal Exceptions: Any mandatory refund exceptions required under applicable consumer protection laws will be honoured accordingly.
-• Billing & Refund Support: For any billing discrepancies, payment issues, or refund inquiries, please contact our billing support at support@jukti.in.
+• Billing & Refund Support: For any billing discrepancies, payment issues, or refund inquiries, please contact our billing support at ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}.
 
 6. Limitation of Liability
 Jukti and its creators shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of our app or exam results.
@@ -68,7 +68,7 @@ We reserve the right to modify these terms at any time. Continued use of the app
 
 8. Contact & Support
 For any questions regarding these Terms & Conditions or app services, contact us at:
-Email: support@jukti.in"""
+Email: ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}"""
 
     val currentContent = if (aboutConfig.termsConditionsContent.isNotBlank()) {
         aboutConfig.termsConditionsContent
@@ -78,16 +78,10 @@ Email: support@jukti.in"""
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Terms & Conditions", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(Screen.MENU) },
-                        modifier = Modifier.testTag("terms_conditions_back_btn")
-                    ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Terms & Conditions",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                backTestTag = "terms_conditions_back_btn",
                 actions = {
                     if (isAdminOrOwner) {
                         IconButton(
@@ -100,10 +94,7 @@ Email: support@jukti.in"""
                             Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Terms & Conditions")
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
     ) { innerPadding ->
@@ -181,7 +172,7 @@ Email: support@jukti.in"""
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "For support inquiries, contact support@jukti.in",
+                        text = "For support inquiries, contact ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
@@ -217,8 +208,10 @@ Email: support@jukti.in"""
                     onClick = {
                         viewModel.updateAboutConfig(
                             aboutConfig.copy(termsConditionsContent = editedContent)
-                        )
-                        Toast.makeText(context, "Terms & Conditions updated successfully!", Toast.LENGTH_SHORT).show()
+                        ) { success, msg ->
+                            val confirmText = if (success) "Terms & Conditions saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+                            Toast.makeText(context, confirmText, Toast.LENGTH_LONG).show()
+                        }
                         showEditDialog = false
                     },
                     modifier = Modifier.testTag("save_terms_conditions_btn")

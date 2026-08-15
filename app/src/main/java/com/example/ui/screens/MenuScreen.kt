@@ -40,17 +40,8 @@ fun MenuScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Menu & Services",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Menu & Services"
             )
         }
     ) { innerPadding ->

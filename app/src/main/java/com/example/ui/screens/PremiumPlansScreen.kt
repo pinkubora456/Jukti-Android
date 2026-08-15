@@ -87,36 +87,23 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.HOME) }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = "All Plans",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
+        com.example.ui.components.JuktiTopAppBar(
+            title = "All Plans",
+            onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.HOME) }
+        )
 
-        if (plans.isEmpty()) {
-            Text("No plans available right now.", style = MaterialTheme.typography.titleMedium)
-            return@Column
-        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (plans.isEmpty()) {
+                Text("No plans available right now.", style = MaterialTheme.typography.titleMedium)
+                return@Column
+            }
 
         val activePlans = plans.filter { it.isActive }
 
@@ -165,6 +152,7 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
     }
+}
 }
 
 

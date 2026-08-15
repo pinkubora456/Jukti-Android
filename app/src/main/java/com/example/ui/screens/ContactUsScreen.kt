@@ -60,13 +60,9 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Contact Us", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Contact Us",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) },
                 actions = {
                     if (isAdminOrOwner) {
                         IconButton(
@@ -213,16 +209,22 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (email.isBlank() || whatsapp.isBlank()) {
+                        val trimmedEmail = email.trim()
+                        val trimmedWhatsapp = whatsapp.trim()
+                        if (trimmedEmail.isBlank() || trimmedWhatsapp.isBlank()) {
                             android.widget.Toast.makeText(context, "Email and WhatsApp fields are required", android.widget.Toast.LENGTH_SHORT).show()
+                        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
+                            android.widget.Toast.makeText(context, "Please enter a valid support email address (e.g. support@jukti.in)", android.widget.Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.updateAboutConfig(
                                 aboutConfig.copy(
-                                    contactEmail = email.trim(),
-                                    contactWhatsapp = whatsapp.trim()
+                                    contactEmail = trimmedEmail,
+                                    contactWhatsapp = trimmedWhatsapp
                                 )
-                            )
-                            android.widget.Toast.makeText(context, "Contact details updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                            ) { success, msg ->
+                                val confirmText = if (success) "Contact details saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+                                android.widget.Toast.makeText(context, confirmText, android.widget.Toast.LENGTH_LONG).show()
+                            }
                             showEditDialog = false
                         }
                     },

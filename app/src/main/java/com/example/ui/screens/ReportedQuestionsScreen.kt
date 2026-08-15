@@ -36,17 +36,10 @@ fun ReportedQuestionsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Reported Questions", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Reported Questions",
+                subtitle = "Total Pending Reports: ${reportedQuestions.size}",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) }
             )
         }
     ) { innerPadding ->

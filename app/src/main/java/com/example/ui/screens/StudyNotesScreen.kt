@@ -54,25 +54,18 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(onClick = { viewModel.selectStudyNote(null) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+            com.example.ui.components.JuktiTopAppBar(
+                title = {
                     BilingualText(
                         textEn = selectedNote!!.titleEn,
                         textAs = selectedNote!!.titleAs,
                         language = language,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        fontWeight = FontWeight.Bold
                     )
+                },
+                onBackClick = { viewModel.selectStudyNote(null) },
+                actions = {
                     IconButton(onClick = { viewModel.toggleBookmarkNote(selectedNote!!) }) {
                         Icon(
                             imageVector = if (selectedNote!!.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
@@ -80,7 +73,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                         )
                     }
                 }
-            }
+            )
 
             Column(
                 modifier = Modifier
@@ -118,48 +111,31 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Study Notes & Revision Sheets",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Study Notes & Revision Sheets",
+                onBackClick = { viewModel.navigateTo(Screen.HOME) }
+            )
+
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                SafeOutlinedTextField(
+                    value = noteSearchQuery,
+                    onValueChange = { noteSearchQuery = it },
+                    placeholder = { Text("Search notes...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(subjects) { subject ->
+                        FilterChip(
+                            selected = (selectedSubjectFilter == subject),
+                            onClick = { selectedSubjectFilter = subject },
+                            label = { Text(subject) }
                         )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    SafeOutlinedTextField(
-                        value = noteSearchQuery,
-                        onValueChange = { noteSearchQuery = it },
-                        placeholder = { Text("Search notes...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(subjects) { subject ->
-                            FilterChip(
-                                selected = (selectedSubjectFilter == subject),
-                                onClick = { selectedSubjectFilter = subject },
-                                label = { Text(subject) }
-                            )
-                        }
                     }
                 }
             }

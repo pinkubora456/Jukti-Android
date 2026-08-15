@@ -2,7 +2,10 @@ package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -20,10 +23,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -75,6 +81,33 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
     var mockTestExpanded by remember { mutableStateOf(false) }
     var studyNoteExpanded by remember { mutableStateOf(false) }
     var isFormVisible by remember { mutableStateOf(false) }
+    var isImageUploading by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isImageUploading = true
+            viewModel.uploadImageFile(
+                uri = uri,
+                folder = "banner_images",
+                context = context,
+                onLocalSaved = { localPath ->
+                    imageUrl = localPath
+                    isImageUploading = false
+                    isFormVisible = true
+                    if (titleEn.isBlank()) {
+                        titleEn = "Announcement"
+                        subtitleEn = "Tap to view update"
+                    }
+                    Toast.makeText(context, "Banner photo loaded successfully", Toast.LENGTH_SHORT).show()
+                },
+                onRemoteUploaded = { remoteUrl ->
+                    imageUrl = remoteUrl
+                }
+            )
+        }
+    }
 
     val actionTypes = listOf("Link", "Mock Test", "Study Notes", "None")
     val bannerTypes = listOf("INFORMATION", "PROMOTIONAL", "CAROUSEL")
@@ -127,26 +160,35 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Information Banners", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(Screen.WORKSPACE) },
-                        modifier = Modifier.testTag("manage_banners_back_btn")
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Information Banners",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) },
+                backTestTag = "manage_banners_back_btn",
                 actions = {
                     if (!isFormVisible) {
+                        OutlinedButton(
+                            onClick = {
+                                photoPickerLauncher.launch("image/*")
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                            modifier = Modifier.testTag("upload_banner_photo_top_btn")
+                        ) {
+                            Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Upload Photo")
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
                         Button(
                             onClick = {
                                 clearForm()
                                 isFormVisible = true
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.testTag("add_new_banner_top_btn")
                         ) {
@@ -155,11 +197,7 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                             Text("New Banner")
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         }
     ) { innerPadding ->
@@ -379,80 +417,187 @@ fun ManageBannersScreen(viewModel: JuktiViewModel) {
                             }
                         }
 
-                        // Image Option Selectors
-                        Text(
-                            text = "Add Banner Image",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Preset Banners Row
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        // Image Option Selectors & Upload Section
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            items(presetImages) { preset ->
-                                val isSelected = imageUrl == preset.url
-                                Card(
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                                    ),
-                                    border = BorderStroke(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                                    ),
-                                    modifier = Modifier
-                                        .width(100.dp)
-                                        .clickable { imageUrl = preset.url }
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(8.dp)
-                                    ) {
-                                        if (preset.url.isNotEmpty()) {
-                                            AsyncImage(
-                                                model = preset.url,
-                                                contentDescription = preset.name,
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .clip(RoundedCornerShape(4.dp)),
-                                                contentScale = ContentScale.Crop
+                                    Text(
+                                        text = "Banner Photo / Image",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    if (imageUrl.isNotBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                "Photo Attached",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            }
                                         }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = preset.name,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
                                     }
                                 }
+
+                                if (imageUrl.isNotBlank()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(130.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = imageUrl,
+                                            contentDescription = "Banner Image Preview",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        IconButton(
+                                            onClick = { imageUrl = "" },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(6.dp)
+                                        ) {
+                                            Surface(
+                                                shape = RoundedCornerShape(50),
+                                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Remove photo",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.padding(4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = { photoPickerLauncher.launch("image/*") },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("upload_photo_banner_btn"),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.secondary
+                                        )
+                                    ) {
+                                        if (isImageUploading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                color = MaterialTheme.colorScheme.onSecondary,
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Loading Photo...")
+                                        } else {
+                                            Icon(
+                                                Icons.Default.Upload,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (imageUrl.isBlank()) "Upload Photo for Direct Publish" else "Change Uploaded Photo")
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = "Or choose a preset theme banner:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                // Preset Banners Row
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(presetImages) { preset ->
+                                        val isSelected = imageUrl == preset.url
+                                        Card(
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                            ),
+                                            border = BorderStroke(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                            ),
+                                            modifier = Modifier
+                                                .width(100.dp)
+                                                .clickable { imageUrl = preset.url }
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier.padding(8.dp)
+                                            ) {
+                                                if (preset.url.isNotEmpty()) {
+                                                    AsyncImage(
+                                                        model = preset.url,
+                                                        contentDescription = preset.name,
+                                                        modifier = Modifier
+                                                            .size(40.dp)
+                                                            .clip(RoundedCornerShape(4.dp)),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(40.dp)
+                                                            .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = preset.name,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Custom Image URL Field
+                                SafeOutlinedTextField(
+                                    value = imageUrl,
+                                    onValueChange = { imageUrl = it },
+                                    label = { Text("Or Custom Image URL (Optional)") },
+                                    placeholder = { Text("https://example.com/image.jpg") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("banner_custom_image_url_input"),
+                                    singleLine = true
+                                )
                             }
                         }
-
-                        // Custom Image URL Field
-                        SafeOutlinedTextField(
-                            value = imageUrl,
-                            onValueChange = { imageUrl = it },
-                            label = { Text("Custom Image URL (Optional)") },
-                            placeholder = { Text("https://example.com/image.jpg") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("banner_custom_image_url_input"),
-                            singleLine = true
-                        )
 
                         // Active State Switch
                         Row(

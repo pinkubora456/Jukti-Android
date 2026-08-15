@@ -58,17 +58,9 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Study Notes", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Study Notes",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) }
             )
         },
         floatingActionButton = {

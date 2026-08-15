@@ -122,17 +122,9 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Create Mock Test", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Create Mock Test",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK) }
             )
         }
     ) { innerPadding ->

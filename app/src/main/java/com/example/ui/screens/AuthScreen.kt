@@ -33,6 +33,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
     val userProfile by viewModel.userProfile.collectAsState()
     val sessionMessage by viewModel.sessionMessage.collectAsState()
     val aboutConfig by viewModel.aboutConfig.collectAsState()
+    val isAuthLoading by viewModel.isAuthLoading.collectAsState()
 
     var isLoginTab by remember { mutableStateOf(true) }
     var nameInput by remember { mutableStateOf("") }
@@ -43,7 +44,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
-    var showGoogleAccountDialog by remember { mutableStateOf(false) }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as? android.app.Activity
 
     if (showForgotPasswordDialog) {
         var resetEmail by remember { mutableStateOf(emailInput) }
@@ -95,141 +98,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    if (showGoogleAccountDialog) {
-        var customGoogleEmail by remember { mutableStateOf("") }
-        
-        AlertDialog(
-            onDismissRequest = { showGoogleAccountDialog = false },
-            title = { Text("Select Google Account", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Choose an account to continue with Jukti:", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Account 1: Admin
-                    Surface(
-                        onClick = {
-                            viewModel.loginWithEmail("borapinku151@gmail.com", "Pinku Bora")
-                            viewModel.toggleGuestMode(false)
-                            showGoogleAccountDialog = false
-                            
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(40.dp)) {
-                                Box(contentAlignment = Alignment.Center) { Text("PB", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Pinku Bora", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                Text("borapinku151@gmail.com", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("ADMIN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Account 2: Jukti Education (Owner)
-                    Surface(
-                        onClick = {
-                            viewModel.loginWithEmail("juktieducation@gmail.com", "Jukti Education")
-                            viewModel.toggleGuestMode(false)
-                            showGoogleAccountDialog = false
-                            
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.size(40.dp)) {
-                                Box(contentAlignment = Alignment.Center) { Text("JE", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary) }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Jukti Education", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                Text("juktieducation@gmail.com", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
-                                Text("OWNER", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Account 3: Assam Scholar (Student)
-                    Surface(
-                        onClick = {
-                            viewModel.loginWithEmail("scholar.assam@gmail.com", "Assam Scholar")
-                            viewModel.toggleGuestMode(false)
-                            showGoogleAccountDialog = false
-                            
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(40.dp)) {
-                                Box(contentAlignment = Alignment.Center) { Text("AS", fontWeight = FontWeight.Bold) }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Assam Scholar", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                Text("scholar.assam@gmail.com", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    
-                    Text("Or enter another Google email:", style = MaterialTheme.typography.labelMedium)
-                    SafeOutlinedTextField(
-                        value = customGoogleEmail,
-                        onValueChange = { customGoogleEmail = it },
-                        placeholder = { Text("your.email@gmail.com") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val email = customGoogleEmail.trim().ifBlank { "borapinku151@gmail.com" }
-                        viewModel.loginWithEmail(email)
-                        viewModel.toggleGuestMode(false)
-                        showGoogleAccountDialog = false
-                        
-                    }
-                ) {
-                    Text("Continue")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGoogleAccountDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
@@ -274,16 +142,20 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                 Tab(
                     selected = isLoginTab,
                     onClick = {
-                        isLoginTab = true
-                        errorMessage = null
+                        if (!isAuthLoading) {
+                            isLoginTab = true
+                            errorMessage = null
+                        }
                     },
                     text = { Text("Sign In", fontWeight = FontWeight.Bold) }
                 )
                 Tab(
                     selected = !isLoginTab,
                     onClick = {
-                        isLoginTab = false
-                        errorMessage = null
+                        if (!isAuthLoading) {
+                            isLoginTab = false
+                            errorMessage = null
+                        }
                     },
                     text = { Text("Register", fontWeight = FontWeight.Bold) }
                 )
@@ -292,7 +164,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(20.dp))
 
             if (sessionMessage != null) {
-                val context = androidx.compose.ui.platform.LocalContext.current
                 val translatedMessage = remember(sessionMessage) {
                     if (sessionMessage!!.startsWith("Login failed: Firebase API Key is missing")) {
                         sessionMessage!!
@@ -337,6 +208,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         nameInput = it
                         errorMessage = null
                     },
+                    enabled = !isAuthLoading,
                     label = { Text("Full Name") },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     singleLine = true,
@@ -351,6 +223,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     emailInput = it
                     errorMessage = null
                 },
+                enabled = !isAuthLoading,
                 label = { Text("Email Address") },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 singleLine = true,
@@ -366,6 +239,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     passwordInput = it
                     errorMessage = null
                 },
+                enabled = !isAuthLoading,
                 label = { Text("Password") },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 trailingIcon = {
@@ -390,6 +264,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         confirmPasswordInput = it
                         errorMessage = null
                     },
+                    enabled = !isAuthLoading,
                     label = { Text("Confirm Password") },
                     leadingIcon = { Icon(Icons.Default.LockReset, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
@@ -400,7 +275,10 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
             if (isLoginTab) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { showForgotPasswordDialog = true }) {
+                    TextButton(
+                        onClick = { showForgotPasswordDialog = true },
+                        enabled = !isAuthLoading
+                    ) {
                         Text("Forgot Password?")
                     }
                 }
@@ -421,7 +299,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         }
                         viewModel.loginWithEmail(trimmedEmail, "", trimmedPassword)
                         viewModel.toggleGuestMode(false)
-                        
                     } else {
                         val trimmedName = nameInput.trim()
                         if (trimmedName.isBlank()) {
@@ -442,20 +319,30 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         }
                         viewModel.loginWithEmail(trimmedEmail, trimmedName, trimmedPassword, isRegister = true)
                         viewModel.toggleGuestMode(false)
-                        
                     }
                 },
+                enabled = !isAuthLoading,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(
-                    text = if (isLoginTab) {
-                        "Sign In with Email"
-                    } else {
-                        "Create Account & Register"
-                    },
-                    fontWeight = FontWeight.Bold
-                )
+                if (isAuthLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(if (isLoginTab) "Signing In..." else "Registering...", fontWeight = FontWeight.Bold)
+                } else {
+                    Text(
+                        text = if (isLoginTab) {
+                            "Sign In with Email"
+                        } else {
+                            "Create Account & Register"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -472,29 +359,42 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Google Login Button
+            // Real Google Sign-In Button
             OutlinedButton(
                 onClick = {
-                    showGoogleAccountDialog = true
+                    if (activity != null) {
+                        viewModel.loginWithGoogle(activity)
+                    }
                 },
+                enabled = !isAuthLoading,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color(0xFF4285F4),
-                    modifier = Modifier.size(20.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("G", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                if (isAuthLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Signing in with Google...", fontWeight = FontWeight.Bold)
+                } else {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF4285F4),
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("G", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Continue with Google",
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Continue with Google",
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }

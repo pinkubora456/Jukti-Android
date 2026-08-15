@@ -107,40 +107,25 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // TOP APP BAR
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 4.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Mocks"
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "Mock Test Result & Analysis",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        BilingualText(
-                            textEn = mockTest?.titleEn ?: "Full Length Mock Test",
-                            textAs = mockTest?.titleAs ?: "সম্পূৰ্ণ দৈৰ্ঘ্যৰ মক টেষ্ট",
-                            language = language,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+        com.example.ui.components.JuktiTopAppBar(
+            title = {
+                Column {
+                    Text(
+                        text = "Mock Test Result & Analysis",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    BilingualText(
+                        textEn = mockTest?.titleEn ?: "Full Length Mock Test",
+                        textAs = mockTest?.titleAs ?: "সম্পূৰ্ণ দৈৰ্ঘ্যৰ মক টেষ্ট",
+                        language = language,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-
+            },
+            onBackClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
+            actions = {
                 IconButton(onClick = {
                     val shareIntent = Intent().apply {
                         action = Intent.ACTION_SEND
@@ -155,7 +140,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                     Icon(imageVector = Icons.Default.Share, contentDescription = "Share")
                 }
             }
-        }
+        )
 
         // TAB SWITCHER: SUMMARY vs DETAILED ANALYSIS
         TabRow(

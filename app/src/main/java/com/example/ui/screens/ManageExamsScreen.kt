@@ -29,22 +29,14 @@ fun ManageExamsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Exams", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Exams",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) },
                 actions = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.EXAM_INFO) }) {
                         Icon(Icons.Default.Info, contentDescription = "Exam Info & Cutoff")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         },
         floatingActionButton = {

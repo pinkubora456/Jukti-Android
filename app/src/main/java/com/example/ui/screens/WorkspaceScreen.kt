@@ -30,15 +30,12 @@ import com.example.ui.viewmodel.Screen
 fun WorkspaceScreen(viewModel: JuktiViewModel) {
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isOwner by viewModel.isOwner.collectAsState()
+    val reportedQuestions by viewModel.reportedQuestions.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Workspace", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Workspace"
             )
         }
     ) { innerPadding ->
@@ -61,6 +58,7 @@ fun WorkspaceScreen(viewModel: JuktiViewModel) {
 @Composable
 fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
     val context = LocalContext.current
+    val reportedQuestions by viewModel.reportedQuestions.collectAsState()
     val pendingQueue by viewModel.pendingSyncQueue.collectAsState()
     val isSyncingActive by viewModel.isSyncUploading.collectAsState()
     val syncProgress by viewModel.syncProgressState.collectAsState()
@@ -361,7 +359,8 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
         WorkspaceBannerCard(
             title = "Reported Questions",
             icon = Icons.Default.BugReport,
-            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.REPORTED_QUESTIONS) }
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.REPORTED_QUESTIONS) },
+            badgeCount = reportedQuestions.size
         )
 
         WorkspaceBannerCard(
@@ -403,7 +402,12 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
 }
 
 @Composable
-fun WorkspaceBannerCard(title: String, icon: ImageVector, onClick: () -> Unit) {
+fun WorkspaceBannerCard(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    badgeCount: Int? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -416,21 +420,41 @@ fun WorkspaceBannerCard(title: String, icon: ImageVector, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (badgeCount != null) {
+                Surface(
+                    color = if (badgeCount > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "$badgeCount",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (badgeCount > 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
         }
     }
 }

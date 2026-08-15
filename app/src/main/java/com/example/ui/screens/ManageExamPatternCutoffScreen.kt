@@ -85,20 +85,10 @@ fun ManageExamPatternCutoffScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (editingItem != null) "Edit Exam Info" else "Manage Syllabus & Cutoffs", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(Screen.WORKSPACE) },
-                        modifier = Modifier.testTag("manage_exam_info_back_btn")
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = if (editingItem != null) "Edit Exam Info" else "Manage Syllabus & Cutoffs",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) },
+                backTestTag = "manage_exam_info_back_btn"
             )
         }
     ) { innerPadding ->

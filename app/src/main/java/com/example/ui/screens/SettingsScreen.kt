@@ -50,13 +50,9 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("App Settings", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "App Settings",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) }
             )
         }
     ) { innerPadding ->

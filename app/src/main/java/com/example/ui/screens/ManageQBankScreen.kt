@@ -14,24 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.components.JuktiTopAppBar
 import com.example.ui.viewmodel.JuktiViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageQBankScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Q-Bank", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            JuktiTopAppBar(
+                title = "Manage Q-Bank",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }
             )
         }
     ) { innerPadding ->

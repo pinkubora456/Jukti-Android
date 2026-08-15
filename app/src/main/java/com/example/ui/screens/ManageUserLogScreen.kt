@@ -72,17 +72,9 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage User Log", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage User Log",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }
             )
         }
     ) { innerPadding ->

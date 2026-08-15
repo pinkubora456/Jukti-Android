@@ -49,20 +49,10 @@ fun ManageNotificationsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Notifications", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(Screen.WORKSPACE) },
-                        modifier = Modifier.testTag("manage_notif_back_btn")
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Notifications",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) },
+                backTestTag = "manage_notif_back_btn"
             )
         }
     ) { innerPadding ->

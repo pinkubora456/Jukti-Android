@@ -21,17 +21,9 @@ import com.example.ui.viewmodel.JuktiViewModel
 fun ExportReportsScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Export Reports", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.OWNER_DASHBOARD) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Export Reports",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.OWNER_DASHBOARD) }
             )
         }
     ) { innerPadding ->

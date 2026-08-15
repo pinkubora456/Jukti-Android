@@ -261,6 +261,12 @@ interface QuestionProgressDao {
     @Query("SELECT * FROM question_progress WHERE questionId = :questionId")
     suspend fun getProgress(questionId: Long): QuestionProgressEntity?
     
+    @Query("SELECT * FROM question_progress")
+    fun getAllProgress(): Flow<List<QuestionProgressEntity>>
+
+    @Query("SELECT * FROM question_progress")
+    suspend fun getAllProgressDirect(): List<QuestionProgressEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(progress: QuestionProgressEntity)
 }

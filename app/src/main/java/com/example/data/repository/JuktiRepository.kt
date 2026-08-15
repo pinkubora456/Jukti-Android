@@ -47,23 +47,41 @@ class JuktiRepository(
         if (remoteQuestions.isEmpty()) {
             localQuestions
         } else {
-            remoteQuestions.map { remote ->
+            val remoteIds = remoteQuestions.map { it.id }.toSet()
+            val mergedRemote = remoteQuestions.map { remote ->
                 val local = localQuestions.find { it.id == remote.id }
                 if (local != null) {
                     remote.copy(
-                        isBookmarked = local.isBookmarked,
-                        isLiked = local.isLiked,
-                        isHidden = local.isHidden
+                        isBookmarked = local.isBookmarked || remote.isBookmarked,
+                        isLiked = local.isLiked || remote.isLiked,
+                        isHidden = local.isHidden || remote.isHidden,
+                        isReported = local.isReported || remote.isReported
                     )
                 } else {
                     remote
                 }
             }
+            val localOnly = localQuestions.filter { it.id !in remoteIds }
+            mergedRemote + localOnly
         }
     }
 
     val bookmarkedQuestions: Flow<List<QuestionEntity>> = allQuestions.map { list -> list.filter { it.isBookmarked } }
-    val smartPracticeQuestions: Flow<List<QuestionEntity>> = allQuestions.map { list -> list.filter { it.isLiked || it.isBookmarked } }
+    val smartPracticeQuestions: Flow<List<QuestionEntity>> = combine(
+        allQuestions,
+        questionProgressDao.getAllProgress()
+    ) { questions, progressList ->
+        val progressMap = progressList.associateBy { it.questionId }
+        val eligible = questions.filter { q ->
+            if (q.isHidden || q.isReported) return@filter false
+            val p = progressMap[q.id]
+            val isIncorrect = p?.let { (it.everGotWrong || it.firstAttemptCorrect == false) && !it.isMastered } ?: false
+            val isSaved = q.isBookmarked || q.isLiked
+            val isNotMastered = p?.isMastered != true
+            isIncorrect || isSaved || isNotMastered
+        }
+        if (eligible.isNotEmpty()) eligible else questions.filter { !it.isHidden && !it.isReported }
+    }
     val hiddenQuestions: Flow<List<QuestionEntity>> = allQuestions.map { list -> list.filter { it.isHidden } }
 
     val allMockTests: Flow<List<MockTestEntity>> = combine(
@@ -151,7 +169,17 @@ class JuktiRepository(
         return entitlementDao.getEntitlement(userId)
     }
     
-    val aboutConfig: Flow<AboutConfigEntity?> = aboutConfigDao.getAboutConfig()
+    val aboutConfig: Flow<AboutConfigEntity?> = combine(
+        firebaseRepository.observeAboutConfig(),
+        aboutConfigDao.getAboutConfig()
+    ) { remote, local ->
+        if (remote != null) {
+            aboutConfigDao.insertOrUpdateAboutConfig(remote)
+            remote
+        } else {
+            local
+        }
+    }
 
     val allPlans: Flow<List<PlanEntity>> = combine(
         firebaseRepository.observePlans(),
@@ -219,6 +247,7 @@ class JuktiRepository(
         } else {
             questionDao.insertQuestion(updated)
         }
+        syncManager.enqueueAndSync("QUESTION", updated.id.toString(), "UPDATE", syncManager.questionToMap(updated))
     }
 
     suspend fun toggleLikeQuestion(question: QuestionEntity) {
@@ -229,6 +258,7 @@ class JuktiRepository(
         } else {
             questionDao.insertQuestion(updated)
         }
+        syncManager.enqueueAndSync("QUESTION", updated.id.toString(), "UPDATE", syncManager.questionToMap(updated))
     }
 
     suspend fun toggleHideQuestion(question: QuestionEntity) {
@@ -309,7 +339,14 @@ class JuktiRepository(
         return syncManager.enqueueAndSync("MOCK_TEST", mock.id.toString(), "DELETE")
     }
 
-    suspend fun submitMockResult(mockId: Long, score: Int, accuracy: Float, timeSpentMins: Int) {
+    suspend fun submitMockResult(
+        mockId: Long,
+        score: Int,
+        accuracy: Float,
+        timeSpentMins: Int,
+        totalAttempted: Int = 0,
+        correctCount: Int = 0
+    ) {
         val mock = allMockTests.firstOrNull()?.find { it.id == mockId }
         if (mock != null) {
             val scorePercentage = if (mock.totalMarks > 0) ((score.toFloat() / mock.totalMarks.toFloat()) * 100f) else 0f
@@ -327,10 +364,40 @@ class JuktiRepository(
             } else {
                 mockTestDao.insertMockTest(updated)
             }
-            // Reward XP
+            
+            // Calculate XP reward from mock test performance
             val scorePercentageInt = scorePercentage.toInt()
             val mockXp = 20 + (scorePercentageInt / 5)
-            awardXp(mockXp, timeSpentMins)
+            
+            // Update user profile statistics: totalSolved, correctCount, time, XP and level
+            val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
+            val newTotalSolved = profile.totalSolved + totalAttempted
+            val newCorrectCount = profile.correctCount + correctCount
+            val newTotalTime = profile.totalTimeMinutes + timeSpentMins
+            val safeAddedXp = mockXp.coerceIn(0, 1000)
+            val newXp = profile.xp + safeAddedXp
+            
+            var newLevel = 1
+            while (true) {
+                val nextLevel = newLevel + 1
+                val currentLvl = nextLevel - 1
+                val requiredXp = 50 * currentLvl + 10 * (currentLvl - 1) * (currentLvl - 1)
+                if (newXp >= requiredXp) {
+                    newLevel = nextLevel
+                } else {
+                    break
+                }
+            }
+            
+            val updatedProfile = profile.copy(
+                xp = newXp,
+                level = newLevel,
+                totalSolved = newTotalSolved,
+                correctCount = newCorrectCount,
+                totalTimeMinutes = newTotalTime
+            )
+            userProfileDao.insertOrUpdateProfile(updatedProfile)
+            firebaseRepository.saveUserProfile(updatedProfile, merge = true)
         }
     }
 
@@ -429,11 +496,13 @@ class JuktiRepository(
 
     // User Profile & XP
     suspend fun updateUserProfile(profile: UserProfileEntity) {
-        val authEmail = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email } catch (e: Exception) { null }
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+        val authEmail = auth?.currentUser?.email
+        val authUid = auth?.currentUser?.uid ?: profile.uid
         val finalProfile = if ((profile.email.isBlank() || profile.email == "scholar@jukti.in") && !authEmail.isNullOrBlank()) {
-            profile.copy(email = authEmail, isLoggedIn = true)
+            profile.copy(email = authEmail, uid = authUid, isLoggedIn = true)
         } else {
-            profile
+            profile.copy(uid = if (profile.uid.isBlank()) authUid else profile.uid)
         }
         userProfileDao.insertOrUpdateProfile(finalProfile)
         try {
@@ -443,27 +512,109 @@ class JuktiRepository(
         }
     }
 
+    suspend fun clearUserEntitlements(userId: String) {
+        try {
+            if (userId.isNotBlank()) {
+                entitlementDao.deleteEntitlement(userId)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JuktiRepository", "Error clearing user entitlement", e)
+        }
+    }
+
+    suspend fun loadUserProfileForAuth(
+        uid: String,
+        email: String,
+        googleName: String,
+        deviceId: String,
+        defaultRole: String
+    ): UserProfileEntity {
+        val remoteProfile = firebaseRepository.fetchUserProfile(email, uid)
+        val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, uid)
+
+        if (remoteEntitlement != null) {
+            entitlementDao.insertEntitlement(remoteEntitlement)
+        } else {
+            entitlementDao.deleteEntitlement(uid)
+        }
+
+        val resolvedProfile = if (remoteProfile != null) {
+            remoteProfile.copy(
+                uid = uid,
+                email = email,
+                googleName = if (googleName.isNotBlank()) googleName else remoteProfile.googleName,
+                isLoggedIn = true,
+                currentDeviceId = deviceId,
+                activeDeviceId = deviceId,
+                role = if (defaultRole == "OWNER" || defaultRole == "ADMIN") defaultRole else remoteProfile.role
+            )
+        } else {
+            val defaultDisplayName = if (googleName.isNotBlank()) {
+                googleName
+            } else {
+                email.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            }
+            UserProfileEntity(
+                id = 1,
+                uid = uid,
+                email = email,
+                name = defaultDisplayName,
+                googleName = googleName,
+                registrationName = defaultDisplayName,
+                profileName = defaultDisplayName,
+                mobile = "",
+                district = "",
+                examGoal = "",
+                xp = 0,
+                level = 1,
+                dailyStreak = 0,
+                totalSolved = 0,
+                correctCount = 0,
+                totalTimeMinutes = 0,
+                isPremium = (defaultRole == "OWNER" || defaultRole == "ADMIN"),
+                role = defaultRole,
+                firebaseProjectId = "jukti-26035",
+                joinedDate = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.US).format(java.util.Date()),
+                isLoggedIn = true,
+                currentDeviceId = deviceId,
+                activeDeviceId = deviceId
+            )
+        }
+
+        userProfileDao.insertOrUpdateProfile(resolvedProfile)
+        firebaseRepository.saveUserProfile(resolvedProfile, merge = true)
+        return resolvedProfile
+    }
+
     suspend fun syncUserProfileWithFirebase(email: String) {
         if (email.isBlank()) return
         try {
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val currentUid = auth?.currentUser?.uid
             val localProfile = userProfileDao.getUserProfileDirect()
-            val remoteProfile = firebaseRepository.fetchUserProfile(email)
-            val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email)
+            val remoteProfile = firebaseRepository.fetchUserProfile(email, currentUid)
+            val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, currentUid)
             
+            val docKey = currentUid ?: firebaseRepository.getSanitizedUserDocId(email)
             if (remoteEntitlement != null) {
                 entitlementDao.insertEntitlement(remoteEntitlement)
             } else {
-                entitlementDao.deleteEntitlement(firebaseRepository.getSanitizedUserDocId(email))
+                entitlementDao.deleteEntitlement(docKey)
             }
 
             if (remoteProfile != null) {
-                val merged = if (localProfile != null) {
+                val isSameUser = localProfile != null && (localProfile.email.equals(email, ignoreCase = true) || (currentUid != null && localProfile.uid == currentUid))
+                val safeTotalSolved = if (isSameUser && localProfile != null) maxOf(localProfile.totalSolved, remoteProfile.totalSolved) else remoteProfile.totalSolved
+                val safeCorrectCount = if (isSameUser && localProfile != null) maxOf(localProfile.correctCount, remoteProfile.correctCount).coerceAtMost(safeTotalSolved) else remoteProfile.correctCount.coerceAtMost(safeTotalSolved)
+                val merged = if (isSameUser && localProfile != null) {
                     localProfile.copy(
+                        uid = currentUid ?: remoteProfile.uid,
                         email = email,
                         xp = maxOf(localProfile.xp, remoteProfile.xp),
                         level = maxOf(localProfile.level, remoteProfile.level),
                         dailyStreak = maxOf(localProfile.dailyStreak, remoteProfile.dailyStreak),
-                        totalSolved = maxOf(localProfile.totalSolved, remoteProfile.totalSolved),
+                        totalSolved = safeTotalSolved,
+                        correctCount = safeCorrectCount,
                         totalTimeMinutes = maxOf(localProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes),
                         isPremium = localProfile.isPremium || remoteProfile.isPremium,
                         role = if (localProfile.role == "OWNER" || remoteProfile.role == "OWNER" || localProfile.role == "ADMIN" || remoteProfile.role == "ADMIN") {
@@ -482,21 +633,24 @@ class JuktiRepository(
                     )
                 } else {
                     remoteProfile.copy(
+                        uid = currentUid ?: remoteProfile.uid,
                         email = email,
+                        totalSolved = safeTotalSolved,
+                        correctCount = safeCorrectCount,
                         isLoggedIn = true
                     )
                 }
                 userProfileDao.insertOrUpdateProfile(merged)
                 firebaseRepository.saveUserProfile(merged, merge = true)
-            } else if (localProfile != null) {
-                firebaseRepository.saveUserProfile(localProfile.copy(email = email, isLoggedIn = true), merge = true)
+            } else if (localProfile != null && (localProfile.email.equals(email, ignoreCase = true) || (currentUid != null && localProfile.uid == currentUid))) {
+                firebaseRepository.saveUserProfile(localProfile.copy(uid = currentUid ?: localProfile.uid, email = email, isLoggedIn = true), merge = true)
             }
         } catch (e: Exception) {
             android.util.Log.e("JuktiRepository", "Error during syncUserProfileWithFirebase", e)
         }
     }
 
-    suspend fun awardXp(addedXp: Int, addedTimeMins: Int = 1) {
+    suspend fun awardXp(addedXp: Int, addedTimeMins: Int = 0) {
         val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
         val safeAddedXp = addedXp.coerceIn(0, 1000)
         val newXp = profile.xp + safeAddedXp
@@ -516,7 +670,6 @@ class JuktiRepository(
         val updated = profile.copy(
             xp = newXp,
             level = newLevel,
-            totalSolved = profile.totalSolved + 1,
             totalTimeMinutes = profile.totalTimeMinutes + addedTimeMins
         )
         userProfileDao.insertOrUpdateProfile(updated)
@@ -553,8 +706,9 @@ class JuktiRepository(
         return syncManager.runMinimalDiagnosticTest()
     }
 
-    suspend fun updateAboutConfig(config: AboutConfigEntity) {
+    suspend fun updateAboutConfig(config: AboutConfigEntity): Pair<Boolean, String> {
         aboutConfigDao.insertOrUpdateAboutConfig(config)
+        return syncManager.enqueueAndSync("ABOUT_CONFIG", "1", "UPDATE", syncManager.aboutConfigToMap(config))
     }
 
     suspend fun insertPlan(plan: PlanEntity): Pair<Boolean, String> { 
@@ -642,16 +796,16 @@ class JuktiRepository(
     suspend fun resetUserProgress() {
         val currentProfile = userProfileDao.getUserProfileDirect()
         if (currentProfile != null) {
-            userProfileDao.insertOrUpdateProfile(
-                currentProfile.copy(
-                    xp = 0,
-                    level = 1,
-                    dailyStreak = 0,
-                    totalSolved = 0,
-                    correctCount = 0,
-                    totalTimeMinutes = 0
-                )
+            val resetProfile = currentProfile.copy(
+                xp = 0,
+                level = 1,
+                dailyStreak = 0,
+                totalSolved = 0,
+                correctCount = 0,
+                totalTimeMinutes = 0
             )
+            userProfileDao.insertOrUpdateProfile(resetProfile)
+            firebaseRepository.saveUserProfile(resetProfile, merge = true)
         }
 
         val allMocks = mockTestDao.getAllMockTests().firstOrNull() ?: emptyList()
@@ -694,17 +848,17 @@ class JuktiRepository(
         return syncManager.enqueueAndSync("FAQ", faq.id.toString(), "DELETE")
     }
 
-    suspend fun processQuestionAnswerForXp(questionId: Long, isCorrect: Boolean, todayStr: String): Int {
+    suspend fun recordQuestionAnswer(
+        questionId: Long,
+        isCorrect: Boolean,
+        timeSpentSec: Int = 10,
+        todayStr: String
+    ): Int {
         val progress = questionProgressDao.getProgress(questionId) ?: QuestionProgressEntity(questionId = questionId)
         var xpToAward = 0
 
-        if (progress.isMastered) {
-            return 0 // No XP for already mastered
-        }
-
-        if (progress.lastAttemptDateStr == todayStr) {
-            return 0 // No XP for multiple attempts on the same day
-        }
+        val alreadyMastered = progress.isMastered
+        val alreadyAttemptedToday = (progress.lastAttemptDateStr == todayStr)
 
         var newTotalCorrectDays = progress.totalCorrectDays
         var newFirstAttemptCorrect = progress.firstAttemptCorrect
@@ -713,18 +867,20 @@ class JuktiRepository(
 
         if (isCorrect) {
             newTotalCorrectDays += 1
-            if (progress.firstAttemptCorrect == null) {
-                newFirstAttemptCorrect = true
-                xpToAward = 5 // First correct answer
-            } else if (progress.everGotWrong) {
-                xpToAward = 8 // Correct after previously getting it wrong
-            } else {
-                xpToAward = 5 // Just another correct answer
-            }
-            
-            if (newTotalCorrectDays >= 3) {
-                newIsMastered = true
-                xpToAward += 10 // Master a question
+            if (!alreadyMastered && !alreadyAttemptedToday) {
+                if (progress.firstAttemptCorrect == null) {
+                    newFirstAttemptCorrect = true
+                    xpToAward = 5 // First correct answer
+                } else if (progress.everGotWrong) {
+                    xpToAward = 8 // Correct after previously getting it wrong
+                } else {
+                    xpToAward = 5 // Just another correct answer
+                }
+                
+                if (newTotalCorrectDays >= 3) {
+                    newIsMastered = true
+                    xpToAward += 10 // Master a question
+                }
             }
         } else {
             if (progress.firstAttemptCorrect == null) {
@@ -735,9 +891,52 @@ class JuktiRepository(
             newTotalCorrectDays = 0
         }
 
-        questionProgressDao.insertOrUpdate(progress.copy(firstAttemptCorrect = newFirstAttemptCorrect, everGotWrong = newEverGotWrong, totalCorrectDays = newTotalCorrectDays, lastAttemptDateStr = todayStr, isMastered = newIsMastered))
-        if (xpToAward > 0) awardXp(xpToAward, 0)
+        val updatedProgress = progress.copy(
+            firstAttemptCorrect = newFirstAttemptCorrect,
+            everGotWrong = newEverGotWrong,
+            totalCorrectDays = newTotalCorrectDays,
+            lastAttemptDateStr = todayStr,
+            isMastered = newIsMastered
+        )
+        questionProgressDao.insertOrUpdate(updatedProgress)
+
+        // Atomically update user profile statistics: totalSolved, correctCount, totalTimeMinutes, XP, and Level
+        val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
+        val newTotalSolved = profile.totalSolved + 1
+        val newCorrectCount = if (isCorrect) (profile.correctCount + 1) else profile.correctCount
+        val timeMinsToAdd = (timeSpentSec / 60).coerceAtLeast(if (timeSpentSec > 0) 1 else 0)
+        val newTotalTime = profile.totalTimeMinutes + timeMinsToAdd
+        
+        val safeAddedXp = xpToAward.coerceIn(0, 1000)
+        val newXp = profile.xp + safeAddedXp
+        
+        var newLevel = 1
+        while (true) {
+            val nextLevel = newLevel + 1
+            val currentLvl = nextLevel - 1
+            val requiredXp = 50 * currentLvl + 10 * (currentLvl - 1) * (currentLvl - 1)
+            if (newXp >= requiredXp) {
+                newLevel = nextLevel
+            } else {
+                break
+            }
+        }
+
+        val updatedProfile = profile.copy(
+            xp = newXp,
+            level = newLevel,
+            totalSolved = newTotalSolved,
+            correctCount = newCorrectCount,
+            totalTimeMinutes = newTotalTime
+        )
+        userProfileDao.insertOrUpdateProfile(updatedProfile)
+        firebaseRepository.saveUserProfile(updatedProfile, merge = true)
+
         return xpToAward
+    }
+
+    suspend fun processQuestionAnswerForXp(questionId: Long, isCorrect: Boolean, todayStr: String): Int {
+        return recordQuestionAnswer(questionId, isCorrect, 10, todayStr)
     }
 
     suspend fun incrementDailyStreak() {
@@ -797,6 +996,11 @@ class JuktiRepository(
             val plans = firebaseRepository.fetchAllPlans()
             if (plans.isNotEmpty()) {
                 planDao.insertAll(plans)
+            }
+
+            val config = firebaseRepository.fetchAboutConfig()
+            if (config != null) {
+                aboutConfigDao.insertOrUpdateAboutConfig(config)
             }
 
             Result.success("All data fetched and updated from Firebase!")

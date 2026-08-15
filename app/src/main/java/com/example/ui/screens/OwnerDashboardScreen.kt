@@ -28,13 +28,9 @@ fun OwnerDashboardScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Owner Dashboard") },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Owner Dashboard",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) }
             )
         }
     ) { padding ->

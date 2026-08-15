@@ -167,32 +167,13 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // App bar & Header tabs
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.Analytics,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Leaderboard & Analytics",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+        com.example.ui.components.JuktiTopAppBar(
+            title = "Leaderboard & Analytics",
+            onBackClick = { viewModel.navigateTo(Screen.HOME) }
+        )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 1.dp) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 TabRow(selectedTabIndex = selectedTab) {
                     Tab(
                         selected = (selectedTab == 0),
@@ -311,6 +292,8 @@ fun ExamClearanceProbabilityCard(
     subjectBreakdownList: List<SubjectBreakdown>,
     userProfile: UserProfileEntity?
 ) {
+    var showExplanationDialog by remember { mutableStateOf(false) }
+
     val mockAvg = if (mockHistoryList.isNotEmpty()) {
         mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
     } else {
@@ -362,6 +345,18 @@ fun ExamClearanceProbabilityCard(
         else -> MaterialTheme.colorScheme.error
     }
 
+    if (showExplanationDialog) {
+        ExamClearanceProbabilityExplanationDialog(
+            probability = probability,
+            mockAvg = mockAvg,
+            topicMastery = topicMastery,
+            overallAccuracy = overallAccuracy,
+            revisionConsistency = boundedRevision,
+            syllabusCompletion = boundedSyllabus,
+            onDismiss = { showExplanationDialog = false }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -397,10 +392,21 @@ fun ExamClearanceProbabilityCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                        IconButton(
+                            onClick = { showExplanationDialog = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "How is this calculated and disclaimer",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Based on Assam Grade 3 & 4 exam benchmark statistics",
+                        text = "App-generated estimate based on your in-app activity and practice performance",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -468,11 +474,243 @@ fun ExamClearanceProbabilityCard(
                     }
                 }
 
+                TextButton(
+                    onClick = { showExplanationDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "How is this calculated?",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showExplanationDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.HelpOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Estimate based on app practice • Does not guarantee exam results",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExamClearanceProbabilityExplanationDialog(
+    probability: Float,
+    mockAvg: Float,
+    topicMastery: Float,
+    overallAccuracy: Float,
+    revisionConsistency: Float,
+    syllabusCompletion: Float,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Keep practicing to improve",
+                    text = "Probability of Clearing Exam",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Main estimated summary
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Current App-Generated Estimate: ${String.format("%.1f%%", probability)}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "This metric is an automated estimation calculated exclusively from your activity, question answers, and mock test scores inside the Jukti application.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Mandatory Official Disclaimer Card
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Important Disclaimer & Limitations",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "• App Estimate, Not a Guarantee: This probability is an educational estimate and does NOT guarantee that you will qualify, pass, or fail any competitive examination.\n\n" +
+                                   "• Data Scope: It is computed solely from available in-app practice and mock test data logged on your device.\n\n" +
+                                   "• External Factors: Real examination outcomes depend on many factors outside the app, including official question difficulty, dynamic cut-off marks, candidate competition, reservation quotas, negative marking, and personal exam-day conditions.\n\n" +
+                                   "• No Official Liability: Jukti cannot and does not predict official examination results with certainty. Jukti is not responsible for the user's actual examination results.",
+                            style = MaterialTheme.typography.bodySmall,
+                            lineHeight = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // Breakdown of how it is calculated
+                Text(
+                    text = "How the App Calculates This Estimate",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ProbabilityFactorRow(
+                        title = "1. Mock Test Performance (40%)",
+                        description = "Average score percentage across your completed full-length mock tests.",
+                        currentValue = String.format("%.1f%%", mockAvg)
+                    )
+                    ProbabilityFactorRow(
+                        title = "2. Subject & Topic Mastery (30%)",
+                        description = "Average accuracy across all individual subject modules.",
+                        currentValue = String.format("%.1f%%", topicMastery)
+                    )
+                    ProbabilityFactorRow(
+                        title = "3. Overall Practice Accuracy (15%)",
+                        description = "Ratio of correct answers to total attempted practice questions.",
+                        currentValue = String.format("%.1f%%", overallAccuracy)
+                    )
+                    ProbabilityFactorRow(
+                        title = "4. Daily Revision Consistency (10%)",
+                        description = "Your continuous daily study streak and active revision habits.",
+                        currentValue = String.format("%.1f%%", revisionConsistency)
+                    )
+                    ProbabilityFactorRow(
+                        title = "5. Syllabus Progress & Level (5%)",
+                        description = "Completed study coverage and academic milestone levels in the app.",
+                        currentValue = String.format("%.1f%%", syllabusCompletion)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Understood")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ProbabilityFactorRow(
+    title: String,
+    description: String,
+    currentValue: String
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.5.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text(
+                    text = currentValue,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -2114,7 +2352,7 @@ fun LeaderboardTabContent(
 
             // TOP 50 USERS RANKED TOP TO BOTTOM
             itemsIndexed(top50List, key = { _, it -> it.uid.ifBlank { it.name } + it.examPlanEn + it.xp }) { index, ranker ->
-                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val currentUser = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser } catch (e: Throwable) { null }
                 val currentUserUid = currentUser?.uid
                 val isUser = !currentUserUid.isNullOrBlank() && !ranker.uid.isNullOrBlank() && ranker.uid == currentUserUid
 
@@ -2236,7 +2474,7 @@ fun LeaderboardTabContent(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             aroundYouList.forEach { (rankNum, ranker, _) ->
-                                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                                val currentUser = try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser } catch (e: Throwable) { null }
                                 val currentUserUid = currentUser?.uid
                                 val isCurrent = !currentUserUid.isNullOrBlank() && !ranker.uid.isNullOrBlank() && ranker.uid == currentUserUid
                                 Surface(

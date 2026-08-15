@@ -51,15 +51,9 @@ fun ManageAdminScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text("Manage Admins") 
-                },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.MENU) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Admins",
+                onBackClick = { viewModel.navigateTo(Screen.MENU) }
             )
         }
     ) { padding ->

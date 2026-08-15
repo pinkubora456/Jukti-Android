@@ -16,22 +16,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.JuktiViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageMockScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Mocks", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Mocks",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.WORKSPACE) }
             )
         }
     ) { innerPadding ->

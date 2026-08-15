@@ -328,6 +328,37 @@ class FirebaseSyncManager(
         "details" to a.actionDetails
     )
 
+    fun aboutConfigToMap(config: AboutConfigEntity): Map<String, Any?> = mapOf(
+        "id" to config.id,
+        "appTitle" to config.appTitle,
+        "appSubtitleEn" to config.appSubtitleEn,
+        "appSubtitleAs" to config.appSubtitleAs,
+        "versionText" to config.versionText,
+        "missionEn" to config.missionEn,
+        "missionAs" to config.missionAs,
+        "logoIconName" to config.logoIconName,
+        "logoUrl" to config.logoUrl,
+        "logoUpdatedAt" to config.logoUpdatedAt,
+        "copyrightText" to config.copyrightText,
+        "developerTagline" to config.developerTagline,
+        "contactEmail" to config.contactEmail,
+        "contactPhone" to config.contactPhone,
+        "contactTelegram" to config.contactTelegram,
+        "contactWhatsapp" to config.contactWhatsapp,
+        "adminEmails" to config.adminEmails,
+        "refundPolicyEn" to config.refundPolicyEn,
+        "refundPolicyAs" to config.refundPolicyAs,
+        "founderName" to config.founderName,
+        "founderTitle" to config.founderTitle,
+        "founderCredential" to config.founderCredential,
+        "founderDescription" to config.founderDescription,
+        "founderPhotoUrl" to config.founderPhotoUrl,
+        "founderTagline" to config.founderTagline,
+        "privacyPolicyContent" to config.privacyPolicyContent,
+        "termsConditionsContent" to config.termsConditionsContent,
+        "playStoreUrl" to config.playStoreUrl
+    )
+
     private fun getCollectionName(dataType: String): String {
         return when (dataType.uppercase()) {
             "QUESTION" -> "questions"
@@ -342,6 +373,7 @@ class FirebaseSyncManager(
             "NOTIFICATION" -> "notifications"
             "PENDING_REQUEST" -> "pending_requests"
             "ACTIVITY_LOG" -> "activity_logs"
+            "ABOUT_CONFIG", "APP_CONFIG" -> "app_config"
             else -> dataType.lowercase() + "s"
         }
     }

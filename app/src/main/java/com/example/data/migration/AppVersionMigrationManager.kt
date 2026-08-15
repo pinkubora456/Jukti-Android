@@ -46,14 +46,17 @@ object AppVersionMigrationManager {
                     val firebaseRepo = FirebaseRepository()
                     val remoteProfile = firebaseRepo.fetchUserProfile(userProfile.email)
                     if (remoteProfile != null) {
-                        // Preserve existing fields, merge highest XP and authoritative premium status
+                        // Preserve existing fields, merge highest XP, accuracy metrics and authoritative premium status
+                        val safeTotalSolved = maxOf(userProfile.totalSolved, remoteProfile.totalSolved)
+                        val safeCorrectCount = maxOf(userProfile.correctCount, remoteProfile.correctCount).coerceAtMost(safeTotalSolved)
                         val mergedProfile = userProfile.copy(
                             xp = maxOf(userProfile.xp, remoteProfile.xp),
                             level = maxOf(userProfile.level, remoteProfile.level),
                             isPremium = remoteProfile.isPremium,
                             role = if (remoteProfile.role != "USER") remoteProfile.role else userProfile.role,
                             dailyStreak = maxOf(userProfile.dailyStreak, remoteProfile.dailyStreak),
-                            totalSolved = maxOf(userProfile.totalSolved, remoteProfile.totalSolved),
+                            totalSolved = safeTotalSolved,
+                            correctCount = safeCorrectCount,
                             totalTimeMinutes = maxOf(userProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes)
                         )
                         database.userProfileDao().insertOrUpdateProfile(mergedProfile)

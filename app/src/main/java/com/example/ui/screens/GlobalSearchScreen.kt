@@ -59,20 +59,13 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
+        com.example.ui.components.JuktiTopAppBar(
+            onBackClick = { viewModel.navigateTo(Screen.HOME) },
+            title = {
                 SafeOutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search questions, notes, mocks...") },
+                    placeholder = { Text("Search questions, notes, mocks...", style = MaterialTheme.typography.bodyMedium) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
@@ -81,12 +74,14 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
                 )
             }
-        }
+        )
 
         if (query.isBlank()) {
             Box(

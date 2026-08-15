@@ -33,13 +33,9 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Manage Subjects & Chapters", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.WORKSPACE) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Manage Subjects & Chapters",
+                onBackClick = { viewModel.navigateTo(Screen.WORKSPACE) }
             )
         }
     ) { innerPadding ->

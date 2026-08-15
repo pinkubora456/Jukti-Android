@@ -233,13 +233,9 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Profile", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(Screen.HOME) }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "My Profile",
+                onBackClick = { viewModel.navigateTo(Screen.HOME) }
             )
         }
     ) { innerPadding ->

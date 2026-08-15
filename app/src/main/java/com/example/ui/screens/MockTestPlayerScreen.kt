@@ -150,65 +150,48 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Player Top Bar
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(onClick = { showExitConfirmDialog = true }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Column {
-                            BilingualText(
-                                textEn = mockTest?.titleEn ?: "Mock Test",
-                                textAs = mockTest?.titleAs ?: "মক টেষ্ট",
-                                language = language,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Time Left: %02d:%02d".format(minutesLeft, secondsLeft),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            
-                            val mockType = mockTest?.testType
-                            val subjectOrChapter = mockTest?.subjectOrChapter
-                            if (mockType == "Subject-wise" && !subjectOrChapter.isNullOrBlank()) {
-                                Text(
-                                    text = "«Subject: $subjectOrChapter»",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else if (mockType == "Chapter-wise" && !subjectOrChapter.isNullOrBlank()) {
-                                val parts = subjectOrChapter.split("||")
-                                val subj = parts.getOrNull(0) ?: ""
-                                val chap = parts.getOrNull(1) ?: ""
-                                Text(
-                                    text = "«Subject: $subj\nChapter: $chap»",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+        com.example.ui.components.JuktiTopAppBar(
+            title = {
+                Column {
+                    BilingualText(
+                        textEn = mockTest?.titleEn ?: "Mock Test",
+                        textAs = mockTest?.titleAs ?: "মক টেষ্ট",
+                        language = language,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Time Left: %02d:%02d".format(minutesLeft, secondsLeft),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    
+                    val mockType = mockTest?.testType
+                    val subjectOrChapter = mockTest?.subjectOrChapter
+                    if (mockType == "Subject-wise" && !subjectOrChapter.isNullOrBlank()) {
+                        Text(
+                            text = "«Subject: $subjectOrChapter»",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (mockType == "Chapter-wise" && !subjectOrChapter.isNullOrBlank()) {
+                        val parts = subjectOrChapter.split("||")
+                        val subj = parts.getOrNull(0) ?: ""
+                        val chap = parts.getOrNull(1) ?: ""
+                        Text(
+                            text = "«Subject: $subj • Chapter: $chap»",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+            },
+            onBackClick = { showExitConfirmDialog = true }
+        )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 1.dp) {
+            Column {
                 // Question Language Switcher Bar with Question Palette Button
                 Row(
                     modifier = Modifier

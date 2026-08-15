@@ -16,13 +16,9 @@ fun StorageManagementScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Storage Management") },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.SETTINGS) }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                }
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Storage Management",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.SETTINGS) }
             )
         }
     ) { padding ->

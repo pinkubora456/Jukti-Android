@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.QuestionEntity
 import com.example.ui.components.BilingualText
 import com.example.ui.components.ReportQuestionDialog
 import com.example.ui.viewmodel.AppLanguage
@@ -89,14 +90,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var showSummary by rememberSaveable { mutableStateOf(false) }
     val userAnswers = remember { mutableStateMapOf<Long, Int>() }
 
-    // Reset index if practiceQuestions changes and out of bounds
-    LaunchedEffect(practiceQuestions.size) {
-        if (currentQuestionIndex >= practiceQuestions.size && practiceQuestions.isNotEmpty()) {
+    var activeSessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
+    var lastStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
+
+    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice) {
+        if (isSessionStarted) {
+            val eligible = practiceQuestions.shuffled().toMutableList()
+            if (eligible.size > 1 && eligible[0].id == lastStartingQuestionId) {
+                val temp = eligible[0]
+                eligible[0] = eligible[1]
+                eligible[1] = temp
+            }
+            if (eligible.isNotEmpty()) {
+                lastStartingQuestionId = eligible[0].id
+            }
+            activeSessionQuestions = eligible
+            currentQuestionIndex = 0
+        } else {
+            activeSessionQuestions = emptyList()
+        }
+    }
+
+    val displayQuestions = if (isSessionStarted && activeSessionQuestions.isNotEmpty()) activeSessionQuestions else practiceQuestions
+
+    // Reset index if displayQuestions changes and out of bounds
+    LaunchedEffect(displayQuestions.size) {
+        if (currentQuestionIndex >= displayQuestions.size && displayQuestions.isNotEmpty()) {
             currentQuestionIndex = 0
         }
     }
 
-    val currentQuestion = practiceQuestions.getOrNull(currentQuestionIndex)
+    val currentQuestion = displayQuestions.getOrNull(currentQuestionIndex)
     val selectedOptionIndex = currentQuestion?.id?.let { userAnswers[it] }
     val isSubmitted = selectedOptionIndex != null
 
@@ -127,99 +151,79 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Top Navigation Header
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 3.dp
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        if (isSessionStarted && !isSmartPractice) {
-                            isSessionStarted = false
-                        } else {
-                            viewModel.navigateTo(Screen.HOME)
-                        }
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isSessionStarted) {
-                                if (isSmartPractice) {
-                                    "Smart Practice"
-                                } else {
-                                    when (selectedSubjectKey) {
-                                        "General Knowledge" -> "General Knowledge"
-                                        "General English" -> "General English"
-                                        "Mathematics", "General Mathematics" -> "Mathematics"
-                                        "Reasoning" -> "Reasoning"
-                                        else -> "All Subjects"
-                                    }
-                                }
-                            } else {
-                                "Practice"
-                            },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = if (isSessionStarted) {
-                                if (isSmartPractice) "Your personalized practice session" else {
-                                    val chText = if (selectedChapters.isEmpty()) {
-                                        "All Chapters"
-                                    } else {
-                                        "${selectedChapters.size} Chapters"
-                                    }
-                                    "$chText • ${practiceQuestions.size} ${"Questions"}"
-                                }
-                            } else {
-                                "Select a subject banner to start practice"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+        val practiceTitle = if (isSessionStarted) {
+            if (isSmartPractice) {
+                "Smart Practice"
+            } else {
+                when (selectedSubjectKey) {
+                    "General Knowledge" -> "General Knowledge"
+                    "General English" -> "General English"
+                    "Mathematics", "General Mathematics" -> "Mathematics"
+                    "Reasoning" -> "Reasoning"
+                    else -> "All Subjects"
+                }
+            }
+        } else {
+            "Practice"
+        }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        // Practiced Question Counter Badge
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Practiced: $totalPracticedCount",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
+        val practiceSubtitle = if (isSessionStarted) {
+            if (isSmartPractice) "Your personalized practice session" else {
+                val chText = if (selectedChapters.isEmpty()) {
+                    "All Chapters"
+                } else {
+                    "${selectedChapters.size} Chapters"
+                }
+                "$chText • ${practiceQuestions.size} Questions"
+            }
+        } else {
+            "Select a subject banner to start practice"
+        }
+
+        com.example.ui.components.JuktiTopAppBar(
+            title = practiceTitle,
+            subtitle = practiceSubtitle,
+            onBackClick = {
+                if (isSessionStarted && !isSmartPractice) {
+                    isSessionStarted = false
+                } else {
+                    viewModel.navigateTo(Screen.HOME)
+                }
+            },
+            actions = {
+                // Practiced Question Counter Badge
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Practiced: $totalPracticedCount",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     }
                 }
+            }
+        )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 1.dp
+        ) {
+            Column {
                 // Question Language Selector Row
                 Row(
                     modifier = Modifier
@@ -459,7 +463,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
-                                        text = "Q ${currentQuestionIndex + 1} of ${practiceQuestions.size}",
+                                        text = "Q ${currentQuestionIndex + 1} of ${displayQuestions.size}",
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
@@ -524,7 +528,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     IconButton(
                                         onClick = {
                                             viewModel.toggleHideQuestion(currentQuestion)
-                                            if (currentQuestionIndex >= practiceQuestions.size - 1 && currentQuestionIndex > 0) {
+                                            activeSessionQuestions = activeSessionQuestions.filter { it.id != currentQuestion.id }
+                                            if (currentQuestionIndex >= displayQuestions.size - 1 && currentQuestionIndex > 0) {
                                                 currentQuestionIndex--
                                             }
                                         },
@@ -543,7 +548,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
 
                             // Progress bar for question count
                             LinearProgressIndicator(
-                                progress = { (currentQuestionIndex + 1).toFloat() / practiceQuestions.size.coerceAtLeast(1) },
+                                progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(4.dp)
@@ -612,12 +617,11 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         .padding(vertical = 4.dp)
                                         .clickable(enabled = !isSubmitted) {
                                             userAnswers[currentQuestion.id] = index
-                                            viewModel.recordStudyProgress(1, 10)
                                             val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
                                             if (isAnsCorrect) {
                                                 scoreCount += 10
                                             }
-                                            viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect)
+                                            viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)
                                         },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(containerColor = backgroundColor),
@@ -725,7 +729,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
 
                                 Button(
                                     onClick = {
-                                        if (currentQuestionIndex < practiceQuestions.size - 1) {
+                                        if (currentQuestionIndex < displayQuestions.size - 1) {
                                             currentQuestionIndex++
                                         } else {
                                             viewModel.awardChapterCompletionXp()
@@ -734,7 +738,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     }
                                 ) {
                                     Text(
-                                        if (currentQuestionIndex == practiceQuestions.size - 1) {
+                                        if (currentQuestionIndex == displayQuestions.size - 1) {
                                             "Completed"
                                         } else {
                                             "Next"

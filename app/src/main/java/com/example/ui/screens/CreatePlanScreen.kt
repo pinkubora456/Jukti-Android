@@ -2,29 +2,38 @@ package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.LocalMessageTranslator
-
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.ui.text.style.TextDecoration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +86,28 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
 
     var customFeatureInput by remember { mutableStateOf(TextFieldValue("")) }
     
+    var isImageUploading by remember { mutableStateOf(false) }
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isImageUploading = true
+            viewModel.uploadImageFile(
+                uri = uri,
+                folder = "plan_banners",
+                context = context,
+                onLocalSaved = { localPath ->
+                    imageUrl = TextFieldValue(localPath)
+                    isImageUploading = false
+                    Toast.makeText(context, "Photo loaded successfully", Toast.LENGTH_SHORT).show()
+                },
+                onRemoteUploaded = { remoteUrl ->
+                    imageUrl = TextFieldValue(remoteUrl)
+                }
+            )
+        }
+    }
+
     var isSubmitting by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
@@ -261,17 +292,9 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Create Plan", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            com.example.ui.components.JuktiTopAppBar(
+                title = "Create Plan",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }
             )
         }
     ) { innerPadding ->
@@ -310,19 +333,123 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                SafeOutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("Promotional Banner Image URL (Optional)") },
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Text(
-                    text = "If provided, this image will be shown on the Home Page instead of the default plan card.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Promotional Banner Photo",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (imageUrl.text.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        "Photo Ready",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                        }
+
+                        if (imageUrl.text.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                AsyncImage(
+                                    model = imageUrl.text,
+                                    contentDescription = "Plan Banner Preview",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                IconButton(
+                                    onClick = { imageUrl = TextFieldValue("") },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove photo",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { photoPickerLauncher.launch("image/*") },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (isImageUploading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Loading...")
+                                } else {
+                                    Icon(
+                                        Icons.Default.PhotoCamera,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(if (imageUrl.text.isBlank()) "Choose Photo" else "Change Photo")
+                                }
+                            }
+                        }
+
+                        SafeOutlinedTextField(
+                            value = imageUrl,
+                            onValueChange = { imageUrl = it },
+                            label = { Text("Or Image URL (Optional)") },
+                            placeholder = { Text("https://example.com/banner.jpg") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Text(
+                            text = "If provided, this image will be shown on the Home Page instead of the default plan card.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        )
+                    }
+                }
             }
             item {
                 Text("Exam Target", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -735,14 +862,109 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
             }
 
             item {
-                Button(
-                    onClick = { /* Handle Image Upload */ },
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
                 ) {
-                    Icon(Icons.Default.Upload, contentDescription = "Upload Photo")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload Photo for Direct Publish")
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Upload,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                                Text(
+                                    "Direct Publish with Photo",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            if (imageUrl.text.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    contentColor = MaterialTheme.colorScheme.onSecondary
+                                ) {
+                                    Text(
+                                        "Photo Attached",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        if (imageUrl.text.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                AsyncImage(
+                                    model = imageUrl.text,
+                                    contentDescription = "Plan Banner",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                IconButton(
+                                    onClick = { imageUrl = TextFieldValue("") },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove photo",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            if (isImageUploading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onSecondary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Processing Photo...")
+                            } else {
+                                Icon(Icons.Default.Upload, contentDescription = "Upload Photo")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (imageUrl.text.isBlank()) "Upload Photo for Direct Publish" else "Change Uploaded Photo")
+                            }
+                        }
+                    }
                 }
             }
 

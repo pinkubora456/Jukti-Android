@@ -1,5 +1,6 @@
 package com.example.ui.viewmodel
 
+import android.app.Activity
 import android.app.Application
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -8,6 +9,11 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
+import com.example.JuktiApplication
+import com.example.auth.GoogleAuthManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -88,6 +94,10 @@ enum class Screen {
 }
 
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
+
+    init {
+        com.example.JuktiApplication.ensureFirebaseInitialized(application)
+    }
 
     private val database = JuktiDatabase.getDatabase(application)
     
@@ -189,6 +199,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _sessionMessage = MutableStateFlow<String?>(null)
     val sessionMessage: StateFlow<String?> = _sessionMessage.asStateFlow()
+
+    private val _isAuthLoading = MutableStateFlow(false)
+    val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
     private val _isRefreshingFromFirebase = MutableStateFlow(false)
     val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
@@ -297,7 +310,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSessionMessage() {
         _sessionMessage.value = null
-            _currentScreen.value = Screen.AUTH
     }
 
     val userProfile = repository.userProfile.stateIn(
@@ -498,7 +510,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         if (prof != null && prof.email.isNotBlank()) {
             val docId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
             try {
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val db = com.example.JuktiApplication.getFirestore(getApplication())
+                    ?: return Pair(false, "Firebase unavailable")
                 val doc = db.collection("users").document(docId)
                     .collection("entitlements").document("current").get().await()
                 if (doc.exists()) {
@@ -592,12 +605,20 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             userProfile.collect { prof ->
                 if (prof != null) {
-                    val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    val fbUser = try { com.example.JuktiApplication.getAuth(getApplication())?.currentUser } catch (e: Throwable) { null }
                     val needsForcedLogout = prof.isLoggedIn && fbUser == null && prof.email.isNotBlank()
 
                     if (needsForcedLogout) {
                          // Force logout because Firebase session is missing
-                         val updatedProf = prof.copy(isLoggedIn = false, currentDeviceId = "", activeDeviceId = "")
+                         val updatedProf = SampleData.initialUserProfile.copy(
+                             id = 1,
+                             isLoggedIn = false,
+                             currentDeviceId = "",
+                             activeDeviceId = "",
+                             email = "",
+                             name = "Guest User",
+                             uid = ""
+                         )
                          launch(Dispatchers.IO) { repository.updateUserProfile(updatedProf) }
                          _sessionMessage.value = "Firebase session expired. Please sign in again."
                          if (_currentScreen.value != Screen.AUTH) {
@@ -655,7 +676,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 repository.deleteOldAdminLogs(sevenDaysAgo)
                 repository.deleteOldOwnerLogs(sevenDaysAgo)
                 // We should also delete them from Firebase using SyncQueue, but since they are logs we can just delete from Firebase directly.
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
                 val snapshot = db.collection("activity_logs").whereLessThan("timestamp", sevenDaysAgo).get().await()
                 for (doc in snapshot.documents) {
                     doc.reference.delete().await()
@@ -860,11 +881,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 correct++
             }
         }
+        val totalAttempted = answers.size
         val score = (correct * (test.totalMarks / test.totalQuestions.coerceAtLeast(1)))
         val accuracy = if (answers.isNotEmpty()) (correct.toFloat() / answers.size.toFloat()) * 100f else 0f
 
         viewModelScope.launch {
-            repository.submitMockResult(test.id, score, accuracy, test.durationMinutes)
+            repository.submitMockResult(
+                mockId = test.id,
+                score = score,
+                accuracy = accuracy,
+                timeSpentMins = test.durationMinutes,
+                totalAttempted = totalAttempted,
+                correctCount = correct
+            )
             navigateTo(Screen.MOCK_RESULT)
         }
     }
@@ -995,10 +1024,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean) {
+    fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean, timeSpentSec: Int = 10) {
         viewModelScope.launch {
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-            repository.processQuestionAnswerForXp(questionId, isCorrect, today)
+            repository.recordQuestionAnswer(questionId, isCorrect, timeSpentSec, today)
         }
     }
 
@@ -1021,15 +1050,74 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loginWithGoogle(activity: Activity) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
+            try {
+                val googleAuthManager = GoogleAuthManager(getApplication())
+                val result = googleAuthManager.signInWithGoogle(activity)
+
+                if (result.isCancelled) {
+                    _isAuthLoading.value = false
+                    return@launch
+                }
+
+                val fbUser = result.firebaseUser
+                if (fbUser == null) {
+                    _sessionMessage.value = result.errorMessage ?: "Google Sign-In failed. Please try again."
+                    _isAuthLoading.value = false
+                    return@launch
+                }
+
+                val uid = fbUser.uid
+                val email = fbUser.email?.trim() ?: ""
+                val displayName = fbUser.displayName?.trim() ?: ""
+                val deviceId = java.util.UUID.randomUUID().toString()
+
+                val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true)
+                val isAdminEmail = email.equals("borapinku151@gmail.com", ignoreCase = true)
+                val defaultRole = when {
+                    isOwnerEmail -> "OWNER"
+                    isAdminEmail -> "ADMIN"
+                    else -> "USER"
+                }
+
+                withContext(Dispatchers.IO) {
+                    repository.loadUserProfileForAuth(
+                        uid = uid,
+                        email = email,
+                        googleName = displayName,
+                        deviceId = deviceId,
+                        defaultRole = defaultRole
+                    )
+                    UserSessionManager.registerSession(email, deviceId)
+                }
+
+                _isGuestMode.value = false
+                _sessionMessage.value = null
+                _currentScreen.value = Screen.HOME
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Google Sign-In flow error", e)
+                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
     fun loginWithEmail(emailInput: String, nameInput: String = "", passwordInput: String = "", isRegister: Boolean = false) {
         val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
         val deviceId = java.util.UUID.randomUUID().toString()
-        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
             try {
-                // Ensure Firebase auth happens
-                try {
+                val auth = com.example.JuktiApplication.getAuth(getApplication())
+                    ?: throw IllegalStateException("Firebase Auth is unavailable.")
+
+                val authResult = withContext(Dispatchers.IO) {
                     if (passwordInput.isNotBlank()) {
                         if (isRegister) {
                             auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
@@ -1041,92 +1129,88 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         throw IllegalArgumentException("Password is required for registration.")
                     }
-                } catch (e: Exception) {
-                    if (!isRegister && passwordInput.isBlank()) {
-                        auth.signInAnonymously().await()
-                    } else {
-                        throw e
-                    }
                 }
 
-                withContext(Dispatchers.Main) {
-                    UserSessionManager.registerSession(trimmedEmail, deviceId)
-                    val currentProf = userProfile.value ?: SampleData.initialUserProfile
-                    val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
-                    val isAdminEmail = trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
-                    val newRole = when {
-                        isOwnerEmail -> "OWNER"
-                        isAdminEmail -> "ADMIN"
-                        else -> if (currentProf.role.isNotBlank() && currentProf.role != "GUEST") currentProf.role else "USER"
-                    }
-                    val defaultName = when {
-                        isOwnerEmail -> "Jukti Education"
-                        isAdminEmail -> "Pinku Bora"
-                        else -> trimmedEmail.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                    }
-                    val newName = if (nameInput.isNotBlank()) nameInput else defaultName
-                    val fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                    val gName = fbUser?.displayName?.trim() ?: ""
+                val fbUser = authResult.user
+                val uid = fbUser?.uid ?: java.util.UUID.randomUUID().toString()
+                val effectiveEmail = fbUser?.email?.trim()?.ifBlank { trimmedEmail } ?: trimmedEmail
+                val gName = fbUser?.displayName?.trim() ?: nameInput.trim()
 
-                    val updatedProf = currentProf.copy(
-                        email = trimmedEmail,
-                        role = newRole,
-                        registrationName = newName,
+                val isOwnerEmail = effectiveEmail.equals("juktieducation@gmail.com", ignoreCase = true)
+                val isAdminEmail = effectiveEmail.equals("borapinku151@gmail.com", ignoreCase = true)
+                val defaultRole = when {
+                    isOwnerEmail -> "OWNER"
+                    isAdminEmail -> "ADMIN"
+                    else -> "USER"
+                }
+
+                withContext(Dispatchers.IO) {
+                    repository.loadUserProfileForAuth(
+                        uid = uid,
+                        email = effectiveEmail,
                         googleName = gName,
-                        isLoggedIn = true,
-                        currentDeviceId = deviceId,
-                        activeDeviceId = deviceId
+                        deviceId = deviceId,
+                        defaultRole = defaultRole
                     )
-                    repository.updateUserProfile(updatedProf)
-                    _isGuestMode.value = false
-                    _sessionMessage.value = null
-            _currentScreen.value = Screen.AUTH
-                    _currentScreen.value = Screen.HOME
+                    UserSessionManager.registerSession(effectiveEmail, deviceId)
+                }
 
-                    // Perform background sync with Firebase without blocking login UI or throwing uncaught errors
-                    launch {
-                        try {
-                            repository.syncUserProfileWithFirebase(trimmedEmail)
-                        } catch (e: Exception) {
-                            android.util.Log.e("JuktiViewModel", "Non-fatal background sync during login", e)
-                        }
-                    }
-                }
+                _isGuestMode.value = false
+                _sessionMessage.value = null
+                _currentScreen.value = Screen.HOME
             } catch (e: Exception) {
-                android.util.Log.e("JuktiViewModel", "Firebase auth failed", e)
-                // If it fails, maybe we should not proceed, but for this app we'll let it proceed if we want it to work offline
-                withContext(Dispatchers.Main) {
-                    val msg = e.message ?: ""
-                    if (msg.contains("API key not valid", ignoreCase = true) || msg.contains("INVALID_KEY", ignoreCase = true)) {
-                        _sessionMessage.value = "Login failed: Firebase API Key is missing. Please upload your valid google-services.json file to the app folder."
-                    } else {
-                        _sessionMessage.value = "Auth failed: ${e.localizedMessage}"
-                    }
+                Log.e("JuktiViewModel", "Firebase auth failed", e)
+                val msg = e.message ?: ""
+                if (msg.contains("API key not valid", ignoreCase = true) || msg.contains("INVALID_KEY", ignoreCase = true)) {
+                    _sessionMessage.value = "Login failed: Firebase API Key is missing. Please check your google-services.json file."
+                } else if (msg.contains("password", ignoreCase = true) || msg.contains("credential", ignoreCase = true)) {
+                    _sessionMessage.value = "Invalid email or password. Please check your credentials."
+                } else {
+                    _sessionMessage.value = "Authentication failed: ${e.localizedMessage ?: "Please try again."}"
                 }
+            } finally {
+                _isAuthLoading.value = false
             }
         }
     }
 
     fun logout() {
-        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-        auth.signOut()
-
         viewModelScope.launch {
-            val currentProf = userProfile.value ?: SampleData.initialUserProfile
-            if (currentProf.email.isNotBlank()) {
+            _isAuthLoading.value = true
+            try {
+                val googleAuthManager = GoogleAuthManager(getApplication())
+                googleAuthManager.signOut()
+            } catch (e: Throwable) {
+                Log.e("JuktiViewModel", "Error during sign out", e)
+            }
+
+            val currentProf = userProfile.value
+            if (currentProf != null && currentProf.email.isNotBlank()) {
                 UserSessionManager.unregisterSession(currentProf.email)
             }
-            val updatedProf = currentProf.copy(
+
+            val cleanProfile = SampleData.initialUserProfile.copy(
+                id = 1,
                 isLoggedIn = false,
                 currentDeviceId = "",
-                activeDeviceId = ""
+                activeDeviceId = "",
+                email = "",
+                name = "Guest User",
+                uid = ""
             )
-            _sessionMessage.value = null
-            _currentScreen.value = Screen.AUTH
-            
-            launch(Dispatchers.IO) {
-                repository.updateUserProfile(updatedProf)
+            withContext(Dispatchers.IO) {
+                repository.updateUserProfile(cleanProfile)
+                if (currentProf != null) {
+                    val key = currentProf.uid.ifBlank { currentProf.email }
+                    repository.clearUserEntitlements(key)
+                }
             }
+
+            _userEntitlement.value = null
+            _sessionMessage.value = null
+            _isGuestMode.value = false
+            _currentScreen.value = Screen.AUTH
+            _isAuthLoading.value = false
         }
     }
 
@@ -1137,16 +1221,22 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             if (currentProf.email.isNotBlank()) {
                 UserSessionManager.unregisterSession(currentProf.email)
             }
-            val updatedProf = currentProf.copy(
+            val cleanProfile = SampleData.initialUserProfile.copy(
+                id = 1,
                 isLoggedIn = false,
                 currentDeviceId = "",
-                activeDeviceId = ""
+                activeDeviceId = "",
+                email = "",
+                name = "Guest User",
+                uid = ""
             )
             _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
             _currentScreen.value = Screen.AUTH
             
-            launch(Dispatchers.IO) {
-                repository.updateUserProfile(updatedProf)
+            withContext(Dispatchers.IO) {
+                repository.updateUserProfile(cleanProfile)
+                val key = currentProf.uid.ifBlank { currentProf.email }
+                repository.clearUserEntitlements(key)
             }
         }
     }
@@ -1177,7 +1267,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
-                val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
+                val storage = com.example.JuktiApplication.getStorage(context) ?: return@launch
                 val ref = storage.reference.child("assets/logo.jpg")
                 val uploadTask = ref.putBytes(bytes).await()
                 val downloadUrl = ref.downloadUrl.await().toString()
@@ -1194,6 +1284,39 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 } catch(e: Exception) {}
             } catch (e: Exception) {
                 android.util.Log.e("JuktiViewModel", "Error uploading logo", e)
+            }
+        }
+    }
+
+    fun uploadImageFile(
+        uri: android.net.Uri,
+        folder: String,
+        context: android.content.Context,
+        onLocalSaved: (String) -> Unit,
+        onRemoteUploaded: ((String) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
+                val localFileName = "${folder}_${System.currentTimeMillis()}.jpg"
+                val file = java.io.File(context.filesDir, localFileName)
+                java.io.FileOutputStream(file).use { it.write(bytes) }
+                val localPath = file.absolutePath
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onLocalSaved(localPath)
+                }
+
+                val storage = com.example.JuktiApplication.getStorage(context)
+                if (storage != null) {
+                    val ref = storage.reference.child("$folder/${System.currentTimeMillis()}.jpg")
+                    ref.putBytes(bytes).await()
+                    val downloadUrl = ref.downloadUrl.await().toString()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onRemoteUploaded?.invoke(downloadUrl)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("JuktiViewModel", "Error in uploadImageFile", e)
             }
         }
     }
@@ -1236,10 +1359,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateAboutConfig(config: AboutConfigEntity) {
+    fun updateAboutConfig(config: AboutConfigEntity, onComplete: ((Boolean, String) -> Unit)? = null) {
         logActivity("Updated About/Config settings")
         viewModelScope.launch {
-            repository.updateAboutConfig(config)
+            val res = repository.updateAboutConfig(config)
+            onComplete?.invoke(res.first, res.second)
         }
     }
 
@@ -1601,7 +1725,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
         return try {
             val uid = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
             
             db.collection("users").document(uid).collection("entitlements").document("current").delete().await()
             db.collection("users").document(uid).update(
@@ -1782,7 +1906,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun approvePendingRequest(request: PendingRequestEntity) {
         if (request.status != "PENDING") return
         viewModelScope.launch {
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return@launch
             val docId = request.id.toString()
             val docRef = db.collection("pending_requests").document(docId)
             
@@ -1800,7 +1924,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
                     }
-                    transaction.update(docRef, "status", "PROCESSING")
+                    transaction.update(docRef, mapOf("status" to "PROCESSING"))
                 }.await()
                 
                 // Update local status
@@ -1864,7 +1988,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val finalReq = request.copy(status = finalStatus)
                 repository.updatePendingRequest(finalReq)
                 
-                db.collection("pending_requests").document(docId).update("status", finalStatus).await()
+                db.collection("pending_requests").document(docId).update(mapOf("status" to finalStatus)).await()
                 logActivity("${if (executeSuccess) "Approved" else "Failed to execute"} request: ${request.title}")
                 success = executeSuccess
                 
@@ -1906,7 +2030,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             )
             
             try {
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return@launch
                 val reqRef = db.collection("users").document(uid).collection("purchaseRequests").document(purchaseId)
                 
                 reqRef.set(requestData, com.google.firebase.firestore.SetOptions.merge()).await()
@@ -1968,7 +2092,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 "updatedAt" to System.currentTimeMillis()
             )
 
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
             
             db.collection("users").document(uid).collection("entitlements").document("current").set(entitlementMap).await()
             db.collection("users").document(uid).collection("entitlement_history").document(purchaseId).set(entitlementMap).await()
@@ -1993,7 +2117,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun exportUsersCsv(context: android.content.Context) {
         viewModelScope.launch {
             try {
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
                 val snapshot = db.collection("users").get().await()
                 val csvContent = StringBuilder("ID,Email,Name,Role,IsPremium\n")
                 for (doc in snapshot.documents) {
@@ -2013,7 +2137,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun exportPurchasesCsv(context: android.content.Context) {
         viewModelScope.launch {
             try {
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
                 val snapshot = db.collectionGroup("purchases").get().await()
                 val csvContent = StringBuilder("PurchaseID,PlanName,Status,Timestamp\n")
                 for (doc in snapshot.documents) {

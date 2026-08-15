@@ -88,29 +88,10 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Sticky Header Bar
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.HOME) }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Mock Test",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
+        com.example.ui.components.JuktiTopAppBar(
+            title = "Mock Test",
+            onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.HOME) }
+        )
 
         LazyColumn(
             contentPadding = PaddingValues(16.dp),

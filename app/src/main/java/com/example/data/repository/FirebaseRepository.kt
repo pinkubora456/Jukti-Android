@@ -76,12 +76,27 @@ class FirebaseRepository {
         }
     }
 
-    suspend fun fetchUserProfile(email: String): UserProfileEntity? {
+    suspend fun fetchUserProfile(email: String, explicitUid: String? = null): UserProfileEntity? {
         return try {
-            val docId = getSanitizedUserDocId(email)
-            val snapshot = firestore?.collection("users")?.document(docId)?.get()?.await()
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            val trimmedEmail = email.trim().lowercase()
+            val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
+
+            var snapshot = if (!currentUid.isNullOrBlank()) {
+                firestore?.collection("users")?.document(currentUid)?.get()?.await()
+            } else null
+
+            // Fallback to legacy document ID if not found under UID
+            if ((snapshot == null || !snapshot.exists()) && sanitizedEmailDocId.isNotBlank()) {
+                val legacySnap = firestore?.collection("users")?.document(sanitizedEmailDocId)?.get()?.await()
+                if (legacySnap != null && legacySnap.exists()) {
+                    snapshot = legacySnap
+                }
+            }
+
             if (snapshot != null && snapshot.exists()) {
-                UserProfileEntity(
+                val foundProfile = UserProfileEntity(
                     id = snapshot.getLong("id")?.toInt() ?: 1,
                     name = snapshot.getString("name") ?: "Assam Scholar",
                     email = snapshot.getString("email") ?: email,
@@ -101,11 +116,16 @@ class FirebaseRepository {
                     isLoggedIn = snapshot.getBoolean("isLoggedIn") ?: true,
                     currentDeviceId = snapshot.getString("currentDeviceId") ?: "",
                     activeDeviceId = snapshot.getString("activeDeviceId") ?: "",
-                    uid = snapshot.getString("uid") ?: docId,
+                    uid = currentUid ?: snapshot.getString("uid") ?: snapshot.id,
                     profileName = snapshot.getString("profileName") ?: "",
                     registrationName = snapshot.getString("registrationName") ?: "",
                     googleName = snapshot.getString("googleName") ?: ""
                 )
+                // If found via legacy doc, migrate to current UID
+                if (!currentUid.isNullOrBlank() && snapshot.id != currentUid) {
+                    saveUserProfile(foundProfile.copy(uid = currentUid), merge = true)
+                }
+                foundProfile
             } else null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
@@ -114,15 +134,29 @@ class FirebaseRepository {
         }
     }
 
-    suspend fun fetchUserEntitlement(email: String): EntitlementEntity? {
+    suspend fun fetchUserEntitlement(email: String, explicitUid: String? = null): EntitlementEntity? {
         return try {
-            val docId = getSanitizedUserDocId(email)
-            val snapshot = firestore?.collection("users")?.document(docId)
-                ?.collection("entitlements")?.document("current")?.get()?.await()
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            val trimmedEmail = email.trim().lowercase()
+            val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
+
+            var snapshot = if (!currentUid.isNullOrBlank()) {
+                firestore?.collection("users")?.document(currentUid)
+                    ?.collection("entitlements")?.document("current")?.get()?.await()
+            } else null
+
+            if ((snapshot == null || !snapshot.exists()) && sanitizedEmailDocId.isNotBlank()) {
+                val legacySnap = firestore?.collection("users")?.document(sanitizedEmailDocId)
+                    ?.collection("entitlements")?.document("current")?.get()?.await()
+                if (legacySnap != null && legacySnap.exists()) {
+                    snapshot = legacySnap
+                }
+            }
             
             if (snapshot != null && snapshot.exists()) {
                 EntitlementEntity(
-                    userId = docId,
+                    userId = currentUid ?: snapshot.reference.parent.parent?.id ?: getSanitizedUserDocId(email),
                     planId = snapshot.getString("planId") ?: "",
                     planName = snapshot.getString("planName") ?: "",
                     status = snapshot.getString("status") ?: "EXPIRED",
@@ -1263,6 +1297,77 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) { trySend(emptyList()) }
+        awaitClose { listener?.remove() }
+    }
+
+    private fun docToAboutConfig(doc: com.google.firebase.firestore.DocumentSnapshot): AboutConfigEntity {
+        return AboutConfigEntity(
+            id = doc.getLong("id")?.toInt() ?: 1,
+            appTitle = doc.getString("appTitle") ?: "Jukti",
+            appSubtitleEn = doc.getString("appSubtitleEn") ?: "Test Your Knowledge",
+            appSubtitleAs = doc.getString("appSubtitleAs") ?: "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
+            versionText = doc.getString("versionText") ?: "Version 2026.1.0",
+            missionEn = doc.getString("missionEn") ?: "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam...",
+            missionAs = doc.getString("missionAs") ?: "যুক্তি এপ্পৰ প্ৰধান উদ্দেশ্য হৈছে অসমৰ সকলো প্ৰতিযোগীতামূলক পৰীক্ষাৰ...",
+            logoIconName = doc.getString("logoIconName") ?: "School",
+            logoUrl = doc.getString("logoUrl") ?: "",
+            logoUpdatedAt = doc.getLong("logoUpdatedAt") ?: 0L,
+            copyrightText = doc.getString("copyrightText") ?: "Copyright © 2026 Jukti Education Portal. All rights reserved.",
+            developerTagline = doc.getString("developerTagline") ?: "Designed & Developed for Assam Aspirants",
+            contactEmail = doc.getString("contactEmail") ?: "support@jukti.in",
+            contactPhone = doc.getString("contactPhone") ?: "+91 98765 43210",
+            contactTelegram = doc.getString("contactTelegram") ?: "t.me/JuktiAssam",
+            contactWhatsapp = doc.getString("contactWhatsapp") ?: "Community Group",
+            adminEmails = doc.getString("adminEmails") ?: "",
+            refundPolicyEn = doc.getString("refundPolicyEn") ?: "Our policy lasts 7 days...",
+            refundPolicyAs = doc.getString("refundPolicyAs") ?: "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য...",
+            founderName = doc.getString("founderName") ?: "Pinku Bora",
+            founderTitle = doc.getString("founderTitle") ?: "Founder & Creator of Jukti",
+            founderCredential = doc.getString("founderCredential") ?: "ADRE 2022 Qualifier",
+            founderDescription = doc.getString("founderDescription") ?: "Jukti was created with a simple vision...",
+            founderPhotoUrl = doc.getString("founderPhotoUrl") ?: "",
+            founderTagline = doc.getString("founderTagline") ?: "Jukti — Test Your Knowledge.",
+            privacyPolicyContent = doc.getString("privacyPolicyContent") ?: "",
+            termsConditionsContent = doc.getString("termsConditionsContent") ?: "",
+            playStoreUrl = doc.getString("playStoreUrl") ?: "https://ais-dev-mbq2e6ge5z4qs5wk3gkstx-397582032913.asia-southeast1.run.app"
+        )
+    }
+
+    suspend fun fetchAboutConfig(): AboutConfigEntity? {
+        return try {
+            val db = firestore ?: return null
+            val doc1 = db.collection("app_config").document("1").get().await()
+            if (doc1.exists()) return docToAboutConfig(doc1)
+            val docMain = db.collection("app_config").document("main_config").get().await()
+            if (docMain.exists()) return docToAboutConfig(docMain)
+            null
+        } catch (e: Throwable) {
+            Log.e("FirebaseRepository", "Error fetching AboutConfig", e)
+            null
+        }
+    }
+
+    fun observeAboutConfig(): Flow<AboutConfigEntity?> = callbackFlow {
+        var listener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            if (db == null) {
+                trySend(null)
+            } else {
+                listener = db.collection("app_config").document("1")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.e("FirebaseRepository", "Error observing app_config/1", error)
+                            return@addSnapshotListener
+                        }
+                        if (snapshot != null && snapshot.exists()) {
+                            trySend(docToAboutConfig(snapshot))
+                        }
+                    }
+            }
+        } catch (e: Throwable) {
+            trySend(null)
+        }
         awaitClose { listener?.remove() }
     }
 }
