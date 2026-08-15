@@ -54,10 +54,11 @@ fun SplashScreen(viewModel: JuktiViewModel) {
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
-                    if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
+                    val modelData = if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) localLogo else if (aboutConfig.logoUrl.isNotEmpty()) aboutConfig.logoUrl else null
+                    if (modelData != null) {
                         coil.compose.AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(localLogo)
+                                .data(modelData)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = "App Logo",
