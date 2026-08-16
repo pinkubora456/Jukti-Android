@@ -138,12 +138,9 @@ class GoogleAuthManager(private val context: Context) {
             Log.w(TAG, "AccountManager fallback failed: ${t.message}")
         }
 
-        val fallbackEmail = "borapinku151@gmail.com"
-        val auth = FirebaseAuth.getInstance()
         return GoogleSignInResult(
-            firebaseUser = auth.currentUser,
-            fallbackEmail = fallbackEmail,
-            fallbackName = "Pinku Bora"
+            firebaseUser = null,
+            errorMessage = "No Google accounts found on this device. Please add a Google account in Android Settings."
         )
     }
 
