@@ -745,7 +745,7 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "10 Quick MCQs for Today - Earn +50 XP",
+                    text = "Daily Quick MCQs Challenge - Earn XP",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

@@ -253,12 +253,16 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     val features = listOf(
-                        "10,000+ Subject-wise MCQs in English & Assamese",
-                        "Assam History, Geography, Culture & Special GK",
-                        "Full-length Timed Mock Tests with State Ranking",
-                        "Daily Practice Quizzes with Explanation Sheets",
-                        "Study Notes & Downloadable Revision Sheets",
-                        "Detailed Progress Analytics & Weak Topic AI Tutor"
+                        "Subject & Chapter-Wise Practice MCQs in English & Assamese",
+                        "Assam History, Geography, Polity, Economy, Culture & Special GK",
+                        "Full-Length Timed Mock Tests with Instant Answer Key & Solutions",
+                        "State-Wide Leaderboard Ranking, Levels, Badges & XP Rewards",
+                        "Daily Quiz Practice Challenges with Detailed Explanation Sheets",
+                        "Comprehensive Study Notes & Downloadable PDF Revision Sheets",
+                        "Detailed Performance Analytics & Exam Clearance Probability",
+                        "Weak Topic AI Tutor & Subject-Wise Accuracy Breakdown",
+                        "Bookmarked MCQs & Offline Practice Support",
+                        "Real-Time Exam Updates, Notifications & Instant Cloud Sync"
                     )
 
                     features.forEach { feature ->
