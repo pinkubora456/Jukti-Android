@@ -3,6 +3,7 @@ package com.example.data.repository
 import com.example.data.local.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
@@ -162,8 +163,35 @@ class JuktiRepository(
     }
     val activeBanners: Flow<List<BannerEntity>> = allBanners.map { list -> list.filter { it.isActive } }
 
-    val allNotifications: Flow<List<NotificationEntity>> = notificationDao.getAllNotifications()
+    val allNotifications: Flow<List<NotificationEntity>> = combine(
+        firebaseRepository.observeNotifications(),
+        notificationDao.getAllNotifications()
+    ) { remoteNotifications, localNotifications ->
+        if (remoteNotifications.isEmpty()) {
+            localNotifications
+        } else {
+            val remoteIds = remoteNotifications.map { it.id }.toSet()
+            val mergedRemote = remoteNotifications.map { remote ->
+                val local = localNotifications.find { it.id == remote.id }
+                if (local != null) {
+                    remote.copy(
+                        isRead = local.isRead || remote.isRead
+                    )
+                } else {
+                    GlobalScope.launch(Dispatchers.IO) {
+                        try { notificationDao.insertNotification(remote) } catch (e: Throwable) {}
+                    }
+                    remote
+                }
+            }
+            val localOnly = localNotifications.filter { it.id !in remoteIds }
+            (mergedRemote + localOnly).sortedByDescending { it.id }
+        }
+    }
     val userProfile: Flow<UserProfileEntity?> = userProfileDao.getUserProfile()
+    
+    fun observeUserProfile(email: String, uid: String?): Flow<UserProfileEntity?> =
+        firebaseRepository.observeUserProfile(email, uid)
     
     fun getUserEntitlement(userId: String): Flow<EntitlementEntity?> {
         return entitlementDao.getEntitlement(userId)

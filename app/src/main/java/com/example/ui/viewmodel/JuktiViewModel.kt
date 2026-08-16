@@ -586,6 +586,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
+    private var isLoggingOutDueToDevice = false
+
     init {
         viewModelScope.launch {
             userProfile.collectLatest { prof ->
@@ -593,6 +595,17 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     val docId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
                     repository.getUserEntitlement(docId).collectLatest { ent ->
                         _userEntitlement.value = ent
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
+            userProfile.collectLatest { prof ->
+                if (prof != null && prof.isLoggedIn && prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+                    repository.observeUserProfile(prof.email, prof.uid).collectLatest { remoteProf ->
+                        if (remoteProf != null && remoteProf.currentDeviceId.isNotBlank() && remoteProf.currentDeviceId != prof.currentDeviceId) {
+                            logoutDueToOtherDeviceLogin()
+                        }
                     }
                 }
             }
@@ -731,11 +744,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
 
     private var lastNavTime = 0L
+    private val navBackStack = mutableListOf<Screen>()
 
     fun navigateTo(screen: Screen) {
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastNavTime < 500) return
         lastNavTime = currentTime
+
+        val current = _currentScreen.value
+        if (current == screen) return
 
         when (screen) {
             Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> {
@@ -762,7 +779,38 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             _showPremiumPaywall.value = true
             return
         }
+
+        if (current != Screen.SPLASH && current != Screen.AUTH) {
+            if (screen == Screen.HOME) {
+                navBackStack.clear()
+            } else {
+                if (navBackStack.lastOrNull() != current) {
+                    navBackStack.add(current)
+                }
+            }
+        }
+
         _currentScreen.value = screen
+    }
+
+    fun goBack(): Boolean {
+        val current = _currentScreen.value
+        if (current == Screen.HOME || current == Screen.AUTH || current == Screen.SPLASH) {
+            return false
+        }
+        if (navBackStack.isNotEmpty()) {
+            val previous = navBackStack.removeAt(navBackStack.size - 1)
+            if (previous != current) {
+                _currentScreen.value = previous
+                return true
+            }
+        }
+        if (current != Screen.HOME) {
+            _currentScreen.value = Screen.HOME
+            navBackStack.clear()
+            return true
+        }
+        return false
     }
 
     fun setSubjectFilter(subject: String) {
@@ -1052,6 +1100,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loginWithGoogle(activity: Activity) {
         viewModelScope.launch {
+            isLoggingOutDueToDevice = false
             _isAuthLoading.value = true
             _sessionMessage.value = null
             try {
@@ -1215,28 +1264,34 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun logoutDueToOtherDeviceLogin() {
+        if (isLoggingOutDueToDevice || _currentScreen.value == Screen.AUTH) return
+        isLoggingOutDueToDevice = true
         viewModelScope.launch {
-            val currentProf = userProfile.value ?: return@launch
-            if (!currentProf.isLoggedIn) return@launch
-            if (currentProf.email.isNotBlank()) {
-                UserSessionManager.unregisterSession(currentProf.email)
-            }
-            val cleanProfile = SampleData.initialUserProfile.copy(
-                id = 1,
-                isLoggedIn = false,
-                currentDeviceId = "",
-                activeDeviceId = "",
-                email = "",
-                name = "Guest User",
-                uid = ""
-            )
-            _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
-            _currentScreen.value = Screen.AUTH
-            
-            withContext(Dispatchers.IO) {
-                repository.updateUserProfile(cleanProfile)
-                val key = currentProf.uid.ifBlank { currentProf.email }
-                repository.clearUserEntitlements(key)
+            try {
+                val currentProf = userProfile.value ?: return@launch
+                if (!currentProf.isLoggedIn) return@launch
+                if (currentProf.email.isNotBlank()) {
+                    UserSessionManager.unregisterSession(currentProf.email)
+                }
+                val cleanProfile = SampleData.initialUserProfile.copy(
+                    id = 1,
+                    isLoggedIn = false,
+                    currentDeviceId = "",
+                    activeDeviceId = "",
+                    email = "",
+                    name = "Guest User",
+                    uid = ""
+                )
+                _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
+                _currentScreen.value = Screen.AUTH
+                
+                withContext(Dispatchers.IO) {
+                    repository.updateUserProfile(cleanProfile)
+                    val key = currentProf.uid.ifBlank { currentProf.email }
+                    repository.clearUserEntitlements(key)
+                }
+            } finally {
+                isLoggingOutDueToDevice = false
             }
         }
     }

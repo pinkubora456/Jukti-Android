@@ -2,6 +2,8 @@ package com.example
 
 import android.Manifest
 import android.os.Build
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +69,12 @@ class MainActivity : ComponentActivity() {
             val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
 
             JuktiTheme(darkTheme = isDarkTheme ?: systemDark) {
+                BackHandler(enabled = true) {
+                    val handled = viewModel.goBack()
+                    if (!handled) {
+                        (context as? Activity)?.finish()
+                    }
+                }
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                     val permissionLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestPermission()

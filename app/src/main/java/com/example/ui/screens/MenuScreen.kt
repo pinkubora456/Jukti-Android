@@ -54,76 +54,9 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // User Header Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.navigateTo(Screen.PROFILE) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        modifier = Modifier.size(56.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.width(16.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = userProfile?.name ?: "Assam Scholar",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = userProfile?.email ?: "scholar@jukti.in",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AssistChip(
-                                onClick = { viewModel.navigateTo(Screen.PROFILE) },
-                                label = { Text("View Profile") },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                },
-                                modifier = Modifier.height(28.dp)
-                            )
-                        }
-                    }
-                }
-            }
 
-            Text(
-                text = "Main Menu Options",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
 
             // Primary Navigation Options requested by user:
             // Profile, Settings, About App, Contact Us, Notes

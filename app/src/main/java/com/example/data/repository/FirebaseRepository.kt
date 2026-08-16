@@ -1300,6 +1300,37 @@ class FirebaseRepository {
         awaitClose { listener?.remove() }
     }
 
+    fun observeNotifications(): Flow<List<NotificationEntity>> = callbackFlow {
+        var listener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            if (db == null) {
+                trySend(emptyList())
+            } else {
+                listener = db.collection("notifications")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) return@addSnapshotListener
+                        if (snapshot != null) {
+                            val list = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    NotificationEntity(
+                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        title = doc.getString("title") ?: "",
+                                        body = doc.getString("body") ?: "",
+                                        timestamp = doc.getString("timestamp") ?: "Just now",
+                                        category = doc.getString("category") ?: "General",
+                                        isRead = doc.getBoolean("isRead") ?: false
+                                    )
+                                } catch (e: Throwable) { null }
+                            }
+                            trySend(list)
+                        }
+                    }
+            }
+        } catch (e: Throwable) { trySend(emptyList()) }
+        awaitClose { listener?.remove() }
+    }
+
     private fun docToAboutConfig(doc: com.google.firebase.firestore.DocumentSnapshot): AboutConfigEntity {
         return AboutConfigEntity(
             id = doc.getLong("id")?.toInt() ?: 1,
@@ -1362,6 +1393,63 @@ class FirebaseRepository {
                         }
                         if (snapshot != null && snapshot.exists()) {
                             trySend(docToAboutConfig(snapshot))
+                        }
+                    }
+            }
+        } catch (e: Throwable) {
+            trySend(null)
+        }
+        awaitClose { listener?.remove() }
+    }
+
+    fun observeUserProfile(email: String, explicitUid: String? = null): Flow<UserProfileEntity?> = callbackFlow {
+        var listener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            val trimmedEmail = email.trim().lowercase()
+            val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
+            val docId = if (!currentUid.isNullOrBlank()) currentUid else sanitizedEmailDocId
+
+            if (db == null || docId.isBlank()) {
+                trySend(null)
+            } else {
+                listener = db.collection("users").document(docId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.e("FirebaseRepository", "Error observing user profile", error)
+                            return@addSnapshotListener
+                        }
+                        if (snapshot != null && snapshot.exists()) {
+                            val foundProfile = UserProfileEntity(
+                                id = snapshot.getLong("id")?.toInt() ?: 1,
+                                name = snapshot.getString("name") ?: "Assam Scholar",
+                                email = snapshot.getString("email") ?: email,
+                                mobile = snapshot.getString("mobile") ?: "",
+                                district = snapshot.getString("district") ?: "",
+                                examGoal = snapshot.getString("examGoal") ?: "",
+                                xp = snapshot.getLong("xp")?.toInt() ?: 0,
+                                level = snapshot.getLong("level")?.toInt() ?: 1,
+                                dailyStreak = snapshot.getLong("dailyStreak")?.toInt() ?: 0,
+                                totalSolved = snapshot.getLong("totalSolved")?.toInt() ?: 0,
+                                correctCount = snapshot.getLong("correctCount")?.toInt() ?: 0,
+                                totalTimeMinutes = snapshot.getLong("totalTimeMinutes")?.toInt() ?: 0,
+                                isPremium = snapshot.getBoolean("isPremium") ?: false,
+                                role = snapshot.getString("role") ?: "USER",
+                                firebaseProjectId = snapshot.getString("firebaseProjectId") ?: "jukti-26035",
+                                joinedDate = snapshot.getString("joinedDate") ?: "Jul 2026",
+                                isLoggedIn = snapshot.getBoolean("isLoggedIn") ?: true,
+                                currentDeviceId = snapshot.getString("currentDeviceId") ?: "",
+                                activeDeviceId = snapshot.getString("activeDeviceId") ?: "",
+                                uid = currentUid ?: snapshot.getString("uid") ?: snapshot.id,
+                                profileName = snapshot.getString("profileName") ?: "",
+                                registrationName = snapshot.getString("registrationName") ?: "",
+                                googleName = snapshot.getString("googleName") ?: ""
+                            )
+                            trySend(foundProfile)
+                        } else {
+                            trySend(null)
                         }
                     }
             }
