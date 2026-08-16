@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -224,8 +226,9 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     errorMessage = null
                 },
                 enabled = !isAuthLoading,
-                label = { Text("Email Address") },
+                label = { Text("Email Address (e.g. Outlook, Hotmail, Gmail)") },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -251,6 +254,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     }
                 },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -268,6 +272,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     label = { Text("Confirm Password") },
                     leadingIcon = { Icon(Icons.Default.LockReset, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

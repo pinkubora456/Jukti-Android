@@ -126,6 +126,12 @@ class GoogleAuthManager(private val context: Context) {
                 else -> "Google sign-in error: ${e.localizedMessage ?: "Please try again."}"
             }
             return GoogleSignInResult(firebaseUser = null, errorMessage = userFriendlyMsg)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException during Google Sign-In: ${e.message}", e)
+            return GoogleSignInResult(
+                firebaseUser = null,
+                errorMessage = "Google Play Services security check failed. Please check device account settings or sign in as Guest."
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Google Sign-In failed with exception: ${e.message}", e)
             val msg = e.localizedMessage ?: e.message ?: "Authentication failed."
