@@ -401,20 +401,6 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TextButton(
-                onClick = { viewModel.loginAsGuest() },
-                enabled = !isAuthLoading
-            ) {
-                Text(
-                    text = "Continue as Guest / Demo Student",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
         }
     }
 }

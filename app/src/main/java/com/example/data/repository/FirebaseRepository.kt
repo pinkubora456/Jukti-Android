@@ -20,6 +20,14 @@ class FirebaseRepository {
             null
         }
 
+    private fun logListenerError(tagMsg: String, error: com.google.firebase.firestore.FirebaseFirestoreException) {
+        if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+            Log.w("FirebaseRepository", "$tagMsg (PERMISSION_DENIED: ${error.message})")
+        } else {
+            Log.e("FirebaseRepository", tagMsg, error)
+        }
+    }
+
     fun getSanitizedUserDocId(email: String): String {
         val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
         val uid = auth?.currentUser?.uid
@@ -832,7 +840,7 @@ class FirebaseRepository {
                 listener = db.collection("questions")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing questions", error)
+                            logListenerError("Error observing questions", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -894,7 +902,7 @@ class FirebaseRepository {
                 listener = db.collection("mock_tests")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing mock tests", error)
+                            logListenerError("Error observing mock tests", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -952,7 +960,7 @@ class FirebaseRepository {
                 listener = db.collection("study_notes")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing study notes", error)
+                            logListenerError("Error observing study notes", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -996,7 +1004,7 @@ class FirebaseRepository {
                 listener = db.collection("exam_updates")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing exam updates", error)
+                            logListenerError("Error observing exam updates", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1039,7 +1047,7 @@ class FirebaseRepository {
                 listener = db.collection("banners")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing banners", error)
+                            logListenerError("Error observing banners", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1087,7 +1095,7 @@ class FirebaseRepository {
                 listener = db.collection("plans")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing plans", error)
+                            logListenerError("Error observing plans", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1131,7 +1139,7 @@ class FirebaseRepository {
                 listener = db.collection("exams")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing exams", error)
+                            logListenerError("Error observing exams", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1172,7 +1180,7 @@ class FirebaseRepository {
                 listener = db.collection("subjects_chapters")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing subjects chapters", error)
+                            logListenerError("Error observing subjects chapters", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1208,7 +1216,7 @@ class FirebaseRepository {
                 listener = db.collection("faqs")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing faqs", error)
+                            logListenerError("Error observing faqs", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null) {
@@ -1388,7 +1396,7 @@ class FirebaseRepository {
                 listener = db.collection("app_config").document("1")
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing app_config/1", error)
+                            logListenerError("Error observing app_config/1", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null && snapshot.exists()) {
@@ -1418,7 +1426,7 @@ class FirebaseRepository {
                 listener = db.collection("users").document(docId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            Log.e("FirebaseRepository", "Error observing user profile", error)
+                            logListenerError("Error observing user profile", error)
                             return@addSnapshotListener
                         }
                         if (snapshot != null && snapshot.exists()) {
@@ -1457,5 +1465,28 @@ class FirebaseRepository {
             trySend(null)
         }
         awaitClose { listener?.remove() }
+    }
+
+    suspend fun deleteUserAccount(uid: String, email: String) {
+        try {
+            val db = firestore
+            val trimmedEmail = email.trim().lowercase()
+            val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
+
+            if (db != null) {
+                if (uid.isNotBlank()) {
+                    db.collection("users").document(uid).delete().await()
+                }
+                if (sanitizedEmailDocId.isNotBlank()) {
+                    db.collection("users").document(sanitizedEmailDocId).delete().await()
+                }
+            }
+
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            auth?.currentUser?.delete()?.await()
+            auth?.signOut()
+        } catch (e: Throwable) {
+            Log.e("FirebaseRepository", "Error deleting user account from Firebase", e)
+        }
     }
 }

@@ -52,7 +52,7 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
             val userRole = viewModel.getUserRole(it.email, it.role)
 
             UserLog(
-                id = uid,
+                id = it.uid.ifBlank { uid },
                 name = it.name,
                 email = it.email,
                 currentPlan = currentPlan,

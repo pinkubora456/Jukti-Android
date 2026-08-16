@@ -522,6 +522,24 @@ class JuktiRepository(
         syncManager.enqueueAndSync("NOTIFICATION", notification.id.toString(), "DELETE")
     }
 
+    suspend fun deleteAccount() {
+        try {
+            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            val currentUser = auth?.currentUser
+            val uid = currentUser?.uid ?: ""
+            val email = currentUser?.email ?: ""
+
+            firebaseRepository.deleteUserAccount(uid, email)
+            resetUserProgress()
+
+            try {
+                auth?.signOut()
+            } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("JuktiRepository", "Error deleting account", e)
+        }
+    }
+
     // User Profile & XP
     suspend fun updateUserProfile(profile: UserProfileEntity) {
         val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
@@ -1031,7 +1049,7 @@ class JuktiRepository(
                 aboutConfigDao.insertOrUpdateAboutConfig(config)
             }
 
-            Result.success("All data fetched and updated from Firebase!")
+            Result.success("App data refreshed successfully!")
         } catch (e: Exception) {
             Result.failure(e)
         }

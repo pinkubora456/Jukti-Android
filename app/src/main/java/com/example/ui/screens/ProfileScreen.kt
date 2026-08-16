@@ -44,7 +44,6 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
 
     var editName by remember { mutableStateOf(userProfile?.profileName?.ifBlank { userProfile?.name } ?: "") }
     var editMobile by remember { mutableStateOf(userProfile?.mobile ?: "") }
-    var editDistrict by remember { mutableStateOf(userProfile?.district ?: "") }
     val selectedGoals = remember {
         mutableStateListOf<String>().apply {
             addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
@@ -122,13 +121,6 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    SafeOutlinedTextField(
-                        value = editDistrict,
-                        onValueChange = { editDistrict = it },
-                        label = { Text("District") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             },
             confirmButton = {
@@ -137,8 +129,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                         userProfile?.let { prof ->
                             val updated = prof.copy(
                                 profileName = editName.trim(),
-                                mobile = editMobile.trim(),
-                                district = editDistrict.trim()
+                                mobile = editMobile.trim()
                             )
                             viewModel.updateUserProfile(updated)
                             android.widget.Toast.makeText(context, "Profile updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
@@ -265,9 +256,10 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val roleSuffix = when (userProfile?.role?.uppercase()) {
-            "OWNER" -> " (Owner)"
-            "ADMIN" -> " (Admin)"
+        val actualRole = viewModel.getUserRole(userProfile?.email ?: "", userProfile?.role)
+        val roleSuffix = when (actualRole) {
+            com.example.ui.viewmodel.UserRole.OWNER -> " (Owner)"
+            com.example.ui.viewmodel.UserRole.ADMIN -> " (Admin)"
             else -> ""
         }
         val displayName = "${userProfile?.name ?: "Assam Scholar"}$roleSuffix"
@@ -331,21 +323,6 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     onClick = {
                         editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                         editMobile = userProfile?.mobile ?: ""
-                        editDistrict = userProfile?.district ?: ""
-                        selectedGoals.clear()
-                        selectedGoals.addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
-                        showEditProfileDialog = true
-                    }
-                )
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                ProfileDetailRow(
-                    icon = Icons.Default.LocationOn,
-                    label = "District",
-                    value = userProfile?.district.takeIf { !it.isNullOrBlank() } ?: "Kamrup Metropolitan",
-                    onClick = {
-                        editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
-                        editMobile = userProfile?.mobile ?: ""
-                        editDistrict = userProfile?.district ?: ""
                         selectedGoals.clear()
                         selectedGoals.addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
                         showEditProfileDialog = true
@@ -368,7 +345,6 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
             onClick = {
                 editName = userProfile?.profileName?.ifBlank { userProfile?.name } ?: ""
                 editMobile = userProfile?.mobile ?: ""
-                editDistrict = userProfile?.district ?: ""
                 selectedGoals.clear()
                 selectedGoals.addAll((userProfile?.examGoal ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() })
                 showEditProfileDialog = true

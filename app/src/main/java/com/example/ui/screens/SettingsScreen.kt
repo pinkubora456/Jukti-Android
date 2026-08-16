@@ -349,7 +349,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         AlertDialog(
             onDismissRequest = { viewModel.clearRefreshStatusMessage() },
             title = {
-                Text("Firebase Refresh Status", fontWeight = FontWeight.Bold)
+                Text("Refresh Status", fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(LocalMessageTranslator.translateGeneralMessage(LocalContext.current, refreshStatusMessage ?: ""))

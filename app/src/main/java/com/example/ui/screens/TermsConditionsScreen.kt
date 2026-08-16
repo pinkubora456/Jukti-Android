@@ -40,7 +40,7 @@ fun TermsConditionsScreen(viewModel: JuktiViewModel) {
 Welcome to Jukti. By downloading, installing, or using our mobile application, you agree to comply with and be bound by these Terms & Conditions. If you do not agree to these terms, please do not use the app.
 
 2. Educational Purpose & Exam Scope
-Jukti is an educational test preparation platform designed to assist aspirants preparing for APSC, ADRE, and other Assam competitive examinations. All mock tests, study notes, current affairs, and analytics are provided for practice and guidance purposes.
+Jukti is an educational test preparation platform designed to assist aspirants preparing for Assam competitive examinations. All mock tests, study notes, current affairs, and analytics are provided for practice and guidance purposes.
 
 3. User Accounts & Responsibilities
 You are responsible for maintaining the confidentiality of your login credentials and user profile. You agree to provide accurate information and not share your account access with third parties.
@@ -50,7 +50,7 @@ All questions, study notes, graphics, user interface designs, and software code 
 
 5. Payments, Cancellation & Refund Policy
 Please review our billing, cancellation, and refund guidelines below regarding Jukti Premium subscriptions and digital study plans:
-• Plan & Subscription Pricing: Transparent pricing tiers are displayed for APSC, ADRE, and specialized test series packages.
+• Plan & Subscription Pricing: Transparent pricing tiers are displayed for Assam competitive exam study plans and specialized test series packages.
 • Payment Process: Payments are securely processed through authorized in-app payment gateways (such as Google Play Billing or secure online checkout).
 • Subscription Duration: Subscription entitlements remain active for the specific exam cycle, monthly, or annual duration purchased.
 • Renewal Terms: Subscriptions do not auto-renew unless explicitly authorized by the user during checkout.

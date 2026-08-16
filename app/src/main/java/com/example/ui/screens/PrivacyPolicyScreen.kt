@@ -37,7 +37,7 @@ fun PrivacyPolicyScreen(viewModel: JuktiViewModel) {
     var editedContent by remember { mutableStateOf("") }
 
     val defaultPrivacyText = """1. Introduction & Overview
-Jukti ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application for APSC, ADRE, and Assam competitive exam preparation.
+Jukti ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application for Assam competitive exam preparation.
 
 2. User & Account Data Collection
 We collect basic profile information when you register or sign in, including your name, email address, and preferred study language (English / Assamese). This data is used to personalize your learning experience, track exam preparation progress, and maintain your account state.

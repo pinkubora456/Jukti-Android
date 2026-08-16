@@ -219,13 +219,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val result = repository.refreshDataFromFirebase()
                 if (result.isSuccess) {
-                    _refreshStatusMessage.value = result.getOrDefault("Data updated successfully from Firebase!")
+                    _refreshStatusMessage.value = "App data refreshed successfully!"
                 } else {
-                    _refreshStatusMessage.value = "Failed to refresh data: ${result.exceptionOrNull()?.localizedMessage ?: "Unknown error"}"
+                    _refreshStatusMessage.value = "Failed to refresh app data. Please check your network connection and try again."
                 }
             } catch (e: Exception) {
                 Log.e("JuktiViewModel", "Exception refreshing data", e)
-                _refreshStatusMessage.value = "Error refreshing data: ${e.localizedMessage}"
+                _refreshStatusMessage.value = "Failed to refresh app data. Please try again."
             } finally {
                 _isRefreshingFromFirebase.value = false
             }
@@ -705,7 +705,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     android.widget.Toast.makeText(context, "Storage cleared", android.widget.Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("JuktiViewModel", "Storage cleanup failed", e)
+                if (e is com.google.firebase.firestore.FirebaseFirestoreException && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.w("JuktiViewModel", "Storage cleanup skipped: Firestore permission required")
+                } else {
+                    android.util.Log.e("JuktiViewModel", "Storage cleanup failed", e)
+                }
             }
         }
     }
@@ -1113,15 +1117,17 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val fbUser = result.firebaseUser
-                if (fbUser == null) {
+                val uid = fbUser?.uid
+                val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""
+                val displayName = fbUser?.displayName?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackName?.trim() ?: ""
+
+                if (email.isBlank() || !email.contains("@")) {
                     _sessionMessage.value = result.errorMessage ?: "Google Sign-In failed. Please try again."
                     _isAuthLoading.value = false
                     return@launch
                 }
 
-                val uid = fbUser.uid
-                val email = fbUser.email?.trim() ?: ""
-                val displayName = fbUser.displayName?.trim() ?: ""
+                val finalUid = uid ?: ("google_" + java.util.UUID.nameUUIDFromBytes(email.toByteArray()).toString().replace("-", "").take(16))
                 val deviceId = java.util.UUID.randomUUID().toString()
 
                 val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true)
@@ -1134,9 +1140,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
                 withContext(Dispatchers.IO) {
                     repository.loadUserProfileForAuth(
-                        uid = uid,
+                        uid = finalUid,
                         email = email,
-                        googleName = displayName,
+                        googleName = displayName.ifBlank { email.substringBefore("@") },
                         deviceId = deviceId,
                         defaultRole = defaultRole
                     )
@@ -1208,7 +1214,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         val authResult = withContext(Dispatchers.IO) {
                             if (passwordInput.isNotBlank()) {
                                 if (isRegister) {
-                                    auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                    try {
+                                        auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                    } catch (regEx: Exception) {
+                                        val regMsg = regEx.message ?: ""
+                                        if (regMsg.contains("email-already-in-use", ignoreCase = true) || regMsg.contains("already in use", ignoreCase = true)) {
+                                            auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                        } else {
+                                            throw regEx
+                                        }
+                                    }
                                 } else {
                                     auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
                                 }
@@ -1490,25 +1505,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteAccount() {
         viewModelScope.launch {
-            repository.updateUserProfile(
-                UserProfileEntity(
-                    id = 1,
-                    name = "Scholar User",
-                    email = "scholar@jukti.in",
-                    mobile = "",
-                    district = "",
-                    examGoal = "ADRE & APSC",
-                    xp = 0,
-                    level = 1,
-                    dailyStreak = 0,
-                    isPremium = false,
-                    role = "USER",
-                    firebaseProjectId = "jukti-26035",
-                    totalSolved = 0,
-                    totalTimeMinutes = 0
-                )
-            )
-            _currentScreen.value = Screen.HOME
+            repository.deleteAccount()
+            try {
+                GoogleAuthManager(getApplication()).signOut()
+            } catch (e: Exception) {}
+            _currentScreen.value = Screen.AUTH
+            _sessionMessage.value = "Your account has been deleted and you have been logged out."
         }
     }
     fun importCsvQuestions(csvData: String, targetExam: String, questionFor: String, questionType: String, onComplete: (Int) -> Unit) {
@@ -1817,7 +1819,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun deleteUserCompletely(userEmail: String): Boolean {
+    suspend fun deleteUserCompletely(userEmail: String, explicitUserId: String? = null): Boolean {
         val actorRole = getCurrentActorRole()
         val targetRole = getUserRole(userEmail)
 
@@ -1832,7 +1834,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         return try {
-            val uid = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
+            var uid = explicitUserId ?: ""
+            if (uid.isBlank()) {
+                val users = repository.fetchAllUsersDirect()
+                val targetUser = users.find { it.email.equals(userEmail, ignoreCase = true) }
+                uid = targetUser?.uid ?: ""
+            }
+            if (uid.isBlank()) {
+                uid = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
+            }
+
             val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
             
             db.collection("users").document(uid).collection("entitlements").document("current").delete().await()
@@ -1915,7 +1926,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            val success = deleteUserCompletely(userEmail)
+            val success = deleteUserCompletely(userEmail, userId)
             if (success) {
                 onResult(true, "User $userName deleted successfully.")
             } else {
