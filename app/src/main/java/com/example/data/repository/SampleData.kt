@@ -142,7 +142,7 @@ object SampleData {
         logoIconName = "School",
         copyrightText = "Copyright © 2026 Jukti Education. All rights reserved.",
         developerTagline = "Designed & Developed for Aspirants",
-        contactEmail = "support@jukti.in",
+        contactEmail = "juktieducation@gmail.com",
         contactPhone = "",
         contactTelegram = "",
         contactWhatsapp = "",

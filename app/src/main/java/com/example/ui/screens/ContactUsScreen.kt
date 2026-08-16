@@ -214,7 +214,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
                         if (trimmedEmail.isBlank() || trimmedWhatsapp.isBlank()) {
                             android.widget.Toast.makeText(context, "Email and WhatsApp fields are required", android.widget.Toast.LENGTH_SHORT).show()
                         } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
-                            android.widget.Toast.makeText(context, "Please enter a valid support email address (e.g. support@jukti.in)", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, "Please enter a valid support email address (e.g. juktieducation@gmail.com)", android.widget.Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.updateAboutConfig(
                                 aboutConfig.copy(

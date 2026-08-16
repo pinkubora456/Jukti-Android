@@ -1155,6 +1155,36 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loginAsGuest() {
+        viewModelScope.launch {
+            isLoggingOutDueToDevice = false
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
+            try {
+                val guestUid = "guest_" + System.currentTimeMillis()
+                val guestEmail = "guest@jukti.in"
+                val deviceId = java.util.UUID.randomUUID().toString()
+                withContext(Dispatchers.IO) {
+                    repository.loadUserProfileForAuth(
+                        uid = guestUid,
+                        email = guestEmail,
+                        googleName = "Guest Student",
+                        deviceId = deviceId,
+                        defaultRole = "USER"
+                    )
+                }
+                _isGuestMode.value = true
+                _sessionMessage.value = null
+                _currentScreen.value = Screen.HOME
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Guest login error", e)
+                _sessionMessage.value = "Guest login error: ${e.localizedMessage}"
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
     fun loginWithEmail(emailInput: String, nameInput: String = "", passwordInput: String = "", isRegister: Boolean = false) {
         val trimmedEmail = emailInput.trim().ifBlank { "scholar@jukti.in" }
         val deviceId = java.util.UUID.randomUUID().toString()

@@ -1345,7 +1345,7 @@ class FirebaseRepository {
             logoUpdatedAt = doc.getLong("logoUpdatedAt") ?: 0L,
             copyrightText = doc.getString("copyrightText") ?: "Copyright © 2026 Jukti Education Portal. All rights reserved.",
             developerTagline = doc.getString("developerTagline") ?: "Designed & Developed for Assam Aspirants",
-            contactEmail = doc.getString("contactEmail") ?: "support@jukti.in",
+            contactEmail = doc.getString("contactEmail") ?: "juktieducation@gmail.com",
             contactPhone = doc.getString("contactPhone") ?: "+91 98765 43210",
             contactTelegram = doc.getString("contactTelegram") ?: "t.me/JuktiAssam",
             contactWhatsapp = doc.getString("contactWhatsapp") ?: "Community Group",

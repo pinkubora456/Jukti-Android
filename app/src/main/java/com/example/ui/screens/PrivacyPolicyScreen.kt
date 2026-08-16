@@ -71,7 +71,7 @@ You possess the right to access, update, or request deletion of your personal pr
 
 12. Contact Information
 If you have questions, concerns, or requests regarding this Privacy Policy or data practices, please reach out to our privacy support team at:
-Email: ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}"""
+Email: ${aboutConfig.contactEmail.ifBlank { "juktieducation@gmail.com" }}"""
 
     val currentContent = if (aboutConfig.privacyPolicyContent.isNotBlank()) {
         aboutConfig.privacyPolicyContent
@@ -175,7 +175,7 @@ Email: ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}"""
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "For privacy inquiries, contact ${aboutConfig.contactEmail.ifBlank { "support@jukti.in" }}",
+                        text = "For privacy inquiries, contact ${aboutConfig.contactEmail.ifBlank { "juktieducation@gmail.com" }}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
