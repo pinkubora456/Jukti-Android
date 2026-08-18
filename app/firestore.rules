@@ -1,10 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all documents for authenticated users
-    // (Change to 'allow read, write: if true;' if you want public read/write access without requiring sign-in)
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // We assume the user's role is stored directly in their Firestore user document.
+    // NOTE: This relies on the role field being correctly set upon user creation.
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function isOwner() {
+      return isSignedIn() && getUserRole() == "owner";
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (getUserRole() == "admin" || isOwner());
+    }
+    
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- User-owned data ---
+    match /users/{userId} {
+      allow read: if isUser(userId) || isAdmin();
+      allow write: if isUser(userId) || isAdmin();
+      
+      match /entitlements/{entitlementId} {
+        allow read: if isUser(userId) || isAdmin();
+        allow write: if isAdmin();
+      }
+      
+      match /purchases/{purchaseId} {
+        allow read: if isUser(userId) || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+    
+    // --- Application-owned data ---
+    // Customers can read questions, but only Admins can create/edit them.
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Default: Deny all other access
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

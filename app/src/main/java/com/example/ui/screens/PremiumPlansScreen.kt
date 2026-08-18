@@ -112,8 +112,8 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
             return@Column
         }
 
-        activePlans.forEach { plan ->
-            val isSpecificActive = viewModel.isSpecificPlanActive(plan)
+        activePlans.forEach { plan -> val isSpecificActive = viewModel.isSpecificPlanActive(plan); if (plan.googlePlayProductId == "STARTER_7_DAY") { FeaturedPlanBanner(plan = plan, isPlanActive = isSpecificActive, onBuyClick = { coroutineScope.launch { val (canBuy, reasonMsg) = viewModel.validatePurchaseEligibility(plan); if (!canBuy) { Toast.makeText(context, reasonMsg, Toast.LENGTH_LONG).show() } else { if (activity != null) { selectedPlan = plan; billingManager.buyPlan(activity = activity, planId = plan.id.toString(), planName = plan.planName, explicitProductId = plan.googlePlayProductId, planValidity = "7 days") } else { Toast.makeText(context, "Activity reference not available for Play Billing.", Toast.LENGTH_SHORT).show() } } } }, modifier = Modifier.padding(vertical = 8.dp)) }
+
 
             FeaturedPlanBanner(
                 plan = plan,

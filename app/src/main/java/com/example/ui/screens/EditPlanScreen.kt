@@ -34,6 +34,7 @@ import coil.compose.AsyncImage
 import com.example.ui.viewmodel.JuktiViewModel
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.TextFieldValue
@@ -206,6 +207,8 @@ fun EditPlanDialog(
     var examTarget by remember { mutableStateOf(plan.examTarget) }
     var isActive by remember { mutableStateOf(plan.isActive) }
     var isUploading by remember { mutableStateOf(false) }
+    val benefits = remember { mutableStateListOf<String>().apply { addAll(plan.features.split(",").filter { it.isNotBlank() }) } }
+    var newBenefit by remember { mutableStateOf("") }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -383,6 +386,32 @@ fun EditPlanDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                Text("Benefits", style = MaterialTheme.typography.titleSmall)
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    SafeOutlinedTextField(
+                        value = newBenefit,
+                        onValueChange = { newBenefit = it },
+                        label = { Text("Add Benefit") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    IconButton(onClick = {
+                        if (newBenefit.isNotBlank()) {
+                            benefits.add(newBenefit.trim())
+                            newBenefit = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Add Benefit")
+                    }
+                }
+                benefits.forEachIndexed { index, benefit ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(benefit)
+                        IconButton(onClick = { benefits.removeAt(index) }) {
+                            Icon(Icons.Default.Close, contentDescription = "Remove Benefit")
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
