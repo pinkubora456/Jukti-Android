@@ -712,6 +712,10 @@ fun QuestionAnalysisCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // QUESTION TEXT
+            com.example.ui.components.QuestionTypeBadge(
+                questionType = question.questionType,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
             BilingualText(
                 textEn = question.questionEn,
                 textAs = question.questionAs,

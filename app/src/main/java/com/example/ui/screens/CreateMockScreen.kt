@@ -495,6 +495,10 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    com.example.ui.components.QuestionTypeBadge(
+                                        questionType = q.questionType,
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
                                     Text(q.questionEn, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 2)
                                     Text("[${q.subject}]", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }

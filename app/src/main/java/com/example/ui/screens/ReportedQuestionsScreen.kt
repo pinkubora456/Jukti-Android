@@ -99,6 +99,10 @@ fun ReportedQuestionCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            com.example.ui.components.QuestionTypeBadge(
+                questionType = question.questionType,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
             Text("Q: ${question.questionEn}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
             Row(

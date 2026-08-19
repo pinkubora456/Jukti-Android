@@ -110,17 +110,46 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             verticalArrangement = Arrangement.Center
         ) {
             Surface(
-                shape = CircleShape,
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.height(72.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = getLogoIcon(aboutConfig.logoIconName),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(40.dp)
-                    )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
+                    val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
+                    val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
+                    if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(localLogo)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = imageModifier,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                        )
+                    } else if (aboutConfig.logoUrl.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(aboutConfig.logoUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = imageModifier,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                            error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
+                            fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
+                        )
+                    } else {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(com.example.R.drawable.jukti_logo)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = imageModifier,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                        )
+                    }
                 }
             }
 

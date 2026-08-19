@@ -67,7 +67,8 @@ data class MissedQuestion(
     val correctIndex: Int,
     val explanationEn: String,
     val explanationAs: String,
-    val issueType: String // "Incorrect" or "Skipped"
+    val issueType: String, // "Incorrect" or "Skipped"
+    val questionType: String = "Expected"
 )
 
 data class SubjectBreakdown(
@@ -1333,6 +1334,10 @@ fun MissedQuestionsModalDialog(
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
+                                com.example.ui.components.QuestionTypeBadge(
+                                    questionType = item.questionType,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
                                 BilingualText(
                                     textEn = item.questionEn,
                                     textAs = item.questionAs,

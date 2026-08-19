@@ -90,17 +90,40 @@ Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Surface(
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.height(48.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = getLogoIcon(aboutConfig.logoIconName),
-                                    contentDescription = "Jukti Logo",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(6.dp)) {
+                                val imageModifier = Modifier.fillMaxHeight().widthIn(max = 140.dp)
+                                val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
+                                if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
+                                    coil.compose.AsyncImage(
+                                        model = localLogo,
+                                        contentDescription = "Jukti Logo",
+                                        modifier = imageModifier,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                } else if (aboutConfig.logoUrl.isNotEmpty()) {
+                                    coil.compose.AsyncImage(
+                                        model = aboutConfig.logoUrl,
+                                        contentDescription = "Jukti Logo",
+                                        modifier = imageModifier,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                                        error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
+                                        fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
+                                    )
+                                } else {
+                                    coil.compose.AsyncImage(
+                                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                            .data(com.example.R.drawable.jukti_logo)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Jukti Logo",
+                                        modifier = imageModifier,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                }
                             }
                         }
                         Column {

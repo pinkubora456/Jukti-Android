@@ -71,7 +71,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
                 "General English" -> q.subject == "General English"
                 "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                "Reasoning" -> q.subject == "Reasoning"
+                "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability")
                 else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
             }
             val matchChapter = if (selectedChapters.isEmpty()) {
@@ -358,7 +358,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General Knowledge" -> visibleQuestions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> visibleQuestions.filter { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> visibleQuestions.filter { it.subject == "Reasoning" }
+                            "Reasoning" -> visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
                             else -> visibleQuestions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                         relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
@@ -371,7 +371,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General Knowledge" -> visibleQuestions.count { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> visibleQuestions.count { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> visibleQuestions.count { it.subject == "Reasoning" }
+                            "Reasoning" -> visibleQuestions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
                             else -> visibleQuestions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }
@@ -576,6 +576,10 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // Question Text
+                            com.example.ui.components.QuestionTypeBadge(
+                                questionType = currentQuestion.questionType,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
                             BilingualText(
                                 textEn = currentQuestion.questionEn,
                                 textAs = currentQuestion.questionAs,
@@ -1088,6 +1092,10 @@ fun PracticeSummaryView(
                     )
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
+                        com.example.ui.components.QuestionTypeBadge(
+                            questionType = q.questionType,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
                         Row(verticalAlignment = Alignment.Top) {
                             Icon(
                                 imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,

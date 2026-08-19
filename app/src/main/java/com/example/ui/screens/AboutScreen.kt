@@ -138,41 +138,46 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             Box(contentAlignment = Alignment.BottomEnd) {
                 Surface(
                     modifier = Modifier
-                        .size(90.dp)
+                        .height(90.dp)
                         .clickable(enabled = isOwner) { showLogoPickerOnly = true },
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
                     border = if (isOwner) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(12.dp)) {
+                        val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
                         val localLogo = java.io.File(LocalContext.current.filesDir, "cached_logo.jpg")
-                        val modelData = if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) localLogo else if (aboutConfig.logoUrl.isNotEmpty()) aboutConfig.logoUrl else null
-                        if (modelData != null) {
+                        if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
                             AsyncImage(
                                 model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                    .data(modelData)
+                                    .data(localLogo)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = "Custom App Logo",
-                                modifier = Modifier.size(52.dp),
+                                contentDescription = "App Logo",
+                                modifier = imageModifier,
+                                contentScale = ContentScale.Fit
+                            )
+                        } else if (aboutConfig.logoUrl.isNotEmpty()) {
+                            AsyncImage(
+                                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    .data(aboutConfig.logoUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "App Logo",
+                                modifier = imageModifier,
                                 contentScale = ContentScale.Fit,
                                 error = androidx.compose.ui.graphics.vector.rememberVectorPainter(currentLogoIcon),
                                 fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(currentLogoIcon)
                             )
-                        } else if (aboutConfig.logoIconName.startsWith("custom_logo:")) {
-                            val path = aboutConfig.logoIconName.removePrefix("custom_logo:")
-                            AsyncImage(
-                                model = File(path),
-                                contentDescription = "Custom App Logo",
-                                modifier = Modifier.size(52.dp),
-                                contentScale = ContentScale.Crop
-                            )
                         } else {
-                            Icon(
-                                imageVector = currentLogoIcon,
+                            coil.compose.AsyncImage(
+                                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    .data(com.example.R.drawable.jukti_logo)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = "App Logo",
-                                modifier = Modifier.size(52.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                modifier = imageModifier,
+                                contentScale = ContentScale.Fit
                             )
                         }
                     }

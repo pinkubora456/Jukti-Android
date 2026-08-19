@@ -337,6 +337,10 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                com.example.ui.components.QuestionTypeBadge(
+                    questionType = currentQuestion.questionType,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 BilingualText(
                     textEn = currentQuestion.questionEn,
                     textAs = currentQuestion.questionAs,

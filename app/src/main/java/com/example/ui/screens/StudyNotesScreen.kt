@@ -39,10 +39,17 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
     var noteSearchQuery by remember { mutableStateOf("") }
     var selectedSubjectFilter by remember { mutableStateOf("All") }
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    val rawSubj = allSubjectsChapters.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    
+    val nonCurrentAffairsNotes = notes.filter { !it.subject.contains("Current Affairs", ignoreCase = true) }
+
+    val rawSubj = allSubjectsChapters
+        .map { it.subject }
+        .filter { it.isNotBlank() && !it.contains("Current Affairs", ignoreCase = true) }
+        .distinct()
+        
     val subjects = listOf("All") + rawSubj
 
-    val filteredNotes = notes.filter { note ->
+    val filteredNotes = nonCurrentAffairsNotes.filter { note ->
         (selectedSubjectFilter == "All" || note.subject == selectedSubjectFilter) &&
                 (noteSearchQuery.isBlank() || note.titleEn.contains(noteSearchQuery, ignoreCase = true) || note.titleAs.contains(noteSearchQuery, ignoreCase = true))
     }
@@ -96,12 +103,22 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val content = selectedNote!!.contentEn
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
-                )
+                val contentEn = selectedNote!!.contentEn
+                val contentAs = selectedNote!!.contentAs
+                
+                if (contentAs.isNotBlank() && isAssamese) {
+                    Text(
+                        text = contentAs,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
+                    )
+                } else {
+                    Text(
+                        text = contentEn,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f
+                    )
+                }
             }
         }
     } else {

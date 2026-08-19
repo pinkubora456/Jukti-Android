@@ -220,6 +220,10 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
+                                com.example.ui.components.QuestionTypeBadge(
+                                    questionType = question.questionType,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
                                 Text(
                                     text = question.questionEn,
                                     style = MaterialTheme.typography.titleMedium,

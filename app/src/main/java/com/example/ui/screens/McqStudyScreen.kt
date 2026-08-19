@@ -747,7 +747,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
                     "General English" -> q.subject == "General English"
                     "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                    "Reasoning" -> q.subject == "Reasoning"
+                    "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability")
                     else -> q.subject == selectedSubjectTab
                 }
                 val matchChapter = if (selectedChapters.isEmpty()) {
@@ -860,7 +860,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General Knowledge" -> questions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> questions.filter { it.subject == "General English" }
                             "General Mathematics" -> questions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.filter { it.subject == "Reasoning" }
+                            "Reasoning" -> questions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
                             else -> questions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                         relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
@@ -873,7 +873,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General Knowledge" -> questions.count { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> questions.count { it.subject == "General English" }
                             "General Mathematics" -> questions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.count { it.subject == "Reasoning" }
+                            "Reasoning" -> questions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
                             else -> questions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }
@@ -1093,6 +1093,10 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     // Question Text
+                    com.example.ui.components.QuestionTypeBadge(
+                        questionType = currentQuestion.questionType,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                     BilingualText(
                         textEn = currentQuestion.questionEn,
                         textAs = currentQuestion.questionAs,
@@ -1618,6 +1622,10 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    com.example.ui.components.QuestionTypeBadge(
+                        questionType = currentQuestion.questionType,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                     BilingualText(
                         textEn = currentQuestion.questionEn,
                         textAs = currentQuestion.questionAs,
@@ -2151,6 +2159,10 @@ fun QuestionStudyCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            com.example.ui.components.QuestionTypeBadge(
+                questionType = question.questionType,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
             BilingualText(
                 textEn = question.questionEn,
                 textAs = question.questionAs,
@@ -2234,7 +2246,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
 
     val currentAffairsNotes = remember(allNotes, searchQuery, selectedCategory) {
         val caNotes = allNotes.filter { it.subject.contains("Current Affairs", ignoreCase = true) }
-        val finalNotes = if (caNotes.isNotEmpty()) caNotes else allNotes
+        val finalNotes = caNotes
 
         finalNotes.filter { note ->
             val matchesCategory = when (selectedCategory) {
@@ -2311,8 +2323,10 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = note.titleEn,
+            BilingualText(
+                textEn = note.titleEn,
+                textAs = note.titleAs,
+                language = language,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -2327,12 +2341,23 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                 border = CardDefaults.outlinedCardBorder()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = note.contentEn,
-                        style = MaterialTheme.typography.bodyLarge,
-                        lineHeight = 24.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    val contentEn = note.contentEn
+                    val contentAs = note.contentAs
+                    if (contentAs.isNotBlank() && isAssamese) {
+                        Text(
+                            text = contentAs,
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 24.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else {
+                        Text(
+                            text = contentEn,
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 24.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }

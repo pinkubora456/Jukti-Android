@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,30 +50,43 @@ fun SplashScreen(viewModel: JuktiViewModel) {
         ) {
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shape = androidx.compose.foundation.shape.CircleShape,
-                modifier = Modifier.size(100.dp)
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.height(100.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(16.dp)) {
+                    val imageModifier = Modifier.fillMaxHeight().widthIn(max = 240.dp)
                     val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
-                    val modelData = if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) localLogo else if (aboutConfig.logoUrl.isNotEmpty()) aboutConfig.logoUrl else null
-                    if (modelData != null) {
+                    if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
                         coil.compose.AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(modelData)
+                                .data(localLogo)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = "App Logo",
-                            modifier = Modifier.size(64.dp),
+                            modifier = imageModifier,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                        )
+                    } else if (aboutConfig.logoUrl.isNotEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(aboutConfig.logoUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "App Logo",
+                            modifier = imageModifier,
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                             error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
                             fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
                         )
                     } else {
-                        Icon(
-                            imageVector = getLogoIcon(aboutConfig.logoIconName),
+                        coil.compose.AsyncImage(
+                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                .data(com.example.R.drawable.jukti_logo)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = "App Logo",
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            modifier = imageModifier,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
                     }
                 }

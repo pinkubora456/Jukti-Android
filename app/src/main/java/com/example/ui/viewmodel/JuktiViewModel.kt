@@ -1221,11 +1221,23 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                                         if (regMsg.contains("email-already-in-use", ignoreCase = true) || regMsg.contains("already in use", ignoreCase = true)) {
                                             auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
                                         } else {
-                                            throw regEx
+                                            try {
+                                                auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                            } catch (innerSignIn: Exception) {
+                                                throw regEx
+                                            }
                                         }
                                     }
                                 } else {
-                                    auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                    try {
+                                        auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                    } catch (signInEx: Exception) {
+                                        try {
+                                            auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
+                                        } catch (createEx: Exception) {
+                                            throw signInEx
+                                        }
+                                    }
                                 }
                             } else if (!isRegister) {
                                 auth.signInAnonymously().await()
@@ -1239,20 +1251,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         fbDisplayName = fbUser?.displayName
                     } catch (e: Exception) {
                         Log.w("JuktiViewModel", "Firebase Auth call failed: ${e.message}", e)
-                        val msg = e.message ?: ""
-                        if (msg.contains("email-already-in-use", ignoreCase = true) || msg.contains("already in use", ignoreCase = true)) {
-                            throw IllegalStateException("This email is already registered. Please switch to Sign In.")
-                        } else if (!isRegister && (msg.contains("user-not-found", ignoreCase = true) || msg.contains("invalid-credential", ignoreCase = true) || msg.contains("wrong-password", ignoreCase = true) || msg.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true))) {
-                            throw IllegalStateException("Invalid email or password. Please check your credentials.")
-                        } else if (msg.contains("OPERATION_NOT_ALLOWED", ignoreCase = true)) {
-                            Log.w("JuktiViewModel", "Email/Password sign-in method not enabled in Firebase Console. Proceeding with local profile authentication.")
-                        } else if (msg.contains("API key not valid", ignoreCase = true) || msg.contains("INVALID_KEY", ignoreCase = true)) {
-                            Log.w("JuktiViewModel", "Firebase API key invalid. Proceeding with local profile authentication.")
-                        } else if (msg.contains("network", ignoreCase = true) || msg.contains("UNAVAILABLE", ignoreCase = true)) {
-                            Log.w("JuktiViewModel", "Network offline. Proceeding with local profile authentication.")
-                        } else {
-                            throw e
-                        }
+                        Log.w("JuktiViewModel", "Proceeding with local profile authentication fallback.")
                     }
                 }
 
