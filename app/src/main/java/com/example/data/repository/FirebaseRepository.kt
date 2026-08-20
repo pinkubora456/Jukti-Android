@@ -41,9 +41,12 @@ class FirebaseRepository {
 
     suspend fun saveUserProfile(profile: UserProfileEntity, merge: Boolean = true) {
         try {
-            val docId = getSanitizedUserDocId(profile.email)
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            val authUid = auth?.currentUser?.uid ?: docId
+            if (auth?.currentUser == null) return
+            val currentUid = auth.currentUser?.uid
+            val sanitizedEmailDocId = getSanitizedUserDocId(profile.email)
+            val docId = if (!currentUid.isNullOrBlank()) currentUid else sanitizedEmailDocId
+            val authUid = currentUid ?: docId
             val userMap = mutableMapOf<String, Any?>(
                 "id" to profile.id,
                 "name" to profile.name,
@@ -87,7 +90,8 @@ class FirebaseRepository {
     suspend fun fetchUserProfile(email: String, explicitUid: String? = null): UserProfileEntity? {
         return try {
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            if (auth?.currentUser == null) return null
+            val currentUid = explicitUid ?: auth.currentUser?.uid
             val trimmedEmail = email.trim().lowercase()
             val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
 
@@ -145,7 +149,8 @@ class FirebaseRepository {
     suspend fun fetchUserEntitlement(email: String, explicitUid: String? = null): EntitlementEntity? {
         return try {
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            if (auth?.currentUser == null) return null
+            val currentUid = explicitUid ?: auth.currentUser?.uid
             val trimmedEmail = email.trim().lowercase()
             val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
 
@@ -1415,7 +1420,12 @@ class FirebaseRepository {
         try {
             val db = firestore
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            if (auth?.currentUser == null) {
+                trySend(null)
+                close()
+                return@callbackFlow
+            }
+            val currentUid = explicitUid ?: auth.currentUser?.uid
             val trimmedEmail = email.trim().lowercase()
             val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
             val docId = if (!currentUid.isNullOrBlank()) currentUid else sanitizedEmailDocId

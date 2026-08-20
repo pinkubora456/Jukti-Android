@@ -89,41 +89,40 @@ Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(6.dp)) {
-                                val imageModifier = Modifier.fillMaxHeight().widthIn(max = 140.dp)
-                                val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
-                                if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
-                                    coil.compose.AsyncImage(
-                                        model = localLogo,
-                                        contentDescription = "Jukti Logo",
-                                        modifier = imageModifier,
-                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
-                                    )
-                                } else if (aboutConfig.logoUrl.isNotEmpty()) {
-                                    coil.compose.AsyncImage(
-                                        model = aboutConfig.logoUrl,
-                                        contentDescription = "Jukti Logo",
-                                        modifier = imageModifier,
-                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                                        error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
-                                        fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
-                                    )
-                                } else {
-                                    coil.compose.AsyncImage(
-                                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                            .data(com.example.R.drawable.jukti_logo)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = "Jukti Logo",
-                                        modifier = imageModifier,
-                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
-                                    )
-                                }
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(48.dp).padding(6.dp)) {
+                            val imageModifier = Modifier.fillMaxHeight().widthIn(max = 140.dp)
+                            val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.png")
+                            if (localLogo.exists() && localLogo.length() > 0) {
+                                coil.compose.AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                        .data(localLogo)
+                                        .crossfade(true)
+                                        .error(com.example.R.drawable.jukti_logo)
+                                        .fallback(com.example.R.drawable.jukti_logo)
+                                        .build(),
+                                    contentDescription = "Jukti Logo",
+                                    modifier = imageModifier,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                )
+                            } else if (aboutConfig.logoUrl.isNotBlank() && aboutConfig.logoUrl.startsWith("http")) {
+                                coil.compose.AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                        .data(aboutConfig.logoUrl)
+                                        .crossfade(true)
+                                        .error(com.example.R.drawable.jukti_logo)
+                                        .fallback(com.example.R.drawable.jukti_logo)
+                                        .build(),
+                                    contentDescription = "Jukti Logo",
+                                    modifier = imageModifier,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                )
+                            } else {
+                                coil.compose.AsyncImage(
+                                    model = com.example.R.drawable.jukti_logo,
+                                    contentDescription = "Jukti Logo",
+                                    modifier = imageModifier,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                )
                             }
                         }
                         Column {

@@ -313,6 +313,16 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                 }
             },
             actions = {
+                if (activeStudySubView == "CURRENT_AFFAIRS") {
+                    TextButton(onClick = { 
+                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                    }) {
+                        Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                    }
+                }
+
                 if (activeStudySubView != "CURRENT_AFFAIRS") {
                     Surface(
                         color = MaterialTheme.colorScheme.primaryContainer,

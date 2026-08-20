@@ -619,7 +619,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             userProfile.collect { prof ->
                 if (prof != null) {
                     val fbUser = try { com.example.JuktiApplication.getAuth(getApplication())?.currentUser } catch (e: Throwable) { null }
-                    val needsForcedLogout = prof.isLoggedIn && fbUser == null && prof.email.isNotBlank()
+                    val needsForcedLogout = prof.isLoggedIn && fbUser == null && prof.email.isNotBlank() && prof.email != "guest@jukti.in"
 
                     if (needsForcedLogout) {
                          // Force logout because Firebase session is missing
@@ -1214,30 +1214,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         val authResult = withContext(Dispatchers.IO) {
                             if (passwordInput.isNotBlank()) {
                                 if (isRegister) {
-                                    try {
-                                        auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
-                                    } catch (regEx: Exception) {
-                                        val regMsg = regEx.message ?: ""
-                                        if (regMsg.contains("email-already-in-use", ignoreCase = true) || regMsg.contains("already in use", ignoreCase = true)) {
-                                            auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
-                                        } else {
-                                            try {
-                                                auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
-                                            } catch (innerSignIn: Exception) {
-                                                throw regEx
-                                            }
-                                        }
-                                    }
+                                    auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
                                 } else {
-                                    try {
-                                        auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
-                                    } catch (signInEx: Exception) {
-                                        try {
-                                            auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
-                                        } catch (createEx: Exception) {
-                                            throw signInEx
-                                        }
-                                    }
+                                    auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
                                 }
                             } else if (!isRegister) {
                                 auth.signInAnonymously().await()
@@ -1251,8 +1230,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         fbDisplayName = fbUser?.displayName
                     } catch (e: Exception) {
                         Log.w("JuktiViewModel", "Firebase Auth call failed: ${e.message}", e)
-                        Log.w("JuktiViewModel", "Proceeding with local profile authentication fallback.")
+                        throw e
                     }
+                } else {
+                    throw Exception("Firebase Authentication is not available.")
                 }
 
                 val finalUid = uid ?: ("user_" + java.util.UUID.nameUUIDFromBytes(trimmedEmail.toByteArray()).toString().replace("-", "").take(16))
@@ -1286,6 +1267,72 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 _sessionMessage.value = e.message ?: e.localizedMessage ?: "Authentication failed. Please try again."
             } finally {
                 _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(emailInput: String, onResult: (Boolean, String) -> Unit) {
+        val trimmedEmail = emailInput.trim().lowercase()
+        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+            onResult(false, "Please enter a valid email address.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val auth = com.example.JuktiApplication.getAuth(getApplication())
+                if (auth == null) {
+                    onResult(false, "Authentication service is currently unavailable.")
+                    return@launch
+                }
+                withContext(Dispatchers.IO) {
+                    auth.sendPasswordResetEmail(trimmedEmail).await()
+                }
+                onResult(true, "Password reset email sent. Please check your inbox and follow the instructions to create a new password. If you don't see it, check your Spam or Junk folder.")
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Password reset error", e)
+                val translated = LocalMessageTranslator.translateAuthError(getApplication(), e.message ?: e.localizedMessage)
+                onResult(false, translated)
+            }
+        }
+    }
+
+    fun changePassword(currentPassword: String, newPassword: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val auth = com.example.JuktiApplication.getAuth(getApplication())
+                val user = auth?.currentUser
+                if (user == null) {
+                    onResult(false, "Your session has expired. Please sign in again.")
+                    return@launch
+                }
+                val isEmailUser = user.providerData.any { it.providerId == "password" }
+                if (!isEmailUser) {
+                    onResult(false, "Your account is signed in with an external provider (such as Google). Password management is handled by your provider.")
+                    return@launch
+                }
+                if (currentPassword.isBlank()) {
+                    onResult(false, "The current password cannot be empty.")
+                    return@launch
+                }
+                if (newPassword.length < 6) {
+                    onResult(false, "Your new password does not meet the password requirements (at least 6 characters).")
+                    return@launch
+                }
+                val email = user.email
+                if (email.isNullOrBlank()) {
+                    onResult(false, "User email not found.")
+                    return@launch
+                }
+                withContext(Dispatchers.IO) {
+                    val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, currentPassword)
+                    user.reauthenticate(credential).await()
+                    user.updatePassword(newPassword).await()
+                }
+                onResult(true, "Password successfully updated.")
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Change password error", e)
+                val translated = LocalMessageTranslator.translateAuthError(getApplication(), e.message ?: e.localizedMessage)
+                onResult(false, translated)
             }
         }
     }
@@ -1390,7 +1437,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
                 val storage = com.example.JuktiApplication.getStorage(context) ?: return@launch
-                val ref = storage.reference.child("assets/logo.jpg")
+                val ref = storage.reference.child("assets/logo.png")
                 val uploadTask = ref.putBytes(bytes).await()
                 val downloadUrl = ref.downloadUrl.await().toString()
                 
@@ -1401,7 +1448,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 updateAboutConfig(updatedConfig)
                 // Also cache locally
                 try {
-                    val file = java.io.File(context.filesDir, "cached_logo.jpg")
+                    val file = java.io.File(context.filesDir, "cached_logo.png")
                     java.io.FileOutputStream(file).use { it.write(bytes) }
                 } catch(e: Exception) {}
             } catch (e: Exception) {
@@ -1420,7 +1467,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
-                val localFileName = "${folder}_${System.currentTimeMillis()}.jpg"
+                val localFileName = "${folder}_${System.currentTimeMillis()}.png"
                 val file = java.io.File(context.filesDir, localFileName)
                 java.io.FileOutputStream(file).use { it.write(bytes) }
                 val localPath = file.absolutePath
@@ -1430,7 +1477,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
                 val storage = com.example.JuktiApplication.getStorage(context)
                 if (storage != null) {
-                    val ref = storage.reference.child("$folder/${System.currentTimeMillis()}.jpg")
+                    val ref = storage.reference.child("$folder/${System.currentTimeMillis()}.png")
                     ref.putBytes(bytes).await()
                     val downloadUrl = ref.downloadUrl.await().toString()
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -1467,7 +1514,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     val response = client.newCall(request).execute()
                     if (response.isSuccessful) {
                         response.body?.byteStream()?.use { input ->
-                            val file = java.io.File(app.filesDir, "cached_logo.jpg")
+                            val file = java.io.File(app.filesDir, "cached_logo.png")
                             java.io.FileOutputStream(file).use { output ->
                                 input.copyTo(output)
                             }

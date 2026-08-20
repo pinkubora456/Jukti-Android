@@ -136,50 +136,40 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             }
 
             Box(contentAlignment = Alignment.BottomEnd) {
-                Surface(
-                    modifier = Modifier
-                        .height(90.dp)
-                        .clickable(enabled = isOwner) { showLogoPickerOnly = true },
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    border = if (isOwner) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(12.dp)) {
-                        val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
-                        val localLogo = java.io.File(LocalContext.current.filesDir, "cached_logo.jpg")
-                        if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                    .data(localLogo)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "App Logo",
-                                modifier = imageModifier,
-                                contentScale = ContentScale.Fit
-                            )
-                        } else if (aboutConfig.logoUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                    .data(aboutConfig.logoUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "App Logo",
-                                modifier = imageModifier,
-                                contentScale = ContentScale.Fit,
-                                error = androidx.compose.ui.graphics.vector.rememberVectorPainter(currentLogoIcon),
-                                fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(currentLogoIcon)
-                            )
-                        } else {
-                            coil.compose.AsyncImage(
-                                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                    .data(com.example.R.drawable.jukti_logo)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "App Logo",
-                                modifier = imageModifier,
-                                contentScale = ContentScale.Fit
-                            )
-                        }
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.height(90.dp).padding(12.dp).clickable(enabled = isOwner) { showLogoPickerOnly = true }) {
+                    val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
+                    val localLogo = java.io.File(LocalContext.current.filesDir, "cached_logo.png")
+                    if (localLogo.exists() && localLogo.length() > 0) {
+                        AsyncImage(
+                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                .data(localLogo)
+                                .crossfade(true)
+                                .error(com.example.R.drawable.jukti_logo)
+                                .fallback(com.example.R.drawable.jukti_logo)
+                                .build(),
+                            contentDescription = "App Logo",
+                            modifier = imageModifier,
+                            contentScale = ContentScale.Fit
+                        )
+                    } else if (aboutConfig.logoUrl.isNotBlank() && aboutConfig.logoUrl.startsWith("http")) {
+                        AsyncImage(
+                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                .data(aboutConfig.logoUrl)
+                                .crossfade(true)
+                                .error(com.example.R.drawable.jukti_logo)
+                                .fallback(com.example.R.drawable.jukti_logo)
+                                .build(),
+                            contentDescription = "App Logo",
+                            modifier = imageModifier,
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        coil.compose.AsyncImage(
+                            model = com.example.R.drawable.jukti_logo,
+                            contentDescription = "App Logo",
+                            modifier = imageModifier,
+                            contentScale = ContentScale.Fit
+                        )
                     }
                 }
 

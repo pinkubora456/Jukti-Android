@@ -10,7 +10,9 @@ object LocalMessageTranslator {
         val lower = msg.lowercase()
         return when {
             lower.contains("api key not valid") || lower.contains("invalid_key") -> R.string.db_unknown_failure
-            lower.contains("user-not-found") || lower.contains("wrong-password") || lower.contains("invalid-credential") || lower.contains("invalid credentials") -> R.string.auth_invalid_credentials
+            lower.contains("user-not-found") || lower.contains("wrong-password") || lower.contains("invalid-credential") || lower.contains("invalid credentials") || lower.contains("incorrect") || lower.contains("malformed") || lower.contains("credential") -> R.string.auth_invalid_credentials
+            lower.contains("email-already-in-use") || lower.contains("already in use") -> R.string.auth_email_in_use
+            lower.contains("weak-password") || lower.contains("password") && lower.contains("weak") -> R.string.auth_weak_password
             lower.contains("invalid otp") || lower.contains("invalid-otp") || lower.contains("incorrect otp") -> R.string.auth_invalid_otp
             lower.contains("expired otp") || lower.contains("otp-expired") || lower.contains("otp has expired") -> R.string.auth_expired_otp
             lower.contains("too many attempts") || lower.contains("too-many-requests") -> R.string.auth_too_many_attempts

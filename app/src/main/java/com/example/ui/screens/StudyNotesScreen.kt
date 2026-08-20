@@ -73,6 +73,13 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 },
                 onBackClick = { viewModel.selectStudyNote(null) },
                 actions = {
+                    TextButton(onClick = { 
+                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                    }) {
+                        Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                    }
                     IconButton(onClick = { viewModel.toggleBookmarkNote(selectedNote!!) }) {
                         Icon(
                             imageVector = if (selectedNote!!.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
@@ -130,7 +137,16 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
         ) {
             com.example.ui.components.JuktiTopAppBar(
                 title = "Study Notes & Revision Sheets",
-                onBackClick = { viewModel.navigateTo(Screen.HOME) }
+                onBackClick = { viewModel.navigateTo(Screen.HOME) },
+                actions = {
+                    TextButton(onClick = { 
+                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                    }) {
+                        Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                    }
+                }
             )
 
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {

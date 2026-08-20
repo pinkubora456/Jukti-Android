@@ -3,6 +3,8 @@
 
     <!-- Authentication Messages -->
     <string name="auth_invalid_credentials">Invalid credentials. Please check and try again.</string>
+    <string name="auth_email_in_use">This email address is already in use by another account.</string>
+    <string name="auth_weak_password">The password is too weak. Please use a stronger password.</string>
     <string name="auth_invalid_otp">Invalid OTP. Please enter the correct OTP.</string>
     <string name="auth_expired_otp">OTP has expired. Please request a new OTP.</string>
     <string name="auth_too_many_attempts">Too many attempts. Please try again later.</string>

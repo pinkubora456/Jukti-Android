@@ -52,37 +52,65 @@ fun AuthScreen(viewModel: JuktiViewModel) {
 
     if (showForgotPasswordDialog) {
         var resetEmail by remember { mutableStateOf(emailInput) }
-        var resetSentMessage by remember { mutableStateOf(false) }
+        var resetMessage by remember { mutableStateOf<String?>(null) }
+        var isResetSuccess by remember { mutableStateOf(false) }
+        var isResetLoading by remember { mutableStateOf(false) }
 
         AlertDialog(
-            onDismissRequest = { showForgotPasswordDialog = false },
-            title = { Text("Forgot Password", fontWeight = FontWeight.Bold) },
+            onDismissRequest = { if (!isResetLoading) showForgotPasswordDialog = false },
+            title = { Text("Reset Password", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
-                    if (resetSentMessage) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (resetMessage != null) {
                         Text(
-                            text = "Password reset link sent to $resetEmail. Please check your inbox.",
-                            color = MaterialTheme.colorScheme.primary,
+                            text = resetMessage!!,
+                            color = if (isResetSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium
                         )
                     } else {
                         Text("Enter your registered email address to receive a password reset link.")
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         SafeOutlinedTextField(
                             value = resetEmail,
                             onValueChange = { resetEmail = it },
                             label = { Text("Email Address") },
                             leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                             singleLine = true,
+                            enabled = !isResetLoading,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             },
             confirmButton = {
-                if (!resetSentMessage) {
-                    Button(onClick = { resetSentMessage = true }) {
-                        Text("Send Reset Link")
+                if (!isResetSuccess) {
+                    Button(
+                        onClick = {
+                            val trimmed = resetEmail.trim()
+                            if (trimmed.isBlank() || !trimmed.contains("@")) {
+                                resetMessage = "Please enter a valid email address."
+                                isResetSuccess = false
+                                return@Button
+                            }
+                            isResetLoading = true
+                            resetMessage = null
+                            viewModel.sendPasswordResetEmail(trimmed) { success, msg ->
+                                isResetLoading = false
+                                isResetSuccess = success
+                                resetMessage = msg
+                            }
+                        },
+                        enabled = !isResetLoading
+                    ) {
+                        if (isResetLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Send Reset Link")
+                        }
                     }
                 } else {
                     Button(onClick = { showForgotPasswordDialog = false }) {
@@ -91,8 +119,11 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                 }
             },
             dismissButton = {
-                if (!resetSentMessage) {
-                    TextButton(onClick = { showForgotPasswordDialog = false }) {
+                if (!isResetSuccess) {
+                    TextButton(
+                        onClick = { showForgotPasswordDialog = false },
+                        enabled = !isResetLoading
+                    ) {
                         Text("Cancel")
                     }
                 }
@@ -109,49 +140,42 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.height(72.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.height(72.dp).padding(8.dp)) {
                     val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
-                    val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.jpg")
-                    if (localLogo.exists() && aboutConfig.logoUrl.isNotEmpty()) {
+                    val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.png")
+                    if (localLogo.exists() && localLogo.length() > 0) {
                         coil.compose.AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                 .data(localLogo)
                                 .crossfade(true)
+                                .error(com.example.R.drawable.jukti_logo)
+                                .fallback(com.example.R.drawable.jukti_logo)
                                 .build(),
                             contentDescription = null,
                             modifier = imageModifier,
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
-                    } else if (aboutConfig.logoUrl.isNotEmpty()) {
+                    } else if (aboutConfig.logoUrl.isNotBlank() && aboutConfig.logoUrl.startsWith("http")) {
                         coil.compose.AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                 .data(aboutConfig.logoUrl)
                                 .crossfade(true)
+                                .error(com.example.R.drawable.jukti_logo)
+                                .fallback(com.example.R.drawable.jukti_logo)
                                 .build(),
                             contentDescription = null,
                             modifier = imageModifier,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                            error = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName)),
-                            fallback = androidx.compose.ui.graphics.vector.rememberVectorPainter(getLogoIcon(aboutConfig.logoIconName))
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
                     } else {
                         coil.compose.AsyncImage(
-                            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                                .data(com.example.R.drawable.jukti_logo)
-                                .crossfade(true)
-                                .build(),
+                            model = com.example.R.drawable.jukti_logo,
                             contentDescription = null,
                             modifier = imageModifier,
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
                     }
                 }
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -324,14 +348,14 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             Button(
                 onClick = {
                     val trimmedEmail = emailInput.trim()
-                    val trimmedPassword = passwordInput.trim()
+                    val password = passwordInput
 
                     if (isLoginTab) {
                         if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
                             errorMessage = "Please enter a valid email address."
                             return@Button
                         }
-                        viewModel.loginWithEmail(trimmedEmail, "", trimmedPassword)
+                        viewModel.loginWithEmail(trimmedEmail, "", password)
                         viewModel.toggleGuestMode(false)
                     } else {
                         val trimmedName = nameInput.trim()
@@ -343,15 +367,15 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                             errorMessage = "Please enter a valid email address."
                             return@Button
                         }
-                        if (trimmedPassword.length < 6) {
+                        if (password.length < 6) {
                             errorMessage = "Password must be at least 6 characters."
                             return@Button
                         }
-                        if (trimmedPassword != confirmPasswordInput.trim()) {
+                        if (password != confirmPasswordInput.trim()) {
                             errorMessage = "Passwords do not match."
                             return@Button
                         }
-                        viewModel.loginWithEmail(trimmedEmail, trimmedName, trimmedPassword, isRegister = true)
+                        viewModel.loginWithEmail(trimmedEmail, trimmedName, password, isRegister = true)
                         viewModel.toggleGuestMode(false)
                     }
                 },

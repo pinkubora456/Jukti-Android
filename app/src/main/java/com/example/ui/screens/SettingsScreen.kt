@@ -47,6 +47,16 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     var showHiddenQuestionsDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showClearProgressDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var currentPasswordInput by remember { mutableStateOf("") }
+    var newPasswordInput by remember { mutableStateOf("") }
+    var confirmNewPasswordInput by remember { mutableStateOf("") }
+    var currentPasswordVisible by remember { mutableStateOf(false) }
+    var newPasswordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var changePasswordMessage by remember { mutableStateOf<String?>(null) }
+    var isChangePasswordSuccess by remember { mutableStateOf(false) }
+    var isChangePasswordLoading by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -207,6 +217,45 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                     },
                     modifier = Modifier.clickable { showDeleteAccountDialog = true }
                 )
+            }
+
+            // Security & Account
+            Text(
+                text = "Security & Account",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = {
+                            Text("Change Password", fontWeight = FontWeight.SemiBold)
+                        },
+                        supportingContent = {
+                            Text(
+                                "Update your account password securely",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        modifier = Modifier.clickable {
+                            currentPasswordInput = ""
+                            newPasswordInput = ""
+                            confirmNewPasswordInput = ""
+                            changePasswordMessage = null
+                            isChangePasswordSuccess = false
+                            showChangePasswordDialog = true
+                        }
+                    )
+                }
             }
 
             // Data & Sync
@@ -383,6 +432,157 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             onDismiss = { showHiddenQuestionsDialog = false },
             onUnhideQuestion = { q -> viewModel.toggleHideQuestion(q) },
             onUnhideAll = { viewModel.unhideAllQuestions() }
+        )
+    }
+
+    if (showChangePasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isChangePasswordLoading) showChangePasswordDialog = false },
+            title = {
+                Text("Change Password", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (changePasswordMessage != null) {
+                        Text(
+                            text = changePasswordMessage!!,
+                            color = if (isChangePasswordSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (!isChangePasswordSuccess) {
+                        Text("Please enter your current password and choose a new secure password.")
+                        
+                        OutlinedTextField(
+                            value = currentPasswordInput,
+                            onValueChange = { currentPasswordInput = it },
+                            label = { Text("Current Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (currentPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (currentPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            singleLine = true,
+                            enabled = !isChangePasswordLoading,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = newPasswordInput,
+                            onValueChange = { newPasswordInput = it },
+                            label = { Text("New Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (newPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            singleLine = true,
+                            enabled = !isChangePasswordLoading,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = confirmNewPasswordInput,
+                            onValueChange = { confirmNewPasswordInput = it },
+                            label = { Text("Confirm New Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Toggle password visibility"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (confirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            singleLine = true,
+                            enabled = !isChangePasswordLoading,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (!isChangePasswordSuccess) {
+                    Button(
+                        onClick = {
+                            if (currentPasswordInput.isBlank()) {
+                                changePasswordMessage = "The current password cannot be empty."
+                                return@Button
+                            }
+                            if (newPasswordInput.length < 6) {
+                                changePasswordMessage = "Your new password does not meet the password requirements (at least 6 characters)."
+                                return@Button
+                            }
+                            if (newPasswordInput != confirmNewPasswordInput) {
+                                changePasswordMessage = "New password and confirmation do not match."
+                                return@Button
+                            }
+                            isChangePasswordLoading = true
+                            changePasswordMessage = null
+                            viewModel.changePassword(currentPasswordInput, newPasswordInput) { success, msg ->
+                                isChangePasswordLoading = false
+                                isChangePasswordSuccess = success
+                                changePasswordMessage = msg
+                            }
+                        },
+                        enabled = !isChangePasswordLoading
+                    ) {
+                        if (isChangePasswordLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Change Password")
+                        }
+                    }
+                } else {
+                    Button(onClick = {
+                        showChangePasswordDialog = false
+                        currentPasswordInput = ""
+                        newPasswordInput = ""
+                        confirmNewPasswordInput = ""
+                        changePasswordMessage = null
+                        isChangePasswordSuccess = false
+                    }) {
+                        Text("OK")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isChangePasswordSuccess) {
+                    TextButton(
+                        onClick = {
+                            showChangePasswordDialog = false
+                            currentPasswordInput = ""
+                            newPasswordInput = ""
+                            confirmNewPasswordInput = ""
+                            changePasswordMessage = null
+                        },
+                        enabled = !isChangePasswordLoading
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            }
         )
     }
 }
