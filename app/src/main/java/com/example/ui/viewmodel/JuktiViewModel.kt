@@ -1888,22 +1888,30 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val targetUser = users.find { it.email.equals(userEmail, ignoreCase = true) }
                 uid = targetUser?.uid ?: ""
             }
+            val sanitizedEmail = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
             if (uid.isBlank()) {
-                uid = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
+                uid = sanitizedEmail
             }
 
             val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
             
-            db.collection("users").document(uid).collection("entitlements").document("current").delete().await()
-            db.collection("users").document(uid).update(
-                mapOf(
-                    "role" to "DELETED",
-                    "isPremium" to false,
-                    "name" to "Deleted User"
-                )
-            ).await()
+            try {
+                db.collection("users").document(uid).collection("entitlements").document("current").delete().await()
+            } catch (e: Exception) {}
+
+            try {
+                db.collection("users").document(uid).delete().await()
+            } catch (e: Exception) {}
+
+            if (sanitizedEmail.isNotBlank()) {
+                try {
+                    db.collection("users").document(sanitizedEmail).delete().await()
+                } catch (e: Exception) {}
+            }
+
+            repository.deleteUserAccount(uid, userEmail)
             
-            logActivity("Deleted user $userEmail and cleared entitlements")
+            logActivity("Deleted user $userEmail completely from app and Firestore")
             true
         } catch (e: Exception) {
             Log.e("JuktiViewModel", "Error deleting user completely", e)

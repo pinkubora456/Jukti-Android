@@ -374,27 +374,6 @@ Row(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Study Notes Highlights
-            SectionHeader(
-                titleEn = "Study Notes & Revision",
-                titleAs = "অধ্যায়ভিত্তিক টোকা আৰু পৰ্যালোচনা",
-                language = language,
-                onSeeAllClick = { viewModel.navigateTo(Screen.STUDY_NOTES) }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(studyNotes) { note ->
-                    StudyNoteCard(
-                        note = note,
-                        language = language,
-                        onClick = { viewModel.selectStudyNote(note) }
-                    )
-                }
-            }
         }
     }
 }

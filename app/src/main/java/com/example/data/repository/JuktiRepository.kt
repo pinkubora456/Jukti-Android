@@ -526,6 +526,10 @@ class JuktiRepository(
         syncManager.enqueueAndSync("NOTIFICATION", notification.id.toString(), "DELETE")
     }
 
+    suspend fun deleteUserAccount(uid: String, email: String) {
+        firebaseRepository.deleteUserAccount(uid, email)
+    }
+
     suspend fun deleteAccount() {
         try {
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }

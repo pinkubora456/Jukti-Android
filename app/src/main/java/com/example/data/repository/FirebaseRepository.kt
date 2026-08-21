@@ -193,6 +193,10 @@ class FirebaseRepository {
             val snapshot = firestore?.collection("users")?.get()?.await()
             val users = mutableListOf<UserProfileEntity>()
             snapshot?.documents?.forEach { doc ->
+                val role = doc.getString("role") ?: "USER"
+                if (role.equals("DELETED", ignoreCase = true)) {
+                    return@forEach
+                }
                 users.add(UserProfileEntity(
                     id = doc.getLong("id")?.toInt() ?: 1,
                     name = doc.getString("name") ?: "Assam Scholar",
@@ -207,7 +211,7 @@ class FirebaseRepository {
                     correctCount = doc.getLong("correctCount")?.toInt() ?: 0,
                     totalTimeMinutes = doc.getLong("totalTimeMinutes")?.toInt() ?: 0,
                     isPremium = doc.getBoolean("isPremium") ?: false,
-                    role = doc.getString("role") ?: "USER",
+                    role = role,
                     firebaseProjectId = doc.getString("firebaseProjectId") ?: "jukti-26035",
                     joinedDate = doc.getString("joinedDate") ?: "Jul 2026",
                     isLoggedIn = doc.getBoolean("isLoggedIn") ?: true,
