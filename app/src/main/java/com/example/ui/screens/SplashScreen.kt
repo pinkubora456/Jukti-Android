@@ -15,6 +15,10 @@ import androidx.compose.ui.res.painterResource
 import com.example.ui.viewmodel.JuktiViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun SplashScreen(viewModel: JuktiViewModel) {
@@ -51,8 +55,8 @@ fun SplashScreen(viewModel: JuktiViewModel) {
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = com.example.R.drawable.splash_screen_img),
+        coil.compose.AsyncImage(
+            model = com.example.R.drawable.splash_screen_img,
             contentDescription = "Full Screen Splash Image",
             contentScale = ContentScale.Fit,
             modifier = Modifier
