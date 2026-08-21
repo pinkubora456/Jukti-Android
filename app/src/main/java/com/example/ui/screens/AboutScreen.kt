@@ -144,8 +144,8 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                             model = coil.request.ImageRequest.Builder(LocalContext.current)
                                 .data(localLogo)
                                 .crossfade(true)
-                                .error(com.example.R.drawable.jukti_logo)
-                                .fallback(com.example.R.drawable.jukti_logo)
+                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
+                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
                                 .build(),
                             contentDescription = "App Logo",
                             modifier = imageModifier,
@@ -156,8 +156,8 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                             model = coil.request.ImageRequest.Builder(LocalContext.current)
                                 .data(aboutConfig.logoUrl)
                                 .crossfade(true)
-                                .error(com.example.R.drawable.jukti_logo)
-                                .fallback(com.example.R.drawable.jukti_logo)
+                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
+                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
                                 .build(),
                             contentDescription = "App Logo",
                             modifier = imageModifier,

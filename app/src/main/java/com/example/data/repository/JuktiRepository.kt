@@ -264,6 +264,10 @@ class JuktiRepository(
         if (currentSubjects.isNullOrEmpty()) {
             subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
         }
+        val currentUpdates = examUpdateDao.getAllUpdates().firstOrNull()
+        if (currentUpdates.isNullOrEmpty()) {
+            examUpdateDao.insertAll(SampleData.sampleExamUpdates)
+        }
     }
 
     // Question Actions

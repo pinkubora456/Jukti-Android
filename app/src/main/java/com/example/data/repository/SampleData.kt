@@ -6,7 +6,118 @@ object SampleData {
     val sampleQuestions = emptyList<QuestionEntity>()
     val sampleMockTests = emptyList<MockTestEntity>()
     val sampleStudyNotes = emptyList<StudyNoteEntity>()
-    val sampleExamUpdates = emptyList<ExamUpdateEntity>()
+    val sampleExamUpdates = listOf(
+        ExamUpdateEntity(
+            id = 1L,
+            examName = "ADRE Grade 3",
+            category = "Syllabus",
+            titleEn = "ADRE Grade 3 & 4 Detailed Syllabus & Topics",
+            titleAs = "ADRE গ্ৰেড ৩ আৰু ৪ ৰ সম্পূৰ্ণ পাঠ্যক্ৰম",
+            detailEn = "Comprehensive syllabus covering General Knowledge, Social Studies, General Mathematics, Logical Reasoning, General English, and Mental Ability for Bachelor's, HSLC, and HSSLC levels.",
+            detailAs = "স্নাতক, উচ্চতৰ মাধ্যমিক আৰু হাইস্কুল শিক্ষান্ত পৰ্যায়ৰ বাবে সাধাৰণ জ্ঞান, সামাজিক বিজ্ঞান, গণিত, যুক্তিবিদ্যা আৰু ইংৰাজীৰ সম্পূৰ্ণ পাঠ্যক্ৰম।",
+            updateDate = "August 2026",
+            officialLink = "https://sebaonline.org"
+        ),
+        ExamUpdateEntity(
+            id = 2L,
+            examName = "ADRE Grade 3",
+            category = "Pattern",
+            titleEn = "ADRE Grade 3 Exam Pattern & Marking Scheme",
+            titleAs = "ADRE গ্ৰেড ৩ পৰীক্ষাৰ আৰ্হি আৰু নম্বৰ বিভাজন",
+            detailEn = "150 Multiple Choice Questions (MCQs) carrying 1 mark each. Negative marking of 0.25 marks for every incorrect answer. Time duration: 3 hours.",
+            detailAs = "১৫০ টা বহুবিকল্পী প্ৰশ্ন (MCQ), প্ৰতিটোৰ নম্বৰ ১। প্ৰতিটো ভুল উত্তৰৰ বাবে ০.২৫ নম্বৰ কৰ্তন কৰা হ'ব। সময়: ৩ ঘণ্টা।",
+            updateDate = "August 2026",
+            officialLink = "https://sebaonline.org"
+        ),
+        ExamUpdateEntity(
+            id = 3L,
+            examName = "ADRE Grade 3",
+            category = "Cutoff",
+            titleEn = "ADRE Grade 3 & 4 Expected Category-wise Cutoff",
+            titleAs = "ADRE গ্ৰেড ৩ আৰু ৪ ৰ প্ৰত্যাশিত কাট-অফ নম্বৰ",
+            detailEn = "Unreserved (UR): 118-124 Marks | OBC/MOBC: 110-116 Marks | EWS: 108-114 Marks | SC: 102-108 Marks | ST: 96-102 Marks out of 150 marks.",
+            detailAs = "সংৰক্ষিত নোহোৱা (UR): ১১৮-১২৪ | OBC/MOBC: ১১০-১১৬ | EWS: ১০৮-১১৪ | SC: ১০২-১০৮ | ST: ৯৬-১০২ (১৫০ নম্বৰৰ ভিতৰত)।",
+            updateDate = "August 2026",
+            officialLink = "https://sebaonline.org"
+        ),
+        ExamUpdateEntity(
+            id = 4L,
+            examName = "APSC CCE",
+            category = "Syllabus",
+            titleEn = "APSC CCE Prelims GS Paper 1 & Paper 2 Syllabus",
+            titleAs = "APSC CCE প্ৰিলিমছ GS পেপাৰ ১ আৰু পেপাৰ ২ পাঠ্যক্ৰম",
+            detailEn = "General Studies Paper 1 (History, Geography, Polity, Economy, Science, Assam GK) and CSAT Paper 2 (Logical Reasoning, Comprehension, Interpersonal skills, Basic Numeracy).",
+            detailAs = "সাধাৰণ অধ্যয়ন পেপাৰ ১ (ইতিহাস, ভূগো, ৰাজনীতি, অর্থনীতি, বিজ্ঞান, অসমৰ জ্ঞান) আৰু CSAT পেপাৰ ২ (যুক্তিবিদ্যা, বুজাবুজি, গণিত)।",
+            updateDate = "August 2026",
+            officialLink = "https://apsc.nic.in"
+        ),
+        ExamUpdateEntity(
+            id = 5L,
+            examName = "APSC CCE",
+            category = "Pattern",
+            titleEn = "APSC Combined Competitive Examination Pattern",
+            titleAs = "APSC সংযুক্ত প্ৰতিযোগিতামূলক পৰীক্ষাৰ আৰ্হি",
+            detailEn = "Prelims (Objective, 200 marks each for GS1 & GS2), Mains (Descriptive papers including Essay, General Studies 1-4, and Assam Specific papers), and Personality Test (275 Marks).",
+            detailAs = "প্ৰিলিমছ (বস্তুনিষ্ঠ, ২০০ নম্বৰ), মেইনছ (বৰ্ণনাত্মক পেপাৰ, সাধাৰণ অধ্যয়ন ১-৪ আৰু অসম বিষয়ক পেপাৰ), আৰু সাক্ষাৎকাৰ (২৭৫ নম্বৰ)।",
+            updateDate = "August 2026",
+            officialLink = "https://apsc.nic.in"
+        ),
+        ExamUpdateEntity(
+            id = 6L,
+            examName = "APSC CCE",
+            category = "Cutoff",
+            titleEn = "APSC CCE Prelims Expected Cutoff Marks",
+            titleAs = "APSC CCE প্ৰিলিমছ প্ৰত্যাশিত কাট-অফ নম্বৰ",
+            detailEn = "General (UR Male): 112-118 | General (UR Female): 106-112 | OBC/MOBC: 104-110 | SC/ST: 95-102 out of 200 marks.",
+            detailAs = "সাধাৰণ (পুৰুষ): ১১২-১১৮ | সাধাৰণ (মহিলা): ১০৬-১১২ | OBC/MOBC: ১০৪-১১০ | SC/ST: ৯৫-১০২ (২০০ নম্বৰৰ ভিতৰত)।",
+            updateDate = "August 2026",
+            officialLink = "https://apsc.nic.in"
+        ),
+        ExamUpdateEntity(
+            id = 7L,
+            examName = "Assam Police SI",
+            category = "Pattern",
+            titleEn = "Assam Police SI Written Test Pattern & Marking",
+            titleAs = "অসম পুলিচ SI লিখিত পৰীক্ষাৰ আৰ্হি আৰু নম্বৰ",
+            detailEn = "100 questions of 1 mark each. Subjects: Logical reasoning, aptitude, comprehension, current affairs, general knowledge, and Assam history/polity. Negative marking of 1/2 mark for wrong answers.",
+            detailAs = "১০০ টা প্ৰশ্ন, প্ৰতিটোৰ নম্বৰ ১। বিষয়সমূহ: যুক্তিবিদ্যা, গণিত, বৰ্তমানৰ ঘটনাবলী, সাধাৰণ জ্ঞান আৰু অসমৰ ইতিহাস। প্ৰতিটো ভুল উত্তৰৰ বাবে ০.৫ নম্বৰ কৰ্তন।",
+            updateDate = "August 2026",
+            officialLink = "https://slprbassam.in"
+        ),
+        ExamUpdateEntity(
+            id = 8L,
+            examName = "Assam Police SI",
+            category = "Cutoff",
+            titleEn = "Assam Police SI Expected Cutoff Marks",
+            titleAs = "অসম পুলিচ SI প্ৰত্যাশিত কাট-অফ নম্বৰ",
+            detailEn = "UR Male: 74-78 | UR Female: 68-72 | OBC/MOBC: 69-73 | SC/ST: 62-67 out of 100 marks.",
+            detailAs = "UR পুৰুষ: ৭৪-৭৮ | UR মহিলা: ৬৮-৭২ | OBC/MOBC: ৬৯-৭৩ | SC/ST: ৬২-৬৭ (১০০ নম্বৰৰ ভিতৰত)।",
+            updateDate = "August 2026",
+            officialLink = "https://slprbassam.in"
+        ),
+        ExamUpdateEntity(
+            id = 9L,
+            examName = "Assam TET",
+            category = "Cutoff",
+            titleEn = "Assam Special TET Qualifying Cutoff Marks",
+            titleAs = "অসম টেট উত্তীৰ্ণৰ কাট-অফ নম্বৰ",
+            detailEn = "General / Unreserved: 90 Marks (60%) | OBC / SC / ST / PwD: 83.5 Marks (55%) for Lower Primary & Upper Primary levels.",
+            detailAs = "সাধাৰণ / সংৰক্ষিত নোহোৱা: ৯০ নম্বৰ (৬০%) | OBC / SC / ST / PwD: ৮৩.৫ নম্বৰ (৫৫%) নিম্ন আৰু উচ্চ প্ৰাথমিক পৰ্যায়ৰ বাবে।",
+            updateDate = "August 2026",
+            officialLink = "https://ssa.assam.gov.in"
+        ),
+        ExamUpdateEntity(
+            id = 10L,
+            examName = "ADRE Grade 3",
+            category = "Admit Card",
+            titleEn = "ADRE Grade 3 Phase II Admit Card Download Link Active",
+            titleAs = "ADRE গ্ৰেড ৩ দ্বিতীয় পৰ্যায়ৰ এডমিট কাৰ্ড ডাইনলোড",
+            detailEn = "Candidates who have successfully registered can now download their admit cards from the official SEBA portal using registration number and date of birth.",
+            detailAs = "পঞ্জীভভুক্ত প্ৰাৰ্থীসকলে অফিচিয়েল পৰ্টেলৰ পৰা পঞ্জীয়ন নম্বৰ আৰু জন্ম তাৰিখ ব্যৱহাৰ কৰি এডমিট কাৰ্ড ডাউনলোড কৰিব পাৰিব।",
+            updateDate = "August 2026",
+            officialLink = "https://sebaonline.org"
+        )
+    )
     val sampleBanners = listOf(
         BannerEntity(
             id = 1L,

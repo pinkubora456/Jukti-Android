@@ -1,35 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- Graduation Cap & Book Motif -->
-    <!-- Cap top diamond -->
-    <path
-        android:fillColor="#FFD166"
-        android:pathData="M54,28 L78,38 L54,48 L30,38 Z" />
-    <!-- Cap base -->
-    <path
-        android:fillColor="#F4A261"
-        android:pathData="M40,43.5 L40,51 C40,55 68,55 68,51 L68,43.5 Z" />
-    <!-- Tassel -->
-    <path
-        android:fillColor="#E76F51"
-        android:pathData="M73,39 L73,50 A2,2 0 0,1 70,52 A2,2 0 0,1 68,50 L68,39 Z" />
-    <!-- Open Book Pages -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M28,62 C38,58 50,60 52,64 L52,82 C50,78 38,76 28,80 Z" />
-    <path
-        android:fillColor="#EAEAEA"
-        android:pathData="M80,62 C70,58 58,60 56,64 L56,82 C58,78 70,76 80,80 Z" />
-    <!-- Spine -->
-    <path
-        android:fillColor="#00A896"
-        android:pathData="M52,64 L56,64 L56,83 L52,83 Z" />
-    <!-- Jukti Lettering Accent Dot -->
-    <path
-        android:fillColor="#FFD166"
-        android:pathData="M54,86 A3,3 0 1,1 54,80 A3,3 0 1,1 54,86 Z" />
-</vector>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/jukti_logo"
+    android:insetBottom="18dp"
+    android:insetLeft="18dp"
+    android:insetRight="18dp"
+    android:insetTop="18dp" />

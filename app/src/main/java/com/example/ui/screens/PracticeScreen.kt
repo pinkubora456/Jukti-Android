@@ -66,20 +66,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     // Filter questions by selected subject and chapters
     val practiceQuestions = remember(visibleQuestions, selectedSubjectKey, selectedChapters) {
         visibleQuestions.filter { q ->
-            val matchSubject = when (selectedSubjectKey) {
-                "All Subjects", "All Subject" -> true
-                "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                "General English" -> q.subject == "General English"
-                "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability")
-                else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
+            try {
+                val matchSubject = when (selectedSubjectKey) {
+                    "All Subjects", "All Subject" -> true
+                    "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                    "General English" -> q.subject == "General English"
+                    "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                    "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                    else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
+                }
+                val matchChapter = if (selectedChapters.isEmpty()) {
+                    true
+                } else {
+                    val topicStr = q.topic ?: ""
+                    if (selectedSubjectKey == "Reasoning") {
+                        selectedChapters.any { ch ->
+                            topicStr.contains(ch, ignoreCase = true) || 
+                            ch.contains(topicStr, ignoreCase = true) ||
+                            q.subject.contains(ch, ignoreCase = true) ||
+                            (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
+                            (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
+                            (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
+                            (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
+                        }
+                    } else {
+                        topicStr in selectedChapters || q.subject in selectedChapters
+                    }
+                }
+                matchSubject && matchChapter
+            } catch (e: Exception) {
+                false
             }
-            val matchChapter = if (selectedChapters.isEmpty()) {
-                true
-            } else {
-                q.topic in selectedChapters || q.subject in selectedChapters
-            }
-            matchSubject && matchChapter
         }
     }
 
@@ -358,7 +375,13 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General Knowledge" -> visibleQuestions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> visibleQuestions.filter { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
+                            "Reasoning" -> {
+                                set.add("Coding-Decoding, Series & Analogy")
+                                set.add("Blood Relations & Direction Sense Test")
+                                set.add("Seating Arrangement, Puzzles & Venn Diagrams")
+                                set.add("Syllogism, Statements & Assumptions")
+                                visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            }
                             else -> visibleQuestions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                         relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
@@ -371,7 +394,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General Knowledge" -> visibleQuestions.count { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> visibleQuestions.count { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> visibleQuestions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
+                            "Reasoning" -> visibleQuestions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
                             else -> visibleQuestions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }

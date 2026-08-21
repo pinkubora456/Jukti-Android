@@ -73,6 +73,8 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
         matchesExam && matchesCategory
     }
 
+    var showExamPatternChoiceDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -86,7 +88,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             actions = {
                 if (isAdminOrOwner) {
                     IconButton(
-                        onClick = { viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF) },
+                        onClick = { showExamPatternChoiceDialog = true },
                         modifier = Modifier.testTag("admin_edit_exam_info_btn")
                     ) {
                         Icon(
@@ -98,6 +100,30 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                 }
             }
         )
+
+        if (showExamPatternChoiceDialog) {
+            AlertDialog(
+                onDismissRequest = { showExamPatternChoiceDialog = false },
+                title = { Text("Exam Patterns, Syllabus & Cutoff") },
+                text = { Text("Choose an option:") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showExamPatternChoiceDialog = false
+                        viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_UPDATE)
+                    }) {
+                        Text("Update (Add New)")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showExamPatternChoiceDialog = false
+                        viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_VIEW)
+                    }) {
+                        Text("View (All, Edit & Delete)")
+                    }
+                }
+            )
+        }
 
         Surface(
             color = MaterialTheme.colorScheme.surface,

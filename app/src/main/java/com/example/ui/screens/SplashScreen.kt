@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,8 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import androidx.compose.ui.res.painterResource
 import com.example.ui.viewmodel.JuktiViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -51,15 +51,10 @@ fun SplashScreen(viewModel: JuktiViewModel) {
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(com.example.R.drawable.splash_screen_img)
-                .crossfade(true)
-                .error(com.example.R.drawable.jukti_logo)
-                .fallback(com.example.R.drawable.jukti_logo)
-                .build(),
+        Image(
+            painter = painterResource(id = com.example.R.drawable.splash_screen_img),
             contentDescription = "Full Screen Splash Image",
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(

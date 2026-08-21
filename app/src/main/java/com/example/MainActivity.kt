@@ -193,6 +193,8 @@ class MainActivity : ComponentActivity() {
                                  Screen.STORAGE_MANAGEMENT -> StorageManagementScreen(viewModel)
                                  Screen.USER_NOTIFICATIONS -> UserNotificationsScreen(viewModel)
                                  Screen.MANAGE_EXAM_PATTERN_CUTOFF -> ManageExamPatternCutoffScreen(viewModel)
+                                 Screen.MANAGE_EXAM_PATTERN_CUTOFF_UPDATE -> UpdateExamPatternCutoffScreen(viewModel)
+                                 Screen.MANAGE_EXAM_PATTERN_CUTOFF_VIEW -> ViewExamPatternCutoffScreen(viewModel)
                                  Screen.MANAGE_BANNERS -> ManageBannersScreen(viewModel)
                                  Screen.PRIVACY_POLICY -> PrivacyPolicyScreen(viewModel)
                                  Screen.TERMS_CONDITIONS -> TermsConditionsScreen(viewModel)

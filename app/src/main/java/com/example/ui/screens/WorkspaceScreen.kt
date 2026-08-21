@@ -387,11 +387,37 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             onClick = { viewModel.navigateTo(Screen.MANAGE_BANNERS) }
         )
 
+        var showExamPatternChoiceDialog by remember { mutableStateOf(false) }
+
         WorkspaceBannerCard(
             title = "Exam Patern & Cutoff",
             icon = Icons.Default.Analytics,
-            onClick = { viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF) }
+            onClick = { showExamPatternChoiceDialog = true }
         )
+
+        if (showExamPatternChoiceDialog) {
+            AlertDialog(
+                onDismissRequest = { showExamPatternChoiceDialog = false },
+                title = { Text("Exam Patterns, Syllabus & Cutoff") },
+                text = { Text("Choose an option:") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showExamPatternChoiceDialog = false
+                        viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_UPDATE)
+                    }) {
+                        Text("Update (Add New)")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showExamPatternChoiceDialog = false
+                        viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_VIEW)
+                    }) {
+                        Text("View (All, Edit & Delete)")
+                    }
+                }
+            )
+        }
 
         WorkspaceBannerCard(
             title = "Notification",

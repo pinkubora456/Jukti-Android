@@ -68,6 +68,30 @@ secrets {
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
+tasks.register("validatePngHeaders") {
+    val resDir = project.file("src/main/res")
+    doLast {
+        if (resDir.exists()) {
+            resDir.walkTopDown().filter { it.isFile && it.extension.equals("png", ignoreCase = true) }.forEach { file ->
+                val bytes = file.readBytes()
+                if (bytes.size >= 8) {
+                    if (bytes[0] == 0xef.toByte() && bytes[1] == 0xbf.toByte() && bytes[2] == 0xbd.toByte()) {
+                        println("Automatically repairing corrupted PNG header in ${file.absolutePath}")
+                        val fixed = byteArrayOf(0x89.toByte(), 0x50.toByte(), 0x4e.toByte(), 0x47.toByte(), 0xd.toByte(), 0xa.toByte(), 0x1a.toByte(), 0xa.toByte()) + bytes.copyOfRange(3, bytes.size)
+                        file.writeBytes(fixed)
+                    } else if (bytes[0] != 0x89.toByte() || bytes[1] != 0x50.toByte() || bytes[2] != 0x4e.toByte() || bytes[3] != 0x47.toByte()) {
+                        throw GradleException("Invalid PNG header in ${file.absolutePath}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn("validatePngHeaders")
+}
+
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {

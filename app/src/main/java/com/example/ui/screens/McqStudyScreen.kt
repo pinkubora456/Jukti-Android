@@ -751,21 +751,38 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters) {
         if (isStudySessionStarted) {
             val filtered = questions.filter { q ->
-                if (q.isHidden) return@filter false
-                val matchSubject = when (selectedSubjectTab) {
-                    "All Subject", "All Subjects" -> true
-                    "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                    "General English" -> q.subject == "General English"
-                    "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                    "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability")
-                    else -> q.subject == selectedSubjectTab
+                try {
+                    if (q.isHidden) return@filter false
+                    val matchSubject = when (selectedSubjectTab) {
+                        "All Subject", "All Subjects" -> true
+                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                        "General English" -> q.subject == "General English"
+                        "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                        "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                        else -> q.subject == selectedSubjectTab
+                    }
+                    val matchChapter = if (selectedChapters.isEmpty()) {
+                        true
+                    } else {
+                        val topicStr = q.topic ?: ""
+                        if (selectedSubjectTab == "Reasoning") {
+                            selectedChapters.any { ch ->
+                                topicStr.contains(ch, ignoreCase = true) || 
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                q.subject.contains(ch, ignoreCase = true) ||
+                                (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
+                                (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
+                                (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
+                                (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
+                            }
+                        } else {
+                            topicStr in selectedChapters || q.subject in selectedChapters
+                        }
+                    }
+                    matchSubject && matchChapter
+                } catch (e: Exception) {
+                    false
                 }
-                val matchChapter = if (selectedChapters.isEmpty()) {
-                    true
-                } else {
-                    q.topic in selectedChapters || q.subject in selectedChapters
-                }
-                matchSubject && matchChapter
             }.shuffled().toMutableList()
 
             if (filtered.size > 1 && filtered[0].id == lastStudyStartingQuestionId) {
@@ -870,7 +887,13 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General Knowledge" -> questions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> questions.filter { it.subject == "General English" }
                             "General Mathematics" -> questions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
+                            "Reasoning" -> {
+                                set.add("Coding-Decoding, Series & Analogy")
+                                set.add("Blood Relations & Direction Sense Test")
+                                set.add("Seating Arrangement, Puzzles & Venn Diagrams")
+                                set.add("Syllogism, Statements & Assumptions")
+                                questions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            }
                             else -> questions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                         relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
@@ -883,7 +906,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General Knowledge" -> questions.count { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
                             "General English" -> questions.count { it.subject == "General English" }
                             "General Mathematics" -> questions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability") }
+                            "Reasoning" -> questions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
                             else -> questions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }
