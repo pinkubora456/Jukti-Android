@@ -97,6 +97,84 @@ enum class Screen {
 
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val timePrefs by lazy { getApplication<Application>().getSharedPreferences("jukti_time_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    private var sessionTrustedServerTime: Long = 0L
+    private var sessionTrustedRealtime: Long = 0L
+
+    init {
+        syncTrustedTime()
+    }
+
+    private fun syncTrustedTime() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                // Fetch header from a reliable Google endpoint
+                val url = java.net.URL("https://us-central1-jukti-examprep.cloudfunctions.net")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "HEAD"
+                conn.connectTimeout = 3000
+                conn.readTimeout = 3000
+                val dateStr = conn.getHeaderField("Date")
+                if (dateStr != null) {
+                    val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
+                    val serverTime = format.parse(dateStr)?.time ?: return@launch
+                    
+                    sessionTrustedServerTime = serverTime
+                    sessionTrustedRealtime = android.os.SystemClock.elapsedRealtime()
+                    
+                    timePrefs.edit()
+                        .putLong("last_server_time", serverTime)
+                        .putLong("last_device_realtime", sessionTrustedRealtime)
+                        .putLong("max_seen_time", serverTime)
+                        .apply()
+                }
+            } catch (e: Exception) {
+                // Ignore, will fallback to cached or monotonic
+            }
+        }
+    }
+
+    fun getTrustedTime(): Long {
+        val currentRealtime = android.os.SystemClock.elapsedRealtime()
+        
+        // 1. If we have a session-synced server time, use it + monotonic elapsed time
+        if (sessionTrustedServerTime > 0L) {
+            val elapsed = currentRealtime - sessionTrustedRealtime
+            if (elapsed >= 0) {
+                val calculated = sessionTrustedServerTime + elapsed
+                updateMaxSeenTime(calculated)
+                return calculated
+            }
+        }
+        
+        // 2. Fallback to persisted synced time if device hasn't rebooted since last sync
+        val lastRealtime = timePrefs.getLong("last_device_realtime", 0L)
+        val lastServerTime = timePrefs.getLong("last_server_time", 0L)
+        if (lastServerTime > 0L && lastRealtime > 0L && currentRealtime >= lastRealtime) {
+            val elapsed = currentRealtime - lastRealtime
+            // basic sanity check: if elapsed is > 30 days without reboot, maybe suspicious, but let's trust it
+            if (elapsed < 30L * 24 * 60 * 60 * 1000) {
+                val calculated = lastServerTime + elapsed
+                updateMaxSeenTime(calculated)
+                return calculated
+            }
+        }
+        
+        // 3. Last resort fallback: System time, but protected against backwards tampering
+        val currentSystemTime = System.currentTimeMillis()
+        return updateMaxSeenTime(currentSystemTime)
+    }
+    
+    private fun updateMaxSeenTime(time: Long): Long {
+        val maxSeen = timePrefs.getLong("max_seen_time", 0L)
+        if (time > maxSeen) {
+            timePrefs.edit().putLong("max_seen_time", time).apply()
+            return time
+        }
+        return maxSeen
+    }
+
     init {
         com.example.JuktiApplication.ensureFirebaseInitialized(application)
     }
@@ -484,7 +562,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _userEntitlement = MutableStateFlow<EntitlementEntity?>(null)
     val userEntitlement: StateFlow<EntitlementEntity?> = _userEntitlement.asStateFlow()
 
-    fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): Boolean {
+    fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = getTrustedTime()): Boolean {
         if (entitlement == null) return false
         if (entitlement.status != "ACTIVE") return false
         if (entitlement.planId.isBlank()) return false
@@ -495,7 +573,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
         val entitlement = userEntitlement.value
-        val now = System.currentTimeMillis()
+        val now = getTrustedTime()
         if (entitlement != null && entitlement.status == "ACTIVE") {
             val matchesId = entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true)
             val matchesName = entitlement.planName.equals(plan.planName, ignoreCase = true)
@@ -525,7 +603,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     val isMatch = (planId == plan.id.toString()) ||
                                   (planId.equals(plan.planName, ignoreCase = true)) ||
                                   (planName.equals(plan.planName, ignoreCase = true))
-                    val isValid = validUntil <= 0L || validUntil > System.currentTimeMillis()
+                    val isValid = validUntil <= 0L || validUntil > getTrustedTime()
 
                     if (status == "ACTIVE" && isMatch && isValid) {
                         return Pair(false, "You already have an active subscription for '${plan.planName}'. Duplicate purchases of the same plan are not allowed.")
@@ -677,7 +755,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         userEmail = user.email,
                         role = user.role,
                         actionDetails = actionDetails,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = getTrustedTime()
                     )
                 )
             }
@@ -687,7 +765,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun clearOldActivityLogs(context: android.content.Context) {
         viewModelScope.launch {
             try {
-                val sevenDaysAgo = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
+                val sevenDaysAgo = getTrustedTime() - (7L * 24 * 60 * 60 * 1000)
                 repository.deleteOldAdminLogs(sevenDaysAgo)
                 repository.deleteOldOwnerLogs(sevenDaysAgo)
                 // We should also delete them from Firebase using SyncQueue, but since they are logs we can just delete from Firebase directly.
@@ -753,7 +831,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val navBackStack = mutableListOf<Screen>()
 
     fun navigateTo(screen: Screen) {
-        val currentTime = System.currentTimeMillis()
+        val currentTime = getTrustedTime()
         if (currentTime - lastNavTime < 500) return
         lastNavTime = currentTime
 
@@ -1169,7 +1247,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             _isAuthLoading.value = true
             _sessionMessage.value = null
             try {
-                val guestUid = "guest_" + System.currentTimeMillis()
+                val guestUid = "guest_" + getTrustedTime()
                 val guestEmail = "guest@jukti.in"
                 val deviceId = java.util.UUID.randomUUID().toString()
                 withContext(Dispatchers.IO) {
@@ -1445,7 +1523,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val updatedConfig = config.copy(
                     logoUrl = downloadUrl,
-                    logoUpdatedAt = System.currentTimeMillis()
+                    logoUpdatedAt = getTrustedTime()
                 )
                 updateAboutConfig(updatedConfig)
                 // Also cache locally
@@ -1469,7 +1547,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
-                val localFileName = "${folder}_${System.currentTimeMillis()}.png"
+                val localFileName = "${folder}_${getTrustedTime()}.png"
                 val file = java.io.File(context.filesDir, localFileName)
                 java.io.FileOutputStream(file).use { it.write(bytes) }
                 val localPath = file.absolutePath
@@ -1479,7 +1557,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
                 val storage = com.example.JuktiApplication.getStorage(context)
                 if (storage != null) {
-                    val ref = storage.reference.child("$folder/${System.currentTimeMillis()}.png")
+                    val ref = storage.reference.child("$folder/${getTrustedTime()}.png")
                     ref.putBytes(bytes).await()
                     val downloadUrl = ref.downloadUrl.await().toString()
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -1643,7 +1721,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addQuestion(question: QuestionEntity, onComplete: (Long) -> Unit) {
         viewModelScope.launch {
-            var assignedId = question.id.takeIf { it != 0L } ?: System.currentTimeMillis()
+            var assignedId = question.id.takeIf { it != 0L } ?: getTrustedTime()
             try {
                 val res = repository.addQuestion(question)
                 _syncToastMessage.value = res.second
@@ -1744,7 +1822,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 .setAutoCancel(true)
 
             val notificationManager = getApplication<Application>().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+            notificationManager.notify(getTrustedTime().toInt(), builder.build())
         }
     }
 
@@ -1893,22 +1971,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 uid = sanitizedEmail
             }
 
-            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
+            val data = mapOf("targetEmail" to userEmail.trim())
+            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+            functions.getHttpsCallable("deleteUserCompletely").call(data).await()
             
-            try {
-                db.collection("users").document(uid).collection("entitlements").document("current").delete().await()
-            } catch (e: Exception) {}
-
-            try {
-                db.collection("users").document(uid).delete().await()
-            } catch (e: Exception) {}
-
-            if (sanitizedEmail.isNotBlank()) {
-                try {
-                    db.collection("users").document(sanitizedEmail).delete().await()
-                } catch (e: Exception) {}
-            }
-
             repository.deleteUserAccount(uid, userEmail)
             
             logActivity("Deleted user $userEmail completely from app and Firestore")
@@ -2188,7 +2254,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             if (email.isBlank()) return@launch
             val uid = email.replace("@", "_at_").replace(".", "_dot_")
             
-            val now = System.currentTimeMillis()
+            val now = getTrustedTime()
             
             val requestData = mapOf(
                 "purchaseId" to purchaseId,
@@ -2222,9 +2288,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     
     suspend fun grantPlanToUser(email: String, planName: String, validity: String): Boolean {
         return try {
-            val uid = email.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
-            val purchaseId = "manual_${System.currentTimeMillis()}"
-            
             val durationMs = when (validity.lowercase()) {
                 "1 month" -> 30L * 24 * 60 * 60 * 1000
                 "3 months" -> 90L * 24 * 60 * 60 * 1000
@@ -2248,43 +2311,24 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     if (parsedTime != -1L) {
-                        parsedTime - System.currentTimeMillis()
+                        parsedTime - getTrustedTime()
                     } else {
                         365L * 24 * 60 * 60 * 1000
                     }
                 }
             }
             
-            val entitlementMap = mapOf(
-                "planId" to "manual",
+            val data = mapOf(
+                "targetEmail" to email.trim(),
                 "planName" to planName,
-                "status" to "ACTIVE",
-                "validFrom" to System.currentTimeMillis(),
-                "validUntil" to System.currentTimeMillis() + durationMs,
-                "benefits" to "premium_content,ad_free,mock_tests",
-                "source" to "OWNER",
-                "purchaseId" to purchaseId,
-                "updatedAt" to System.currentTimeMillis()
+                "durationMs" to durationMs
             )
-
-            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return false
             
-            db.collection("users").document(uid).collection("entitlements").document("current").set(entitlementMap).await()
-            db.collection("users").document(uid).collection("entitlement_history").document(purchaseId).set(entitlementMap).await()
-            
-            val purchaseMap = mapOf(
-                "purchaseId" to purchaseId,
-                "purchaseToken" to "manual",
-                "planId" to "manual",
-                "planName" to planName,
-                "timestamp" to System.currentTimeMillis(),
-                "status" to "COMPLETED"
-            )
-            db.collection("users").document(uid).collection("purchases").document(purchaseId).set(purchaseMap).await()
-
+            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+            functions.getHttpsCallable("grantPlanToUser").call(data).await()
             true
         } catch (e: Exception) {
-            android.util.Log.e("JuktiViewModel", "Error granting plan to user", e)
+            e.printStackTrace()
             false
         }
     }

@@ -149,27 +149,49 @@ class FirebaseRepository {
     suspend fun fetchUserEntitlement(email: String, explicitUid: String? = null): EntitlementEntity? {
         return try {
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            if (auth?.currentUser == null) return null
-            val currentUid = explicitUid ?: auth.currentUser?.uid
+            val currentUid = explicitUid ?: auth?.currentUser?.uid
             val trimmedEmail = email.trim().lowercase()
             val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
 
-            var snapshot = if (!currentUid.isNullOrBlank()) {
-                firestore?.collection("users")?.document(currentUid)
-                    ?.collection("entitlements")?.document("current")?.get()?.await()
-            } else null
+            var snapshot: com.google.firebase.firestore.DocumentSnapshot? = null
 
-            if ((snapshot == null || !snapshot.exists()) && sanitizedEmailDocId.isNotBlank()) {
-                val legacySnap = firestore?.collection("users")?.document(sanitizedEmailDocId)
+            // 1. Try sanitizedEmailDocId first (primary stable key for manual plans & sync)
+            if (sanitizedEmailDocId.isNotBlank()) {
+                val snap = firestore?.collection("users")?.document(sanitizedEmailDocId)
                     ?.collection("entitlements")?.document("current")?.get()?.await()
-                if (legacySnap != null && legacySnap.exists()) {
-                    snapshot = legacySnap
+                if (snap != null && snap.exists()) {
+                    snapshot = snap
+                }
+            }
+
+            // 2. Try currentUid if not found
+            if ((snapshot == null || !snapshot.exists()) && !currentUid.isNullOrBlank()) {
+                val snap = firestore?.collection("users")?.document(currentUid)
+                    ?.collection("entitlements")?.document("current")?.get()?.await()
+                if (snap != null && snap.exists()) {
+                    snapshot = snap
                 }
             }
             
+            if ((snapshot == null || !snapshot.exists()) && trimmedEmail.isNotBlank()) {
+                try {
+                    val querySnap = firestore?.collection("users")?.whereEqualTo("email", trimmedEmail)?.get()?.await()
+                    if (querySnap != null && !querySnap.isEmpty) {
+                        for (doc in querySnap.documents) {
+                            val entSnap = firestore?.collection("users")?.document(doc.id)?.collection("entitlements")?.document("current")?.get()?.await()
+                            if (entSnap != null && entSnap.exists()) {
+                                snapshot = entSnap
+                                break
+                            }
+                        }
+                    }
+                } catch (e: Exception) {}
+            }
+
             if (snapshot != null && snapshot.exists()) {
+                val resolvedUserId = sanitizedEmailDocId.ifBlank { currentUid ?: getSanitizedUserDocId(email) }
                 EntitlementEntity(
-                    userId = currentUid ?: snapshot.reference.parent.parent?.id ?: getSanitizedUserDocId(email),
+                    userId = resolvedUserId,
                     planId = snapshot.getString("planId") ?: "",
                     planName = snapshot.getString("planName") ?: "",
                     status = snapshot.getString("status") ?: "EXPIRED",

@@ -123,6 +123,7 @@ dependencies {
   implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
   implementation(libs.firebase.firestore)
+  implementation("com.google.firebase:firebase-functions")
   implementation(libs.firebase.auth)
   implementation(libs.firebase.storage)
   implementation(libs.androidx.credentials)
