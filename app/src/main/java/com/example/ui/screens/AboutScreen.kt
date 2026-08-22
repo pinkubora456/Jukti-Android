@@ -164,8 +164,8 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                             contentScale = ContentScale.Fit
                         )
                     } else {
-                        coil.compose.AsyncImage(
-                            model = com.example.R.drawable.jukti_in_app_logo,
+                        AsyncImage(
+                            model = com.example.R.drawable.app_logo,
                             contentDescription = "App Logo",
                             modifier = imageModifier,
                             contentScale = ContentScale.Fit

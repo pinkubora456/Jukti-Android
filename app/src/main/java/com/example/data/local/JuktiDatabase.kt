@@ -29,9 +29,10 @@ import kotlinx.coroutines.launch
         QuestionProgressEntity::class,
         ActivityLogEntity::class,
         SyncQueueEntity::class,
-        EntitlementEntity::class
+        EntitlementEntity::class,
+        EntitlementHistoryEntity::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -54,6 +55,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun activityLogDao(): ActivityLogDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun entitlementDao(): EntitlementDao
+    abstract fun entitlementHistoryDao(): EntitlementHistoryDao
 
     companion object {
         @Volatile
@@ -124,6 +126,25 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `validityType` TEXT NOT NULL DEFAULT 'MONTHS'")
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `validityValue` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `validityLabel` TEXT NOT NULL DEFAULT '1 Month'")
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `isLifetime` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `createdAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                
+                db.execSQL("ALTER TABLE `entitlements` ADD COLUMN `validityType` TEXT NOT NULL DEFAULT 'MONTHS'")
+                db.execSQL("ALTER TABLE `entitlements` ADD COLUMN `validityValue` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `entitlements` ADD COLUMN `validityLabel` TEXT NOT NULL DEFAULT '1 Month'")
+                db.execSQL("ALTER TABLE `entitlements` ADD COLUMN `isLifetime` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `entitlements` ADD COLUMN `activatedAt` INTEGER NOT NULL DEFAULT 0")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `entitlement_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` TEXT NOT NULL, `userEmail` TEXT NOT NULL, `eventType` TEXT NOT NULL, `previousPlan` TEXT NOT NULL DEFAULT '', `newPlan` TEXT NOT NULL DEFAULT '', `previousExpiry` INTEGER NOT NULL DEFAULT 0, `newExpiry` INTEGER NOT NULL DEFAULT 0, `validityGranted` TEXT NOT NULL DEFAULT '', `validityType` TEXT NOT NULL DEFAULT '', `validityValue` INTEGER NOT NULL DEFAULT 0, `isLifetime` INTEGER NOT NULL DEFAULT 0, `source` TEXT NOT NULL DEFAULT '', `actor` TEXT NOT NULL DEFAULT '', `timestamp` INTEGER NOT NULL DEFAULT 0)")
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -131,7 +152,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

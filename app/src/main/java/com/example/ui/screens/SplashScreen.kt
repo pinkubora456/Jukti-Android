@@ -57,10 +57,10 @@ fun SplashScreen(viewModel: JuktiViewModel) {
     ) {
         Image(
             painter = painterResource(id = com.example.R.drawable.splash_screen_img),
-            contentDescription = "Jukti Logo",
-            contentScale = ContentScale.Fit,
+            contentDescription = "Splash Screen",
+            contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(240.dp)
+                .fillMaxSize()
                 .graphicsLayer(
                     scaleX = imageScale.value,
                     scaleY = imageScale.value,

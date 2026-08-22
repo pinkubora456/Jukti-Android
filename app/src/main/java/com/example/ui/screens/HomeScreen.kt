@@ -118,7 +118,7 @@ Row(
                                 )
                             } else {
                                 coil.compose.AsyncImage(
-                                    model = com.example.R.drawable.jukti_in_app_logo,
+                                    model = com.example.R.drawable.app_logo,
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,
                                     contentScale = androidx.compose.ui.layout.ContentScale.Fit

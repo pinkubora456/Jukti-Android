@@ -39,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.TextFieldValue
 import com.example.ui.components.SafeOutlinedTextField
+import com.example.ui.components.PlanValiditySelector
+import com.example.ui.components.PlanValidityHelper
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
@@ -201,7 +203,12 @@ fun EditPlanDialog(
     var planPrice by remember { mutableStateOf(plan.planPrice) }
     var discount by remember { mutableStateOf(plan.discount) }
     var finalPrice by remember { mutableStateOf(plan.finalPrice) }
-    var planValidity by remember { mutableStateOf(plan.planValidity) }
+    val initialPreset = remember(plan) {
+        PlanValidityHelper.detectPreset(plan.planValidity, plan.validityType, plan.validityValue, plan.isLifetime)
+    }
+    var selectedValidityPreset by remember { mutableStateOf(initialPreset.first) }
+    var customValidityNumber by remember { mutableStateOf(initialPreset.second) }
+    var customValidityUnit by remember { mutableStateOf(initialPreset.third) }
     var offerValidity by remember { mutableStateOf(plan.offerValidity) }
     var imageUrl by remember { mutableStateOf(plan.imageUrl) }
     var examTarget by remember { mutableStateOf(plan.examTarget) }
@@ -365,12 +372,13 @@ fun EditPlanDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-                SafeOutlinedTextField(
-                    value = planValidity,
-                    onValueChange = { planValidity = it },
-                    label = { Text("Plan Validity (e.g. 1 Month, 1 Year) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                PlanValiditySelector(
+                    selectedPreset = selectedValidityPreset,
+                    onPresetChange = { selectedValidityPreset = it },
+                    customNumber = customValidityNumber,
+                    onCustomNumberChange = { customValidityNumber = it },
+                    customUnit = customValidityUnit,
+                    onCustomUnitChange = { customValidityUnit = it }
                 )
                 SafeOutlinedTextField(
                     value = offerValidity,
@@ -425,14 +433,28 @@ fun EditPlanDialog(
         confirmButton = {
             val context = androidx.compose.ui.platform.LocalContext.current
             TextButton(onClick = {
-                if (planName.isNotBlank() && finalPrice.isNotBlank() && planValidity.isNotBlank()) {
+                val (resolvedValidityType, resolvedValidityValue, isLifetime) = PlanValidityHelper.resolveValidity(
+                    selectedValidityPreset,
+                    customValidityNumber,
+                    customValidityUnit
+                )
+                val resolvedValidityLabel = PlanValidityHelper.resolveLabel(
+                    selectedValidityPreset,
+                    customValidityNumber,
+                    customValidityUnit
+                )
+                if (planName.isNotBlank() && finalPrice.isNotBlank() && resolvedValidityLabel.isNotBlank()) {
                     onSave(
                         plan.copy(
                             planName = planName,
                             planPrice = planPrice,
                             discount = discount,
                             finalPrice = finalPrice,
-                            planValidity = planValidity,
+                            planValidity = resolvedValidityLabel,
+                            validityType = resolvedValidityType,
+                            validityValue = resolvedValidityValue,
+                            validityLabel = resolvedValidityLabel,
+                            isLifetime = isLifetime,
                             offerValidity = offerValidity,
                             isActive = isActive,
                             imageUrl = imageUrl,

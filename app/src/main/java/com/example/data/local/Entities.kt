@@ -251,12 +251,18 @@ data class PlanEntity(
     val finalPrice: String,
     val offerValidity: String,
     val planValidity: String = "",
+    val validityType: String = "MONTHS", // "DAYS", "MONTHS", "YEARS", "LIFETIME"
+    val validityValue: Int = 1,
+    val validityLabel: String = "1 Month",
+    val isLifetime: Boolean = false,
     val contents: String = "", // JSON string of contents added
     val features: String = "", // JSON string or comma-separated features
     val isActive: Boolean = true,
     val imageUrl: String = "",
     val examTarget: String = "",
-    val googlePlayProductId: String = ""
+    val googlePlayProductId: String = "",
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )
 
 @Entity(tableName = "exams")
@@ -348,11 +354,36 @@ data class EntitlementEntity(
     @PrimaryKey val userId: String,
     val planId: String,
     val planName: String,
-    val status: String = "EXPIRED", // "ACTIVE", "EXPIRED", "REVOKED"
+    val status: String = "EXPIRED", // "ACTIVE", "EXPIRED", "REVOKED", "LIFETIME"
     val validFrom: Long = 0L,
     val validUntil: Long = 0L,
+    val validityType: String = "MONTHS", // "DAYS", "MONTHS", "YEARS", "LIFETIME"
+    val validityValue: Int = 1,
+    val validityLabel: String = "1 Month",
+    val isLifetime: Boolean = false,
     val benefits: String = "", // comma-separated
-    val source: String = "", // "GOOGLE_PLAY", "OWNER", "MIGRATION"
+    val source: String = "", // "GOOGLE_PLAY", "OWNER_ASSIGNED", "ADMIN_ASSIGNED", "FREE_PLAN", "MIGRATION"
     val purchaseId: String = "",
+    val activatedAt: Long = 0L,
     val updatedAt: Long = 0L
 )
+
+@Entity(tableName = "entitlement_history")
+data class EntitlementHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
+    val userEmail: String,
+    val eventType: String, // "PURCHASED", "MANUALLY_ASSIGNED", "PLAN_CHANGED", "PLAN_EXTENDED", "PLAN_EXPIRED", "FREE_PLAN_ASSIGNED", "RESTORED"
+    val previousPlan: String = "",
+    val newPlan: String = "",
+    val previousExpiry: Long = 0L,
+    val newExpiry: Long = 0L,
+    val validityGranted: String = "",
+    val validityType: String = "",
+    val validityValue: Int = 0,
+    val isLifetime: Boolean = false,
+    val source: String = "",
+    val actor: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)
+

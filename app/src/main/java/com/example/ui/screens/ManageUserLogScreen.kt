@@ -43,11 +43,25 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
             val uid = it.email.replace("@", "_at_").replace(".", "_dot_")
             val entitlement = viewModel.fetchUserEntitlementDirect(it.email)
             val planName = entitlement?.planName ?: ""
-            val currentPlan = if (planName.isBlank()) "Basic Plan" else planName
+            val currentPlan = if (planName.isNotBlank()) {
+                planName
+            } else if (it.isPremium) {
+                "Premium Plan"
+            } else {
+                "Basic Plan"
+            }
             val validUntil = entitlement?.validUntil ?: 0L
             val validity = if (validUntil > System.currentTimeMillis()) {
-                java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(validUntil))
-            } else if (entitlement?.status == "ACTIVE") "Lifetime" else "Expired"
+                val dateStr = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(validUntil))
+                val label = entitlement?.validityLabel ?: ""
+                if (label.isNotBlank() && !label.equals("Custom", ignoreCase = true)) "$dateStr ($label)" else dateStr
+            } else if (entitlement?.isLifetime == true || entitlement?.validityType == "LIFETIME" || (entitlement?.validUntil == 0L && entitlement?.status == "ACTIVE") || it.isPremium) {
+                "Lifetime"
+            } else if (entitlement?.status == "ACTIVE") {
+                entitlement.validityLabel.ifBlank { "Active" }
+            } else {
+                "Expired"
+            }
 
             val userRole = viewModel.getUserRole(it.email, it.role)
 
@@ -129,19 +143,41 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                                     Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
                             },
-                            onChangePlan = { newPlan ->
-                                viewModel.requestOrUpgradePlan(user.id, user.name, user.email, newPlan, user.validity) { isDirect, message ->
+                            onChangePlan = { newPlan, validity, valType, valVal, isLife ->
+                                viewModel.requestOrUpgradePlan(
+                                    userId = user.id,
+                                    userName = user.name,
+                                    userEmail = user.email,
+                                    newPlanName = newPlan,
+                                    validity = validity,
+                                    validityType = valType,
+                                    validityValue = valVal,
+                                    isLifetime = isLife
+                                ) { isDirect, message ->
                                     if (isDirect) {
                                         val index = mockUsers.indexOfFirst { it.id == user.id }
                                         if (index != -1) {
-                                            mockUsers[index] = mockUsers[index].copy(currentPlan = newPlan)
+                                            mockUsers[index] = mockUsers[index].copy(
+                                                currentPlan = newPlan,
+                                                validity = validity
+                                            )
                                         }
                                     }
                                     Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
                             },
-                            onChangeValidity = { newValidity ->
-                                viewModel.requestOrUpgradePlan(user.id, user.name, user.email, user.currentPlan, newValidity) { isDirect, message ->
+                            onChangeValidity = { newValidity, valType, valVal, isLife, explicitUntil ->
+                                viewModel.requestOrUpgradePlan(
+                                    userId = user.id,
+                                    userName = user.name,
+                                    userEmail = user.email,
+                                    newPlanName = user.currentPlan,
+                                    validity = newValidity,
+                                    validityType = valType,
+                                    validityValue = valVal,
+                                    isLifetime = isLife,
+                                    explicitValidUntil = explicitUntil
+                                ) { isDirect, message ->
                                     if (isDirect) {
                                         val index = mockUsers.indexOfFirst { it.id == user.id }
                                         if (index != -1) {
@@ -177,8 +213,8 @@ fun UserLogCard(
     canDeleteOrBan: Boolean,
     onBlockUser: () -> Unit,
     onDeleteUser: () -> Unit,
-    onChangePlan: (String) -> Unit,
-    onChangeValidity: (String) -> Unit
+    onChangePlan: (planName: String, validity: String, validityType: String, validityValue: Int, isLifetime: Boolean) -> Unit,
+    onChangeValidity: (validity: String, validityType: String, validityValue: Int, isLifetime: Boolean, explicitValidUntil: Long) -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
@@ -186,7 +222,9 @@ fun UserLogCard(
     var showChangeValidityDialog by remember { mutableStateOf(false) }
     
     var newPlanInput by remember { mutableStateOf(user.currentPlan) }
+    var selectedPlanObj by remember { mutableStateOf<com.example.data.local.PlanEntity?>(null) }
     var newValidityInput by remember { mutableStateOf(user.validity) }
+    var selectedCustomDateMillis by remember { mutableStateOf(0L) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -428,6 +466,7 @@ fun UserLogCard(
                                         text = { Text(displayText) },
                                         onClick = {
                                             newPlanInput = plan.planName
+                                            selectedPlanObj = plan
                                             expandedPlanDropdown = false
                                         }
                                     )
@@ -439,7 +478,12 @@ fun UserLogCard(
             },
             confirmButton = {
                 TextButton(onClick = { 
-                    onChangePlan(newPlanInput)
+                    val p = selectedPlanObj ?: plans.find { it.planName == newPlanInput }
+                    val vLabel = p?.planValidity?.ifBlank { p.validityLabel } ?: "1 Month"
+                    val vType = p?.validityType ?: "MONTHS"
+                    val vVal = p?.validityValue ?: 1
+                    val isLife = p?.isLifetime ?: false
+                    onChangePlan(newPlanInput, vLabel, vType, vVal, isLife)
                     showChangePlanDialog = false
                 }) {
                     Text("Save")
@@ -457,7 +501,7 @@ fun UserLogCard(
 
     if (showChangeValidityDialog) {
         var expandedValidityDropdown by remember { mutableStateOf(false) }
-        val validityOptions = listOf("1 Month", "3 Months", "6 Months", "1 Year", "Lifetime", "Custom Date")
+        val validityOptions = listOf("1 Week", "1 Month", "6 Months", "1 Year", "Lifetime", "Custom Date")
 
         AlertDialog(
             onDismissRequest = { showChangeValidityDialog = false },
@@ -499,6 +543,7 @@ fun UserLogCard(
                                             showDatePicker = true
                                         } else {
                                             newValidityInput = opt
+                                            selectedCustomDateMillis = 0L
                                         }
                                         expandedValidityDropdown = false
                                     }
@@ -510,7 +555,22 @@ fun UserLogCard(
             },
             confirmButton = {
                 TextButton(onClick = { 
-                    onChangeValidity(newValidityInput)
+                    val (vType, vVal, isLife) = when (newValidityInput) {
+                        "1 Week" -> Triple("DAYS", 7, false)
+                        "1 Month" -> Triple("MONTHS", 1, false)
+                        "6 Months" -> Triple("MONTHS", 6, false)
+                        "1 Year" -> Triple("YEARS", 1, false)
+                        "Lifetime" -> Triple("LIFETIME", 0, true)
+                        else -> {
+                            if (selectedCustomDateMillis > 0L) {
+                                Triple("CUSTOM_DATE", 0, false)
+                            } else {
+                                val (t, v, l) = com.example.data.util.PlanValidityEngine.normalizeValidity(newValidityInput)
+                                Triple(t, v, l == "Lifetime")
+                            }
+                        }
+                    }
+                    onChangeValidity(newValidityInput, vType, vVal, isLife, selectedCustomDateMillis)
                     showChangeValidityDialog = false
                 }) {
                     Text("Save")
@@ -535,6 +595,7 @@ fun UserLogCard(
                         if (selectedMillis != null) {
                             val formattedDate = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(selectedMillis))
                             newValidityInput = formattedDate
+                            selectedCustomDateMillis = selectedMillis
                         }
                         showDatePicker = false
                     }

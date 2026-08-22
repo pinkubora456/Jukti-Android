@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
+import com.example.ui.components.PlanValiditySelector
+import com.example.ui.components.PlanValidityHelper
 
 import android.net.Uri
 import android.widget.Toast
@@ -45,7 +47,9 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     var planPrice by remember { mutableStateOf(TextFieldValue("")) }
     var discount by remember { mutableStateOf(TextFieldValue("")) }
     var finalPrice by remember { mutableStateOf(TextFieldValue("")) }
-    var planValidity by remember { mutableStateOf(TextFieldValue("")) }
+    var selectedValidityPreset by remember { mutableStateOf("1 Month") }
+    var customValidityNumber by remember { mutableStateOf("30") }
+    var customValidityUnit by remember { mutableStateOf("Days") }
     var offerValidity by remember { mutableStateOf(TextFieldValue("")) }
     var imageUrl by remember { mutableStateOf(TextFieldValue("")) }
     
@@ -520,12 +524,13 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 )
             }
             item {
-                SafeOutlinedTextField(
-                    value = planValidity,
-                    onValueChange = { planValidity = it },
-                    label = { Text("Plan Validity (e.g. 1 Month, 1 Year) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                PlanValiditySelector(
+                    selectedPreset = selectedValidityPreset,
+                    onPresetChange = { selectedValidityPreset = it },
+                    customNumber = customValidityNumber,
+                    onCustomNumberChange = { customValidityNumber = it },
+                    customUnit = customValidityUnit,
+                    onCustomUnitChange = { customValidityUnit = it }
                 )
             }
             item {
@@ -973,7 +978,18 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                     enabled = !isSubmitting,
                     onClick = {
                         if (isSubmitting) return@Button
-                        if (planName.text.isNotBlank() && finalPrice.text.isNotBlank() && planValidity.text.isNotBlank()) {
+                        val (resolvedValidityType, resolvedValidityValue, isLifetime) = PlanValidityHelper.resolveValidity(
+                            selectedValidityPreset,
+                            customValidityNumber,
+                            customValidityUnit
+                        )
+                        val resolvedValidityLabel = PlanValidityHelper.resolveLabel(
+                            selectedValidityPreset,
+                            customValidityNumber,
+                            customValidityUnit
+                        )
+
+                        if (planName.text.isNotBlank() && finalPrice.text.isNotBlank() && resolvedValidityLabel.isNotBlank()) {
                             val allFeatures = mutableListOf<String>()
                             if (featuresList.isNotEmpty()) {
                                 allFeatures.addAll(featuresList)
@@ -1004,7 +1020,11 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 planPrice = planPrice.text.ifBlank { finalPrice.text },
                                 discount = discount.text,
                                 finalPrice = finalPrice.text,
-                                planValidity = planValidity.text,
+                                planValidity = resolvedValidityLabel,
+                                validityType = resolvedValidityType,
+                                validityValue = resolvedValidityValue,
+                                validityLabel = resolvedValidityLabel,
+                                isLifetime = isLifetime,
                                 offerValidity = offerValidity.text,
                                 contents = contentsList.joinToString(separator = "|"),
                                 features = allFeatures.joinToString(separator = "|"),

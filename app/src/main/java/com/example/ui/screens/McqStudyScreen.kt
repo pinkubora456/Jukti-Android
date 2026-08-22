@@ -440,80 +440,92 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                     )
 
                     // 1. Learn
-                    StudyFeatureCard(
-                        title = "Learn",
-                        description = "Master chapter-wise questions.",
-                        actionText = "Start Learning",
-                        icon = Icons.Default.AutoStories,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { viewModel.setStudySubView("STUDY_MCQS", fromHome = false) },
-                        progressText = "$solvedQuestions/$availableQuestions completed",
-                        badgeText = "🔥 Popular"
-                    )
+                    if (searchQuery.isBlank() || "Learn".contains(searchQuery, ignoreCase = true) || "Master chapter-wise questions".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Learn",
+                            description = "Master chapter-wise questions.",
+                            actionText = "Start Learning",
+                            icon = Icons.Default.AutoStories,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            onClick = { viewModel.setStudySubView("STUDY_MCQS", fromHome = false) },
+                            progressText = "$solvedQuestions/$availableQuestions completed",
+                            badgeText = "🔥 Popular"
+                        )
+                    }
 
                     // 2. Practice
-                    StudyFeatureCard(
-                        title = "Practice",
-                        description = "Test yourself with instant explanations.",
-                        actionText = "Practice Now",
-                        icon = Icons.Default.Quiz,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.secondary,
-                        onClick = { viewModel.navigateTo(Screen.PRACTICE) },
-                        progressText = "$solvedQuestions/$availableQuestions completed",
-                        badgeText = "⭐ Recommended"
-                    )
+                    if (searchQuery.isBlank() || "Practice".contains(searchQuery, ignoreCase = true) || "Test yourself with instant explanations".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Practice",
+                            description = "Test yourself with instant explanations.",
+                            actionText = "Practice Now",
+                            icon = Icons.Default.Quiz,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.secondary,
+                            onClick = { viewModel.navigateTo(Screen.PRACTICE) },
+                            progressText = "$solvedQuestions/$availableQuestions completed",
+                            badgeText = "⭐ Recommended"
+                        )
+                    }
                     
                     // 3. Smart Practice
-                    StudyFeatureCard(
-                        title = "Smart Practice",
-                        description = "Practice saved and frequently incorrect questions.",
-                        actionText = "Start Smart Practice",
-                        icon = Icons.Default.Psychology,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = { viewModel.navigateTo(Screen.SMART_PRACTICE) },
-                        badgeText = "🧠 Smart"
-                    )
+                    if (searchQuery.isBlank() || "Smart Practice".contains(searchQuery, ignoreCase = true) || "Practice saved and frequently incorrect questions".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Smart Practice",
+                            description = "Practice saved and frequently incorrect questions.",
+                            actionText = "Start Smart Practice",
+                            icon = Icons.Default.Psychology,
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.tertiary,
+                            onClick = { viewModel.navigateTo(Screen.SMART_PRACTICE) },
+                            badgeText = "🧠 Smart"
+                        )
+                    }
 
                     // 4. Saved Questions
-                    StudyFeatureCard(
-                        title = "Saved Questions",
-                        description = "Review and manage your bookmarked MCQs.",
-                        actionText = "Review Saved",
-                        icon = Icons.Default.Bookmark,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { showSavedQuestionsDialog = true },
-                        progressText = "${bookmarkedQuestions.size} questions saved",
-                        badgeText = "📌 Saved"
-                    )
+                    if (searchQuery.isBlank() || "Saved Questions".contains(searchQuery, ignoreCase = true) || "Review and manage your bookmarked MCQs".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Saved Questions",
+                            description = "Review and manage your bookmarked MCQs.",
+                            actionText = "Review Saved",
+                            icon = Icons.Default.Bookmark,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            onClick = { showSavedQuestionsDialog = true },
+                            progressText = "${bookmarkedQuestions.size} questions saved",
+                            badgeText = "📌 Saved"
+                        )
+                    }
 
                     // 5. Study Notes
-                    StudyFeatureCard(
-                        title = "Study Notes",
-                        description = "Read chapter-wise notes.",
-                        actionText = "Read Notes",
-                        icon = Icons.Default.Description,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
-                        progressText = "$availableNotes chapters available",
-                        badgeText = "🆕 New"
-                    )
+                    if (searchQuery.isBlank() || "Study Notes".contains(searchQuery, ignoreCase = true) || "Read chapter-wise notes".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Study Notes",
+                            description = "Read chapter-wise notes.",
+                            actionText = "Read Notes",
+                            icon = Icons.Default.Description,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
+                            progressText = "$availableNotes chapters available",
+                            badgeText = "🆕 New"
+                        )
+                    }
 
                     // 6. Current Affairs
-                    StudyFeatureCard(
-                        title = "Current Affairs",
-                        description = "Stay updated with daily current affairs notes & news capsules.",
-                        actionText = "Read Notes",
-                        icon = Icons.Default.Newspaper,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = { viewModel.setStudySubView("CURRENT_AFFAIRS", fromHome = false) },
-                        badgeText = "🆕 New"
-                    )
+                    if (searchQuery.isBlank() || "Current Affairs".contains(searchQuery, ignoreCase = true) || "Stay updated with daily current affairs notes".contains(searchQuery, ignoreCase = true)) {
+                        StudyFeatureCard(
+                            title = "Current Affairs",
+                            description = "Stay updated with daily current affairs notes & news capsules.",
+                            actionText = "Read Notes",
+                            icon = Icons.Default.Newspaper,
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTintColor = MaterialTheme.colorScheme.tertiary,
+                            onClick = { viewModel.setStudySubView("CURRENT_AFFAIRS", fromHome = false) },
+                            badgeText = "🆕 New"
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
                 }

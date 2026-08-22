@@ -169,7 +169,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                         )
                     } else {
                         coil.compose.AsyncImage(
-                            model = com.example.R.drawable.jukti_in_app_logo,
+                            model = com.example.R.drawable.app_logo,
                             contentDescription = null,
                             modifier = imageModifier,
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit

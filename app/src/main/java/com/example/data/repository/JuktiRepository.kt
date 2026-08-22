@@ -124,6 +124,7 @@ class JuktiRepository(
     private val questionProgressDao: QuestionProgressDao,
     private val activityLogDao: ActivityLogDao,
     private val entitlementDao: EntitlementDao,
+    private val entitlementHistoryDao: EntitlementHistoryDao,
     val syncManager: FirebaseSyncManager
 ) {
     private val firebaseRepository = FirebaseRepository()
@@ -291,8 +292,78 @@ class JuktiRepository(
     fun observeUserProfile(email: String, uid: String?): Flow<UserProfileEntity?> =
         firebaseRepository.observeUserProfile(email, uid)
     
-    fun getUserEntitlement(userId: String): Flow<EntitlementEntity?> {
-        return entitlementDao.getEntitlement(userId)
+    fun getUserEntitlement(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?> {
+        return if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
+            entitlementDao.getEntitlementMulti(userId, altUserId1, altUserId2)
+        } else {
+            entitlementDao.getEntitlement(userId)
+        }
+    }
+
+    suspend fun getUserEntitlementDirect(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity? {
+        return if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
+            entitlementDao.getEntitlementDirectMulti(userId, altUserId1, altUserId2)
+        } else {
+            entitlementDao.getEntitlementDirect(userId)
+        }
+    }
+
+    suspend fun insertEntitlement(entitlement: EntitlementEntity) {
+        entitlementDao.insertEntitlement(entitlement)
+    }
+
+    suspend fun fetchUserEntitlementFromFirebase(email: String, uid: String? = null): EntitlementEntity? {
+        return firebaseRepository.fetchUserEntitlement(email, uid)
+    }
+
+    suspend fun saveUserEntitlementToFirebase(
+        email: String,
+        planName: String,
+        validUntil: Long,
+        validFrom: Long = System.currentTimeMillis(),
+        validity: String = "1 year",
+        validityType: String = "MONTHS",
+        validityValue: Int = 1,
+        isLifetime: Boolean = false,
+        assignedBy: String = "OWNER",
+        source: String = "OWNER_ASSIGNED",
+        purchaseId: String = ""
+    ): Boolean {
+        return firebaseRepository.saveUserEntitlement(
+            email = email,
+            planName = planName,
+            validUntil = validUntil,
+            validFrom = validFrom,
+            validity = validity,
+            validityType = validityType,
+            validityValue = validityValue,
+            isLifetime = isLifetime,
+            assignedBy = assignedBy,
+            source = source,
+            purchaseId = purchaseId
+        )
+    }
+
+    suspend fun insertEntitlementHistory(history: EntitlementHistoryEntity) {
+        try {
+            entitlementHistoryDao.insertHistory(history)
+        } catch (e: Exception) {
+            Log.e("JuktiRepository", "Error inserting entitlement history locally", e)
+        }
+    }
+
+    fun getEntitlementHistoryForUser(userId: String, userEmail: String = ""): Flow<List<EntitlementHistoryEntity>> {
+        return entitlementHistoryDao.getHistoryForUser(userId, userEmail)
+    }
+
+    suspend fun fetchEntitlementHistoryFromFirebase(email: String, uid: String? = null): List<EntitlementHistoryEntity> {
+        val remoteList = firebaseRepository.fetchEntitlementHistory(email, uid)
+        if (remoteList.isNotEmpty()) {
+            try {
+                entitlementHistoryDao.insertAll(remoteList)
+            } catch (e: Exception) {}
+        }
+        return remoteList
     }
     
     val aboutConfig: Flow<AboutConfigEntity?> = combine(
@@ -800,11 +871,31 @@ class JuktiRepository(
     ): UserProfileEntity {
         val remoteProfile = firebaseRepository.fetchUserProfile(email, uid)
         val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, uid)
+        val docKey = firebaseRepository.getSanitizedUserDocId(email)
+        val now = System.currentTimeMillis()
 
         if (remoteEntitlement != null) {
-            entitlementDao.insertEntitlement(remoteEntitlement)
+            if (remoteEntitlement.status == "ACTIVE" && (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)) {
+                entitlementDao.insertEntitlement(remoteEntitlement)
+                if (uid.isNotBlank() && uid != remoteEntitlement.userId) {
+                    entitlementDao.insertEntitlement(remoteEntitlement.copy(userId = uid))
+                }
+                if (docKey.isNotBlank() && docKey != remoteEntitlement.userId) {
+                    entitlementDao.insertEntitlement(remoteEntitlement.copy(userId = docKey))
+                }
+            } else if (remoteEntitlement.validUntil in 1..now || remoteEntitlement.status == "EXPIRED" || remoteEntitlement.status == "REVOKED") {
+                entitlementDao.deleteEntitlement(uid)
+                entitlementDao.deleteEntitlement(docKey)
+            }
         } else {
-            entitlementDao.deleteEntitlement(uid)
+            // Check if local entitlement exists and is still valid before deleting
+            val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, uid, email) ?: entitlementDao.getAnyLatestEntitlementDirect()
+            if (localEnt != null && localEnt.status == "ACTIVE" && (localEnt.validUntil <= 0L || localEnt.validUntil > now)) {
+                android.util.Log.i("JuktiRepository", "Preserving active local entitlement: ${localEnt.planName}")
+            } else if (localEnt != null && localEnt.validUntil in 1..now) {
+                entitlementDao.deleteEntitlement(uid)
+                entitlementDao.deleteEntitlement(docKey)
+            }
         }
 
         val resolvedProfile = if (remoteProfile != null) {
@@ -864,11 +955,34 @@ class JuktiRepository(
             val remoteProfile = firebaseRepository.fetchUserProfile(email, currentUid)
             val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, currentUid)
             
-            val docKey = currentUid ?: firebaseRepository.getSanitizedUserDocId(email)
+            val docKey = firebaseRepository.getSanitizedUserDocId(email)
+            val now = System.currentTimeMillis()
             if (remoteEntitlement != null) {
-                entitlementDao.insertEntitlement(remoteEntitlement)
+                if (remoteEntitlement.status == "ACTIVE" && (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)) {
+                    entitlementDao.insertEntitlement(remoteEntitlement)
+                    if (!currentUid.isNullOrBlank() && currentUid != remoteEntitlement.userId) {
+                        entitlementDao.insertEntitlement(remoteEntitlement.copy(userId = currentUid))
+                    }
+                    if (docKey.isNotBlank() && docKey != remoteEntitlement.userId) {
+                        entitlementDao.insertEntitlement(remoteEntitlement.copy(userId = docKey))
+                    }
+                } else if (remoteEntitlement.validUntil in 1..now || remoteEntitlement.status == "EXPIRED" || remoteEntitlement.status == "REVOKED") {
+                    entitlementDao.deleteEntitlement(docKey)
+                    if (!currentUid.isNullOrBlank()) {
+                        entitlementDao.deleteEntitlement(currentUid)
+                    }
+                }
             } else {
-                entitlementDao.deleteEntitlement(docKey)
+                // DO NOT delete if local entitlement is still valid and not expired!
+                val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, currentUid ?: "", email) ?: entitlementDao.getAnyLatestEntitlementDirect()
+                if (localEnt != null && localEnt.status == "ACTIVE" && (localEnt.validUntil <= 0L || localEnt.validUntil > now)) {
+                    android.util.Log.i("JuktiRepository", "Preserving valid assigned local entitlement: ${localEnt.planName}")
+                } else if (localEnt != null && localEnt.validUntil in 1..now) {
+                    entitlementDao.deleteEntitlement(docKey)
+                    if (!currentUid.isNullOrBlank()) {
+                        entitlementDao.deleteEntitlement(currentUid)
+                    }
+                }
             }
 
             if (remoteProfile != null) {

@@ -210,6 +210,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.questionProgressDao(),
         database.activityLogDao(),
         database.entitlementDao(),
+        database.entitlementHistoryDao(),
         com.example.data.repository.FirebaseSyncManager(database)
     )
 
@@ -593,7 +594,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = getTrustedTime()): Boolean {
         if (entitlement == null) return false
         if (entitlement.status != "ACTIVE") return false
-        if (entitlement.planId.isBlank()) return false
+        if (entitlement.planId.isBlank() && entitlement.planName.isBlank()) return false
         if (entitlement.validUntil > 0L && entitlement.validUntil < currentTime) return false
         if (entitlement.validFrom > 0L && currentTime < entitlement.validFrom - 86400000L) return false
         return true
@@ -653,8 +654,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val isUserAdminOrOwner = admin || profile?.role == "ADMIN" || profile?.role == "OWNER"
         if (isUserAdminOrOwner) {
             true
+        } else if (validateEntitlement(entitlement)) {
+            true
+        } else if (profile?.isPremium == true && (entitlement == null || entitlement.validUntil <= 0L || entitlement.validUntil > getTrustedTime())) {
+            true
         } else {
-            validateEntitlement(entitlement)
+            false
         }
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
@@ -700,8 +705,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             userProfile.collectLatest { prof ->
                 if (prof != null) {
-                    val docId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
-                    repository.getUserEntitlement(docId).collectLatest { ent ->
+                    val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
+                    val email = prof.email.trim().lowercase()
+                    val uid = prof.uid.trim()
+                    repository.getUserEntitlement(sanitizedDocId, uid, email).collectLatest { ent ->
                         _userEntitlement.value = ent
                     }
                 }
@@ -1220,8 +1227,23 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun fetchUserEntitlementDirect(email: String): com.example.data.local.EntitlementEntity? {
         return try {
-            val uid = email.replace("@", "_at_").replace(".", "_dot_")
-            repository.getUserEntitlement(uid).firstOrNull()
+            val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(email)
+            val trimmedEmail = email.trim().lowercase()
+            // 1. Check local Room DB first
+            val local = repository.getUserEntitlementDirect(sanitizedDocId, trimmedEmail)
+            if (local != null && validateEntitlement(local)) {
+                return local
+            }
+            // 2. Fetch from Firebase
+            val remote = repository.fetchUserEntitlementFromFirebase(email)
+            if (remote != null) {
+                repository.insertEntitlement(remote)
+                if (sanitizedDocId.isNotBlank() && sanitizedDocId != remote.userId) {
+                    repository.insertEntitlement(remote.copy(userId = sanitizedDocId))
+                }
+                return remote
+            }
+            local
         } catch (e: Exception) {
             null
         }
@@ -2191,15 +2213,36 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun requestOrUpgradePlan(userId: String, userName: String, userEmail: String, newPlanName: String, validity: String, onResult: (Boolean, String) -> Unit) {
-        if (isOwner.value) {
+    fun requestOrUpgradePlan(
+        userId: String,
+        userName: String,
+        userEmail: String,
+        newPlanName: String,
+        validity: String,
+        validityType: String = "",
+        validityValue: Int = 0,
+        isLifetime: Boolean = false,
+        explicitValidUntil: Long = 0L,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val canDirectlyAssign = isOwner.value || isAdminOrOwner.value || userProfile.value?.role == "OWNER" || userProfile.value?.role == "ADMIN"
+        if (canDirectlyAssign) {
             viewModelScope.launch {
-                val success = grantPlanToUser(userEmail, newPlanName, validity)
+                val success = grantPlanToUser(
+                    email = userEmail,
+                    planName = newPlanName,
+                    validity = validity,
+                    validityType = validityType,
+                    validityValue = validityValue,
+                    isLifetime = isLifetime,
+                    explicitValidUntil = explicitValidUntil,
+                    source = "ADMIN_ASSIGNED"
+                )
                 if (success) {
-                    logActivity("Upgraded plan for $userEmail to $newPlanName")
-                    onResult(true, "Plan upgraded for $userName.")
+                    logActivity("Assigned plan $newPlanName ($validity) to $userEmail")
+                    onResult(true, "Plan updated successfully for $userName.")
                 } else {
-                    onResult(false, "Failed to upgrade plan.")
+                    onResult(false, "Failed to update plan.")
                 }
             }
         } else {
@@ -2209,7 +2252,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     title = "Upgrade Plan for $userName",
                     description = "Request to upgrade user ($userEmail) to $newPlanName ($validity)",
                     targetId = userId,
-                    payloadJson = "$newPlanName|$validity|$userEmail",
+                    payloadJson = "$newPlanName|$validity|$userEmail|$validityType|$validityValue|$isLifetime|$explicitValidUntil",
                     requestedBy = userProfile.value?.email ?: "admin@jukti.in",
                     timestamp = "Just now",
                     status = "PENDING"
@@ -2279,8 +2322,21 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                         val planName = parts.getOrNull(0) ?: ""
                         val validity = parts.getOrNull(1) ?: "1 year"
                         val userEmail = parts.getOrNull(2) ?: ""
+                        val validityType = parts.getOrNull(3) ?: ""
+                        val validityValue = parts.getOrNull(4)?.toIntOrNull() ?: 0
+                        val isLifetime = parts.getOrNull(5)?.toBooleanStrictOrNull() ?: false
+                        val explicitValidUntil = parts.getOrNull(6)?.toLongOrNull() ?: 0L
                         if (planName.isNotEmpty() && userEmail.isNotEmpty()) {
-                            executeSuccess = grantPlanToUser(userEmail, planName, validity)
+                            executeSuccess = grantPlanToUser(
+                                email = userEmail,
+                                planName = planName,
+                                validity = validity,
+                                validityType = validityType,
+                                validityValue = validityValue,
+                                isLifetime = isLifetime,
+                                explicitValidUntil = explicitValidUntil,
+                                source = "OWNER_ASSIGNED"
+                            )
                         } else {
                             executeSuccess = false
                         }
@@ -2322,6 +2378,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         planId: String,
         planName: String,
         validity: String = "1 year",
+        validityType: String = "MONTHS",
+        validityValue: Int = 1,
+        isLifetime: Boolean = false,
         productId: String = ""
     ) {
         viewModelScope.launch {
@@ -2340,6 +2399,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 "productId" to productId,
                 "packageName" to "com.aistudio.jukti.examprep.app",
                 "validity" to validity,
+                "validityType" to validityType,
+                "validityValue" to validityValue,
+                "isLifetime" to isLifetime,
                 "userEmail" to email,
                 "status" to "PENDING_VERIFICATION",
                 "createdAt" to now,
@@ -2353,6 +2415,17 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 reqRef.set(requestData, com.google.firebase.firestore.SetOptions.merge()).await()
                 android.util.Log.d("JuktiViewModel", "Submitted purchase verification request for $purchaseId")
 
+                // Pre-activate locally or sync from server
+                grantPlanToUser(
+                    email = email,
+                    planName = planName,
+                    validity = validity,
+                    validityType = validityType,
+                    validityValue = validityValue,
+                    isLifetime = isLifetime,
+                    source = "GOOGLE_PLAY"
+                )
+
                 // Sync local profile from server to pick up any server-verified entitlements
                 repository.syncUserProfileWithFirebase(email)
                 
@@ -2362,49 +2435,117 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    suspend fun grantPlanToUser(email: String, planName: String, validity: String): Boolean {
+    suspend fun grantPlanToUser(
+        email: String,
+        planName: String,
+        validity: String = "1 year",
+        validityType: String = "",
+        validityValue: Int = 0,
+        isLifetime: Boolean = false,
+        explicitValidUntil: Long = 0L,
+        source: String = "OWNER_ASSIGNED"
+    ): Boolean {
         return try {
-            val durationMs = when (validity.lowercase()) {
-                "1 month" -> 30L * 24 * 60 * 60 * 1000
-                "3 months" -> 90L * 24 * 60 * 60 * 1000
-                "6 months" -> 180L * 24 * 60 * 60 * 1000
-                "1 year" -> 365L * 24 * 60 * 60 * 1000
-                "lifetime" -> 100L * 365 * 24 * 60 * 60 * 1000
-                else -> {
-                    val formats = listOf("dd MMM yyyy", "dd/MM/yyyy", "yyyy-MM-dd")
-                    var parsedTime = -1L
-                    for (fmt in formats) {
-                        try {
-                            val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
-                            sdf.isLenient = false
-                            val date = sdf.parse(validity)
-                            if (date != null) {
-                                parsedTime = date.time
-                                break
-                            }
-                        } catch (e: Exception) {
-                            // try next format
-                        }
-                    }
-                    if (parsedTime != -1L) {
-                        parsedTime - getTrustedTime()
-                    } else {
-                        365L * 24 * 60 * 60 * 1000
-                    }
-                }
+            val trimmedEmail = email.trim().lowercase(java.util.Locale.ROOT)
+            if (trimmedEmail.isBlank()) return false
+            val now = getTrustedTime()
+
+            val vType = if (validityType.isNotBlank()) validityType else com.example.data.util.PlanValidityEngine.inferValidityType(validity)
+            val vVal = if (validityValue > 0) validityValue else com.example.data.util.PlanValidityEngine.inferValidityValue(validity)
+            val isLife = isLifetime || vType == "LIFETIME" || validity.equals("Lifetime", ignoreCase = true) || planName.contains("Lifetime", ignoreCase = true) || planName.contains("Free Plan", ignoreCase = true)
+            val finalValidityLabel = if (isLife) "Lifetime" else if (validity.isNotBlank() && !validity.equals("Custom", ignoreCase = true)) validity else com.example.data.util.PlanValidityEngine.formatValidityLabel(vType, vVal)
+
+            val targetValidUntil: Long = if (explicitValidUntil > 0L) {
+                explicitValidUntil
+            } else {
+                com.example.data.util.PlanValidityEngine.calculateExpiryTimestamp(
+                    activationTime = now,
+                    validityType = vType,
+                    validityValue = vVal,
+                    isLifetime = isLife
+                )
             }
-            
-            val data = mapOf(
-                "targetEmail" to email.trim(),
-                "planName" to planName,
-                "durationMs" to durationMs
+
+            val actorEmail = userProfile.value?.email ?: "OWNER"
+            val sanitizedEmailDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(trimmedEmail)
+            val planId = planName.lowercase(java.util.Locale.ROOT).replace(" ", "_")
+
+            // 1. Save directly to Firebase (both entitlements subdoc, user document, and entitlement_history)
+            repository.saveUserEntitlementToFirebase(
+                email = trimmedEmail,
+                planName = planName,
+                validUntil = targetValidUntil,
+                validFrom = now,
+                validity = finalValidityLabel,
+                validityType = vType,
+                validityValue = vVal,
+                isLifetime = isLife,
+                assignedBy = actorEmail,
+                source = source,
+                purchaseId = "ASSIGNMENT_${now}"
             )
-            
-            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
-            functions.getHttpsCallable("grantPlanToUser").call(data).await()
+
+            // 2. Insert into local Room database for entitlement & history
+            val newEntitlement = EntitlementEntity(
+                userId = sanitizedEmailDocId,
+                planId = planId,
+                planName = planName,
+                status = if (isLife || targetValidUntil > now) "ACTIVE" else "EXPIRED",
+                validFrom = now,
+                validUntil = targetValidUntil,
+                validityType = vType,
+                validityValue = vVal,
+                validityLabel = finalValidityLabel,
+                isLifetime = isLife,
+                benefits = "All Premium MCQs, Mock Tests, Notes, Analytics",
+                source = source,
+                purchaseId = "ASSIGNMENT_${now}",
+                activatedAt = now,
+                updatedAt = now
+            )
+            repository.insertEntitlement(newEntitlement)
+
+            val historyEntity = EntitlementHistoryEntity(
+                userId = sanitizedEmailDocId,
+                userEmail = trimmedEmail,
+                eventType = if (source == "GOOGLE_PLAY") "PURCHASED" else if (planName.equals("Free Plan", ignoreCase = true)) "FREE_PLAN_ASSIGNED" else "MANUALLY_ASSIGNED",
+                newPlan = planName,
+                newExpiry = targetValidUntil,
+                validityGranted = finalValidityLabel,
+                validityType = vType,
+                validityValue = vVal,
+                isLifetime = isLife,
+                source = source,
+                actor = actorEmail,
+                timestamp = now
+            )
+            repository.insertEntitlementHistory(historyEntity)
+
+            // 3. If target user is the currently logged in user, update StateFlows and local profile
+            val currentProf = userProfile.value
+            if (currentProf != null && currentProf.email.equals(trimmedEmail, ignoreCase = true)) {
+                _userEntitlement.value = newEntitlement
+                val updatedProf = currentProf.copy(isPremium = (newEntitlement.status == "ACTIVE" && !planName.equals("Free Plan", ignoreCase = true)))
+                repository.updateUserProfile(updatedProf)
+            }
+
+            // 4. Optionally invoke Cloud Function if present
+            try {
+                val durationMs = if (targetValidUntil <= 0L) 100L * 365 * 24 * 60 * 60 * 1000L else (targetValidUntil - now).coerceAtLeast(0L)
+                val data = mapOf(
+                    "targetEmail" to trimmedEmail,
+                    "planName" to planName,
+                    "durationMs" to durationMs
+                )
+                val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+                functions.getHttpsCallable("grantPlanToUser").call(data).await()
+            } catch (e: Exception) {
+                // Cloud Function is optional, direct Firestore write is already complete
+            }
+
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("JuktiViewModel", "Error granting plan to user", e)
             false
         }
     }

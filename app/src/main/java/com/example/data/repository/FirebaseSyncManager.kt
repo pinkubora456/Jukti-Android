@@ -267,11 +267,18 @@ class FirebaseSyncManager(
         "finalPrice" to p.finalPrice,
         "offerValidity" to p.offerValidity,
         "planValidity" to p.planValidity,
+        "validityType" to p.validityType,
+        "validityValue" to p.validityValue,
+        "validityLabel" to p.validityLabel,
+        "isLifetime" to p.isLifetime,
         "contents" to p.contents,
         "features" to p.features,
         "isActive" to p.isActive,
         "imageUrl" to p.imageUrl,
-        "examTarget" to p.examTarget
+        "examTarget" to p.examTarget,
+        "googlePlayProductId" to p.googlePlayProductId,
+        "createdAt" to (if (p.createdAt > 0L) p.createdAt else System.currentTimeMillis()),
+        "updatedAt" to System.currentTimeMillis()
     )
 
     fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(

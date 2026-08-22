@@ -42,28 +42,30 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
       allow update: if isSignedIn() && (
-        request.auth.uid == userId && 
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']) || isAdminOrOwnerEmail())
-      ) || isOwner();
+        (request.auth.uid == userId && 
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']) || isAdminOrOwnerEmail()))
+        || isAdminOrOwner()
+      );
       allow create: if isSignedIn() && (
         (request.auth.uid == userId && request.resource.data.role == 'USER' && request.resource.data.isPremium == false) ||
-        isAdminOrOwnerEmail()
-      ) || isOwner();
+        isAdminOrOwnerEmail() || isAdminOrOwner()
+      );
+      allow delete: if isAdminOrOwner();
     }
 
     match /users/{userId}/purchases/{purchaseId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
-      allow write: if isOwner();
+      allow write: if isAdminOrOwner();
     }
 
     match /users/{userId}/entitlements/{entitlementId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
-      allow write: if isOwner();
+      allow write: if isAdminOrOwner();
     }
 
     match /users/{userId}/entitlement_history/{historyId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
-      allow write: if isOwner();
+      allow write: if isAdminOrOwner();
     }
 
     match /users/{userId}/purchaseRequests/{requestId} {
@@ -74,7 +76,7 @@ service cloud.firestore {
                     && !('validUntil' in request.resource.data)
                     && !('verificationStatus' in request.resource.data)
                     && !('entitlementStatus' in request.resource.data);
-      allow update, delete: if isOwner();
+      allow update, delete: if isAdminOrOwner();
     }
     
     // Question Progress (Subcollection)
