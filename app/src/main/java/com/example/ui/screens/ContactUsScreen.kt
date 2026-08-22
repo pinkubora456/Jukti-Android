@@ -62,7 +62,7 @@ fun ContactUsScreen(viewModel: JuktiViewModel) {
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
                 title = "Contact Us",
-                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                onBackClick = { viewModel.navigateTo(Screen.HELP_SUPPORT) },
                 actions = {
                     if (isAdminOrOwner) {
                         IconButton(

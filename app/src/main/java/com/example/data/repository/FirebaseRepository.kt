@@ -725,10 +725,14 @@ class FirebaseRepository {
             val snapshot = firestore?.collection("questions")?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
                 try {
+                    val rawTopic = doc.getString("topic") ?: ""
+                    val rawSubject = doc.getString("subject") ?: ""
+                    val normTopic = normalizeChapterName(rawTopic)
+                    val normSubject = normalizeSubjectName(rawSubject)
                     QuestionEntity(
                         id = doc.getLong("id") ?: 0L,
-                        subject = doc.getString("subject") ?: "",
-                        topic = doc.getString("topic") ?: "",
+                        subject = normSubject,
+                        topic = normTopic,
                         difficulty = doc.getString("difficulty") ?: "Medium",
                         questionEn = doc.getString("questionEn") ?: "",
                         questionAs = doc.getString("questionAs") ?: "",
@@ -877,10 +881,14 @@ class FirebaseRepository {
                         if (snapshot != null) {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
+                                    val rawTopic = doc.getString("topic") ?: ""
+                                    val rawSubject = doc.getString("subject") ?: ""
+                                    val normTopic = normalizeChapterName(rawTopic)
+                                    val normSubject = normalizeSubjectName(rawSubject)
                                     QuestionEntity(
                                         id = doc.getLong("id") ?: 0L,
-                                        subject = doc.getString("subject") ?: "",
-                                        topic = doc.getString("topic") ?: "",
+                                        subject = normSubject,
+                                        topic = normTopic,
                                         difficulty = doc.getString("difficulty") ?: "Medium",
                                         questionEn = doc.getString("questionEn") ?: "",
                                         questionAs = doc.getString("questionAs") ?: "",
@@ -1217,15 +1225,23 @@ class FirebaseRepository {
                         if (snapshot != null) {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
-                                    SubjectChapterEntity(
-                                        id = doc.getLong("id") ?: 0L,
-                                        subject = doc.getString("subject") ?: "",
-                                        chapter = doc.getString("chapter") ?: ""
-                                    )
+                                    val rawChap = doc.getString("chapter") ?: ""
+                                    val rawSubj = doc.getString("subject") ?: ""
+                                    val normChap = normalizeChapterName(rawChap)
+                                    val normSubj = normalizeSubjectName(rawSubj)
+                                    if (normChap.isBlank() || normSubj.isBlank()) {
+                                        null
+                                    } else {
+                                        SubjectChapterEntity(
+                                            id = doc.getLong("id") ?: 0L,
+                                            subject = normSubj,
+                                            chapter = normChap
+                                        )
+                                    }
                                 } catch (e: Throwable) {
                                     null
                                 }
-                            }
+                            }.distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }
                             trySend(list)
                         }
                     }

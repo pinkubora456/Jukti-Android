@@ -52,15 +52,15 @@ fun SplashScreen(viewModel: JuktiViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        coil.compose.AsyncImage(
-            model = com.example.R.drawable.splash_screen_img,
-            contentDescription = "Full Screen Splash Image",
+        Image(
+            painter = painterResource(id = com.example.R.drawable.splash_screen_img),
+            contentDescription = "Jukti Logo",
             contentScale = ContentScale.Fit,
             modifier = Modifier
-                .fillMaxSize()
+                .size(240.dp)
                 .graphicsLayer(
                     scaleX = imageScale.value,
                     scaleY = imageScale.value,

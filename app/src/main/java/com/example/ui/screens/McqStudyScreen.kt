@@ -278,10 +278,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.questions.collectAsState()
     val mockTests by viewModel.mockTests.collectAsState()
     val studyNotes by viewModel.studyNotes.collectAsState()
+    val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    var activeStudySubView by rememberSaveable { mutableStateOf<String?>(null) }
+    val activeStudySubView by viewModel.studySubView.collectAsState()
+    val openedStudyDirectly by viewModel.openedStudyDirectly.collectAsState()
 
     Column(
         modifier = Modifier
@@ -307,7 +309,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
             subtitle = subtitleText,
             onBackClick = {
                 if (activeStudySubView != null) {
-                    activeStudySubView = null
+                    if (openedStudyDirectly) {
+                        viewModel.setStudySubView(null)
+                        viewModel.navigateTo(Screen.HOME)
+                    } else {
+                        viewModel.setStudySubView(null)
+                    }
                 } else {
                     viewModel.navigateTo(Screen.HOME)
                 }
@@ -405,12 +412,11 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                 // Main Study Feature Cards - Vertically Scrollable List
                 
                 var searchQuery by remember { mutableStateOf("") }
+                var showSavedQuestionsDialog by remember { mutableStateOf(false) }
                 
                 val isPremium by viewModel.isUserPremium.collectAsState()
                 val availableQuestions = if (isPremium) questions.size else questions.count { !it.isPremium }
                 val solvedQuestions = userProfile?.totalSolved ?: 0
-                val availableMocks = if (isPremium) mockTests.size else mockTests.count { !it.isPremium }
-                val completedMocks = mockTests.count { it.isCompleted }
                 val availableNotes = if (isPremium) studyNotes.size else studyNotes.count { !it.isPremium }
                 
                 Column(
@@ -441,7 +447,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.AutoStories,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { activeStudySubView = "STUDY_MCQS" },
+                        onClick = { viewModel.setStudySubView("STUDY_MCQS", fromHome = false) },
                         progressText = "$solvedQuestions/$availableQuestions completed",
                         badgeText = "🔥 Popular"
                     )
@@ -471,32 +477,20 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         badgeText = "🧠 Smart"
                     )
 
-                    // 4. Mock Tests
+                    // 4. Saved Questions
                     StudyFeatureCard(
-                        title = "Mock Tests",
-                        description = "Attempt full-length exam simulations.",
-                        actionText = "Attempt Test",
-                        icon = Icons.Default.Assignment,
+                        title = "Saved Questions",
+                        description = "Review and manage your bookmarked MCQs.",
+                        actionText = "Review Saved",
+                        icon = Icons.Default.Bookmark,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { viewModel.navigateTo(Screen.MOCK_TESTS) },
-                        progressText = "$completedMocks/$availableMocks completed",
-                        badgeText = "👑 Premium"
+                        onClick = { showSavedQuestionsDialog = true },
+                        progressText = "${bookmarkedQuestions.size} questions saved",
+                        badgeText = "📌 Saved"
                     )
 
-                    // 5. Focus Timer
-                    StudyFeatureCard(
-                        title = "Focus Timer",
-                        description = "Stay focused with timed study sessions.",
-                        actionText = "Start Timer",
-                        icon = Icons.Default.HourglassTop,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.primary,
-                        onClick = { activeStudySubView = "POMODORO" },
-                        badgeText = "🎯 Focus"
-                    )
-
-                    // 6. Study Notes
+                    // 5. Study Notes
                     StudyFeatureCard(
                         title = "Study Notes",
                         description = "Read chapter-wise notes.",
@@ -509,19 +503,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         badgeText = "🆕 New"
                     )
 
-                    // 6. Exam Pattern & Cutoff
-                    StudyFeatureCard(
-                        title = "Exam Pattern & Cutoff",
-                        description = "View Exam Patterns, Syllabus & Previous Year Cutoffs.",
-                        actionText = "View Details",
-                        icon = Icons.Default.Analytics,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        iconTintColor = MaterialTheme.colorScheme.secondary,
-                        onClick = { viewModel.navigateTo(Screen.EXAM_INFO) },
-                        badgeText = "🔄 Updated"
-                    )
-
-                    // 7. Current Affairs
+                    // 6. Current Affairs
                     StudyFeatureCard(
                         title = "Current Affairs",
                         description = "Stay updated with daily current affairs notes & news capsules.",
@@ -529,11 +511,20 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Newspaper,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         iconTintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = { activeStudySubView = "CURRENT_AFFAIRS" },
+                        onClick = { viewModel.setStudySubView("CURRENT_AFFAIRS", fromHome = false) },
                         badgeText = "🆕 New"
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                if (showSavedQuestionsDialog) {
+                    SavedQuestionsDialog(
+                        questions = bookmarkedQuestions,
+                        language = language,
+                        onDismiss = { showSavedQuestionsDialog = false },
+                        onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) }
+                    )
                 }
             }
         }
@@ -694,6 +685,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val userProfile by viewModel.userProfile.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val questions by viewModel.questions.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -759,12 +751,14 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         "General English" -> q.subject == "General English"
                         "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                         "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                        else -> q.subject == selectedSubjectTab
+                        "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                        else -> q.subject.equals(selectedSubjectTab, ignoreCase = true)
                     }
                     val matchChapter = if (selectedChapters.isEmpty()) {
                         true
                     } else {
                         val topicStr = q.topic ?: ""
+                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr)
                         if (selectedSubjectTab == "Reasoning") {
                             selectedChapters.any { ch ->
                                 topicStr.contains(ch, ignoreCase = true) || 
@@ -775,8 +769,22 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
                                 (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
                             }
+                        } else if (selectedSubjectTab == "General English") {
+                            selectedChapters.any { ch ->
+                                if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
+                                    normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
+                                } else {
+                                    normTopic.equals(ch, ignoreCase = true) || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                                }
+                            }
                         } else {
-                            topicStr in selectedChapters || q.subject in selectedChapters
+                            selectedChapters.any { ch ->
+                                normTopic.equals(ch, ignoreCase = true) || 
+                                topicStr.equals(ch, ignoreCase = true) ||
+                                topicStr.contains(ch, ignoreCase = true) ||
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                q.subject.contains(ch, ignoreCase = true)
+                            }
                         }
                     }
                     matchSubject && matchChapter
@@ -876,38 +884,98 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         icon = Icons.Default.Psychology,
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                         iconColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    StudyBannerConfig(
+                        titleEn = "Transport Rule",
+                        titleAs = "পৰিবহন নিয়ম (Transport Rule)",
+                        subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
+                        subtitleAs = "যান-বাহন নিয়ম, মটৰ বাহন আইন, পথ সুৰক্ষা আৰু সংকেত",
+                        subjectKey = "Transport Rule",
+                        icon = Icons.Default.DirectionsCar,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                        iconColor = MaterialTheme.colorScheme.secondary
                     )
                 )
 
                 studyBanners.forEach { banner ->
-                    val availableChapters = remember(questions, banner.subjectKey) {
+                    val availableChapters = remember(questions, allSubjectsChapters, banner.subjectKey) {
                         val set = mutableSetOf<String>()
-                        val relevant = when (banner.subjectKey) {
-                            "All Subject", "All Subjects" -> questions
-                            "General Knowledge" -> questions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            "General English" -> questions.filter { it.subject == "General English" }
-                            "General Mathematics" -> questions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                        when (banner.subjectKey) {
+                            "All Subject", "All Subjects" -> {
+                                questions.forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General Knowledge" -> {
+                                questions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography & Economy", "Assam Geography", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General English" -> {
+                                set.add("Grammar & Sentence Correction")
+                                set.add("Synonyms, Antonyms & Vocabulary")
+                                set.add("One-Word & Idioms")
+                                set.add("Reading Comprehension & Para Jumbles")
+                                questions.filter { it.subject == "General English" }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject == "General English" }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General Mathematics" -> {
+                                set.add("Number System, LCM & HCF")
+                                set.add("Percentage, Ratio & Proportion")
+                                set.add("Profit, Loss, Discount & Simple/Compound Interest")
+                                set.add("Time, Work, Speed, Distance & Mensuration")
+                                questions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                             "Reasoning" -> {
                                 set.add("Coding-Decoding, Series & Analogy")
                                 set.add("Blood Relations & Direction Sense Test")
                                 set.add("Seating Arrangement, Puzzles & Venn Diagrams")
                                 set.add("Syllogism, Statements & Assumptions")
                                 questions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
                             }
-                            else -> questions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                            "Transport Rule" -> {
+                                set.add("Traffic Signs, Signals & Road Safety")
+                                set.add("Motor Vehicles Act & Traffic Rules")
+                                set.add("Driving Regulations, Licences & Permits")
+                                set.add("Vehicle Safety, Violations & Penalties")
+                                questions.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            else -> {
+                                questions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                         }
-                        relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
+                        set.remove("One-Word & Idiom")
+                        set.remove("One-Word & Idiom/Phrase")
+                        set.remove("Idioms, Phrases & One-Word Substitution")
+                        set.remove("Idioms & Phrases")
+                        set.remove("One-Word Substitution")
+                        set.remove("One Word Substitution")
                         set.toList().sorted()
                     }
 
                     val totalCount = remember(questions, banner.subjectKey) {
                         when (banner.subjectKey) {
-                            "All Subject", "All Subjects" -> questions.size
-                            "General Knowledge" -> questions.count { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            "General English" -> questions.count { it.subject == "General English" }
-                            "General Mathematics" -> questions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
-                            else -> questions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                            "All Subject", "All Subjects" -> questions.count { !it.isHidden }
+                            "General Knowledge" -> questions.count { !it.isHidden && it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                            "General English" -> questions.count { !it.isHidden && it.subject == "General English" }
+                            "General Mathematics" -> questions.count { !it.isHidden && it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                            "Reasoning" -> questions.count { !it.isHidden && it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            "Transport Rule" -> questions.count { !it.isHidden && (it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true)) }
+                            else -> questions.count { !it.isHidden && it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }
 

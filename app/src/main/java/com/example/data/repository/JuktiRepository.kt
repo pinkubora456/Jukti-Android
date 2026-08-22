@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import com.example.data.local.*
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
@@ -8,6 +9,102 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+
+fun normalizeChapterName(raw: String?): String {
+    val trimmed = (raw ?: "").trim()
+    if (trimmed.isEmpty()) return ""
+    val lower = trimmed.lowercase()
+    return when {
+        lower == "one-word & idioms" ||
+        lower == "one-word & idiom" ||
+        lower == "one word & idioms" ||
+        lower == "one word & idiom" ||
+        lower == "one-word and idioms" ||
+        lower == "one-word and idiom" ||
+        lower == "one word and idioms" ||
+        lower == "one word and idiom" ||
+        lower == "idioms & phrases" ||
+        lower == "idioms and phrases" ||
+        lower == "idiom & phrase" ||
+        lower == "idiom and phrase" ||
+        lower == "idioms & phrase" ||
+        lower == "idiom & phrases" ||
+        lower == "idioms" ||
+        lower == "idiom" ||
+        lower == "phrases & idioms" ||
+        lower == "phrases and idioms" ||
+        lower == "one-word substitution" ||
+        lower == "one word substitution" ||
+        lower == "one-word substitutions" ||
+        lower == "one word substitutions" ||
+        lower == "one-word substitution & idioms" ||
+        lower == "one-word & idiom/phrase" ||
+        lower == "one-word & idiom / phrase" ||
+        lower == "one-word & idiom / phrases" ||
+        lower == "one-word & idiom/phrases" ||
+        lower == "idioms, phrases & one-word substitution" ||
+        lower == "idioms, phrases & one-word substitutions" ||
+        lower == "idiom/phrase & one-word" ||
+        lower == "idioms/phrases & one-word" ||
+        lower == "idioms & one-word" ||
+        lower == "idiom & one-word" ||
+        lower == "idioms & one word" ||
+        lower == "idiom & one word" ||
+        lower == "one-word" ||
+        lower == "one word" ||
+        lower == "one-words" ||
+        lower == "one words" ||
+        (lower.contains("idiom") && lower.contains("one-word")) ||
+        (lower.contains("idiom") && lower.contains("one word")) ||
+        (lower.contains("idiom") && lower.contains("phrase")) ||
+        (lower.contains("one-word") && lower.contains("substitution")) ||
+        (lower.contains("one word") && lower.contains("substitution")) ||
+        (lower.contains("idiom") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
+        (lower.contains("one-word") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
+        (lower.contains("one word") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
+        (lower.contains("substitution") && !lower.contains("math") && !lower.contains("algebra") && !lower.contains("reaction")) -> "One-Word & Idioms"
+        else -> trimmed
+    }
+}
+
+fun normalizeSubjectName(raw: String?): String {
+    val trimmed = (raw ?: "").trim()
+    return when {
+        trimmed.equals("Manual Entry", ignoreCase = true) ||
+        trimmed.equals("Manual entry", ignoreCase = true) ||
+        trimmed.equals("Manual", ignoreCase = true) ||
+        trimmed.equals("Manual Question", ignoreCase = true) ||
+        trimmed.equals("ManualEntry", ignoreCase = true) ||
+        trimmed.equals("Transport Rules", ignoreCase = true) ||
+        trimmed.equals("Transport Rule", ignoreCase = true) -> "Transport Rule"
+        else -> trimmed
+    }
+}
+
+fun normalizeQuestionEntity(q: QuestionEntity): QuestionEntity {
+    val normTopic = normalizeChapterName(q.topic)
+    val rawSubjectTrimmed = q.subject.trim()
+    val normSubject = when {
+        rawSubjectTrimmed.equals("Manual Entry", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Manual entry", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Manual", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Manual Question", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("ManualEntry", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Transport Rules", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Transport Rule", ignoreCase = true) ||
+        normTopic.contains("Traffic Sign", ignoreCase = true) ||
+        normTopic.contains("Motor Vehicle", ignoreCase = true) ||
+        normTopic.contains("Driving Regulation", ignoreCase = true) ||
+        normTopic.contains("Vehicle Safety", ignoreCase = true) -> "Transport Rule"
+        normTopic == "One-Word & Idioms" && (rawSubjectTrimmed.isBlank() || rawSubjectTrimmed.contains("Idiom", ignoreCase = true) || rawSubjectTrimmed.contains("One-Word", ignoreCase = true) || rawSubjectTrimmed.contains("English", ignoreCase = true)) -> "General English"
+        else -> rawSubjectTrimmed
+    }
+    return if (normTopic != q.topic || normSubject != q.subject) {
+        q.copy(topic = normTopic, subject = normSubject)
+    } else {
+        q
+    }
+}
 
 class JuktiRepository(
     private val questionDao: QuestionDao,
@@ -45,7 +142,7 @@ class JuktiRepository(
         firebaseRepository.observeQuestions(),
         questionDao.getAllQuestions()
     ) { remoteQuestions, localQuestions ->
-        if (remoteQuestions.isEmpty()) {
+        val combined = if (remoteQuestions.isEmpty()) {
             localQuestions
         } else {
             val remoteIds = remoteQuestions.map { it.id }.toSet()
@@ -65,6 +162,7 @@ class JuktiRepository(
             val localOnly = localQuestions.filter { it.id !in remoteIds }
             mergedRemote + localOnly
         }
+        combined.map { normalizeQuestionEntity(it) }
     }
 
     val bookmarkedQuestions: Flow<List<QuestionEntity>> = allQuestions.map { list -> list.filter { it.isBookmarked } }
@@ -224,7 +322,26 @@ class JuktiRepository(
     }
 
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
-    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = firebaseRepository.observeSubjectsChapters()
+    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
+        firebaseRepository.observeSubjectsChapters(),
+        subjectChapterDao.getAllSubjectsChapters()
+    ) { remote, local ->
+        val combined = if (remote.isEmpty()) {
+            if (local.isEmpty()) SampleData.sampleSubjectsChapters else local
+        } else {
+            val remoteKeys = remote.map { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter).lowercase()}" }.toSet()
+            val extraLocal = local.filter { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter).lowercase()}" !in remoteKeys }
+            remote + extraLocal
+        }
+        val normalized = combined.map { sc ->
+            val normChap = normalizeChapterName(sc.chapter)
+            val normSubj = normalizeSubjectName(sc.subject)
+            sc.copy(subject = normSubj, chapter = normChap)
+        }
+        val defaultItems = SampleData.sampleSubjectsChapters
+        val allWithDefaults = (normalized + defaultItems).distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }
+        allWithDefaults.filter { it.chapter.isNotBlank() }
+    }
     val allPendingRequests: Flow<List<PendingRequestEntity>> = combine(
         firebaseRepository.observePendingRequests(),
         pendingRequestDao.getAllPendingRequests()
@@ -263,7 +380,66 @@ class JuktiRepository(
         val currentSubjects = subjectChapterDao.getAllSubjectsChapters().firstOrNull()
         if (currentSubjects.isNullOrEmpty()) {
             subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
+        } else {
+            // Data Migration: Normalize existing chapters & ensure Transport Rule exists
+            try {
+                val updatedChapters = mutableListOf<SubjectChapterEntity>()
+                val seenKeys = mutableSetOf<String>()
+                currentSubjects.forEach { sc ->
+                    val normChap = normalizeChapterName(sc.chapter)
+                    val normSubj = normalizeSubjectName(sc.subject)
+                    val key = "${normSubj.lowercase()}|${normChap.lowercase()}"
+                    if (seenKeys.contains(key)) {
+                        // Delete duplicate or outdated chapter
+                        subjectChapterDao.deleteSubjectChapter(sc)
+                    } else {
+                        seenKeys.add(key)
+                        if (normChap != sc.chapter || normSubj != sc.subject) {
+                            val updated = sc.copy(subject = normSubj, chapter = normChap)
+                            subjectChapterDao.updateSubjectChapter(updated)
+                            updatedChapters.add(updated)
+                        } else {
+                            updatedChapters.add(sc)
+                        }
+                    }
+                }
+                // Ensure Transport Rule chapters exist in Room
+                val hasTransportRule = updatedChapters.any { it.subject.equals("Transport Rule", ignoreCase = true) }
+                if (!hasTransportRule) {
+                    val transportChapters = SampleData.sampleSubjectsChapters.filter { it.subject == "Transport Rule" }
+                    subjectChapterDao.insertAll(transportChapters)
+                }
+                // Ensure General English One-Word & Idioms exists
+                val hasOneWordIdioms = updatedChapters.any { it.subject == "General English" && it.chapter == "One-Word & Idioms" }
+                if (!hasOneWordIdioms) {
+                    subjectChapterDao.insertSubjectChapter(
+                        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "One-Word & Idioms")
+                    )
+                }
+            } catch (e: Throwable) {
+                Log.e("JuktiRepository", "Error running subject/chapter migration", e)
+            }
         }
+
+        // Migrate and normalize local questions
+        try {
+            val localQuestions = questionDao.getAllQuestions().firstOrNull() ?: emptyList()
+            localQuestions.forEach { q ->
+                val normalized = normalizeQuestionEntity(q)
+                if (normalized != q) {
+                    questionDao.updateQuestion(normalized)
+                    syncManager.enqueueAndSync(
+                        "QUESTION",
+                        normalized.id.toString(),
+                        "UPDATE",
+                        syncManager.questionToMap(normalized)
+                    )
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e("JuktiRepository", "Error normalizing local questions", e)
+        }
+
         val currentUpdates = examUpdateDao.getAllUpdates().firstOrNull()
         if (currentUpdates.isNullOrEmpty()) {
             examUpdateDao.insertAll(SampleData.sampleExamUpdates)
@@ -312,14 +488,15 @@ class JuktiRepository(
 
     suspend fun addQuestion(question: QuestionEntity): Pair<Boolean, String> {
         val newId = if (question.id == 0L) System.currentTimeMillis() else question.id
-        val updated = question.copy(id = newId)
-        questionDao.insertQuestion(updated)
-        return syncManager.enqueueAndSync("QUESTION", newId.toString(), "CREATE", syncManager.questionToMap(updated))
+        val norm = normalizeQuestionEntity(question.copy(id = newId))
+        questionDao.insertQuestion(norm)
+        return syncManager.enqueueAndSync("QUESTION", newId.toString(), "CREATE", syncManager.questionToMap(norm))
     }
 
     suspend fun updateQuestion(question: QuestionEntity): Pair<Boolean, String> {
-        questionDao.updateQuestion(question)
-        return syncManager.enqueueAndSync("QUESTION", question.id.toString(), "UPDATE", syncManager.questionToMap(question))
+        val norm = normalizeQuestionEntity(question)
+        questionDao.updateQuestion(norm)
+        return syncManager.enqueueAndSync("QUESTION", norm.id.toString(), "UPDATE", syncManager.questionToMap(norm))
     }
 
     suspend fun deleteQuestion(question: QuestionEntity): Pair<Boolean, String> {
@@ -332,7 +509,7 @@ class JuktiRepository(
         val baseTime = System.currentTimeMillis()
         val updatedList = questions.mapIndexed { index, q ->
             val id = if (q.id == 0L) baseTime + index + 1 else q.id
-            q.copy(id = id)
+            normalizeQuestionEntity(q.copy(id = id))
         }
         questionDao.insertAll(updatedList)
 
@@ -351,6 +528,44 @@ class JuktiRepository(
         syncManager.enqueueBatch(syncItems)
 
         return@withContext syncManager.uploadAllWorkspaceChangesToFirebase()
+    }
+
+    suspend fun batchImportMockQuestions(
+        questions: List<QuestionEntity>,
+        addToQuestionBank: Boolean
+    ): Pair<List<Long>, String> = withContext(Dispatchers.IO) {
+        if (questions.isEmpty()) return@withContext Pair(emptyList(), "No questions to insert.")
+        val baseTime = System.currentTimeMillis()
+        val updatedList = questions.mapIndexed { index, q ->
+            val id = if (q.id == 0L) baseTime + index + 1 else q.id
+            normalizeQuestionEntity(q.copy(id = id, isHidden = !addToQuestionBank))
+        }
+        questionDao.insertAll(updatedList)
+
+        if (addToQuestionBank) {
+            val now = System.currentTimeMillis()
+            val syncItems = updatedList.map { q ->
+                SyncQueueEntity(
+                    entityId = q.id.toString(),
+                    dataType = "QUESTION",
+                    operation = "CREATE",
+                    payloadJson = syncManager.mapToJson(syncManager.questionToMap(q)),
+                    createdAt = now,
+                    updatedAt = now,
+                    syncStatus = "PENDING"
+                )
+            }
+            syncManager.enqueueBatch(syncItems)
+            syncManager.uploadAllWorkspaceChangesToFirebase()
+        }
+
+        val ids = updatedList.map { it.id }
+        val msg = if (addToQuestionBank) {
+            "Successfully saved ${ids.size} questions to Question Bank and added to Mock Test."
+        } else {
+            "Successfully added ${ids.size} questions to Mock Test."
+        }
+        return@withContext Pair(ids, msg)
     }
 
     // Mock Actions
@@ -799,8 +1014,10 @@ class JuktiRepository(
     }
 
     suspend fun addSubjectChapter(subjectChapter: SubjectChapterEntity): Pair<Boolean, String> {
+        val normChap = normalizeChapterName(subjectChapter.chapter)
+        val normSubj = normalizeSubjectName(subjectChapter.subject)
         val id = if (subjectChapter.id == 0L) System.currentTimeMillis() else subjectChapter.id
-        val updated = subjectChapter.copy(id = id)
+        val updated = subjectChapter.copy(id = id, subject = normSubj, chapter = normChap)
         subjectChapterDao.insertSubjectChapter(updated)
         return syncManager.enqueueAndSync("SUBJECT_CHAPTER", id.toString(), "CREATE", syncManager.subjectChapterToMap(updated))
     }

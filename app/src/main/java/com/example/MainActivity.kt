@@ -110,7 +110,13 @@ class MainActivity : ComponentActivity() {
                     Screen.ABOUT,
                     Screen.CONTACT_US,
                     Screen.WORKSPACE,
-                    Screen.USER_NOTIFICATIONS
+                    Screen.USER_NOTIFICATIONS,
+                    Screen.HELP_SUPPORT,
+                    Screen.ABOUT_LEGAL,
+                    Screen.SHARE_SUPPORT,
+                    Screen.FAQ,
+                    Screen.PRIVACY_POLICY,
+                    Screen.TERMS_CONDITIONS
                 )
 
                 Scaffold(
@@ -120,7 +126,13 @@ class MainActivity : ComponentActivity() {
                             JuktiBottomNavigation(
                                 currentScreen = currentScreen,
                                 language = language,
-                                onNavigate = { screen -> viewModel.navigateTo(screen) }
+                                onNavigate = { screen ->
+                                    if (screen == Screen.MCQ_STUDY) {
+                                        viewModel.openStudyHub()
+                                    } else {
+                                        viewModel.navigateTo(screen)
+                                    }
+                                }
                             )
                         }
                     }
@@ -198,6 +210,10 @@ class MainActivity : ComponentActivity() {
                                  Screen.MANAGE_BANNERS -> ManageBannersScreen(viewModel)
                                  Screen.PRIVACY_POLICY -> PrivacyPolicyScreen(viewModel)
                                  Screen.TERMS_CONDITIONS -> TermsConditionsScreen(viewModel)
+                                 Screen.HELP_SUPPORT -> HelpSupportScreen(viewModel)
+                                 Screen.ABOUT_LEGAL -> AboutLegalScreen(viewModel)
+                                 Screen.SHARE_SUPPORT -> ShareSupportScreen(viewModel)
+                                 Screen.FAQ -> FaqScreen(viewModel)
                             }
                     }
                 }

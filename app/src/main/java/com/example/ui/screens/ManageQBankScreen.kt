@@ -37,20 +37,35 @@ fun ManageQBankScreen(viewModel: JuktiViewModel) {
     }
 }
 
-data class ManageQBankItem(val title: String, val icon: ImageVector, val onClick: () -> Unit = {})
+data class ManageQBankItem(val title: String, val subtitle: String = "", val icon: ImageVector, val onClick: () -> Unit = {})
 
 @Composable
 fun ManageQBankGrid(viewModel: JuktiViewModel) {
     val items = listOf(
-        ManageQBankItem("Single Question Upload", Icons.Default.PostAdd) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.SINGLE_QUESTION_UPLOAD)
-        },
-        ManageQBankItem("Batch Import Question", Icons.Default.UploadFile) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.BATCH_IMPORT_QUESTION)
-        },
-        ManageQBankItem("Question Bank", Icons.Default.FormatListBulleted) {
-            viewModel.navigateTo(com.example.ui.viewmodel.Screen.ALL_QUESTIONS)
-        }
+        ManageQBankItem(
+            title = "Manual Entry",
+            subtitle = "Add or edit single questions manually",
+            icon = Icons.Default.PostAdd,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.SINGLE_QUESTION_UPLOAD) }
+        ),
+        ManageQBankItem(
+            title = "Batch Import Question",
+            subtitle = "Import multiple questions via CSV file",
+            icon = Icons.Default.UploadFile,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.BATCH_IMPORT_QUESTION) }
+        ),
+        ManageQBankItem(
+            title = "Question Bank",
+            subtitle = "View, search, edit and export questions",
+            icon = Icons.Default.FormatListBulleted,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.ALL_QUESTIONS) }
+        ),
+        ManageQBankItem(
+            title = "Manage Subjects & Chapters",
+            subtitle = "Add or organize workplace subjects and chapters",
+            icon = Icons.Default.Category,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }
+        )
     )
 
     LazyColumn(
@@ -94,13 +109,22 @@ fun ManageQBankBannerCard(item: ManageQBankItem) {
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (item.subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = item.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,

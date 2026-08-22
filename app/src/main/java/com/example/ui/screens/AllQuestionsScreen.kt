@@ -28,16 +28,24 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     var subjectExpanded by remember { mutableStateOf(false) }
 
     val subjectsList = remember(questions) {
-        listOf("All Subjects") + questions.map { it.subject }.filter { it.isNotBlank() }.distinct()
+        val mapped = questions.map { com.example.data.repository.normalizeSubjectName(it.subject) }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+        listOf("All Subjects") + mapped
     }
 
     val filteredQuestions = remember(questions, searchQuery, selectedSubject) {
         questions.filter { q ->
-            val matchesSubject = selectedSubject == "All Subjects" || q.subject.equals(selectedSubject, ignoreCase = true)
+            val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
+            val matchesSubject = selectedSubject == "All Subjects" || 
+                normSubj.equals(selectedSubject, ignoreCase = true) ||
+                q.subject.equals(selectedSubject, ignoreCase = true)
             val matchesSearch = searchQuery.isBlank() ||
                     q.questionEn.contains(searchQuery, ignoreCase = true) ||
                     q.questionAs.contains(searchQuery, ignoreCase = true) ||
                     q.subject.contains(searchQuery, ignoreCase = true) ||
+                    normSubj.contains(searchQuery, ignoreCase = true) ||
                     q.topic.contains(searchQuery, ignoreCase = true)
             matchesSubject && matchesSearch
         }

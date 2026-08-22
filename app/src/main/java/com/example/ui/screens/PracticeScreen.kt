@@ -46,6 +46,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val allQuestions by viewModel.questions.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
     val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
 
     val hiddenIds = remember(hiddenQuestions) { hiddenQuestions.map { it.id }.toSet() }
 
@@ -73,12 +74,14 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     "General English" -> q.subject == "General English"
                     "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                     "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                    "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                     else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
                 }
                 val matchChapter = if (selectedChapters.isEmpty()) {
                     true
                 } else {
                     val topicStr = q.topic ?: ""
+                    val normTopic = com.example.data.repository.normalizeChapterName(topicStr)
                     if (selectedSubjectKey == "Reasoning") {
                         selectedChapters.any { ch ->
                             topicStr.contains(ch, ignoreCase = true) || 
@@ -89,8 +92,22 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
                             (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
                         }
+                    } else if (selectedSubjectKey == "General English") {
+                        selectedChapters.any { ch ->
+                            if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
+                                normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
+                            } else {
+                                normTopic.equals(ch, ignoreCase = true) || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                            }
+                        }
                     } else {
-                        topicStr in selectedChapters || q.subject in selectedChapters
+                        selectedChapters.any { ch ->
+                            normTopic.equals(ch, ignoreCase = true) ||
+                            topicStr.equals(ch, ignoreCase = true) ||
+                            topicStr.contains(ch, ignoreCase = true) ||
+                            ch.contains(topicStr, ignoreCase = true) ||
+                            q.subject.contains(ch, ignoreCase = true)
+                        }
                     }
                 }
                 matchSubject && matchChapter
@@ -363,28 +380,87 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         icon = Icons.Default.Psychology,
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                         iconColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    BannerConfig(
+                        titleEn = "Transport Rule",
+                        titleAs = "পৰিবহন নিয়ম (Transport Rule)",
+                        subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
+                        subtitleAs = "যান-বাহন নিয়ম, মটৰ বাহন আইন, পথ সুৰক্ষা আৰু সংকেত",
+                        subjectKey = "Transport Rule",
+                        icon = Icons.Default.DirectionsCar,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                        iconColor = MaterialTheme.colorScheme.secondary
                     )
                 )
 
                 banners.forEach { banner ->
                     // Available chapters for this banner's subject
-                    val availableChapters = remember(visibleQuestions, banner.subjectKey) {
+                    val availableChapters = remember(visibleQuestions, allSubjectsChapters, banner.subjectKey) {
                         val set = mutableSetOf<String>()
-                        val relevant = when (banner.subjectKey) {
-                            "All Subjects" -> visibleQuestions
-                            "General Knowledge" -> visibleQuestions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            "General English" -> visibleQuestions.filter { it.subject == "General English" }
-                            "General Mathematics" -> visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                        when (banner.subjectKey) {
+                            "All Subjects" -> {
+                                visibleQuestions.forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General Knowledge" -> {
+                                visibleQuestions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography & Economy", "Assam Geography", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General English" -> {
+                                set.add("Grammar & Sentence Correction")
+                                set.add("Synonyms, Antonyms & Vocabulary")
+                                set.add("One-Word & Idioms")
+                                set.add("Reading Comprehension & Para Jumbles")
+                                visibleQuestions.filter { it.subject == "General English" }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject == "General English" }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            "General Mathematics" -> {
+                                set.add("Number System, LCM & HCF")
+                                set.add("Percentage, Ratio & Proportion")
+                                set.add("Profit, Loss, Discount & Simple/Compound Interest")
+                                set.add("Time, Work, Speed, Distance & Mensuration")
+                                visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                             "Reasoning" -> {
                                 set.add("Coding-Decoding, Series & Analogy")
                                 set.add("Blood Relations & Direction Sense Test")
                                 set.add("Seating Arrangement, Puzzles & Venn Diagrams")
                                 set.add("Syllogism, Statements & Assumptions")
                                 visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
                             }
-                            else -> visibleQuestions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                            "Transport Rule" -> {
+                                set.add("Traffic Signs, Signals & Road Safety")
+                                set.add("Motor Vehicles Act & Traffic Rules")
+                                set.add("Driving Regulations, Licences & Permits")
+                                set.add("Vehicle Safety, Violations & Penalties")
+                                visibleQuestions.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
+                            else -> {
+                                visibleQuestions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                         }
-                        relevant.forEach { if (it.topic.isNotBlank()) set.add(it.topic) }
+                        set.remove("One-Word & Idiom")
+                        set.remove("One-Word & Idiom/Phrase")
+                        set.remove("Idioms, Phrases & One-Word Substitution")
+                        set.remove("Idioms & Phrases")
+                        set.remove("One-Word Substitution")
+                        set.remove("One Word Substitution")
                         set.toList().sorted()
                     }
 
@@ -395,6 +471,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General English" -> visibleQuestions.count { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
                             "Reasoning" -> visibleQuestions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            "Transport Rule" -> visibleQuestions.count { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true) }
                             else -> visibleQuestions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }

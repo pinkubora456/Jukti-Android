@@ -12,6 +12,9 @@ import com.example.MainActivity
 import com.example.JuktiApplication
 import com.example.auth.GoogleAuthManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 
@@ -92,7 +95,11 @@ enum class Screen {
     MANAGE_EXAM_PATTERN_CUTOFF_VIEW,
     MANAGE_BANNERS,
     PRIVACY_POLICY,
-    TERMS_CONDITIONS
+    TERMS_CONDITIONS,
+    HELP_SUPPORT,
+    ABOUT_LEGAL,
+    SHARE_SUPPORT,
+    FAQ
 }
 
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
@@ -266,13 +273,34 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentScreen = MutableStateFlow(Screen.SPLASH)
     private var splashFinished = false
 
+    private val _studySubView = MutableStateFlow<String?>(null)
+    val studySubView: StateFlow<String?> = _studySubView.asStateFlow()
+
+    private val _openedStudyDirectly = MutableStateFlow(false)
+    val openedStudyDirectly: StateFlow<Boolean> = _openedStudyDirectly.asStateFlow()
+
+    fun setStudySubView(subView: String?, fromHome: Boolean = false) {
+        _studySubView.value = subView
+        _openedStudyDirectly.value = fromHome
+    }
+
+    fun openStudyMcq(fromHome: Boolean = true) {
+        _studySubView.value = "STUDY_MCQS"
+        _openedStudyDirectly.value = fromHome
+        navigateTo(Screen.MCQ_STUDY)
+    }
+
+    fun openStudyHub() {
+        _studySubView.value = null
+        _openedStudyDirectly.value = false
+        navigateTo(Screen.MCQ_STUDY)
+    }
+
     fun finishSplash() {
         splashFinished = true
         val prof = userProfile.value
         if (prof != null) {
             _currentScreen.value = if (prof.isLoggedIn) Screen.HOME else Screen.AUTH
-        } else {
-            _currentScreen.value = Screen.AUTH
         }
     }
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
@@ -838,6 +866,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val current = _currentScreen.value
         if (current == screen) return
 
+        if (screen != Screen.MCQ_STUDY) {
+            _studySubView.value = null
+            _openedStudyDirectly.value = false
+        }
+
         when (screen) {
             Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> {
                 _lastSessionType.value = "mock"
@@ -881,6 +914,18 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val current = _currentScreen.value
         if (current == Screen.HOME || current == Screen.AUTH || current == Screen.SPLASH) {
             return false
+        }
+        if (current == Screen.MCQ_STUDY && _studySubView.value != null) {
+            if (_openedStudyDirectly.value) {
+                _studySubView.value = null
+                _openedStudyDirectly.value = false
+                _currentScreen.value = Screen.HOME
+                navBackStack.clear()
+                return true
+            } else {
+                _studySubView.value = null
+                return true
+            }
         }
         if (navBackStack.isNotEmpty()) {
             val previous = navBackStack.removeAt(navBackStack.size - 1)
@@ -1344,7 +1389,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 _currentScreen.value = Screen.HOME
             } catch (e: Exception) {
                 Log.e("JuktiViewModel", "Email authentication error", e)
-                _sessionMessage.value = e.message ?: e.localizedMessage ?: "Authentication failed. Please try again."
+                _sessionMessage.value = when (e) {
+                    is FirebaseAuthInvalidCredentialsException -> "Incorrect email or password."
+                    is FirebaseAuthInvalidUserException -> "No account found with this email."
+                    is FirebaseAuthUserCollisionException -> "An account already exists with this email."
+                    else -> "Authentication failed. Please try again."
+                }
             } finally {
                 _isAuthLoading.value = false
             }
@@ -1730,6 +1780,32 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 _syncToastMessage.value = "Error: ${e.localizedMessage}"
             } finally {
                 onComplete(assignedId)
+            }
+        }
+    }
+
+    fun batchImportQuestionsForMock(
+        questionsToInsert: List<QuestionEntity>,
+        reusableExistingIds: List<Long>,
+        addToQuestionBank: Boolean,
+        onComplete: (List<Long>, Int, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            if (!isAdminOrOwner.value) {
+                onComplete(emptyList(), 0, "Unauthorized: Only Admin/Owner can batch import questions.")
+                return@launch
+            }
+            try {
+                val (newIds, msg) = repository.batchImportMockQuestions(questionsToInsert, addToQuestionBank)
+                val allAssignedIds = (reusableExistingIds + newIds).distinct()
+                val newQBankCount = if (addToQuestionBank) newIds.size else 0
+                _syncToastMessage.value = msg
+                onComplete(allAssignedIds, newQBankCount, msg)
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Error batch importing mock questions", e)
+                val errMsg = "Error: ${e.localizedMessage ?: "Unknown error"}"
+                _syncToastMessage.value = errMsg
+                onComplete(emptyList(), 0, errMsg)
             }
         }
     }

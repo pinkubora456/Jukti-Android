@@ -189,7 +189,7 @@ object SampleData {
         // 5. General English
         SubjectChapterEntity(id = 17L, subject = "General English", chapter = "Grammar & Sentence Correction"),
         SubjectChapterEntity(id = 18L, subject = "General English", chapter = "Synonyms, Antonyms & Vocabulary"),
-        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "Idioms, Phrases & One-Word Substitution"),
+        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "One-Word & Idioms"),
         SubjectChapterEntity(id = 20L, subject = "General English", chapter = "Reading Comprehension & Para Jumbles"),
 
         // 6. General Mathematics
@@ -217,7 +217,13 @@ object SampleData {
         // 10. Current Affairs & General Awareness
         SubjectChapterEntity(id = 35L, subject = "Current Affairs & General Awareness", chapter = "National Current Affairs (2025-2026)"),
         SubjectChapterEntity(id = 36L, subject = "Current Affairs & General Awareness", chapter = "State (Assam) Current Affairs & Government Schemes"),
-        SubjectChapterEntity(id = 37L, subject = "Current Affairs & General Awareness", chapter = "Sports, Awards and Important Personalities")
+        SubjectChapterEntity(id = 37L, subject = "Current Affairs & General Awareness", chapter = "Sports, Awards and Important Personalities"),
+
+        // 11. Transport Rule
+        SubjectChapterEntity(id = 38L, subject = "Transport Rule", chapter = "Traffic Signs, Signals & Road Safety"),
+        SubjectChapterEntity(id = 39L, subject = "Transport Rule", chapter = "Motor Vehicles Act & Traffic Rules"),
+        SubjectChapterEntity(id = 40L, subject = "Transport Rule", chapter = "Driving Regulations, Licences & Permits"),
+        SubjectChapterEntity(id = 41L, subject = "Transport Rule", chapter = "Vehicle Safety, Violations & Penalties")
     )
 
     val initialUserProfile = UserProfileEntity(

@@ -83,7 +83,7 @@ Email: ${aboutConfig.contactEmail.ifBlank { "juktieducation@gmail.com" }}"""
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
                 title = "Privacy Policy",
-                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                onBackClick = { viewModel.navigateTo(Screen.ABOUT_LEGAL) },
                 backTestTag = "privacy_policy_back_btn",
                 actions = {
                     if (isAdminOrOwner) {

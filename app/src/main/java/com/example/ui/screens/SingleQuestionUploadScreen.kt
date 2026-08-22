@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
@@ -29,11 +30,44 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     var targetExamDialogVisible by remember { mutableStateOf(false) }
     val exams by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    val rawSubjects = allSubjectsChapters.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    val rawSubjects = remember(allSubjectsChapters) {
+        val list = allSubjectsChapters
+            .map { com.example.data.repository.normalizeSubjectName(it.subject) }
+            .filter { it.isNotBlank() && !it.equals("Manual Entry", ignoreCase = true) && !it.equals("Manual", ignoreCase = true) }
+            .distinct()
+            .sorted()
+        if (!list.contains("Transport Rule")) {
+            (list + "Transport Rule").sorted()
+        } else {
+            list
+        }
+    }
     val subjectsList: List<String> = rawSubjects
     var subjectExpanded by remember { mutableStateOf(false) }
     var chapterExpanded by remember { mutableStateOf(false) }
-    val rawChapters = allSubjectsChapters.filter { it.subject == subject }.map { it.chapter }.filter { it.isNotBlank() }.distinct()
+    val rawChapters = remember(allSubjectsChapters, subject) {
+        if (subject.isBlank()) {
+            emptyList()
+        } else {
+            val normCurrentSubject = com.example.data.repository.normalizeSubjectName(subject)
+            val fromList = allSubjectsChapters
+                .filter { com.example.data.repository.normalizeSubjectName(it.subject).equals(normCurrentSubject, ignoreCase = true) }
+                .map { com.example.data.repository.normalizeChapterName(it.chapter) }
+                .filter { it.isNotBlank() && !it.equals("One-Word & Idiom/Phrase", ignoreCase = true) }
+                .distinct()
+                .sorted()
+            if (normCurrentSubject == "Transport Rule" && fromList.isEmpty()) {
+                listOf(
+                    "Traffic Signs, Signals & Road Safety",
+                    "Motor Vehicles Act & Traffic Rules",
+                    "Driving Regulations, Licences & Permits",
+                    "Vehicle Safety, Violations & Penalties"
+                )
+            } else {
+                fromList
+            }
+        }
+    }
     val chaptersList: List<String> = rawChapters
     
     var difficultyExpanded by remember { mutableStateOf(false) }
@@ -73,8 +107,13 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
-                title = "Upload Single Question",
-                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) }
+                title = "Manual Entry",
+                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
+                actions = {
+                    IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }) {
+                        Icon(Icons.Default.Category, contentDescription = "Manage Subjects & Chapters")
+                    }
+                }
             )
         }
     ) { innerPadding ->
@@ -155,6 +194,30 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                                 )
                             }
                         }
+                    }
+                }
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Category,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Manage Subjects & Chapters",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -416,9 +479,12 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                                 "Expected"
                             }
                             
+                            val normSubject = com.example.data.repository.normalizeSubjectName(subject)
+                            val normChapter = com.example.data.repository.normalizeChapterName(chapter)
+                            
                             val newQuestion = QuestionEntity(
-                                subject = subject.trim(),
-                                topic = chapter.trim(),
+                                subject = normSubject,
+                                topic = normChapter,
                                 difficulty = difficulty,
                                 questionEn = questionEnglish.trim(),
                                 questionAs = questionAssamese.trim(),

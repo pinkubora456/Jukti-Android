@@ -89,7 +89,7 @@ Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(48.dp).padding(6.dp)) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(48.dp).padding(4.dp)) {
                             val imageModifier = Modifier.fillMaxHeight().widthIn(max = 140.dp)
                             val localLogo = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, "cached_logo.png")
                             if (localLogo.exists() && localLogo.length() > 0) {
@@ -97,8 +97,8 @@ Row(
                                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                         .data(localLogo)
                                         .crossfade(true)
-                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_logo))
-                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_logo))
+                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
                                         .build(),
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,
@@ -109,8 +109,8 @@ Row(
                                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                         .data(aboutConfig.logoUrl)
                                         .crossfade(true)
-                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_logo))
-                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_logo))
+                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
                                         .build(),
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,
@@ -118,7 +118,7 @@ Row(
                                 )
                             } else {
                                 coil.compose.AsyncImage(
-                                    model = com.example.R.drawable.jukti_logo,
+                                    model = com.example.R.drawable.jukti_in_app_logo,
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,
                                     contentScale = androidx.compose.ui.layout.ContentScale.Fit
@@ -360,7 +360,13 @@ Row(
             QuickNavGrid(
                 language = language,
                 isAdminOrOwner = isAdminOrOwner,
-                onNavClick = { screen -> viewModel.navigateTo(screen) },
+                onNavClick = { screen ->
+                    if (screen == Screen.MCQ_STUDY) {
+                        viewModel.openStudyMcq(fromHome = true)
+                    } else {
+                        viewModel.navigateTo(screen)
+                    }
+                },
                 onOpenPomodoro = { showPomodoroDialog = true }
             )
 

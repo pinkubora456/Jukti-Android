@@ -61,7 +61,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
                 title = "About Jukti App",
-                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                onBackClick = { viewModel.navigateTo(Screen.ABOUT_LEGAL) },
                 actions = {
                     if (isOwner) {
                         FilledTonalIconButton(
@@ -136,7 +136,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
             }
 
             Box(contentAlignment = Alignment.BottomEnd) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.height(90.dp).padding(12.dp).clickable(enabled = isOwner) { showLogoPickerOnly = true }) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.height(90.dp).padding(10.dp).clickable(enabled = isOwner) { showLogoPickerOnly = true }) {
                     val imageModifier = Modifier.fillMaxHeight().widthIn(max = 200.dp)
                     val localLogo = java.io.File(LocalContext.current.filesDir, "cached_logo.png")
                     if (localLogo.exists() && localLogo.length() > 0) {
@@ -144,8 +144,8 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                             model = coil.request.ImageRequest.Builder(LocalContext.current)
                                 .data(localLogo)
                                 .crossfade(true)
-                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
-                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
+                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
                                 .build(),
                             contentDescription = "App Logo",
                             modifier = imageModifier,
@@ -156,8 +156,8 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                             model = coil.request.ImageRequest.Builder(LocalContext.current)
                                 .data(aboutConfig.logoUrl)
                                 .crossfade(true)
-                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
-                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_logo))
+                                .error(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                .fallback(androidx.core.content.ContextCompat.getDrawable(LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
                                 .build(),
                             contentDescription = "App Logo",
                             modifier = imageModifier,
@@ -165,7 +165,7 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                         )
                     } else {
                         coil.compose.AsyncImage(
-                            model = com.example.R.drawable.jukti_logo,
+                            model = com.example.R.drawable.jukti_in_app_logo,
                             contentDescription = "App Logo",
                             modifier = imageModifier,
                             contentScale = ContentScale.Fit

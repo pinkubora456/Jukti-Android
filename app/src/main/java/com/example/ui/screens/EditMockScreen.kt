@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
+import com.example.ui.components.BatchImportMockQuestionsDialog
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
@@ -32,11 +34,13 @@ import com.example.ui.viewmodel.LocalMessageTranslator
 @Composable
 fun EditMockScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val mocks by viewModel.mockTests.collectAsState()
     val exams by viewModel.examsList.collectAsState()
     val allQuestions by viewModel.questions.collectAsState()
 
     var selectedMock by remember { mutableStateOf<MockTestEntity?>(null) }
+    var showBatchImportDialog by remember { mutableStateOf(false) }
 
     // Form fields for editing
     var mockTitleEn by remember { mutableStateOf("") }
@@ -322,9 +326,32 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 }
 
                 item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Select Questions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (isAdminOrOwner) {
+                            FilledTonalButton(
+                                onClick = { showBatchImportDialog = true },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.defaultMinSize(minHeight = 42.dp)
+                            ) {
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Batch Import",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Select Questions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(6.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -527,6 +554,24 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
             confirmButton = {
                 Button(onClick = { examDialogVisible = false }) {
                     Text("Done")
+                }
+            }
+        )
+    }
+
+    if (showBatchImportDialog) {
+        BatchImportMockQuestionsDialog(
+            viewModel = viewModel,
+            defaultSubject = "General Studies",
+            defaultChapter = "General",
+            defaultExamCategory = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "ADRE",
+            isMockPremium = planType == "Premium",
+            onDismiss = { showBatchImportDialog = false },
+            onQuestionsImported = { assignedIds, _ ->
+                assignedIds.forEach { id ->
+                    if (!selectedQuestionIds.contains(id)) {
+                        selectedQuestionIds.add(id)
+                    }
                 }
             }
         )

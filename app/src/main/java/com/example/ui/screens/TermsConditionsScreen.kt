@@ -80,7 +80,7 @@ Email: ${aboutConfig.contactEmail.ifBlank { "juktieducation@gmail.com" }}"""
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
                 title = "Terms & Conditions",
-                onBackClick = { viewModel.navigateTo(Screen.MENU) },
+                onBackClick = { viewModel.navigateTo(Screen.ABOUT_LEGAL) },
                 backTestTag = "terms_conditions_back_btn",
                 actions = {
                     if (isAdminOrOwner) {

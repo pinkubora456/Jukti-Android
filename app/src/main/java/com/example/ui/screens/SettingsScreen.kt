@@ -2,29 +2,36 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import com.example.ui.theme.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import com.example.data.local.QuestionEntity
 import com.example.ui.components.BilingualText
+import com.example.ui.components.JuktiTopAppBar
+import com.example.ui.theme.success
+import com.example.ui.theme.successContainer
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.LocalMessageTranslator
@@ -40,14 +47,14 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
     val isRefreshingFromFirebase by viewModel.isRefreshingFromFirebase.collectAsState()
     val refreshStatusMessage by viewModel.refreshStatusMessage.collectAsState()
-    val isAssamese = language == AppLanguage.ASSAMESE
     val context = LocalContext.current
 
     var showSavedQuestionsDialog by remember { mutableStateOf(false) }
     var showHiddenQuestionsDialog by remember { mutableStateOf(false) }
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showClearProgressDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
     var currentPasswordInput by remember { mutableStateOf("") }
     var newPasswordInput by remember { mutableStateOf("") }
     var confirmNewPasswordInput by remember { mutableStateOf("") }
@@ -60,8 +67,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
 
     Scaffold(
         topBar = {
-            com.example.ui.components.JuktiTopAppBar(
-                title = "App Settings",
+            JuktiTopAppBar(
+                title = "Settings",
                 onBackClick = { viewModel.navigateTo(Screen.MENU) }
             )
         }
@@ -75,302 +82,432 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Language & Theme Section
-            Text(
-                text = "Display Preference",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            OutlinedCard(
+            // Header Card
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Dark Theme Mode", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Comfortable reading for night study",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(28.dp)
                             )
                         }
-                        val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
-                        Switch(
-                            checked = isDarkTheme ?: systemDark,
-                            onCheckedChange = { viewModel.setDarkTheme(it) },
-                            colors = SwitchDefaults.colors(
-                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Preferences & Management",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Customize theme, review saved questions, sync & manage data",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
                     }
                 }
             }
 
-            // Saved & Hidden Questions Management
             Text(
-                text = "Saved & Hidden Questions",
+                text = "App Settings",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
 
+            // Theme
             OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_theme_card"),
+                shape = RoundedCornerShape(14.dp)
             ) {
-                Column {
-                    // Item 1: Saved Questions
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                "Saved Questions",
-                                fontWeight = FontWeight.SemiBold
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.DarkMode,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
                             )
-                        },
-                        supportingContent = {
-                            Text(
-                                "${bookmarkedQuestions.size} saved MCQs. Tap to review.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        },
-                        trailingContent = {
-                            Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("${bookmarkedQuestions.size}", color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            }
-                        },
-                        modifier = Modifier.clickable { showSavedQuestionsDialog = true }
-                    )
+                        }
+                    }
 
-                    HorizontalDivider()
+                    Spacer(modifier = Modifier.width(14.dp))
 
-                    // Item 2: Hidden Questions
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                "Hidden Questions",
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                "${hiddenQuestions.size} hidden MCQs. Tap to view or unhide.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        },
-                        trailingContent = {
-                            Badge(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                                Text("${hiddenQuestions.size}", color = MaterialTheme.colorScheme.onErrorContainer)
-                            }
-                        },
-                        modifier = Modifier.clickable { showHiddenQuestionsDialog = true }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Theme (Dark Mode)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Comfortable reading mode for night study sessions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    val systemDark = isSystemInDarkTheme()
+                    Switch(
+                        checked = isDarkTheme ?: systemDark,
+                        onCheckedChange = { viewModel.setDarkTheme(it) },
+                        modifier = Modifier.testTag("theme_switch")
                     )
                 }
             }
 
-            // Account Management / Danger Zone
+            // Saved Questions
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showSavedQuestionsDialog = true }
+                    .testTag("settings_saved_questions_card"),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Saved Questions", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${bookmarkedQuestions.size} saved MCQs. Tap to review.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                        Text(
+                            "${bookmarkedQuestions.size}",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Hidden Questions
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showHiddenQuestionsDialog = true }
+                    .testTag("settings_hidden_questions_card"),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.VisibilityOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Hidden Questions", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${hiddenQuestions.size} hidden MCQs. Tap to view or unhide.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(
+                            "${hiddenQuestions.size}",
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Refresh App Data
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isRefreshingFromFirebase) { viewModel.refreshDataFromFirebase() }
+                    .testTag("settings_refresh_data_card"),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Refresh App Data", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Fetch & update latest MCQs, tests, notes and exams",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (isRefreshingFromFirebase) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Sync,
+                            contentDescription = "Sync",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            // Clear Progress
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showClearProgressDialog = true }
+                    .testTag("settings_clear_progress_card"),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.RestartAlt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Clear Progress",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Reset speed, accuracy, questions solved, and rank stats",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Change Password
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        currentPasswordInput = ""
+                        newPasswordInput = ""
+                        confirmNewPasswordInput = ""
+                        changePasswordMessage = null
+                        isChangePasswordSuccess = false
+                        showChangePasswordDialog = true
+                    }
+                    .testTag("settings_change_password_card"),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Change Password", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Update your account password securely",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Delete Account (Destructive Action)
             Text(
-                text = "Account Management",
+                text = "Danger Zone",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.error
             )
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDeleteAccountDialog = true }
+                    .testTag("settings_delete_account_card"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f))
             ) {
-                ListItem(
-                    headlineContent = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteForever,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onError,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Delete User Account",
+                            "Delete Account",
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
-                    },
-                    supportingContent = {
                         Text(
-                            "Permanently delete user profile, scores, and saved local data",
+                            "Permanently delete user profile, scores, and all saved data",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    leadingContent = {
-                        Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    },
-                    modifier = Modifier.clickable { showDeleteAccountDialog = true }
-                )
-            }
-
-            // Security & Account
-            Text(
-                text = "Security & Account",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column {
-                    ListItem(
-                        headlineContent = {
-                            Text("Change Password", fontWeight = FontWeight.SemiBold)
-                        },
-                        supportingContent = {
-                            Text(
-                                "Update your account password securely",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        },
-                        modifier = Modifier.clickable {
-                            currentPasswordInput = ""
-                            newPasswordInput = ""
-                            confirmNewPasswordInput = ""
-                            changePasswordMessage = null
-                            isChangePasswordSuccess = false
-                            showChangePasswordDialog = true
-                        }
-                    )
-                }
-            }
-
-            // Data & Sync
-            Text(
-                text = "Data & Sync",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column {
-                    ListItem(
-                        headlineContent = {
-                            Text("Refresh App Data", fontWeight = FontWeight.SemiBold)
-                        },
-                        supportingContent = {
-                            Text(
-                                "Fetch & update latest MCQs, tests, notes and exams",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh App Data", tint = MaterialTheme.colorScheme.primary)
-                        },
-                        trailingContent = {
-                            if (isRefreshingFromFirebase) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(Icons.Default.Sync, contentDescription = "Refresh App Data", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        },
-                        modifier = Modifier.clickable(enabled = !isRefreshingFromFirebase) {
-                            viewModel.refreshDataFromFirebase()
-                        }
-                    )
-
-                    HorizontalDivider()
-
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                "Clear Progress Data",
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                "Reset speed, accuracy, questions solved, and rank",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(Icons.Default.RestartAlt, contentDescription = "Clear Progress Data", tint = MaterialTheme.colorScheme.error)
-                        },
-                        modifier = Modifier.clickable { showClearProgressDialog = true }
-                    )
-                }
-            }
-
-            // App Download & Installation
-            Text(
-                text = "App Download & APK",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Jukti Android APK", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Package: com.aistudio.jukti.app\nVersion: 1.0 (Production)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                val intent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("https://ais-dev-mbq2e6ge5z4qs5wk3gkstx-397582032913.asia-southeast1.run.app/jukti.apk")
-                                )
-                                context.startActivity(intent)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Download APK")
-                        }
                     }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
     }
 
+    // Dialog 1: Clear Progress Confirmation Dialog
     if (showClearProgressDialog) {
         AlertDialog(
             onDismissRequest = { showClearProgressDialog = false },
@@ -382,7 +519,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             },
             text = {
                 Text(
-                    "This will reset all your progress data including speed, accuracy, questions solved, and rank. Your profile and saved questions will be kept. Are you sure you want to proceed?"
+                    "This will reset all your progress statistics including speed, accuracy, questions solved, and leaderboard rank. Your account profile and saved questions will be kept safe. Are you sure you want to proceed?"
                 )
             },
             confirmButton = {
@@ -398,12 +535,13 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showClearProgressDialog = false }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Cancel")
                 }
             }
         )
     }
 
+    // Dialog 2: Delete Account Strong Confirmation Dialog
     if (showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
@@ -416,7 +554,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             },
             text = {
                 Text(
-                    "This will permanently delete your user profile, study progress, and saved data from this device. Are you sure you want to proceed?"
+                    "This action is permanent and irreversible. Your user account, progress records, test history, and all personal data will be completely deleted. Are you sure you want to proceed?"
                 )
             },
             confirmButton = {
@@ -438,28 +576,21 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         )
     }
 
+    // Dialog 3: Refresh Status Message
     if (refreshStatusMessage != null) {
         AlertDialog(
             onDismissRequest = { viewModel.clearRefreshStatusMessage() },
-            title = {
-                Text("Refresh Status", fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Text(LocalMessageTranslator.translateGeneralMessage(LocalContext.current, refreshStatusMessage ?: ""))
-            },
+            title = { Text("Refresh Status", fontWeight = FontWeight.Bold) },
+            text = { Text(LocalMessageTranslator.translateGeneralMessage(context, refreshStatusMessage ?: "")) },
             confirmButton = {
-                Button(
-                    onClick = { viewModel.clearRefreshStatusMessage() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
+                Button(onClick = { viewModel.clearRefreshStatusMessage() }) {
                     Text("OK")
                 }
             }
         )
     }
 
-
-
+    // Dialog 4: Saved Questions Viewer
     if (showSavedQuestionsDialog) {
         SavedQuestionsDialog(
             questions = bookmarkedQuestions,
@@ -469,6 +600,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         )
     }
 
+    // Dialog 5: Hidden Questions Viewer
     if (showHiddenQuestionsDialog) {
         HiddenQuestionsDialog(
             questions = hiddenQuestions,
@@ -479,12 +611,11 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         )
     }
 
+    // Dialog 6: Change Password Dialog
     if (showChangePasswordDialog) {
         AlertDialog(
             onDismissRequest = { if (!isChangePasswordLoading) showChangePasswordDialog = false },
-            title = {
-                Text("Change Password", fontWeight = FontWeight.Bold)
-            },
+            title = { Text("Change Password", fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -499,7 +630,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                     }
                     if (!isChangePasswordSuccess) {
                         Text("Please enter your current password and choose a new secure password.")
-                        
+
                         OutlinedTextField(
                             value = currentPasswordInput,
                             onValueChange = { currentPasswordInput = it },
@@ -513,8 +644,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                     )
                                 }
                             },
-                            visualTransformation = if (currentPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             singleLine = true,
                             enabled = !isChangePasswordLoading,
                             modifier = Modifier.fillMaxWidth()
@@ -533,8 +664,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                     )
                                 }
                             },
-                            visualTransformation = if (newPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             singleLine = true,
                             enabled = !isChangePasswordLoading,
                             modifier = Modifier.fillMaxWidth()
@@ -553,8 +684,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                     )
                                 }
                             },
-                            visualTransformation = if (confirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             singleLine = true,
                             enabled = !isChangePasswordLoading,
                             modifier = Modifier.fillMaxWidth()
@@ -571,7 +702,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                                 return@Button
                             }
                             if (newPasswordInput.length < 6) {
-                                changePasswordMessage = "Your new password does not meet the password requirements (at least 6 characters)."
+                                changePasswordMessage = "Your new password must be at least 6 characters."
                                 return@Button
                             }
                             if (newPasswordInput != confirmNewPasswordInput) {
@@ -639,8 +770,6 @@ fun SavedQuestionsDialog(
     onDismiss: () -> Unit,
     onToggleBookmark: (QuestionEntity) -> Unit
 ) {
-    val isAssamese = language == AppLanguage.ASSAMESE
-    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -747,7 +876,7 @@ fun SavedQuestionsDialog(
                                             textAs = correctOptTextAs,
                                             language = language,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSuccessContainer
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -773,13 +902,11 @@ fun HiddenQuestionsDialog(
     onUnhideQuestion: (QuestionEntity) -> Unit,
     onUnhideAll: () -> Unit
 ) {
-    val isAssamese = language == AppLanguage.ASSAMESE
-    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Hidden Questions (${questions.size})",

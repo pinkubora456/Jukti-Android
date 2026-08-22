@@ -213,6 +213,9 @@ interface SubjectChapterDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(subjectsChapters: List<SubjectChapterEntity>)
 
+    @Update
+    suspend fun updateSubjectChapter(subjectChapter: SubjectChapterEntity)
+
     @Delete
     suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)
 }

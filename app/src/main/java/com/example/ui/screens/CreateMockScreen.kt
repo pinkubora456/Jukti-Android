@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,14 +25,18 @@ import com.example.data.local.MockTestEntity
 import com.example.data.local.QuestionEntity
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.components.SafeOutlinedTextField
+import com.example.ui.components.BatchImportMockQuestionsDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateMockScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val exams by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val allQuestions by viewModel.questions.collectAsState()
+
+    var showBatchImportDialog by remember { mutableStateOf(false) }
 
     var mockTitleEn by remember { mutableStateOf("") }
     var mockTitleAs by remember { mutableStateOf("") }
@@ -369,20 +374,55 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             }
 
             item {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Select Questions",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Select Questions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    OutlinedButton(onClick = { showAddQuestionDialog = true }) {
+                    if (isAdminOrOwner) {
+                        FilledTonalButton(
+                            onClick = { showBatchImportDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 42.dp)
+                        ) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Batch Import",
+                                maxLines = 1,
+                                softWrap = false,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { showAddQuestionDialog = true },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = (if (isAdminOrOwner) Modifier.weight(1.25f) else Modifier.fillMaxWidth())
+                            .defaultMinSize(minHeight = 42.dp)
+                    ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add New Question")
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add New Question",
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -1034,6 +1074,28 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             confirmButton = {
                 Button(onClick = { qTargetExamDialogVisible = false }) {
                     Text("Done")
+                }
+            }
+        )
+    }
+
+    if (showBatchImportDialog) {
+        val targetSubject = if (testType == "Subject-wise" && selectedMockSubject.isNotBlank()) selectedMockSubject else "General Studies"
+        val targetChapter = if (testType == "Chapter-wise" && selectedMockChapter.isNotBlank()) selectedMockChapter else "General"
+        val targetExam = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "ADRE"
+
+        BatchImportMockQuestionsDialog(
+            viewModel = viewModel,
+            defaultSubject = targetSubject,
+            defaultChapter = targetChapter,
+            defaultExamCategory = targetExam,
+            isMockPremium = planType == "Premium",
+            onDismiss = { showBatchImportDialog = false },
+            onQuestionsImported = { assignedIds, _ ->
+                assignedIds.forEach { id ->
+                    if (!selectedQuestionIds.contains(id)) {
+                        selectedQuestionIds.add(id)
+                    }
                 }
             }
         )
