@@ -306,8 +306,7 @@ object CsvQuestionParser {
                     explanationAs = expAs,
                     examCategory = defaultExamCategory,
                     isPremium = isPremium,
-                    questionType = finalQuestionType,
-                    isHidden = false
+                    questionType = finalQuestionType
                 )
 
                 val validRow = ParsedQuestionRow(

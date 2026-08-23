@@ -45,15 +45,14 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val userProfile by viewModel.userProfile.collectAsState()
     val allQuestions by viewModel.questions.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
-    val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
+    val hiddenIds by viewModel.hiddenIds.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-
-    val hiddenIds = remember(hiddenQuestions) { hiddenQuestions.map { it.id }.toSet() }
 
     // Filter out hidden questions
     val visibleQuestions = remember(allQuestions, hiddenIds, isSmartPractice, smartPracticeQuestions) {
         val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
-        baseList.filter { !it.isHidden && it.id !in hiddenIds }.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
+        baseList.filter { it.id !in hiddenIds }.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
     }
 
     var isSessionStarted by rememberSaveable { mutableStateOf(false) }
@@ -618,9 +617,9 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
-                                            imageVector = if (currentQuestion.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                            imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                             contentDescription = "Save Question",
-                                            tint = if (currentQuestion.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
 

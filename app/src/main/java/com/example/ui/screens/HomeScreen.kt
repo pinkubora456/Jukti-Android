@@ -97,8 +97,8 @@ Row(
                                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                         .data(localLogo)
                                         .crossfade(true)
-                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
-                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.app_logo))
+                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.app_logo))
                                         .build(),
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,
@@ -109,8 +109,8 @@ Row(
                                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                         .data(aboutConfig.logoUrl)
                                         .crossfade(true)
-                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
-                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.jukti_in_app_logo))
+                                        .error(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.app_logo))
+                                        .fallback(androidx.core.content.ContextCompat.getDrawable(androidx.compose.ui.platform.LocalContext.current, com.example.R.drawable.app_logo))
                                         .build(),
                                     contentDescription = "Jukti Logo",
                                     modifier = imageModifier,

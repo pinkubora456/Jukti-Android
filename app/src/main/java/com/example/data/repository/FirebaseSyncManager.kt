@@ -172,18 +172,26 @@ class FirebaseSyncManager(
         "correctOptionIndex" to q.correctOptionIndex,
         "explanationEn" to q.explanationEn,
         "explanationAs" to q.explanationAs,
-        "isBookmarked" to q.isBookmarked,
-        "isLiked" to q.isLiked,
-        "isHidden" to q.isHidden,
         "examCategory" to q.examCategory,
         "isPremium" to q.isPremium,
         "questionType" to q.questionType,
-        "isReported" to q.isReported,
         "cachedAt" to q.cachedAt,
         "lastAccessedAt" to q.lastAccessedAt,
         "version" to q.version,
         "updatedAt" to System.currentTimeMillis(),
         "firebaseId" to q.firebaseId
+    )
+    
+    fun userQuestionStateToMap(s: UserQuestionStateEntity): Map<String, Any?> = mapOf(
+        "userId" to s.userId,
+        "questionId" to s.questionId,
+        "isBookmarked" to s.isBookmarked,
+        "isLiked" to s.isLiked,
+        "isHidden" to s.isHidden,
+        "isMastered" to s.isMastered,
+        "everGotWrong" to s.everGotWrong,
+        "firstAttemptCorrect" to s.firstAttemptCorrect,
+        "lastUpdatedDateStr" to s.lastUpdatedDateStr
     )
 
     fun mockTestToMap(m: MockTestEntity): Map<String, Any?> = mapOf(
@@ -380,6 +388,7 @@ class FirebaseSyncManager(
             "NOTIFICATION" -> "notifications"
             "PENDING_REQUEST" -> "pending_requests"
             "ACTIVITY_LOG" -> "activity_logs"
+            "USER_QUESTION_STATE" -> "user_question_states"
             "ABOUT_CONFIG", "APP_CONFIG" -> "app_config"
             else -> dataType.lowercase() + "s"
         }

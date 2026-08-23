@@ -150,8 +150,7 @@ class FirebaseRepository {
 
     suspend fun fetchUserEntitlement(email: String, explicitUid: String? = null): EntitlementEntity? {
         return try {
-            val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
-            val currentUid = explicitUid ?: auth?.currentUser?.uid
+            val currentUid = explicitUid
             val trimmedEmail = email.trim().lowercase()
             val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) trimmedEmail.replace("@", "_at_").replace(".", "_dot_") else ""
 
@@ -303,14 +302,20 @@ class FirebaseRepository {
         return try {
             val trimmedEmail = email.trim().lowercase()
             if (trimmedEmail.isBlank()) return false
-            val sanitizedEmailDocId = getSanitizedUserDocId(trimmedEmail)
+            
+            // Find target user by email
+            val querySnap = firestore?.collection("users")?.whereEqualTo("email", trimmedEmail)?.get()?.await()
+            if (querySnap == null || querySnap.isEmpty) {
+                Log.e("FirebaseRepository", "User not found for email $trimmedEmail, aborting entitlement update.")
+                return false
+            }
+
             val now = System.currentTimeMillis()
             val planId = planName.lowercase(java.util.Locale.ROOT).replace(" ", "_")
             val finalPurchaseId = purchaseId.ifBlank { "ASSIGNMENT_${validFrom}" }
             val finalStatus = if (isLifetime || validUntil > now) "ACTIVE" else "EXPIRED"
 
             val entData = mapOf(
-                "userId" to sanitizedEmailDocId,
                 "planId" to planId,
                 "planName" to planName,
                 "status" to finalStatus,
@@ -347,7 +352,6 @@ class FirebaseRepository {
             )
 
             val historyData = mapOf(
-                "userId" to sanitizedEmailDocId,
                 "userEmail" to trimmedEmail,
                 "eventType" to if (source == "GOOGLE_PLAY") "PURCHASED" else if (planName.equals("Free Plan", ignoreCase = true)) "FREE_PLAN_ASSIGNED" else "MANUALLY_ASSIGNED",
                 "newPlan" to planName,
@@ -361,31 +365,17 @@ class FirebaseRepository {
                 "timestamp" to now
             )
 
-            // 1. Write to sanitizedEmailDocId subcollection and main doc
-            firestore?.collection("users")?.document(sanitizedEmailDocId)
-                ?.collection("entitlements")?.document("current")?.set(entData, SetOptions.merge())?.await()
-            firestore?.collection("users")?.document(sanitizedEmailDocId)
-                ?.collection("entitlement_history")?.document(now.toString())?.set(historyData)?.await()
-            firestore?.collection("users")?.document(sanitizedEmailDocId)
-                ?.set(userDocUpdates, SetOptions.merge())?.await()
-
-            // 2. Also search for any user doc with matching email (e.g. auth UID) and update those
-            try {
-                val querySnap = firestore?.collection("users")?.whereEqualTo("email", trimmedEmail)?.get()?.await()
-                if (querySnap != null) {
-                    for (doc in querySnap.documents) {
-                        if (doc.id != sanitizedEmailDocId) {
-                            firestore?.collection("users")?.document(doc.id)
-                                ?.collection("entitlements")?.document("current")?.set(entData.plus("userId" to doc.id), SetOptions.merge())?.await()
-                            firestore?.collection("users")?.document(doc.id)
-                                ?.collection("entitlement_history")?.document(now.toString())?.set(historyData.plus("userId" to doc.id))?.await()
-                            firestore?.collection("users")?.document(doc.id)
-                                ?.set(userDocUpdates, SetOptions.merge())?.await()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("FirebaseRepository", "Could not query extra user docs by email during saveUserEntitlement", e)
+            // Update only the found user document(s)
+            for (doc in querySnap.documents) {
+                val targetUid = doc.id
+                firestore?.collection("users")?.document(targetUid)
+                    ?.collection("entitlements")?.document("current")?.set(entData.plus("userId" to targetUid), SetOptions.merge())?.await()
+                firestore?.collection("users")?.document(targetUid)
+                    ?.collection("entitlement_history")?.document(now.toString())?.set(historyData.plus("userId" to targetUid))?.await()
+                firestore?.collection("users")?.document(targetUid)
+                    ?.set(userDocUpdates, SetOptions.merge())?.await()
+                
+                Log.i("FirebaseRepository", "Successfully updated entitlement for user $trimmedEmail (UID: $targetUid)")
             }
 
             true
@@ -473,47 +463,54 @@ class FirebaseRepository {
         }
     }
 
-    suspend fun saveQuestionProgress(email: String, progress: QuestionProgressEntity) {
+    suspend fun saveUserQuestionState(email: String, state: UserQuestionStateEntity) {
         try {
             val docId = getSanitizedUserDocId(email)
             val map = mapOf(
-                "questionId" to progress.questionId,
-                "firstAttemptCorrect" to progress.firstAttemptCorrect,
-                "everGotWrong" to progress.everGotWrong,
-                "totalCorrectDays" to progress.totalCorrectDays,
-                "lastAttemptDateStr" to progress.lastAttemptDateStr,
-                "isMastered" to progress.isMastered,
-                "updatedAt" to System.currentTimeMillis()
+                "userId" to state.userId,
+                "questionId" to state.questionId,
+                "isBookmarked" to state.isBookmarked,
+                "isLiked" to state.isLiked,
+                "isHidden" to state.isHidden,
+                "isMastered" to state.isMastered,
+                "everGotWrong" to state.everGotWrong,
+                "incorrectCount" to state.incorrectCount,
+                "totalAttempts" to state.totalAttempts,
+                "lastUpdated" to System.currentTimeMillis()
             )
             firestore?.collection("users")?.document(docId)
-                ?.collection("question_progress")?.document(progress.questionId.toString())
+                ?.collection("user_question_states")?.document(state.questionId)
                 ?.set(map, SetOptions.merge())?.await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving question progress to Firebase", e)
+            Log.e("FirebaseRepository", "Error saving user question state to Firebase", e)
         }
     }
 
-    suspend fun fetchQuestionProgressList(email: String): List<QuestionProgressEntity> {
+    suspend fun fetchUserQuestionStateList(email: String): List<UserQuestionStateEntity> {
         return try {
             val docId = getSanitizedUserDocId(email)
             val snapshot = firestore?.collection("users")?.document(docId)
-                ?.collection("question_progress")?.get()?.await()
+                ?.collection("user_question_states")?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
                 try {
-                    QuestionProgressEntity(
-                        questionId = doc.getLong("questionId") ?: 0L,
-                        firstAttemptCorrect = doc.getBoolean("firstAttemptCorrect"),
+                    UserQuestionStateEntity(
+                        userId = doc.getString("userId") ?: "",
+                        questionId = doc.getString("questionId") ?: "",
+                        isBookmarked = doc.getBoolean("isBookmarked") ?: false,
+                        isLiked = doc.getBoolean("isLiked") ?: false,
+                        isHidden = doc.getBoolean("isHidden") ?: false,
+                        isMastered = doc.getBoolean("isMastered") ?: false,
                         everGotWrong = doc.getBoolean("everGotWrong") ?: false,
-                        totalCorrectDays = doc.getLong("totalCorrectDays")?.toInt() ?: 0,
-                        lastAttemptDateStr = doc.getString("lastAttemptDateStr") ?: "",
-                        isMastered = doc.getBoolean("isMastered") ?: false
+                        incorrectCount = doc.getLong("incorrectCount")?.toInt() ?: 0,
+                        totalAttempts = doc.getLong("totalAttempts")?.toInt() ?: 0,
+                        lastUpdated = doc.getLong("lastUpdated") ?: 0L
                     )
                 } catch (e: Exception) { null }
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching question progress from Firebase", e)
+            Log.e("FirebaseRepository", "Error fetching user question states", e)
             emptyList()
         }
     }
@@ -536,9 +533,6 @@ class FirebaseRepository {
         "correctOptionIndex" to q.correctOptionIndex,
         "explanationEn" to q.explanationEn,
         "explanationAs" to q.explanationAs,
-        "isBookmarked" to q.isBookmarked,
-        "isLiked" to q.isLiked,
-        "isHidden" to q.isHidden,
         "examCategory" to q.examCategory,
         "isPremium" to q.isPremium,
         "questionType" to q.questionType,
@@ -991,9 +985,6 @@ class FirebaseRepository {
                         correctOptionIndex = doc.getLong("correctOptionIndex")?.toInt() ?: 0,
                         explanationEn = doc.getString("explanationEn") ?: "",
                         explanationAs = doc.getString("explanationAs") ?: "",
-                        isBookmarked = doc.getBoolean("isBookmarked") ?: false,
-                        isLiked = doc.getBoolean("isLiked") ?: false,
-                        isHidden = doc.getBoolean("isHidden") ?: false,
                         examCategory = doc.getString("examCategory") ?: "ADRE",
                         isPremium = doc.getBoolean("isPremium") ?: false,
                         questionType = doc.getString("questionType") ?: "Expected",
@@ -1147,9 +1138,6 @@ class FirebaseRepository {
                                         correctOptionIndex = doc.getLong("correctOptionIndex")?.toInt() ?: 0,
                                         explanationEn = doc.getString("explanationEn") ?: "",
                                         explanationAs = doc.getString("explanationAs") ?: "",
-                                        isBookmarked = doc.getBoolean("isBookmarked") ?: false,
-                                        isLiked = doc.getBoolean("isLiked") ?: false,
-                                        isHidden = doc.getBoolean("isHidden") ?: false,
                                         examCategory = doc.getString("examCategory") ?: "ADRE",
                                         isPremium = doc.getBoolean("isPremium") ?: false,
                                         questionType = doc.getString("questionType") ?: "Expected",

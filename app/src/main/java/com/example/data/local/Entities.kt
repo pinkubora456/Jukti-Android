@@ -22,13 +22,11 @@ data class QuestionEntity(
     val correctOptionIndex: Int,  // 0, 1, 2, 3
     val explanationEn: String,
     val explanationAs: String,
-    val isBookmarked: Boolean = false,
-    val isLiked: Boolean = false,
-    val isHidden: Boolean = false,
     val examCategory: String = "ADRE", // e.g. "ADRE", "APSC", "Assam Police", "TET"
     val isPremium: Boolean = false,
     val questionType: String = "Expected", // "PYQ", "Expected"
     val isReported: Boolean = false,
+    val status: String = "ACTIVE", // "ACTIVE", "HIDDEN"
     val cachedAt: Long = System.currentTimeMillis(),
     val lastAccessedAt: Long = System.currentTimeMillis(),
     val version: Int = 1,
@@ -63,6 +61,21 @@ data class MockTestEntity(
     val timeRemainingSeconds: Int = 0,
     val questionIds: String = "",
     val markPerQuestion: Float = 1f
+)
+
+@Entity(tableName = "mock_attempts")
+data class MockAttemptEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val mockTestId: Long,
+    val userId: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val questionIds: String, // Comma-separated list of question IDs
+    val userAnswersJson: String, // JSON mapping of index to option
+    val score: Int,
+    val totalMarks: Int,
+    val accuracy: Float,
+    val correctCount: Int,
+    val totalAttempted: Int
 )
 
 @Entity(tableName = "study_notes")
@@ -306,17 +319,6 @@ data class FaqEntity(
     val answerAs: String = ""
 )
 
-@Entity(tableName = "question_progress")
-data class QuestionProgressEntity(
-    @PrimaryKey val questionId: Long,
-    val firstAttemptCorrect: Boolean? = null,
-    val everGotWrong: Boolean = false,
-    val totalCorrectDays: Int = 0,
-    val lastAttemptDateStr: String = "",
-    val isMastered: Boolean = false
-)
-
-
 @Entity(tableName = "activity_logs")
 data class ActivityLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -386,4 +388,24 @@ data class EntitlementHistoryEntity(
     val actor: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
+
+@Entity(
+    tableName = "user_question_states",
+    primaryKeys = ["userId", "questionId"]
+)
+data class UserQuestionStateEntity(
+    val userId: String,
+    val questionId: String,
+    val isBookmarked: Boolean = false,
+    val isLiked: Boolean = false,
+    val isHidden: Boolean = false,
+    val isMastered: Boolean = false,
+    val everGotWrong: Boolean = false,
+    val incorrectCount: Int = 0,
+    val totalAttempts: Int = 0,
+    val firstAttemptCorrect: Boolean? = null,
+    val lastUpdatedDateStr: String = "",
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+
 

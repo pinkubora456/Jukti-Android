@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
     entities = [
         QuestionEntity::class,
         MockTestEntity::class,
+        MockAttemptEntity::class,
+        UserQuestionStateEntity::class,
         StudyNoteEntity::class,
         ExamUpdateEntity::class,
         BannerEntity::class,
@@ -26,19 +28,20 @@ import kotlinx.coroutines.launch
         SubjectChapterEntity::class,
         PendingRequestEntity::class,
         FaqEntity::class,
-        QuestionProgressEntity::class,
         ActivityLogEntity::class,
         SyncQueueEntity::class,
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 33,
+    version = 35,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
 
     abstract fun questionDao(): QuestionDao
     abstract fun mockTestDao(): MockTestDao
+    abstract fun mockAttemptDao(): MockAttemptDao
+    abstract fun userQuestionStateDao(): UserQuestionStateDao
     abstract fun studyNoteDao(): StudyNoteDao
     abstract fun examUpdateDao(): ExamUpdateDao
     abstract fun bannerDao(): BannerDao
@@ -51,7 +54,6 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun subjectChapterDao(): SubjectChapterDao
     abstract fun pendingRequestDao(): PendingRequestDao
     abstract fun faqDao(): FaqDao
-    abstract fun questionProgressDao(): QuestionProgressDao
     abstract fun activityLogDao(): ActivityLogDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun entitlementDao(): EntitlementDao
@@ -145,6 +147,18 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `mock_attempts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mockTestId` INTEGER NOT NULL, `userId` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `questionIds` TEXT NOT NULL, `userAnswersJson` TEXT NOT NULL, `score` INTEGER NOT NULL, `totalMarks` INTEGER NOT NULL, `accuracy` REAL NOT NULL, `correctCount` INTEGER NOT NULL, `totalAttempted` INTEGER NOT NULL)")
+            }
+        }
+
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `user_question_states` (`userId` TEXT NOT NULL, `questionId` TEXT NOT NULL, `isBookmarked` INTEGER NOT NULL DEFAULT 0, `isLiked` INTEGER NOT NULL DEFAULT 0, `isHidden` INTEGER NOT NULL DEFAULT 0, `isMastered` INTEGER NOT NULL DEFAULT 0, `everGotWrong` INTEGER NOT NULL DEFAULT 0, `incorrectCount` INTEGER NOT NULL DEFAULT 0, `totalAttempts` INTEGER NOT NULL DEFAULT 0, `firstAttemptCorrect` INTEGER, `lastUpdatedDateStr` TEXT NOT NULL DEFAULT '', `lastUpdated` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`userId`, `questionId`))")
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -152,7 +166,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

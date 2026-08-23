@@ -1,0 +1,49 @@
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:42:fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:54:    val visibleQuestions = remember(allQuestions, hiddenIds, isSmartPractice, smartPracticeQuestions) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:55:        val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:56:        baseList.filter { !it.isHidden && it.id !in hiddenIds }.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:130:    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:173:    LaunchedEffect(isSmartPractice, smartPracticeQuestions.size) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:174:        if (isSmartPractice) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:189:            if (isSmartPractice) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:205:            if (isSmartPractice) "Your personalized practice session" else {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:221:                if (isSessionStarted && !isSmartPractice) {
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:513:                isSmartPractice = isSmartPractice
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:1107:    isSmartPractice: Boolean = false
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:1136:            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary",
+app/src/main/java/com/example/ui/screens/StudyNotesScreen.kt:287:                        text = "• Saved Offline",
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:52:    var showSavedQuestionsDialog by remember { mutableStateOf(false) }
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:182:            // Saved Questions
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:186:                    .clickable { showSavedQuestionsDialog = true }
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:214:                        Text("Saved Questions", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:593:    // Dialog 4: Saved Questions Viewer
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:594:    if (showSavedQuestionsDialog) {
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:595:        SavedQuestionsDialog(
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:598:            onDismiss = { showSavedQuestionsDialog = false },
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:767:fun SavedQuestionsDialog(
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:780:                    "Saved Questions (${questions.size})",
+app/src/main/java/com/example/ui/screens/TermsConditionsScreen.kt:212:                            val confirmText = if (success) "Terms & Conditions saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:95:                onLocalSaved = { localPath ->
+app/src/main/java/com/example/ui/screens/PrivacyPolicyScreen.kt:215:                            val confirmText = if (success) "Privacy Policy saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:103:                onLocalSaved = { localPath ->
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:225:                                val confirmText = if (success) "Contact details saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:415:                var showSavedQuestionsDialog by remember { mutableStateOf(false) }
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:486:                    // 4. Saved Questions
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:487:                    if (searchQuery.isBlank() || "Saved Questions".contains(searchQuery, ignoreCase = true) || "Review and manage your bookmarked MCQs".contains(searchQuery, ignoreCase = true)) {
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:489:                            title = "Saved Questions",
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:491:                            actionText = "Review Saved",
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:495:                            onClick = { showSavedQuestionsDialog = true },
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:497:                            badgeText = "📌 Saved"
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:533:                if (showSavedQuestionsDialog) {
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:534:                    SavedQuestionsDialog(
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:537:                        onDismiss = { showSavedQuestionsDialog = false },
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:381:                        val confirmText = if (success) "About section saved & synced to Firebase!" else "Saved locally. Firebase sync queued: $msg"
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1617:        onLocalSaved: (String) -> Unit,
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1628:                    onLocalSaved(localPath)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2639:                    "Saved $filename to Downloads folder!",
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:180:            val isSaved = q.isBookmarked || q.isLiked
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:182:            isIncorrect || isSaved || isNotMastered
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:441:            Pair(false, "⚠️ Saved locally. Firebase upload failed: $errorMsg\n\nWe will retry automatically.")
+app/src/main/java/com/example/data/local/Daos.kt:22:    fun getSmartPracticeQuestions(): Flow<List<QuestionEntity>>
+app/src/main/java/com/example/data/local/Daos.kt:80:    fun getSavedNotes(): Flow<List<StudyNoteEntity>>
+app/src/main/java/com/example/MainActivity.kt:165:                                Screen.SMART_PRACTICE -> PracticeScreen(viewModel, isSmartPractice = true)

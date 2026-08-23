@@ -395,7 +395,7 @@ export const toggleUserBlockState = functions.https.onCall(async (data, context)
 
 // 6. Trusted User Deletion
 export const deleteUserCompletely = functions.https.onCall(async (data, context) => {
-  await requireOwner(context);
+  await requireAdminOrOwner(context);
 
   const { targetUid } = data;
   if (!targetUid) {

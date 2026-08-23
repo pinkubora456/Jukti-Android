@@ -278,7 +278,11 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.questions.collectAsState()
     val mockTests by viewModel.mockTests.collectAsState()
     val studyNotes by viewModel.studyNotes.collectAsState()
+    val hiddenIds by viewModel.hiddenIds.collectAsState()
+    
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
+    
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -493,7 +497,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             iconTintColor = MaterialTheme.colorScheme.primary,
                             onClick = { showSavedQuestionsDialog = true },
-                            progressText = "${bookmarkedQuestions.size} questions saved",
+                            progressText = "${bookmarkedIds.size} questions saved",
                             badgeText = "📌 Saved"
                         )
                     }
@@ -698,6 +702,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val hiddenIds by viewModel.hiddenIds.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -752,11 +758,11 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     var activeStudySessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
     var lastStudyStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
 
-    LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters) {
+    LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters, hiddenIds) {
         if (isStudySessionStarted) {
             val filtered = questions.filter { q ->
                 try {
-                    if (q.isHidden) return@filter false
+                    if (q.id in hiddenIds) return@filter false
                     val matchSubject = when (selectedSubjectTab) {
                         "All Subject", "All Subjects" -> true
                         "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
@@ -821,7 +827,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         }
     }
 
-    val studyQuestionsList = if (isStudySessionStarted && activeStudySessionQuestions.isNotEmpty()) activeStudySessionQuestions else questions.filter { !it.isHidden }
+    val studyQuestionsList = if (isStudySessionStarted && activeStudySessionQuestions.isNotEmpty()) activeStudySessionQuestions else questions.filter { !hiddenIds.contains(it.id) }
 
     var showHideNotice by remember { mutableStateOf(false) }
 
@@ -981,13 +987,13 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
 
                     val totalCount = remember(questions, banner.subjectKey) {
                         when (banner.subjectKey) {
-                            "All Subject", "All Subjects" -> questions.count { !it.isHidden }
-                            "General Knowledge" -> questions.count { !it.isHidden && it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            "General English" -> questions.count { !it.isHidden && it.subject == "General English" }
-                            "General Mathematics" -> questions.count { !it.isHidden && it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                            "Reasoning" -> questions.count { !it.isHidden && it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
-                            "Transport Rule" -> questions.count { !it.isHidden && (it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true)) }
-                            else -> questions.count { !it.isHidden && it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                            "All Subject", "All Subjects" -> questions.count { !hiddenIds.contains(it.id) }
+                            "General Knowledge" -> questions.count { !hiddenIds.contains(it.id) && it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                            "General English" -> questions.count { !hiddenIds.contains(it.id) && it.subject == "General English" }
+                            "General Mathematics" -> questions.count { !hiddenIds.contains(it.id) && it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
+                            "Reasoning" -> questions.count { !hiddenIds.contains(it.id) && it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            "Transport Rule" -> questions.count { !hiddenIds.contains(it.id) && (it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true)) }
+                            else -> questions.count { !hiddenIds.contains(it.id) && it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
                     }
 
@@ -1184,9 +1190,9 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             }
                             IconButton(onClick = { viewModel.toggleBookmarkQuestion(currentQuestion) }) {
                                 Icon(
-                                    imageVector = if (currentQuestion.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                    imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                     contentDescription = "Bookmark",
-                                    tint = if (currentQuestion.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             IconButton(onClick = {
@@ -1556,6 +1562,8 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.questions.collectAsState()
+    val hiddenIds by viewModel.hiddenIds.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -1567,7 +1575,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     var showReportDialog by remember { mutableStateOf(false) }
 
     val activeQuestions = remember(questions, activePracticeMode) {
-        val nonHidden = questions.filter { !it.isHidden }
+        val nonHidden = questions.filter { !hiddenIds.contains(it.id) }
         if (activePracticeMode == "Shuffle") nonHidden.shuffled() else nonHidden
     }
 
@@ -1716,9 +1724,9 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             }
                             IconButton(onClick = { viewModel.toggleBookmarkQuestion(currentQuestion) }) {
                                 Icon(
-                                    imageVector = if (currentQuestion.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                    imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                     contentDescription = "Bookmark",
-                                    tint = if (currentQuestion.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             IconButton(onClick = {
@@ -2023,6 +2031,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
 @Composable
 fun ExamPatternAndCutoffTab(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -2209,6 +2218,7 @@ fun AssamPoliceExamPatternCard(isAssamese: Boolean) {
 fun QuestionStudyCard(
     question: QuestionEntity,
     language: AppLanguage,
+    bookmarkedIds: Set<Long>,
     onBookmarkToggle: () -> Unit,
     onLikeToggle: () -> Unit,
     onReportClick: () -> Unit,
@@ -2253,9 +2263,9 @@ fun QuestionStudyCard(
                     }
                     IconButton(onClick = onBookmarkToggle) {
                         Icon(
-                            imageVector = if (question.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            imageVector = if (question.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = "Bookmark",
-                            tint = if (question.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (question.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     if (onHideClick != null) {
@@ -2347,6 +2357,7 @@ fun TetExamPatternCard(isAssamese: Boolean) {
 @Composable
 fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val allNotes by viewModel.studyNotes.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -2405,9 +2416,9 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     IconButton(onClick = { viewModel.toggleBookmarkNote(note) }) {
                         Icon(
-                            imageVector = if (note.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            imageVector = if (note.id in bookmarkedIds) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Bookmark",
-                            tint = if (note.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (note.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -2604,9 +2615,9 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
 
                                 IconButton(onClick = { viewModel.toggleBookmarkNote(note) }) {
                                     Icon(
-                                        imageVector = if (note.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                        imageVector = if (note.id in bookmarkedIds) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                         contentDescription = "Bookmark",
-                                        tint = if (note.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = if (note.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

@@ -51,6 +51,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
     val mockTest by viewModel.selectedMockTest.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val userAnswers by viewModel.mockUserAnswers.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
+    val likedIds by viewModel.likedIds.collectAsState()
     val context = LocalContext.current
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = Summary Scorecard, 1 = Question Analysis
@@ -59,7 +61,15 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
     var showPaletteGrid by remember { mutableStateOf(false) }
 
     val activeQuestions = remember(questions, mockTest) {
-        questions.take(mockTest?.totalQuestions ?: 10)
+        val currentMockTest = mockTest
+        if (currentMockTest == null || currentMockTest.questionIds.isEmpty()) {
+            questions.take(currentMockTest?.totalQuestions ?: 10)
+        } else {
+            val ids = currentMockTest.questionIds.split(",").mapNotNull { it.toLongOrNull() }
+            // Filter questions based on IDs and keep the order
+            val idToQuestion = questions.associateBy { it.id }
+            ids.mapNotNull { idToQuestion[it] }
+        }
     }
 
     val correctCount = remember(activeQuestions, userAnswers) {
@@ -591,6 +601,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 userChoice = userChoice,
                                 analysisLanguage = analysisLanguage,
                                 appLanguage = language,
+                                bookmarkedIds = bookmarkedIds,
+                                likedIds = likedIds,
                                 onBookmarkToggle = { viewModel.toggleBookmarkQuestion(question) },
                                 onLikeToggle = { viewModel.toggleLikeQuestion(question) }
                             )
@@ -612,12 +624,16 @@ fun QuestionAnalysisCard(
     userChoice: Int?,
     analysisLanguage: AppLanguage,
     appLanguage: AppLanguage,
+    bookmarkedIds: Set<Long>,
+    likedIds: Set<Long>,
     onBookmarkToggle: () -> Unit,
     onLikeToggle: () -> Unit
 ) {
     val isCorrect = userChoice == question.correctOptionIndex
     val isIncorrect = userChoice != null && userChoice != question.correctOptionIndex
     val isSkipped = userChoice == null
+    val isBookmarked = question.id in bookmarkedIds
+    val isLiked = question.id in likedIds
 
     val statusContainerColor = when {
         isCorrect -> Color(0xFFE8F5E9)
@@ -893,9 +909,9 @@ fun QuestionAnalysisCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(onClick = onBookmarkToggle) {
                         Icon(
-                            imageVector = if (question.isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            imageVector = if (question.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = "Bookmark",
-                            tint = if (question.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (question.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -903,7 +919,7 @@ fun QuestionAnalysisCard(
                         Icon(
                             imageVector = Icons.Outlined.ThumbUp,
                             contentDescription = "Like",
-                            tint = if (question.isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }

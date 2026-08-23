@@ -27,6 +27,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val questions by viewModel.questions.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val notes by viewModel.studyNotes.collectAsState()
     val mockTests by viewModel.mockTests.collectAsState()
     val examUpdates by viewModel.examUpdates.collectAsState()
@@ -106,6 +107,7 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                         QuestionStudyCard(
                             question = q,
                             language = language,
+                            bookmarkedIds = bookmarkedIds,
                             onBookmarkToggle = { viewModel.toggleBookmarkQuestion(q) },
                             onLikeToggle = { viewModel.toggleLikeQuestion(q) },
                             onReportClick = { viewModel.reportQuestion(q); android.widget.Toast.makeText(context, "Question reported successfully", android.widget.Toast.LENGTH_SHORT).show() }

@@ -1,0 +1,379 @@
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:54:        var resetEmail by remember { mutableStateOf(emailInput) }
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:55:        var resetMessage by remember { mutableStateOf<String?>(null) }
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:64:                    if (resetMessage != null) {
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:66:                            text = resetMessage!!,
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:71:                        Text("Enter your registered email address to receive a password reset link.")
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:74:                            value = resetEmail,
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:75:                            onValueChange = { resetEmail = it },
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:89:                            val trimmed = resetEmail.trim()
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:91:                                resetMessage = "Please enter a valid email address."
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:96:                            resetMessage = null
+app/src/main/java/com/example/ui/screens/AuthScreen.kt:100:                                resetMessage = msg
+app/src/main/java/com/example/ui/screens/PremiumPlansScreen.kt:76:            billingManager.clearVerificationInfo()
+app/src/main/java/com/example/ui/screens/ManageAdminScreen.kt:223:                                        onClick = { viewModel.removeAdminEmail(adminEmail) }
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:458:                        set.remove("One-Word & Idiom")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:459:                        set.remove("One-Word & Idiom/Phrase")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:460:                        set.remove("Idioms, Phrases & One-Word Substitution")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:461:                        set.remove("Idioms & Phrases")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:462:                        set.remove("One-Word Substitution")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:463:                        set.remove("One Word Substitution")
+app/src/main/java/com/example/ui/screens/PracticeScreen.kt:496:                            userAnswers.clear()
+app/src/main/java/com/example/ui/screens/OwnerDashboardScreen.kt:120:                description = "View, block or delete users, change plans",
+app/src/main/java/com/example/ui/screens/OwnerDashboardScreen.kt:127:                description = "Add or remove admin privileges",
+app/src/main/java/com/example/ui/screens/StudyNotesScreen.kt:180:                    message = "Try clearing your search query or filters",
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:343:                    .testTag("settings_clear_progress_card"),
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:459:                    .testTag("settings_delete_account_card"),
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:494:                            "Permanently delete user profile, scores, and all saved data",
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:522:                    "This will reset all your progress statistics including speed, accuracy, questions solved, and leaderboard rank. Your account profile and saved questions will be kept safe. Are you sure you want to proceed?"
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:528:                        viewModel.clearUserProgressData()
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:557:                    "This action is permanent and irreversible. Your user account, progress records, test history, and all personal data will be completely deleted. Are you sure you want to proceed?"
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:564:                        viewModel.deleteAccount()
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:582:            onDismissRequest = { viewModel.clearRefreshStatusMessage() },
+app/src/main/java/com/example/ui/screens/SettingsScreen.kt:586:                Button(onClick = { viewModel.clearRefreshStatusMessage() }) {
+app/src/main/java/com/example/ui/screens/TermsConditionsScreen.kt:57:• Cancellation Rules: Users may cancel active study plan subscriptions or clear app data anytime via the Profile or Settings screen.
+app/src/main/java/com/example/ui/screens/ProfileScreen.kt:326:                        selectedGoals.clear()
+app/src/main/java/com/example/ui/screens/ProfileScreen.kt:348:                selectedGoals.clear()
+app/src/main/java/com/example/ui/screens/StorageManagementScreen.kt:30:            Button(onClick = { viewModel.clearOldActivityLogs(context) }) {
+app/src/main/java/com/example/ui/screens/StorageManagementScreen.kt:40:            Button(onClick = { viewModel.clearCacheFiles(context) }) {
+app/src/main/java/com/example/ui/screens/ManagePlanScreen.kt:156:                    onDelete = { viewModel.deletePlan(plan) },
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:51:data class PresetImage(val name: String, val url: String)
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:115:    val presetImages = listOf(
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:116:        PresetImage("None", ""),
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:117:        PresetImage("Pass Pro", "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop"),
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:118:        PresetImage("Live Quiz", "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=500&auto=format&fit=crop"),
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:119:        PresetImage("Mock Test", "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop"),
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:120:        PresetImage("Announcement", "https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=500&auto=format&fit=crop")
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:123:    fun clearForm() {
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:186:                                clearForm()
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:238:                            IconButton(onClick = { clearForm() }) {
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:528:                                    text = "Or choose a preset theme banner:",
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:533:                                // Preset Banners Row
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:538:                                    items(presetImages) { preset ->
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:539:                                        val isSelected = imageUrl == preset.url
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:551:                                                .clickable { imageUrl = preset.url }
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:557:                                                if (preset.url.isNotEmpty()) {
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:559:                                                        model = preset.url,
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:560:                                                        contentDescription = preset.name,
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:578:                                                    text = preset.name,
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:654:                                    clearForm()
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:731:                                viewModel.deleteBanner(banner)
+app/src/main/java/com/example/ui/screens/ManageBannersScreen.kt:923:                    modifier = Modifier.testTag("delete_banner_${banner.id}")
+app/src/main/java/com/example/ui/screens/PrivacyPolicyScreen.kt:61:We retain your personal profile and academic progress data as long as your account remains active. If you initiate an account deletion, your personal data and associated progress records are permanently cleared from local and cloud databases.
+app/src/main/java/com/example/ui/screens/PrivacyPolicyScreen.kt:64:You have full control over your data. You can clear your speed and accuracy progress data or permanently delete your user account directly from the App Settings screen at any time.
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:50:    var selectedValidityPreset by remember { mutableStateOf("1 Month") }
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:528:                    selectedPreset = selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:529:                    onPresetChange = { selectedValidityPreset = it },
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:855:                                        featuresList.removeAt(index) 
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:857:                                            contentsList.removeAt(index)
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:982:                            selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:987:                            selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:1167:                    selectedExams.clear()
+app/src/main/java/com/example/ui/screens/CreatePlanScreen.kt:1185:                            selectedExams.remove(option)
+app/src/main/java/com/example/ui/screens/ManageExamsScreen.kt:64:                        onDelete = { viewModel.deleteExam(exam) },
+app/src/main/java/com/example/ui/screens/AllQuestionsScreen.kt:208:                                            onClick = { viewModel.deleteQuestion(question) },
+app/src/main/java/com/example/ui/screens/ManageSubjectsChaptersScreen.kt:124:                                IconButton(onClick = { viewModel.deleteSubjectChapter(item) }) {
+app/src/main/java/com/example/ui/screens/ManageNotificationsScreen.kt:205:                            onDelete = { viewModel.deleteNotification(item) }
+app/src/main/java/com/example/ui/screens/ManageNotificationsScreen.kt:256:                                    viewModel.deleteNotificationCategory(cat)
+app/src/main/java/com/example/ui/screens/ManageNotificationsScreen.kt:325:                modifier = Modifier.testTag("delete_notif_${notification.id}")
+app/src/main/java/com/example/ui/screens/FaqScreen.kt:336:            text = { Text("Are you sure you want to delete this FAQ?") },
+app/src/main/java/com/example/ui/screens/FaqScreen.kt:340:                        viewModel.deleteFaq(faqToDelete!!)
+app/src/main/java/com/example/ui/screens/FaqScreen.kt:341:                        android.widget.Toast.makeText(context, "FAQ deleted", android.widget.Toast.LENGTH_SHORT).show()
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:330:            text = { Text("Are you sure you want to delete this FAQ?") },
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:334:                        viewModel.deleteFaq(faqToDelete!!)
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:335:                        android.widget.Toast.makeText(context, "FAQ deleted", android.widget.Toast.LENGTH_SHORT).show()
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:339:                    modifier = Modifier.testTag("confirm_delete_faq_btn")
+app/src/main/java/com/example/ui/screens/ContactUsScreen.kt:437:                            modifier = Modifier.testTag("delete_faq_item_btn")
+app/src/main/java/com/example/ui/screens/ManageStudyNotesScreen.kt:131:                                    IconButton(onClick = { viewModel.deleteStudyNote(note) }) {
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:973:                        set.remove("One-Word & Idiom")
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:974:                        set.remove("One-Word & Idiom/Phrase")
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:975:                        set.remove("Idioms, Phrases & One-Word Substitution")
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:976:                        set.remove("Idioms & Phrases")
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:977:                        set.remove("One-Word Substitution")
+app/src/main/java/com/example/ui/screens/McqStudyScreen.kt:978:                        set.remove("One Word Substitution")
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:110:                            onDelete = { viewModel.deletePlan(plan) }
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:206:    val initialPreset = remember(plan) {
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:207:        PlanValidityHelper.detectPreset(plan.planValidity, plan.validityType, plan.validityValue, plan.isLifetime)
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:209:    var selectedValidityPreset by remember { mutableStateOf(initialPreset.first) }
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:210:    var customValidityNumber by remember { mutableStateOf(initialPreset.second) }
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:211:    var customValidityUnit by remember { mutableStateOf(initialPreset.third) }
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:376:                    selectedPreset = selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:377:                    onPresetChange = { selectedValidityPreset = it },
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:418:                        IconButton(onClick = { benefits.removeAt(index) }) {
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:437:                    selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/EditPlanScreen.kt:442:                    selectedValidityPreset,
+app/src/main/java/com/example/ui/screens/ManageExamPatternCutoffScreen.kt:435:                                            viewModel.deleteExamUpdate(item)
+app/src/main/java/com/example/ui/screens/ManageExamPatternCutoffScreen.kt:438:                                        modifier = Modifier.testTag("delete_update_${item.id}")
+app/src/main/java/com/example/ui/screens/ManageUserLogScreen.kt:78:        mockUsers.clear()
+app/src/main/java/com/example/ui/screens/ManageUserLogScreen.kt:141:                                        mockUsers.removeAll { it.id == user.id }
+app/src/main/java/com/example/ui/screens/ManageUserLogScreen.kt:381:            text = { Text("Are you sure you want to delete ${user.name}? This action cannot be undone.") },
+app/src/main/java/com/example/ui/screens/ManageUserLogScreen.kt:511:                    Text("Select validity preset or a custom date for ${user.name}:")
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:87:            selectedExams.clear()
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:96:            selectedQuestionIds.clear()
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:448:                                            if (isSelected) selectedQuestionIds.remove(q.id)
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:460:                                                selectedQuestionIds.remove(q.id)
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:532:                                    if (isSelected) selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/EditMockScreen.kt:544:                                        selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/MockTestsScreen.kt:309:                            message = "Try clearing your search query or filters",
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:306:                            text = "Learn about exam clearance probability and analytics",
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:617:                                        val path = logoIconName.removePrefix("custom_logo:")
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:774:                                    val path = founderPhotoUrl.removePrefix("custom_founder:")
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:922:                        text = "This is an automated in-app estimate calculated from your mock test scores, practice question accuracy, and daily study consistency. It is provided for personal practice tracking only and does NOT guarantee or predict that you will pass, clear, qualify, or fail any examination. Real exam results depend on multiple external factors, and Jukti is not responsible for official examination outcomes.",
+app/src/main/java/com/example/ui/screens/AboutScreen.kt:1006:                                val path = photoUrl.removePrefix("custom_founder:")
+app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt:155:                                        chapter = "" // reset chapter on subject change
+app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt:561:                                            selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt:575:                                            selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/BatchImportQuestionScreen.kt:217:                                        selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/BatchImportQuestionScreen.kt:231:                                        selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:520:                                        if (isSelected) selectedQuestionIds.remove(q.id)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:532:                                            selectedQuestionIds.remove(q.id)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:651:                                    if (isSelected) selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:663:                                        selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:1050:                                        qSelectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/CreateMockScreen.kt:1064:                                        qSelectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/screens/ManageCurrentAffairsScreen.kt:59:                    selectedExams.clear()
+app/src/main/java/com/example/ui/screens/ManageCurrentAffairsScreen.kt:110:                                        selectedExams.clear()
+app/src/main/java/com/example/ui/screens/ManageCurrentAffairsScreen.kt:120:                                    IconButton(onClick = { viewModel.deleteStudyNote(note) }) {
+app/src/main/java/com/example/ui/screens/ManageCurrentAffairsScreen.kt:229:                                                selectedExams.remove(exam.title)
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:23:    fun resolveValidity(preset: String, customNumber: String, customUnit: String): Triple<String, Int, Boolean> {
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:24:        return when (preset) {
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:43:    fun resolveLabel(preset: String, customNumber: String, customUnit: String): String {
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:44:        return when (preset) {
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:67:            else -> preset
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:71:    fun detectPreset(planValidity: String, validityType: String, validityValue: Int, isLifetime: Boolean): Triple<String, String, String> {
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:118:    selectedPreset: String,
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:119:    onPresetChange: (String) -> Unit,
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:126:    val resolvedLabel = PlanValidityHelper.resolveLabel(selectedPreset, customNumber, customUnit)
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:127:    val (resolvedType, resolvedValue, isLifetime) = PlanValidityHelper.resolveValidity(selectedPreset, customNumber, customUnit)
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:184:            // Presets grid/flow
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:190:                PlanValidityHelper.PRESETS.forEach { preset ->
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:191:                    val isSelected = selectedPreset == preset
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:194:                        onClick = { onPresetChange(preset) },
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:197:                                text = preset,
+app/src/main/java/com/example/ui/components/PlanValiditySelector.kt:220:            if (selectedPreset == "Custom") {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:232:    fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:234:            val res = repository.deleteSubjectChapter(subjectChapter)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:254:    fun deleteExam(exam: ExamEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:256:            val res = repository.deleteExam(exam)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:321:    fun clearRefreshStatusMessage() {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:403:    fun clearSyncToastMessage() {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:420:    fun clearSessionMessage() {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:480:    fun deleteNotificationCategory(category: NotificationCategoryEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:482:            repository.deleteNotificationCategory(category)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:532:    fun deleteFaq(faq: FaqEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:534:            val res = repository.deleteFaq(faq)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:576:            return false // Owner can NEVER be deleted or banned by anyone
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:731:            clearOldActivityLogs(getApplication())
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:800:    fun clearOldActivityLogs(context: android.content.Context) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:804:                repository.deleteOldAdminLogs(sevenDaysAgo)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:805:                repository.deleteOldOwnerLogs(sevenDaysAgo)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:806:                // We should also delete them from Firebase using SyncQueue, but since they are logs we can just delete from Firebase directly.
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:810:                    doc.reference.delete().await()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:816:                    doc.reference.delete().await()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:820:                    android.widget.Toast.makeText(context, "Storage cleared", android.widget.Toast.LENGTH_SHORT).show()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:832:    fun clearCacheFiles(context: android.content.Context) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:836:                cacheDir.deleteRecursively()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:838:                    android.widget.Toast.makeText(context, "Cache cleared", android.widget.Toast.LENGTH_SHORT).show()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:841:                android.util.Log.e("JuktiViewModel", "Cache clear failed", e)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:909:                navBackStack.clear()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:930:                navBackStack.clear()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:938:            val previous = navBackStack.removeAt(navBackStack.size - 1)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:946:            navBackStack.clear()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1114:    fun deleteMockTest(mock: MockTestEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1116:            val res = repository.deleteMockTest(mock)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1150:    fun deleteStudyNote(note: StudyNoteEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1152:            val res = repository.deleteStudyNote(note)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1442:                onResult(true, "Password reset email sent. Please check your inbox and follow the instructions to create a new password. If you don't see it, check your Spam or Junk folder.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1444:                Log.e("JuktiViewModel", "Password reset error", e)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1520:                    repository.clearUserEntitlements(key)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1557:                    repository.clearUserEntitlements(key)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1698:    fun clearUserProgressData() {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1700:            repository.resetUserProgress()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1704:    fun deleteAccount() {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1706:            repository.deleteAccount()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1711:            _sessionMessage.value = "Your account has been deleted and you have been logged out."
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1845:                current.clear()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1862:    fun deletePlan(plan: PlanEntity) { 
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1864:            val res = repository.deletePlan(plan)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1883:    fun deleteQuestion(question: QuestionEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1886:            val res = repository.deleteQuestion(question)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1927:    fun deleteNotification(notification: com.example.data.local.NotificationEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1929:            repository.deleteNotification(notification)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1947:    fun deleteExamUpdate(update: ExamUpdateEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1949:            val res = repository.deleteExamUpdate(update)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1985:    fun removeAdminEmail(email: String) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:1990:            _syncToastMessage.value = "This account is protected and cannot be deleted or banned."
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2012:    fun deleteBanner(banner: BannerEntity) {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2014:            val res = repository.deleteBanner(banner)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2046:    suspend fun deleteUserCompletely(userEmail: String, explicitUserId: String? = null): Boolean {
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2051:            Log.w("JuktiViewModel", "Attempted to delete Owner account $userEmail - REJECTED")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2056:            Log.w("JuktiViewModel", "Unauthorized delete attempt by $actorRole on $targetRole ($userEmail) - REJECTED")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2074:            functions.getHttpsCallable("deleteUserCompletely").call(data).await()
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2087:                repository.deleteQuestion(question)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2088:                onResult(true, "Question deleted successfully.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2095:                    description = "Request to delete question: \"${question.questionEn.take(60)}\" (${question.subject})",
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2111:                repository.deleteMockTest(mock)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2112:                onResult(true, "Mock test deleted successfully.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2119:                    description = "Request to delete mock test: \"${mock.titleEn}\" (${mock.category})",
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2137:            onResult(false, "This account is protected and cannot be deleted or banned.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2147:            val success = deleteUserCompletely(userEmail, userId)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2149:                onResult(true, "User $userName deleted successfully.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2151:                onResult(false, "Unable to delete the item. Please try again.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2161:            onResult(false, "This account is protected and cannot be deleted or banned.")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2297:                        if (qId != null) repository.deleteQuestionById(qId)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2301:                        if (mId != null) repository.deleteMockTestById(mId)
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2305:                        val name = parts.getOrNull(0) ?: request.title.removePrefix("Create Plan: ")
+app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt:2353:                            executeSuccess = deleteUserCompletely(userEmail)
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:29:            lower.contains("protected") || lower.contains("owner account") || lower.contains("cannot be deleted or banned") -> R.string.error_owner_protected
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:33:            lower.contains("delete failure") || lower.contains("unable to delete") || lower.contains("failed to delete") -> R.string.db_delete_failure
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:52:            "plan_deleted" -> context.getString(R.string.success_plan_deleted)
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:57:            "question_deleted" -> context.getString(R.string.success_question_deleted)
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:79:                    lower.contains("plan deleted") -> context.getString(R.string.success_plan_deleted)
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:80:                    lower.contains("user updated") || lower.contains("user blocked") || lower.contains("user deleted") || lower.contains("user role updated") -> context.getString(R.string.success_user_updated)
+app/src/main/java/com/example/ui/viewmodel/LocalMessageTranslator.kt:84:                    lower.contains("question deleted") -> context.getString(R.string.success_question_deleted)
+app/src/main/java/com/example/data/migration/AppVersionMigrationManager.kt:12: * Ensures future APK/AAB updates NEVER delete, reset, or recreate existing user data.
+app/src/main/java/com/example/data/migration/AppVersionMigrationManager.kt:75:                // DO NOT delete user data on failure.
+app/src/main/java/com/example/data/migration/AppVersionMigrationManager.kt:86:            diagnosticLogs.removeAt(0)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:465:                        subjectChapterDao.deleteSubjectChapter(sc)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:573:    suspend fun deleteQuestion(question: QuestionEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:574:        questionDao.deleteQuestion(question)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:655:    suspend fun deleteMockTest(mock: MockTestEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:656:        mockTestDao.deleteMockTest(mock)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:755:    suspend fun deleteStudyNote(note: StudyNoteEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:756:        studyNoteDao.deleteNote(note)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:773:    suspend fun deleteExamUpdate(update: ExamUpdateEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:774:        examUpdateDao.deleteUpdate(update)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:791:    suspend fun deleteBanner(banner: BannerEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:792:        bannerDao.deleteById(banner.id)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:793:        bannerDao.deleteBanner(banner)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:810:    suspend fun deleteNotification(notification: NotificationEntity) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:811:        notificationDao.deleteNotification(notification)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:815:    suspend fun deleteUserAccount(uid: String, email: String) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:816:        firebaseRepository.deleteUserAccount(uid, email)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:819:    suspend fun deleteAccount() {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:826:            firebaseRepository.deleteUserAccount(uid, email)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:827:            resetUserProgress()
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:855:    suspend fun clearUserEntitlements(userId: String) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:858:                entitlementDao.deleteEntitlement(userId)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:861:            android.util.Log.e("JuktiRepository", "Error clearing user entitlement", e)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:887:                entitlementDao.deleteEntitlement(uid)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:888:                entitlementDao.deleteEntitlement(docKey)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:896:                entitlementDao.deleteEntitlement(uid)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:897:                entitlementDao.deleteEntitlement(docKey)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:970:                    entitlementDao.deleteEntitlement(docKey)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:972:                        entitlementDao.deleteEntitlement(currentUid)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:976:                // DO NOT delete if local entitlement is still valid and not expired!
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:981:                    entitlementDao.deleteEntitlement(docKey)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:983:                        entitlementDao.deleteEntitlement(currentUid)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1109:    suspend fun deletePlan(plan: PlanEntity): Pair<Boolean, String> { 
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1111:            planDao.deletePlan(plan)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1126:    suspend fun deleteExam(exam: ExamEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1127:        return syncManager.deleteExam(exam)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1139:    suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1141:            subjectChapterDao.deleteSubjectChapter(subjectChapter)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1151:    suspend fun deleteNotificationCategory(category: NotificationCategoryEntity) = notificationCategoryDao.deleteNotificationCategory(category)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1166:    suspend fun deletePendingRequest(request: PendingRequestEntity) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1167:        pendingRequestDao.deleteRequest(request)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1171:    suspend fun deleteQuestionById(id: Long) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1174:            deleteQuestion(question)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1176:            firebaseRepository.deleteQuestion(id)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1177:            questionDao.deleteQuestionById(id)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1181:    suspend fun resetUserProgress() {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1184:            val resetProfile = currentProfile.copy(
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1192:            userProfileDao.insertOrUpdateProfile(resetProfile)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1193:            firebaseRepository.saveUserProfile(resetProfile, merge = true)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1197:        val resetMocks = allMocks.map { 
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1206:        resetMocks.forEach { mockTestDao.updateMockTest(it) }
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1209:    suspend fun deleteMockTestById(id: Long) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1212:            deleteMockTest(test)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1214:            firebaseRepository.deleteMockTest(id)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1231:    suspend fun deleteFaq(faq: FaqEntity): Pair<Boolean, String> {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1232:        faqDao.deleteFaq(faq)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1344:    suspend fun deleteOldAdminLogs(thresholdTime: Long) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1345:        activityLogDao.deleteOldAdminLogs(thresholdTime)
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1348:    suspend fun deleteOldOwnerLogs(thresholdTime: Long) {
+app/src/main/java/com/example/data/repository/JuktiRepository.kt:1349:        activityLogDao.deleteOldOwnerLogs(thresholdTime)
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:406:            // Created locally but never uploaded, then deleted. Simply purge from queue.
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:407:            syncQueueDao.deleteSync(existing)
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:408:            return@withContext Pair(true, "✅ Item removed locally.")
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:470:                docRef.delete().await()
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:474:                    querySnap.documents.forEach { doc -> doc.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:485:            // Sync successful: remove from pending queue
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:486:            syncQueueDao.deleteSync(item)
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:670:    suspend fun deleteExam(exam: ExamEntity): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:671:        examDao.deleteExam(exam)
+app/src/main/java/com/example/data/repository/FirebaseSyncManager.kt:695:                    examDao.deleteExam(it)
+app/src/main/java/com/example/data/repository/UserSessionManager.kt:22:        currentMap.remove(normalizedEmail)
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:664:    suspend fun deleteQuestion(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:667:            db.collection("questions").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:669:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:688:    suspend fun deleteMockTest(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:691:            db.collection("mock_tests").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:693:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:712:    suspend fun deleteStudyNote(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:715:            db.collection("study_notes").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:717:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:736:    suspend fun deleteExamUpdate(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:739:            db.collection("exam_updates").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:741:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:760:    suspend fun deleteBanner(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:763:            db.collection("banners").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:765:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:784:    suspend fun deletePlan(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:787:            db.collection("plans").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:789:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:808:    suspend fun deleteFaq(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:811:            db.collection("faqs").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:813:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:832:    suspend fun deleteSubjectChapter(id: Long) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:835:            db.collection("subjects_chapters").document(id.toString()).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:837:            query.documents.forEach { it.reference.delete().await() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1165:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1223:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1267:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1310:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1358:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1416:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1457:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1501:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1539:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1573:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1603:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1634:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1705:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1767:        awaitClose { listener?.remove() }
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1770:    suspend fun deleteUserAccount(uid: String, email: String) {
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1778:                    db.collection("users").document(uid).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1781:                    db.collection("users").document(sanitizedEmailDocId).delete().await()
+app/src/main/java/com/example/data/repository/FirebaseRepository.kt:1786:            auth?.currentUser?.delete()?.await()
+app/src/main/java/com/example/data/local/Daos.kt:40:    suspend fun deleteQuestion(question: QuestionEntity)
+app/src/main/java/com/example/data/local/Daos.kt:43:    suspend fun deleteQuestionById(id: Long)
+app/src/main/java/com/example/data/local/Daos.kt:61:    suspend fun deleteMockTest(test: MockTestEntity)
+app/src/main/java/com/example/data/local/Daos.kt:82:    suspend fun deleteNote(note: StudyNoteEntity)
+app/src/main/java/com/example/data/local/Daos.kt:100:    suspend fun deleteUpdate(update: ExamUpdateEntity)
+app/src/main/java/com/example/data/local/Daos.kt:121:    suspend fun deleteById(id: Long)
+app/src/main/java/com/example/data/local/Daos.kt:124:    suspend fun deleteBanner(banner: BannerEntity)
+app/src/main/java/com/example/data/local/Daos.kt:139:    suspend fun deleteNotification(notification: NotificationEntity)
+app/src/main/java/com/example/data/local/Daos.kt:184:    suspend fun deletePlan(plan: PlanEntity)
+app/src/main/java/com/example/data/local/Daos.kt:202:    suspend fun deleteExam(exam: ExamEntity)
+app/src/main/java/com/example/data/local/Daos.kt:220:    suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)
+app/src/main/java/com/example/data/local/Daos.kt:238:    suspend fun deleteRequest(request: PendingRequestEntity)
+app/src/main/java/com/example/data/local/Daos.kt:241:    suspend fun deleteOldRequests(thresholdTime: String)
+app/src/main/java/com/example/data/local/Daos.kt:259:    suspend fun deleteFaq(faq: FaqEntity)
+app/src/main/java/com/example/data/local/Daos.kt:287:    suspend fun deleteOldAdminLogs(thresholdTime: Long)
+app/src/main/java/com/example/data/local/Daos.kt:290:    suspend fun deleteOldOwnerLogs(thresholdTime: Long)
+app/src/main/java/com/example/data/local/Daos.kt:293:    suspend fun deleteLogsOlderThan(thresholdTime: Long)
+app/src/main/java/com/example/data/local/Daos.kt:306:    suspend fun deleteNotificationCategory(category: NotificationCategoryEntity)
+app/src/main/java/com/example/data/local/Daos.kt:333:    suspend fun deleteSync(sync: SyncQueueEntity)
+app/src/main/java/com/example/data/local/Daos.kt:336:    suspend fun deleteSyncById(syncId: Long)
+app/src/main/java/com/example/data/local/Daos.kt:339:    suspend fun clearSyncedItems()
+app/src/main/java/com/example/data/local/Daos.kt:342:    suspend fun deleteSyncByEntity(dataType: String, entityId: String)
+app/src/main/java/com/example/data/local/Daos.kt:372:    suspend fun deleteEntitlement(userId: String)
+app/src/main/java/com/example/util/CsvQuestionParser.kt:69:                currentField.clear()
+app/src/main/java/com/example/util/CsvQuestionParser.kt:75:                currentField.clear()
+app/src/main/java/com/example/util/CsvQuestionParser.kt:80:                currentRow.clear()
+app/src/main/java/com/example/billing/PlayBillingManager.kt:241:    fun clearVerificationInfo() {
+app/src/main/java/com/example/billing/PlayBillingManager.kt:246:    fun clearStatus() {
+app/src/main/java/com/example/MainActivity.kt:65:                    viewModel.clearSyncToastMessage()
+app/src/main/java/com/example/auth/GoogleAuthManager.kt:154:            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+app/src/main/java/com/example/auth/GoogleAuthManager.kt:155:            Log.d(TAG, "Google Credential State cleared successfully.")
+app/src/main/java/com/example/auth/GoogleAuthManager.kt:157:            Log.e(TAG, "Error clearing Credential Manager state", e)

@@ -11,19 +11,6 @@ interface QuestionDao {
     @Query("SELECT * FROM questions WHERE subject = :subject")
     fun getQuestionsBySubject(subject: String): Flow<List<QuestionEntity>>
 
-    @Query("SELECT * FROM questions WHERE isBookmarked = 1")
-    fun getBookmarkedQuestions(): Flow<List<QuestionEntity>>
-
-    @Query("""
-        SELECT q.* FROM questions q 
-        LEFT JOIN question_progress p ON q.id = p.questionId 
-        WHERE q.isBookmarked = 1 OR (p.everGotWrong = 1 AND p.isMastered = 0)
-    """)
-    fun getSmartPracticeQuestions(): Flow<List<QuestionEntity>>
-
-    @Query("SELECT * FROM questions WHERE isHidden = 1")
-    fun getHiddenQuestions(): Flow<List<QuestionEntity>>
-
     @Query("SELECT * FROM questions WHERE id = :id")
     suspend fun getQuestionById(id: Long): QuestionEntity?
 
@@ -59,6 +46,28 @@ interface MockTestDao {
 
     @Delete
     suspend fun deleteMockTest(test: MockTestEntity)
+}
+
+@Dao
+interface MockAttemptDao {
+    @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId AND userId = :userId ORDER BY timestamp DESC")
+    fun getAttemptsForMock(mockTestId: Long, userId: String): Flow<List<MockAttemptEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttempt(attempt: MockAttemptEntity): Long
+}
+
+
+@Dao
+interface UserQuestionStateDao {
+    @Query("SELECT * FROM user_question_states WHERE userId = :userId")
+    fun getUserStates(userId: String): Flow<List<UserQuestionStateEntity>>
+
+    @Query("SELECT * FROM user_question_states WHERE userId = :userId AND questionId = :questionId")
+    suspend fun getState(userId: String, questionId: String): UserQuestionStateEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertState(state: UserQuestionStateEntity)
 }
 
 @Dao
@@ -257,21 +266,6 @@ interface FaqDao {
 
     @Delete
     suspend fun deleteFaq(faq: FaqEntity)
-}
-
-@Dao
-interface QuestionProgressDao {
-    @Query("SELECT * FROM question_progress WHERE questionId = :questionId")
-    suspend fun getProgress(questionId: Long): QuestionProgressEntity?
-    
-    @Query("SELECT * FROM question_progress")
-    fun getAllProgress(): Flow<List<QuestionProgressEntity>>
-
-    @Query("SELECT * FROM question_progress")
-    suspend fun getAllProgressDirect(): List<QuestionProgressEntity>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdate(progress: QuestionProgressEntity)
 }
 
 

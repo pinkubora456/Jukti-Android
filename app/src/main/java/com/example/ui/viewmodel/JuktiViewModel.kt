@@ -207,8 +207,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.subjectChapterDao(),
         database.pendingRequestDao(),
         database.faqDao(),
-        database.questionProgressDao(),
+        database.userQuestionStateDao(),
         database.activityLogDao(),
+        database.mockAttemptDao(),
         database.entitlementDao(),
         database.entitlementHistoryDao(),
         com.example.data.repository.FirebaseSyncManager(database)
@@ -269,6 +270,42 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         if (prefs.contains("is_dark_theme")) prefs.getBoolean("is_dark_theme", false) else null
     )
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
+
+    val bookmarkedIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+        repository.getUserStates(uid).map { list ->
+            list.filter { it.isBookmarked }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    } ?: MutableStateFlow(emptySet())
+
+    val hiddenIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+        repository.getUserStates(uid).map { list ->
+            list.filter { it.isHidden }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    } ?: MutableStateFlow(emptySet())
+
+    val likedIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+        repository.getUserStates(uid).map { list ->
+            list.filter { it.isLiked }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    } ?: MutableStateFlow(emptySet())
+
+    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
+        repository.allQuestions,
+        bookmarkedIds
+    ) { questions, ids ->
+        questions.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
+        repository.allQuestions,
+        hiddenIds
+    ) { questions, ids ->
+        questions.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+        repository.getSmartPracticeQuestions(uid).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    } ?: MutableStateFlow(emptyList())
 
     // Navigation State
     private val _currentScreen = MutableStateFlow(Screen.SPLASH)
@@ -436,15 +473,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val reportedQuestions = repository.allQuestions.map { list -> list.filter { it.isReported } }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
-    val bookmarkedQuestions = repository.bookmarkedQuestions.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-    val smartPracticeQuestions = repository.smartPracticeQuestions.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-    val hiddenQuestions = repository.hiddenQuestions.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
 
     val mockTests = repository.allMockTests.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -552,6 +580,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
     )
+
+    suspend fun getUserRoleDirect(email: String, roleInProfile: String? = null): UserRole {
+        val config = repository.getAboutConfigDirect()
+        val trimmed = email.trim().lowercase()
+        if (trimmed == "juktieducation@gmail.com" || roleInProfile?.uppercase() == "OWNER") {
+            return UserRole.OWNER
+        }
+        val adminEmails = config?.adminEmails?.split(",")?.map { it.trim().lowercase() } ?: emptyList()
+        if (roleInProfile?.uppercase() == "ADMIN" || adminEmails.contains(trimmed)) {
+            return UserRole.ADMIN
+        }
+        return UserRole.USER
+    }
 
     fun getUserRole(email: String, roleInProfile: String? = null): UserRole {
         val trimmed = email.trim().lowercase()
@@ -1155,19 +1196,35 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleBookmarkQuestion(q: QuestionEntity) {
-        viewModelScope.launch { repository.toggleBookmarkQuestion(q) }
+        viewModelScope.launch {
+            userProfile.value?.uid?.let { userId ->
+                repository.toggleBookmarkQuestion(q.id.toString(), userId)
+            }
+        }
     }
 
     fun toggleHideQuestion(q: QuestionEntity) {
-        viewModelScope.launch { repository.toggleHideQuestion(q) }
+        viewModelScope.launch {
+            userProfile.value?.uid?.let { userId ->
+                repository.toggleHideQuestion(q.id.toString(), userId)
+            }
+        }
     }
 
     fun unhideAllQuestions() {
-        viewModelScope.launch { repository.unhideAllQuestions() }
+        viewModelScope.launch {
+            userProfile.value?.uid?.let { userId ->
+                repository.unhideAllQuestions(userId)
+            }
+        }
     }
 
     fun toggleLikeQuestion(q: QuestionEntity) {
-        viewModelScope.launch { repository.toggleLikeQuestion(q) }
+        viewModelScope.launch {
+            userProfile.value?.uid?.let { userId ->
+                repository.toggleLikeQuestion(q.id.toString(), userId)
+            }
+        }
     }
 
     fun toggleBookmarkNote(n: StudyNoteEntity) {
@@ -1210,8 +1267,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean, timeSpentSec: Int = 10) {
         viewModelScope.launch {
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-            repository.recordQuestionAnswer(questionId, isCorrect, timeSpentSec, today)
+            repository.recordQuestionAnswer(userId, questionId.toString(), isCorrect, timeSpentSec, today)
         }
     }
 
@@ -2044,8 +2102,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun deleteUserCompletely(userEmail: String, explicitUserId: String? = null): Boolean {
-        val actorRole = getCurrentActorRole()
-        val targetRole = getUserRole(userEmail)
+        val users = repository.fetchAllUsersDirect()
+        val targetUser = users.find { it.email.equals(userEmail, ignoreCase = true) }
+        val profile = repository.getUserProfileDirect()
+        val actorRole = getUserRoleDirect(profile?.email ?: "", profile?.role)
+        val targetRole = getUserRoleDirect(userEmail, targetUser?.role)
+        
+        Log.d("JuktiViewModel", "deleteUserCompletely: actorRole=$actorRole, targetRole=$targetRole, targetEmail=$userEmail")
 
         if (targetRole == UserRole.OWNER) {
             Log.w("JuktiViewModel", "Attempted to delete Owner account $userEmail - REJECTED")
@@ -2060,8 +2123,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return try {
             var uid = explicitUserId ?: ""
             if (uid.isBlank()) {
-                val users = repository.fetchAllUsersDirect()
-                val targetUser = users.find { it.email.equals(userEmail, ignoreCase = true) }
                 uid = targetUser?.uid ?: ""
             }
             val sanitizedEmail = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
@@ -2069,11 +2130,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 uid = sanitizedEmail
             }
 
-            val data = mapOf("targetEmail" to userEmail.trim())
+            val data = mapOf("targetUid" to uid)
+            Log.d("JuktiViewModel", "Calling deleteUserCompletely with targetUid: $uid")
+            if (uid.isBlank()) {
+                Log.e("JuktiViewModel", "Cannot delete user: UID is blank.")
+                return false
+            }
             val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
             functions.getHttpsCallable("deleteUserCompletely").call(data).await()
-            
-            repository.deleteUserAccount(uid, userEmail)
             
             logActivity("Deleted user $userEmail completely from app and Firestore")
             true
