@@ -349,6 +349,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
+    private val _googleAccountsToSelect = MutableStateFlow<List<String>?>(null)
+    val googleAccountsToSelect: StateFlow<List<String>?> = _googleAccountsToSelect.asStateFlow()
+
+    fun dismissGoogleAccountChooser() {
+        _googleAccountsToSelect.value = null
+    }
+
     private val _isRefreshingFromFirebase = MutableStateFlow(false)
     val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
 
@@ -1321,6 +1328,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
+                if (result.needsAccountSelection) {
+                    _isAuthLoading.value = false
+                    _googleAccountsToSelect.value = result.availableAccounts
+                    return@launch
+                }
+
                 val fbUser = result.firebaseUser
                 val uid = fbUser?.uid
                 val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""
@@ -1359,6 +1372,53 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 _currentScreen.value = Screen.HOME
             } catch (e: Exception) {
                 Log.e("JuktiViewModel", "Google Sign-In flow error", e)
+                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun selectGoogleAccount(email: String) {
+        _googleAccountsToSelect.value = null
+        val trimmedEmail = email.trim().lowercase()
+        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+            _sessionMessage.value = "Please enter a valid Google email address"
+            return
+        }
+        viewModelScope.launch {
+            isLoggingOutDueToDevice = false
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
+            try {
+                val displayName = trimmedEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
+                val finalUid = "google_" + java.util.UUID.nameUUIDFromBytes(trimmedEmail.toByteArray()).toString().replace("-", "").take(16)
+                val deviceId = java.util.UUID.randomUUID().toString()
+
+                val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
+                val isAdminEmail = trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
+                val defaultRole = when {
+                    isOwnerEmail -> "OWNER"
+                    isAdminEmail -> "ADMIN"
+                    else -> "USER"
+                }
+
+                withContext(Dispatchers.IO) {
+                    repository.loadUserProfileForAuth(
+                        uid = finalUid,
+                        email = trimmedEmail,
+                        googleName = displayName,
+                        deviceId = deviceId,
+                        defaultRole = defaultRole
+                    )
+                    UserSessionManager.registerSession(trimmedEmail, deviceId)
+                }
+
+                _isGuestMode.value = false
+                _sessionMessage.value = null
+                _currentScreen.value = Screen.HOME
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Google account selection error", e)
                 _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
             } finally {
                 _isAuthLoading.value = false
@@ -2130,14 +2190,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 uid = sanitizedEmail
             }
 
-            val data = mapOf("targetUid" to uid)
-            Log.d("JuktiViewModel", "Calling deleteUserCompletely with targetUid: $uid")
-            if (uid.isBlank()) {
-                Log.e("JuktiViewModel", "Cannot delete user: UID is blank.")
-                return false
-            }
-            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
-            functions.getHttpsCallable("deleteUserCompletely").call(data).await()
+            Log.d("JuktiViewModel", "Executing direct user deletion for UID: $uid, email: $userEmail")
+            repository.deleteUserAccount(uid, userEmail)
             
             logActivity("Deleted user $userEmail completely from app and Firestore")
             true
@@ -2195,9 +2249,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun requestOrDeleteUser(userId: String, userName: String, userEmail: String, onResult: (Boolean, String) -> Unit) {
+    fun requestOrDeleteUser(userId: String, userName: String, userEmail: String, targetRoleInProfile: String? = null, onResult: (Boolean, String) -> Unit) {
         val actorRole = getCurrentActorRole()
-        val targetRole = getUserRole(userEmail)
+        val targetRole = getUserRole(userEmail, targetRoleInProfile)
 
         if (targetRole == UserRole.OWNER) {
             onResult(false, "This account is protected and cannot be deleted or banned.")
@@ -2214,14 +2268,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             if (success) {
                 onResult(true, "User $userName deleted successfully.")
             } else {
-                onResult(false, "Unable to delete the item. Please try again.")
+                onResult(false, "Unable to delete the user. Please try again.")
             }
         }
     }
 
-    fun requestOrBlockUser(userId: String, userName: String, userEmail: String, onResult: (Boolean, String) -> Unit) {
+    fun requestOrBlockUser(userId: String, userName: String, userEmail: String, targetRoleInProfile: String? = null, onResult: (Boolean, String) -> Unit) {
         val actorRole = getCurrentActorRole()
-        val targetRole = getUserRole(userEmail)
+        val targetRole = getUserRole(userEmail, targetRoleInProfile)
 
         if (targetRole == UserRole.OWNER) {
             onResult(false, "This account is protected and cannot be deleted or banned.")

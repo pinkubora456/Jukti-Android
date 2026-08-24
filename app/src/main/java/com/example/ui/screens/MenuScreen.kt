@@ -233,26 +233,6 @@ fun MenuScreen(viewModel: JuktiViewModel) {
                 Text("Log Out", fontWeight = FontWeight.SemiBold)
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Branding Footer
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = aboutConfig.appTitle.ifBlank { "Jukti • Test Your Knowledge" },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = aboutConfig.versionText.ifBlank { "v2026.1.0" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
     }

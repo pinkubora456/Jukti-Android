@@ -206,12 +206,6 @@ fun AboutScreen(viewModel: JuktiViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                AssistChip(
-                    onClick = { if (isOwner) showEditDialog = true },
-                    label = { Text(aboutConfig.versionText) },
-                    leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                )
             }
 
             Card(

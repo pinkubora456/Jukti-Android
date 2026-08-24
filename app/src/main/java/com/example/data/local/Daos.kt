@@ -338,23 +338,17 @@ interface SyncQueueDao {
 
 @Dao
 interface EntitlementDao {
-    @Query("SELECT * FROM entitlements WHERE userId = :userId LIMIT 1")
+    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != '' LIMIT 1")
     fun getEntitlement(userId: String): Flow<EntitlementEntity?>
 
-    @Query("SELECT * FROM entitlements WHERE userId = :userId LIMIT 1")
+    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != '' LIMIT 1")
     suspend fun getEntitlementDirect(userId: String): EntitlementEntity?
 
-    @Query("SELECT * FROM entitlements WHERE userId = :userId OR userId = :altUserId1 OR userId = :altUserId2 ORDER BY updatedAt DESC LIMIT 1")
+    @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC LIMIT 1")
     fun getEntitlementMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?>
 
-    @Query("SELECT * FROM entitlements WHERE userId = :userId OR userId = :altUserId1 OR userId = :altUserId2 ORDER BY updatedAt DESC LIMIT 1")
+    @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC LIMIT 1")
     suspend fun getEntitlementDirectMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity?
-
-    @Query("SELECT * FROM entitlements ORDER BY updatedAt DESC LIMIT 1")
-    fun getAnyLatestEntitlement(): Flow<EntitlementEntity?>
-
-    @Query("SELECT * FROM entitlements ORDER BY updatedAt DESC LIMIT 1")
-    suspend fun getAnyLatestEntitlementDirect(): EntitlementEntity?
 
     @Query("SELECT * FROM entitlements")
     suspend fun getAllEntitlementsDirect(): List<EntitlementEntity>
@@ -374,13 +368,13 @@ interface EntitlementHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(histories: List<EntitlementHistoryEntity>)
 
-    @Query("SELECT * FROM entitlement_history WHERE userId = :userId OR userEmail = :userEmail ORDER BY timestamp DESC")
+    @Query("SELECT * FROM entitlement_history WHERE (userId = :userId AND :userId != '') OR (userEmail = :userEmail AND :userEmail != '') ORDER BY timestamp DESC")
     fun getHistoryForUser(userId: String, userEmail: String = ""): Flow<List<EntitlementHistoryEntity>>
 
     @Query("SELECT * FROM entitlement_history ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentHistory(limit: Int = 100): Flow<List<EntitlementHistoryEntity>>
 
-    @Query("SELECT * FROM entitlement_history WHERE userId = :userId OR userEmail = :userEmail ORDER BY timestamp DESC")
+    @Query("SELECT * FROM entitlement_history WHERE (userId = :userId AND :userId != '') OR (userEmail = :userEmail AND :userEmail != '') ORDER BY timestamp DESC")
     suspend fun getHistoryForUserDirect(userId: String, userEmail: String = ""): List<EntitlementHistoryEntity>
 }
 

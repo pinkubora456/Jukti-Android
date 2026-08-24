@@ -228,7 +228,11 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 )
 
                 // 2. KEY PERFORMANCE INDICATOR (KPI) IN 2x2 GRID
-                KpiGrid2x2(userProfile = userProfile, isAssamese = isAssamese)
+                KpiGrid2x2(
+                    userProfile = userProfile,
+                    mockTests = mockTestsState,
+                    isAssamese = isAssamese
+                )
 
                 // 3. WEAK SUBJECT FOCUS
                 WeakSubjectFocusSection(
@@ -722,10 +726,13 @@ private fun ProbabilityFactorRow(
 // COMPONENT 2: KEY PERFORMANCE INDICATOR IN 2x2 GRID
 // -----------------------------------------------------------------------------
 @Composable
-fun KpiGrid2x2(userProfile: com.example.data.local.UserProfileEntity?, isAssamese: Boolean) {
+fun KpiGrid2x2(
+    userProfile: com.example.data.local.UserProfileEntity?,
+    mockTests: List<com.example.data.local.MockTestEntity>,
+    isAssamese: Boolean
+) {
     val totalSolved = userProfile?.totalSolved ?: 0
     val correctCount = userProfile?.correctCount ?: 0
-    val totalTimeMinutes = userProfile?.totalTimeMinutes ?: 0
     
     val accuracy = if (totalSolved > 0) {
         String.format("%.1f%%", (correctCount.toFloat() / totalSolved) * 100)
@@ -733,8 +740,12 @@ fun KpiGrid2x2(userProfile: com.example.data.local.UserProfileEntity?, isAssames
         "0.0%"
     }
     
-    val avgSpeed = if (totalSolved > 0) {
-        val avgSeconds = (totalTimeMinutes * 60) / totalSolved
+    // Mock Test Speed / MCQ: Calculated using the complete applicable mock-test history (Total Mock Test Time ÷ Total Mock Test MCQs)
+    val completedMocks = mockTests.filter { it.isCompleted }
+    val totalMockTimeMinutes = completedMocks.sumOf { it.durationMinutes }
+    val totalMockQuestions = completedMocks.sumOf { it.totalQuestions }
+    val mockAvgSpeed = if (totalMockQuestions > 0) {
+        val avgSeconds = (totalMockTimeMinutes * 60) / totalMockQuestions
         "${avgSeconds}s"
     } else {
         "0s"
@@ -768,12 +779,12 @@ fun KpiGrid2x2(userProfile: com.example.data.local.UserProfileEntity?, isAssames
                 iconTint = MaterialTheme.colorScheme.primary
             )
 
-            // 2. Solve Speed (per MCQ)
+            // 2. Mock Test Speed / MCQ
             KpiCardItem(
                 modifier = Modifier.weight(1f),
-                title = "Solve Speed (per MCQ)",
-                value = avgSpeed,
-                subtitle = "Optimal (<30 sec)",
+                title = "Mock Test Speed / MCQ",
+                value = mockAvgSpeed,
+                subtitle = "Across completed tests",
                 icon = Icons.Default.Speed,
                 iconTint = MaterialTheme.colorScheme.secondary
             )

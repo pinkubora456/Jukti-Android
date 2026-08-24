@@ -31,9 +31,14 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val userEntitlement by viewModel.userEntitlement.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+
+    val effectivePlanName = com.example.data.util.PlanValidityEngine.getEffectivePlanName(userEntitlement)
+    val effectiveValidity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(userEntitlement)
+    val validityDisplay = com.example.data.util.PlanValidityEngine.formatValidityDisplay(userEntitlement)
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var quickNameInput by remember { mutableStateOf("") }
@@ -167,14 +172,21 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (isPassPro) "Pass Pro Active ⚡" else "Free Plan 🌟",
+                                text = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (isPassPro) "$effectivePlanName Active ⚡" else "Free Plan 🌟",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isPassPro) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = if (isPassPro) "Unlimited access to all mock tests, study notes & practice modules." else "Basic access to practice questions and daily updates.",
+                                text = "Validity: $validityDisplay",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isPassPro) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isPassPro) "Unlimited access to all mock tests, study notes & practice modules." else "Basic access to practice questions and daily updates with Lifetime Validity.",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -333,7 +345,7 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
                 ProfileDetailRow(
                     icon = Icons.Default.WorkspacePremium,
                     label = "Subscription",
-                    value = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (isUserPremium) "Pass Pro Active ⚡" else "Free Plan",
+                    value = if (isAdminOrOwner) "Pass Pro Active ⚡ (Admin/Owner)" else if (effectivePlanName != "Free Plan") "$effectivePlanName ($effectiveValidity)" else "Free Plan (Lifetime)",
                     onClick = { showMyPlanDialog = true }
                 )
             }

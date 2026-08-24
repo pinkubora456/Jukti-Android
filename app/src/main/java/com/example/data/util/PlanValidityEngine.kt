@@ -173,15 +173,45 @@ object PlanValidityEngine {
     }
 
     /**
+     * Resolves the effective plan name for a user.
+     * If the user has not bought a plan, or their plan has expired, returns "Free Plan".
+     */
+    fun getEffectivePlanName(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
+        if (entitlement == null) return "Free Plan"
+        if (!isEntitlementActive(entitlement, currentTime)) return "Free Plan"
+        if (entitlement.planName.isBlank() || entitlement.planName.equals("Free Plan", ignoreCase = true)) return "Free Plan"
+        return entitlement.planName
+    }
+
+    /**
+     * Resolves the effective validity string for a user.
+     * Free plan users or users with expired plans get "Lifetime".
+     * Active time-limited plans return formatted expiry date and label.
+     */
+    fun getEffectiveValidityLabel(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
+        if (entitlement == null) return "Lifetime"
+        if (!isEntitlementActive(entitlement, currentTime)) return "Lifetime"
+        if (entitlement.planName.equals("Free Plan", ignoreCase = true) || entitlement.isLifetime || entitlement.validityType.uppercase(Locale.ROOT) == TYPE_LIFETIME || entitlement.validUntil <= 0L) {
+            return "Lifetime"
+        }
+        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val formattedDate = sdf.format(Date(entitlement.validUntil))
+        val label = entitlement.validityLabel
+        return if (label.isNotBlank() && !label.equals("Custom", ignoreCase = true)) "$formattedDate ($label)" else formattedDate
+    }
+
+    /**
      * Formats remaining time or expiry date for UI display.
      */
     fun formatValidityDisplay(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
-        if (entitlement == null) return "Free Plan"
+        if (entitlement == null || !isEntitlementActive(entitlement, currentTime) || entitlement.planName.equals("Free Plan", ignoreCase = true)) {
+            return "Free Plan (Lifetime Access)"
+        }
         if (entitlement.isLifetime || entitlement.validityType.uppercase(Locale.ROOT) == TYPE_LIFETIME || entitlement.validUntil <= 0L) {
             return "Lifetime Access"
         }
         if (entitlement.validUntil < currentTime) {
-            return "Expired"
+            return "Expired (Reverted to Free Plan)"
         }
         val diffMs = entitlement.validUntil - currentTime
         val daysRemaining = (diffMs / (24 * 60 * 60 * 1000L)).toInt()

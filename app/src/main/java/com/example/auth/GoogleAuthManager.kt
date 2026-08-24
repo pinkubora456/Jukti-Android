@@ -13,6 +13,7 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -22,11 +23,13 @@ import java.security.MessageDigest
 import java.util.UUID
 
 data class GoogleSignInResult(
-    val firebaseUser: FirebaseUser?,
+    val firebaseUser: FirebaseUser? = null,
     val isCancelled: Boolean = false,
     val errorMessage: String? = null,
     val fallbackEmail: String? = null,
-    val fallbackName: String? = null
+    val fallbackName: String? = null,
+    val availableAccounts: List<String> = emptyList(),
+    val needsAccountSelection: Boolean = false
 )
 
 class GoogleAuthManager(private val context: Context) {
@@ -52,6 +55,17 @@ class GoogleAuthManager(private val context: Context) {
 
     private val credentialManager = CredentialManager.create(context)
 
+    fun getDeviceGoogleAccounts(): List<String> {
+        return try {
+            val accountManager = AccountManager.get(context)
+            val accounts = accountManager.getAccountsByType("com.google")
+            accounts.mapNotNull { it.name.takeIf { name -> name.isNotBlank() && name.contains("@") } }.distinct()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to get device Google accounts: ${t.message}")
+            emptyList()
+        }
+    }
+
     suspend fun signInWithGoogle(activity: Activity): GoogleSignInResult {
         try {
             val serverClientId = getWebClientId(activity)
@@ -63,14 +77,19 @@ class GoogleAuthManager(private val context: Context) {
             val digest = md.digest(bytes)
             val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
 
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId)
+                .setNonce(hashedNonce)
+                .build()
+
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false) // Allows user to select any Google account on device
                 .setServerClientId(serverClientId)
-                .setAutoSelectEnabled(false) // Ensures prompt is shown so user can choose another account
+                .setAutoSelectEnabled(false) // Ensures prompt is shown so user can choose account
                 .setNonce(hashedNonce)
                 .build()
 
             val request = GetCredentialRequest.Builder()
+                .addCredentialOption(signInWithGoogleOption)
                 .addCredentialOption(googleIdOption)
                 .build()
 
@@ -105,42 +124,23 @@ class GoogleAuthManager(private val context: Context) {
                 )
             } else {
                 Log.e(TAG, "Unexpected credential type: ${credential.type}")
-                return GoogleSignInResult(
-                    firebaseUser = null,
-                    errorMessage = "Unexpected credential returned by Google. Please try again."
-                )
+                return handleFallbackAccountSelection("Unexpected credential type: ${credential.type}")
             }
         } catch (e: GetCredentialCancellationException) {
             Log.d(TAG, "User cancelled Google Sign-In prompt.")
             return GoogleSignInResult(firebaseUser = null, isCancelled = true)
         } catch (e: Throwable) {
-            Log.w(TAG, "Credential Manager error: ${e.message}. Falling back to device Google account.", e)
-            return getDeviceAccountFallback(e.message)
+            Log.w(TAG, "Credential Manager error: ${e.message}. Handling account selection fallback.", e)
+            return handleFallbackAccountSelection(e.message)
         }
     }
 
-    private fun getDeviceAccountFallback(errorMsg: String?): GoogleSignInResult {
-        try {
-            val accountManager = AccountManager.get(context)
-            val accounts = accountManager.getAccountsByType("com.google")
-            if (accounts.isNotEmpty()) {
-                val email = accounts[0].name
-                val name = email.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
-                Log.d(TAG, "Found device Google account via AccountManager: $email")
-                val auth = FirebaseAuth.getInstance()
-                return GoogleSignInResult(
-                    firebaseUser = auth.currentUser,
-                    fallbackEmail = email,
-                    fallbackName = name
-                )
-            }
-        } catch (t: Throwable) {
-            Log.w(TAG, "AccountManager fallback failed: ${t.message}")
-        }
-
+    private fun handleFallbackAccountSelection(errorMsg: String?): GoogleSignInResult {
+        val accounts = getDeviceGoogleAccounts()
         return GoogleSignInResult(
-            firebaseUser = null,
-            errorMessage = "No Google accounts found on this device. Please add a Google account in Android Settings."
+            needsAccountSelection = true,
+            availableAccounts = accounts,
+            errorMessage = errorMsg
         )
     }
 

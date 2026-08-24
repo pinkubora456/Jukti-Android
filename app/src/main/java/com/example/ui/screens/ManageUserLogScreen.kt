@@ -39,30 +39,13 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
     LaunchedEffect(Unit) {
         isLoading = true
         val users = viewModel.fetchAllUsersDirect()
+            .sortedByDescending { it.uid.isNotBlank() }
+            .distinctBy { it.email.lowercase() }
         val userLogs = users.map { 
             val uid = it.email.replace("@", "_at_").replace(".", "_dot_")
             val entitlement = viewModel.fetchUserEntitlementDirect(it.email)
-            val planName = entitlement?.planName ?: ""
-            val currentPlan = if (planName.isNotBlank()) {
-                planName
-            } else if (it.isPremium) {
-                "Premium Plan"
-            } else {
-                "Basic Plan"
-            }
-            val validUntil = entitlement?.validUntil ?: 0L
-            val validity = if (validUntil > System.currentTimeMillis()) {
-                val dateStr = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(validUntil))
-                val label = entitlement?.validityLabel ?: ""
-                if (label.isNotBlank() && !label.equals("Custom", ignoreCase = true)) "$dateStr ($label)" else dateStr
-            } else if (entitlement?.isLifetime == true || entitlement?.validityType == "LIFETIME" || (entitlement?.validUntil == 0L && entitlement?.status == "ACTIVE") || it.isPremium) {
-                "Lifetime"
-            } else if (entitlement?.status == "ACTIVE") {
-                entitlement.validityLabel.ifBlank { "Active" }
-            } else {
-                "Expired"
-            }
-
+            val currentPlan = com.example.data.util.PlanValidityEngine.getEffectivePlanName(entitlement)
+            val validity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(entitlement)
             val userRole = viewModel.getUserRole(it.email, it.role)
 
             UserLog(
@@ -125,9 +108,9 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                             plans = plans,
                             canDeleteOrBan = canDeleteOrBan,
                             onBlockUser = { 
-                                viewModel.requestOrBlockUser(user.id, user.name, user.email) { isDirect, message ->
+                                viewModel.requestOrBlockUser(user.id, user.name, user.email, user.role.name) { isDirect, message ->
                                     if (isDirect) {
-                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        val index = mockUsers.indexOfFirst { it.id == user.id || it.email.equals(user.email, ignoreCase = true) }
                                         if (index != -1) {
                                             mockUsers[index] = mockUsers[index].copy(isBlocked = !mockUsers[index].isBlocked)
                                         }
@@ -136,9 +119,9 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                                 }
                              },
                             onDeleteUser = {
-                                viewModel.requestOrDeleteUser(user.id, user.name, user.email) { isDirect, message ->
+                                viewModel.requestOrDeleteUser(user.id, user.name, user.email, user.role.name) { isDirect, message ->
                                     if (isDirect) {
-                                        mockUsers.removeAll { it.id == user.id }
+                                        mockUsers.removeAll { it.id == user.id || it.email.equals(user.email, ignoreCase = true) }
                                     }
                                     Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
                                 }
@@ -155,11 +138,13 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                                     isLifetime = isLife
                                 ) { isDirect, message ->
                                     if (isDirect) {
-                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        val index = mockUsers.indexOfFirst { it.id == user.id || it.email.equals(user.email, ignoreCase = true) }
                                         if (index != -1) {
+                                            val finalPlanName = if (newPlan.equals("Free Plan", ignoreCase = true)) "Free Plan" else newPlan
+                                            val finalValidity = if (finalPlanName == "Free Plan" || isLife) "Lifetime" else validity
                                             mockUsers[index] = mockUsers[index].copy(
-                                                currentPlan = newPlan,
-                                                validity = validity
+                                                currentPlan = finalPlanName,
+                                                validity = finalValidity
                                             )
                                         }
                                     }
@@ -179,9 +164,10 @@ fun ManageUserLogScreen(viewModel: JuktiViewModel) {
                                     explicitValidUntil = explicitUntil
                                 ) { isDirect, message ->
                                     if (isDirect) {
-                                        val index = mockUsers.indexOfFirst { it.id == user.id }
+                                        val index = mockUsers.indexOfFirst { it.id == user.id || it.email.equals(user.email, ignoreCase = true) }
                                         if (index != -1) {
-                                            mockUsers[index] = mockUsers[index].copy(validity = newValidity)
+                                            val finalValidity = if (user.currentPlan.equals("Free Plan", ignoreCase = true) || isLife) "Lifetime" else newValidity
+                                            mockUsers[index] = mockUsers[index].copy(validity = finalValidity)
                                         }
                                     }
                                     Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
@@ -417,6 +403,20 @@ fun UserLogCard(
         )
     }
 
+    LaunchedEffect(showChangePlanDialog) {
+        if (showChangePlanDialog) {
+            newPlanInput = user.currentPlan
+            selectedPlanObj = plans.find { it.planName.equals(user.currentPlan, ignoreCase = true) }
+        }
+    }
+
+    LaunchedEffect(showChangeValidityDialog) {
+        if (showChangeValidityDialog) {
+            newValidityInput = user.validity
+            selectedCustomDateMillis = 0L
+        }
+    }
+
     if (showChangePlanDialog) {
         var expandedPlanDropdown by remember { mutableStateOf(false) }
         AlertDialog(
@@ -444,6 +444,14 @@ fun UserLogCard(
                             expanded = expandedPlanDropdown,
                             onDismissRequest = { expandedPlanDropdown = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Free Plan (Lifetime)") },
+                                onClick = {
+                                    newPlanInput = "Free Plan"
+                                    selectedPlanObj = null
+                                    expandedPlanDropdown = false
+                                }
+                            )
                             if (plans.isEmpty()) {
                                 DropdownMenuItem(
                                     text = { Text("Basic Plan") },
@@ -478,12 +486,16 @@ fun UserLogCard(
             },
             confirmButton = {
                 TextButton(onClick = { 
-                    val p = selectedPlanObj ?: plans.find { it.planName == newPlanInput }
-                    val vLabel = p?.planValidity?.ifBlank { p.validityLabel } ?: "1 Month"
-                    val vType = p?.validityType ?: "MONTHS"
-                    val vVal = p?.validityValue ?: 1
-                    val isLife = p?.isLifetime ?: false
-                    onChangePlan(newPlanInput, vLabel, vType, vVal, isLife)
+                    if (newPlanInput.equals("Free Plan", ignoreCase = true)) {
+                        onChangePlan("Free Plan", "Lifetime", "LIFETIME", 0, true)
+                    } else {
+                        val p = selectedPlanObj ?: plans.find { it.planName == newPlanInput }
+                        val vLabel = p?.planValidity?.ifBlank { p.validityLabel } ?: "1 Month"
+                        val vType = p?.validityType ?: "MONTHS"
+                        val vVal = p?.validityValue ?: 1
+                        val isLife = p?.isLifetime ?: false
+                        onChangePlan(newPlanInput, vLabel, vType, vVal, isLife)
+                    }
                     showChangePlanDialog = false
                 }) {
                     Text("Save")

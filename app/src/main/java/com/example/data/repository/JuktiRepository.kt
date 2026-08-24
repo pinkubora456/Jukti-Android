@@ -696,11 +696,8 @@ class JuktiRepository(
             val scorePercentageInt = scorePercentage.toInt()
             val mockXp = 20 + (scorePercentageInt / 5)
             
-            // Update user profile statistics: totalSolved, correctCount, time, XP and level
+            // Update user profile statistics: XP and level (preserving practice stats separately)
             val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
-            val newTotalSolved = profile.totalSolved + totalAttempted
-            val newCorrectCount = profile.correctCount + correctCount
-            val newTotalTime = profile.totalTimeMinutes + timeSpentMins
             val safeAddedXp = mockXp.coerceIn(0, 1000)
             val newXp = profile.xp + safeAddedXp
             
@@ -718,10 +715,7 @@ class JuktiRepository(
             
             val updatedProfile = profile.copy(
                 xp = newXp,
-                level = newLevel,
-                totalSolved = newTotalSolved,
-                correctCount = newCorrectCount,
-                totalTimeMinutes = newTotalTime
+                level = newLevel
             )
             userProfileDao.insertOrUpdateProfile(updatedProfile)
             firebaseRepository.saveUserProfile(updatedProfile, merge = true)
@@ -905,8 +899,8 @@ class JuktiRepository(
                 entitlementDao.deleteEntitlement(docKey)
             }
         } else {
-            // Check if local entitlement exists and is still valid before deleting
-            val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, uid, email) ?: entitlementDao.getAnyLatestEntitlementDirect()
+            // Check if local entitlement exists and is still valid for this specific user before deleting
+            val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, uid, email)
             if (localEnt != null && localEnt.status == "ACTIVE" && (localEnt.validUntil <= 0L || localEnt.validUntil > now)) {
                 android.util.Log.i("JuktiRepository", "Preserving active local entitlement: ${localEnt.planName}")
             } else if (localEnt != null && localEnt.validUntil in 1..now) {
@@ -991,7 +985,7 @@ class JuktiRepository(
                 }
             } else {
                 // DO NOT delete if local entitlement is still valid and not expired!
-                val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, currentUid ?: "", email) ?: entitlementDao.getAnyLatestEntitlementDirect()
+                val localEnt = entitlementDao.getEntitlementDirectMulti(docKey, currentUid ?: "", email)
                 if (localEnt != null && localEnt.status == "ACTIVE" && (localEnt.validUntil <= 0L || localEnt.validUntil > now)) {
                     android.util.Log.i("JuktiRepository", "Preserving valid assigned local entitlement: ${localEnt.planName}")
                 } else if (localEnt != null && localEnt.validUntil in 1..now) {

@@ -95,7 +95,7 @@ fun AboutLegalScreen(viewModel: JuktiViewModel) {
             // About Jukti
             AboutLegalItemCard(
                 title = "About Jukti",
-                description = "App mission, key features, version ${aboutConfig.versionText} & founder bio",
+                description = "App mission, key features & founder bio",
                 icon = Icons.Default.Info,
                 iconColor = MaterialTheme.colorScheme.primary,
                 testTag = "about_jukti_card",

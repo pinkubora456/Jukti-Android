@@ -814,9 +814,9 @@ fun PerformanceSummaryCard(
                 } else {
                     "0.0%"
                 }
-                val solvedSpeed = if (userProfile != null && p.totalSolved > 0) {
+                val practiceSpeed = if (p != null && p.totalSolved > 0) {
                     val avgSeconds = (p.totalTimeMinutes * 60) / p.totalSolved
-                    "${avgSeconds.coerceIn(18, 75)}s"
+                    "${avgSeconds}s"
                 } else {
                     "0s"
                 }
@@ -843,8 +843,8 @@ Row(
                 ) {
                     StatItemCard(
                         modifier = Modifier.weight(1f),
-                        title = "Speed",
-                        value = solvedSpeed,
+                        title = "Practice Speed / MCQ",
+                        value = practiceSpeed,
                         icon = "⚡"
                     )
                     StatItemCard(
