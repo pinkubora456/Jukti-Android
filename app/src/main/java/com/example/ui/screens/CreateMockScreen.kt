@@ -63,11 +63,17 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     var planTypeExpanded by remember { mutableStateOf(false) }
     val planTypeOptions = listOf("Free", "Premium")
 
+    var difficulty by remember { mutableStateOf("Medium") }
+    var difficultyExpanded by remember { mutableStateOf(false) }
+    val difficultyOptions = listOf("Easy", "Medium", "Hard")
+
     // Question Bank Selection state
     var selectedSubjectFilter by remember { mutableStateOf("All Subjects") }
     var subjectFilterExpanded by remember { mutableStateOf(false) }
     var questionSearchQuery by remember { mutableStateOf("") }
     val selectedQuestionIds = remember { mutableStateListOf<Long>() }
+    val groupMarks = remember { mutableStateMapOf<String, String>() }
+    val groupCustomMarks = remember { mutableStateMapOf<String, String>() }
 
     // Add Question Dialog state
     var showAddQuestionDialog by remember { mutableStateOf(false) }
@@ -193,14 +199,6 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    SafeOutlinedTextField(
-                        value = markPerQuestion,
-                        onValueChange = { markPerQuestion = it },
-                        label = { Text("Mark / Q *") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
                 }
             }
             item {
@@ -270,31 +268,83 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                 }
             }
             item {
-                // Plan Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = planTypeExpanded,
-                    onExpandedChange = { planTypeExpanded = !planTypeExpanded }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SafeOutlinedTextField(
-                        value = planType,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Plan (Free/Premium)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = planTypeExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
+                    // Plan Dropdown
+                    ExposedDropdownMenuBox(
                         expanded = planTypeExpanded,
-                        onDismissRequest = { planTypeExpanded = false }
+                        onExpandedChange = { planTypeExpanded = !planTypeExpanded },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        planTypeOptions.forEach { opt ->
-                            DropdownMenuItem(
-                                text = { Text(opt) },
-                                onClick = {
-                                    planType = opt
-                                    planTypeExpanded = false
-                                }
-                            )
+                        SafeOutlinedTextField(
+                            value = planType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Plan") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = planTypeExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = planTypeExpanded,
+                            onDismissRequest = { planTypeExpanded = false }
+                        ) {
+                            planTypeOptions.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = { Text(opt) },
+                                    onClick = {
+                                        planType = opt
+                                        planTypeExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Difficulty Dropdown (Easy, Medium, Hard)
+                    ExposedDropdownMenuBox(
+                        expanded = difficultyExpanded,
+                        onExpandedChange = { difficultyExpanded = !difficultyExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SafeOutlinedTextField(
+                            value = difficulty,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Difficulty") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = difficultyExpanded,
+                            onDismissRequest = { difficultyExpanded = false }
+                        ) {
+                            difficultyOptions.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val dotColor = when (opt) {
+                                                "Easy" -> MaterialTheme.colorScheme.primary
+                                                "Medium" -> MaterialTheme.colorScheme.tertiary
+                                                "Hard" -> MaterialTheme.colorScheme.error
+                                                else -> MaterialTheme.colorScheme.outline
+                                            }
+                                            Surface(
+                                                color = dotColor,
+                                                shape = RoundedCornerShape(4.dp),
+                                                modifier = Modifier.size(8.dp)
+                                            ) {}
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(opt, fontWeight = if (difficulty == opt) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    },
+                                    onClick = {
+                                        difficulty = opt
+                                        difficultyExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -549,6 +599,18 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             }
 
             item {
+                MarksConfigurationSection(
+                    testType = testType,
+                    selectedMockSubject = selectedMockSubject,
+                    selectedMockChapter = selectedMockChapter,
+                    selectedQuestionIds = selectedQuestionIds,
+                    allQuestions = allQuestions,
+                    groupMarks = groupMarks,
+                    groupCustomMarks = groupCustomMarks
+                )
+            }
+            
+            item {
                 Button(
                     onClick = {
                         if (mockTitleEn.isBlank() || selectedExams.isEmpty()) {
@@ -594,10 +656,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         }
 
                         val duration = durationMinutes.toIntOrNull() ?: 90
-                        val markPerQ = markPerQuestion.toFloatOrNull() ?: 1.0f
                         
-                        // For Subject-wise and Chapter-wise, totalQ could be the total number of questions they want in the mock, or the actual number of questions in that category.
-                        // Wait, they have a field for `totalQuestionsText` maybe? There is no field to specify how many questions to pick. Let's just use the count of questions available.
                         val totalQ = if (testType == "Subject-wise") {
                             allQuestions.count { it.subject.equals(selectedMockSubject, ignoreCase = true) }
                         } else if (testType == "Chapter-wise") {
@@ -606,7 +665,12 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             finalQuestionIds.size.coerceAtLeast(1)
                         }
 
-                        val totalMarksInt = (totalQ * markPerQ).toInt()
+                        val calculatedTotalMarks = calculateTotalMarksFromConfig(
+                            testType, selectedMockSubject, selectedMockChapter, finalQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                        )
+                        val qMarksJson = calculateMockQuestionMarksJson(
+                            testType, selectedMockSubject, selectedMockChapter, finalQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                        )
 
                         val newMock = MockTestEntity(
                             titleEn = mockTitleEn.trim(),
@@ -614,13 +678,15 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             category = selectedExams.joinToString(", "),
                             durationMinutes = duration,
                             totalQuestions = totalQ,
-                            totalMarks = totalMarksInt,
+                            totalMarks = calculatedTotalMarks,
                             testType = testType,
                             subjectOrChapter = finalSubjectOrChapter,
                             negativeMarking = negativeMarking,
+                            difficulty = difficulty,
                             isPremium = planType.equals("Premium", ignoreCase = true),
                             questionIds = finalQuestionIds.joinToString(","),
-                            markPerQuestion = markPerQ
+                            markPerQuestion = 1f,
+                            questionMarksJson = qMarksJson
                         )
 
                         viewModel.addMockTest(newMock) {

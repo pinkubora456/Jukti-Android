@@ -668,7 +668,7 @@ class JuktiRepository(
 
     suspend fun submitMockResult(
         mockId: Long,
-        score: Int,
+        score: Float,
         accuracy: Float,
         timeSpentMins: Int,
         totalAttempted: Int = 0,
@@ -1208,7 +1208,7 @@ class JuktiRepository(
         val resetMocks = allMocks.map { 
             it.copy(
                 isCompleted = false,
-                userScore = 0,
+                userScore = 0f,
                 userAccuracy = 0f,
                 userRank = 0,
                 userPercentile = 0f
@@ -1227,11 +1227,35 @@ class JuktiRepository(
     }
 
     suspend fun saveMockAttempt(attempt: MockAttemptEntity): Long {
-        return mockAttemptDao.insertAttempt(attempt)
+        val insertedId = mockAttemptDao.insertAttempt(attempt)
+        val savedAttempt = attempt.copy(id = insertedId)
+        syncManager.enqueueAndSync("MOCK_ATTEMPT", insertedId.toString(), "CREATE", syncManager.mockAttemptToMap(savedAttempt))
+        firebaseRepository.saveMockAttempt(savedAttempt)
+        return insertedId
     }
 
     fun getAttemptsForMock(mockTestId: Long, userId: String): Flow<List<MockAttemptEntity>> {
         return mockAttemptDao.getAttemptsForMock(mockTestId, userId)
+    }
+
+    fun getAllAttemptsForUser(userId: String): Flow<List<MockAttemptEntity>> {
+        return mockAttemptDao.getAllAttemptsForUser(userId)
+    }
+
+    fun getAllAttemptsForMock(mockTestId: Long): Flow<List<MockAttemptEntity>> {
+        return mockAttemptDao.getAllAttemptsForMock(mockTestId)
+    }
+
+    suspend fun getAttemptById(attemptId: Long): MockAttemptEntity? {
+        return mockAttemptDao.getAttemptById(attemptId)
+    }
+
+    suspend fun getLatestAttemptForMock(mockTestId: Long, userId: String): MockAttemptEntity? {
+        return mockAttemptDao.getLatestAttemptForMock(mockTestId, userId)
+    }
+
+    suspend fun getAllRemoteAttemptsForMock(mockTestId: Long): List<MockAttemptEntity> {
+        return firebaseRepository.getMockAttemptsForMock(mockTestId)
     }
 
 
@@ -1259,7 +1283,7 @@ class JuktiRepository(
         questionId: String,
         isCorrect: Boolean,
         timeSpentSec: Int = 10,
-        todayStr: String
+        todayStr: String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
     ): Int {
         val state = userQuestionStateDao.getState(userId, questionId) ?: UserQuestionStateEntity(userId, questionId)
         var xpToAward = 0
@@ -1286,9 +1310,16 @@ class JuktiRepository(
             xpToAward = 0
         }
         
+        val isNowMastered = if (isCorrect) {
+            state.isMastered || (newTotalAttempts >= 1 && newIncorrectCount == 0)
+        } else {
+            false
+        }
+        
         val newState = state.copy(
             incorrectCount = newIncorrectCount,
             totalAttempts = newTotalAttempts,
+            isMastered = isNowMastered,
             everGotWrong = state.everGotWrong || !isCorrect,
             lastUpdatedDateStr = todayStr,
             lastUpdated = System.currentTimeMillis()
@@ -1329,6 +1360,50 @@ class JuktiRepository(
         firebaseRepository.saveUserProfile(updatedProfile, merge = true)
         
         return xpToAward
+    }
+
+    suspend fun recordQuestionStudied(
+        userId: String,
+        questionId: String,
+        timeSpentSec: Int = 10
+    ): Int {
+        val state = userQuestionStateDao.getState(userId, questionId) ?: UserQuestionStateEntity(userId, questionId)
+        val newState = state.copy(
+            totalAttempts = state.totalAttempts + 1,
+            isMastered = true,
+            lastUpdated = System.currentTimeMillis()
+        )
+        userQuestionStateDao.insertState(newState)
+        syncManager.enqueueAndSync("USER_QUESTION_STATE", "${userId}_${questionId}", "UPDATE", syncManager.userQuestionStateToMap(newState))
+        
+        val profile = userProfileDao.getUserProfileDirect() ?: SampleData.initialUserProfile
+        val newTotalSolved = profile.totalSolved + 1
+        val timeMinsToAdd = (timeSpentSec / 60).coerceAtLeast(if (timeSpentSec > 0) 1 else 0)
+        val newTotalTime = profile.totalTimeMinutes + timeMinsToAdd
+        val addedXp = 5
+        val newXp = profile.xp + addedXp
+        
+        var newLevel = 1
+        while (true) {
+            val nextLevel = newLevel + 1
+            val currentLvl = nextLevel - 1
+            val requiredXp = 50 * currentLvl + 10 * (currentLvl - 1) * (currentLvl - 1)
+            if (newXp >= requiredXp) {
+                newLevel = nextLevel
+            } else {
+                break
+            }
+        }
+        
+        val updatedProfile = profile.copy(
+            xp = newXp,
+            level = newLevel,
+            totalSolved = newTotalSolved,
+            totalTimeMinutes = newTotalTime
+        )
+        userProfileDao.insertOrUpdateProfile(updatedProfile)
+        firebaseRepository.saveUserProfile(updatedProfile, merge = true)
+        return addedXp
     }
 
     suspend fun incrementDailyStreak() {

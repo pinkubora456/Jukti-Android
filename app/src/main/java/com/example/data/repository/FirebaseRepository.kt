@@ -597,6 +597,7 @@ class FirebaseRepository {
         "durationMinutes" to m.durationMinutes,
         "totalQuestions" to m.totalQuestions,
         "totalMarks" to m.totalMarks,
+        "questionMarksJson" to m.questionMarksJson,
         "isScheduled" to m.isScheduled,
         "scheduledDate" to m.scheduledDate,
         "isCompleted" to m.isCompleted,
@@ -1061,11 +1062,12 @@ class FirebaseRepository {
                         category = doc.getString("category") ?: "ADRE",
                         durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 45,
                         totalQuestions = doc.getLong("totalQuestions")?.toInt() ?: 10,
-                        totalMarks = doc.getLong("totalMarks")?.toInt() ?: 10,
+                        totalMarks = doc.getDouble("totalMarks")?.toFloat() ?: 10f,
+                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}",
                         isScheduled = doc.getBoolean("isScheduled") ?: false,
                         scheduledDate = doc.getString("scheduledDate") ?: "",
                         isCompleted = doc.getBoolean("isCompleted") ?: false,
-                        userScore = doc.getLong("userScore")?.toInt() ?: 0,
+                        userScore = doc.getDouble("userScore")?.toFloat() ?: 0f,
                         userAccuracy = doc.getDouble("userAccuracy")?.toFloat() ?: 0f,
                         userRank = doc.getLong("userRank")?.toInt() ?: 0,
                         userPercentile = doc.getDouble("userPercentile")?.toFloat() ?: 0f,
@@ -1231,11 +1233,12 @@ class FirebaseRepository {
                                         category = doc.getString("category") ?: "ADRE",
                                         durationMinutes = doc.getLong("durationMinutes")?.toInt() ?: 45,
                                         totalQuestions = doc.getLong("totalQuestions")?.toInt() ?: 10,
-                                        totalMarks = doc.getLong("totalMarks")?.toInt() ?: 10,
+                                        totalMarks = doc.getDouble("totalMarks")?.toFloat() ?: 10f,
+                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}",
                                         isScheduled = doc.getBoolean("isScheduled") ?: false,
                                         scheduledDate = doc.getString("scheduledDate") ?: "",
                                         isCompleted = doc.getBoolean("isCompleted") ?: false,
-                                        userScore = doc.getLong("userScore")?.toInt() ?: 0,
+                                        userScore = doc.getDouble("userScore")?.toFloat() ?: 0f,
                                         userAccuracy = doc.getDouble("userAccuracy")?.toFloat() ?: 0f,
                                         userRank = doc.getLong("userRank")?.toInt() ?: 0,
                                         userPercentile = doc.getDouble("userPercentile")?.toFloat() ?: 0f,
@@ -1881,6 +1884,65 @@ class FirebaseRepository {
             }
         } catch (e: Throwable) {
             Log.e("FirebaseRepository", "Error deleting user account from Firebase", e)
+        }
+    }
+
+    suspend fun saveMockAttempt(attempt: com.example.data.local.MockAttemptEntity) {
+        try {
+            val db = firestore ?: return
+            val map = mapOf(
+                "id" to attempt.id,
+                "mockTestId" to attempt.mockTestId,
+                "userId" to attempt.userId,
+                "timestamp" to attempt.timestamp,
+                "questionIds" to attempt.questionIds,
+                "userAnswersJson" to attempt.userAnswersJson,
+                "score" to attempt.score,
+                "totalMarks" to attempt.totalMarks,
+                "accuracy" to attempt.accuracy,
+                "correctCount" to attempt.correctCount,
+                "totalAttempted" to attempt.totalAttempted,
+                "questionMarksJson" to attempt.questionMarksJson
+            )
+            // Save to global mock_attempts collection
+            db.collection("mock_attempts").document(attempt.id.toString()).set(map, SetOptions.merge()).await()
+            // Also save under user's private subcollection if userId is valid
+            if (attempt.userId.isNotBlank()) {
+                db.collection("users").document(attempt.userId)
+                    .collection("mock_attempts").document(attempt.id.toString())
+                    .set(map, SetOptions.merge()).await()
+            }
+        } catch (e: Exception) {
+            Log.w("FirebaseRepository", "Could not sync mock attempt to Firestore: ${e.message}")
+        }
+    }
+
+    suspend fun getMockAttemptsForMock(mockTestId: Long): List<com.example.data.local.MockAttemptEntity> {
+        return try {
+            val db = firestore ?: return emptyList()
+            val snap = db.collection("mock_attempts").whereEqualTo("mockTestId", mockTestId).get().await()
+            snap.documents.mapNotNull { doc ->
+                try {
+                    com.example.data.local.MockAttemptEntity(
+                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        mockTestId = doc.getLong("mockTestId") ?: mockTestId,
+                        userId = doc.getString("userId") ?: "",
+                        timestamp = doc.getLong("timestamp") ?: 0L,
+                        questionIds = doc.getString("questionIds") ?: "",
+                        userAnswersJson = doc.getString("userAnswersJson") ?: "{}",
+                        score = doc.getDouble("score")?.toFloat() ?: 0f,
+                        totalMarks = doc.getDouble("totalMarks")?.toFloat() ?: 100f,
+                        accuracy = doc.getDouble("accuracy")?.toFloat() ?: 0f,
+                        correctCount = doc.getLong("correctCount")?.toInt() ?: 0,
+                        totalAttempted = doc.getLong("totalAttempted")?.toInt() ?: 0,
+                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}"
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

@@ -41,10 +41,11 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val mockTest by viewModel.selectedMockTest.collectAsState()
-    val questions by viewModel.questions.collectAsState()
+    val activeMockQuestions by viewModel.activeMockQuestions.collectAsState()
     val userAnswers by viewModel.mockUserAnswers.collectAsState()
     val markedForReview by viewModel.mockMarkedForReview.collectAsState()
     val timeRemainingSeconds by viewModel.mockTimeRemainingSeconds.collectAsState()
+    val isSubmittingMock by viewModel.isSubmittingMock.collectAsState()
 
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var showPaletteSheet by remember { mutableStateOf(false) }
@@ -52,28 +53,12 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
 
-    val activeMockQuestions = remember(mockTest, questions) {
-        val mock = mockTest ?: return@remember emptyList()
-        var filtered = questions
-        
-        if (mock.testType == "Subject-wise") {
-            filtered = filtered.filter { it.subject.equals(mock.subjectOrChapter, ignoreCase = true) }
-        } else if (mock.testType == "Chapter-wise") {
-            val parts = mock.subjectOrChapter.split("||")
-            val subj = parts.getOrNull(0) ?: ""
-            val chap = parts.getOrNull(1) ?: ""
-            filtered = filtered.filter { 
-                it.subject.equals(subj, ignoreCase = true) && it.topic.equals(chap, ignoreCase = true) 
-            }
-        } else {
-            // Full-Length or Exam-wise mock functionality
-            if (mock.questionIds.isNotBlank()) {
-                val ids = mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }.toSet()
-                filtered = filtered.filter { it.id in ids }
-            }
+    // Active test timer countdown
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000L)
+            viewModel.decrementMockTimer()
         }
-        
-        filtered.shuffled().take(mock.totalQuestions)
     }
 
     val currentQuestion = activeMockQuestions.getOrNull(currentQuestionIndex)
@@ -106,24 +91,47 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     }
 
     if (showSubmitConfirmDialog) {
+        val totalQ = activeMockQuestions.size
+        val answeredQ = userAnswers.size
+        val markedQ = markedForReview.size
+        val skippedQ = (totalQ - answeredQ).coerceAtLeast(0)
+
         AlertDialog(
-            onDismissRequest = { showSubmitConfirmDialog = false },
+            onDismissRequest = { if (!isSubmittingMock) showSubmitConfirmDialog = false },
             title = { Text("Submit Mock Test?") },
             text = {
-                Text(
-                    text = "Answered: ${userAnswers.size} / ${activeMockQuestions.size}\nMarked for Review: ${markedForReview.size}"
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Are you sure you want to finish and submit this test?")
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Text("• Total Questions: $totalQ", fontWeight = FontWeight.Bold)
+                    Text("• Answered: $answeredQ", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                    Text("• Skipped / Unanswered: $skippedQ", color = Color(0xFFE65100))
+                    Text("• Marked for Review: $markedQ", color = Color(0xFF1976D2))
+                }
             },
             confirmButton = {
-                Button(onClick = {
-                    showSubmitConfirmDialog = false
-                    viewModel.submitCurrentMockTest()
-                }) {
-                    Text("Submit Test")
+                Button(
+                    onClick = {
+                        showSubmitConfirmDialog = false
+                        viewModel.submitCurrentMockTest()
+                    },
+                    enabled = !isSubmittingMock,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    if (isSubmittingMock) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Submitting...")
+                    } else {
+                        Text("Submit Test")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSubmitConfirmDialog = false }) {
+                TextButton(
+                    onClick = { showSubmitConfirmDialog = false },
+                    enabled = !isSubmittingMock
+                ) {
                     Text("Continue Test")
                 }
             }

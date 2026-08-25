@@ -49,7 +49,8 @@ enum class AnalysisFilter {
 fun MockResultScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val mockTest by viewModel.selectedMockTest.collectAsState()
-    val questions by viewModel.questions.collectAsState()
+    val activeQuestions by viewModel.activeMockQuestions.collectAsState()
+    val currentMockAttempt by viewModel.currentMockAttempt.collectAsState()
     val userAnswers by viewModel.mockUserAnswers.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val likedIds by viewModel.likedIds.collectAsState()
@@ -60,42 +61,70 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
     var analysisLanguage by remember { mutableStateOf(AppLanguage.BOTH) }
     var showPaletteGrid by remember { mutableStateOf(false) }
 
-    val activeQuestions = remember(questions, mockTest) {
-        val currentMockTest = mockTest
-        if (currentMockTest == null || currentMockTest.questionIds.isEmpty()) {
-            questions.take(currentMockTest?.totalQuestions ?: 10)
-        } else {
-            val ids = currentMockTest.questionIds.split(",").mapNotNull { it.toLongOrNull() }
-            // Filter questions based on IDs and keep the order
-            val idToQuestion = questions.associateBy { it.id }
-            ids.mapNotNull { idToQuestion[it] }
+    // Authoritative Result Calculations from attempt record / active questions
+    val totalQ = activeQuestions.size.coerceAtLeast(mockTest?.totalQuestions ?: 0).coerceAtLeast(1)
+    val attemptedCount = currentMockAttempt?.totalAttempted ?: userAnswers.size
+    val correctCount = currentMockAttempt?.correctCount ?: activeQuestions.indices.count { idx ->
+        userAnswers[idx] == activeQuestions.getOrNull(idx)?.correctOptionIndex
+    }
+    val incorrectCount = (attemptedCount - correctCount).coerceAtLeast(0)
+    val skippedCount = (totalQ - attemptedCount).coerceAtLeast(0)
+
+    val totalMarks = currentMockAttempt?.totalMarks ?: mockTest?.totalMarks ?: (totalQ * 2)
+    val score = currentMockAttempt?.score ?: mockTest?.userScore ?: 0
+    val accuracyPercent = currentMockAttempt?.accuracy ?: if (attemptedCount > 0) {
+        ((correctCount.toFloat() / attemptedCount.toFloat()) * 100f).coerceIn(0f, 100f)
+    } else 0f
+
+    val percentile = mockTest?.userPercentile ?: if (accuracyPercent > 0f) accuracyPercent.coerceIn(5.0f, 99.9f) else 50.0f
+    val rank = mockTest?.userRank ?: 1
+
+    val qMarksMap = remember(currentMockAttempt, mockTest) {
+        val json = currentMockAttempt?.questionMarksJson?.takeIf { it.isNotBlank() && it != "{}" } 
+                   ?: mockTest?.questionMarksJson?.takeIf { it.isNotBlank() && it != "{}" }
+        val map = mutableMapOf<Long, Float>()
+        if (json != null) {
+            try {
+                val obj = org.json.JSONObject(json)
+                obj.keys().forEach { k -> map[k.toLong()] = obj.getDouble(k).toFloat() }
+            } catch (e: Exception) {}
+        }
+        map
+    }
+
+    val defaultMarkPerQuestion = if ((mockTest?.markPerQuestion ?: 0f) > 0f) {
+        mockTest!!.markPerQuestion
+    } else {
+        (totalMarks.toFloat() / totalQ.coerceAtLeast(1).toFloat()).coerceAtLeast(1f)
+    }
+
+    val negPerQuestion = remember(mockTest) {
+        val negStr = mockTest?.negativeMarking ?: "0.25"
+        if (negStr.equals("None", ignoreCase = true) || negStr.isBlank()) 0f
+        else {
+            val match = Regex("""([0-9]+(?:\.[0-9]+)?)""").find(negStr)
+            match?.value?.toFloatOrNull() ?: 0.25f
         }
     }
 
-    val correctCount = remember(activeQuestions, userAnswers) {
-        activeQuestions.indices.count { idx ->
-            userAnswers[idx] == activeQuestions[idx].correctOptionIndex
+    val timeSpentSeconds = remember(currentMockAttempt, mockTest) {
+        val json = currentMockAttempt?.userAnswersJson ?: ""
+        var t = 0
+        if (json.isNotBlank()) {
+            try {
+                val obj = org.json.JSONObject(json)
+                t = obj.optInt("timeSpentSeconds", 0)
+            } catch (e: Exception) {}
         }
+        if (t <= 0) {
+            t = (mockTest?.durationMinutes ?: 90) * 60
+        }
+        t
     }
 
-    val incorrectCount = remember(activeQuestions, userAnswers) {
-        activeQuestions.indices.count { idx ->
-            val choice = userAnswers[idx]
-            choice != null && choice != activeQuestions[idx].correctOptionIndex
-        }
-    }
-
-    val skippedCount = remember(activeQuestions, userAnswers) {
-        activeQuestions.indices.count { idx ->
-            userAnswers[idx] == null
-        }
-    }
-
-    val accuracyPercent = remember(userAnswers, correctCount) {
-        if (userAnswers.isNotEmpty()) {
-            ((correctCount.toFloat() / userAnswers.size.toFloat()) * 100f).coerceIn(0f, 100f)
-        } else 0f
-    }
+    val solvingSpeedSecPerQ = if (attemptedCount > 0) (timeSpentSeconds / attemptedCount) else 0
+    val speedDisplay = if (solvingSpeedSecPerQ > 0) "${solvingSpeedSecPerQ}s / MCQ" else "N/A"
+    val timeDisplay = "%02dm %02ds".format(timeSpentSeconds / 60, timeSpentSeconds % 60)
 
     // Filtered list of questions with their original 0-based indices
     val indexedFilteredQuestions = remember(activeQuestions, userAnswers, analysisFilter) {
@@ -232,18 +261,18 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                         ) {
                             ResultStatBox(
                                 title = "Score",
-                                value = "${mockTest?.userScore ?: (correctCount * 2)}/${mockTest?.totalMarks ?: (activeQuestions.size * 2)}",
+                                value = "$score / $totalMarks",
                                 color = MaterialTheme.colorScheme.primary
                             )
                             ResultStatBox(
                                 title = "Assam Rank",
-                                value = "#${mockTest?.userRank ?: 14}",
-                                color = MaterialTheme.colorScheme.secondary
+                                value = "#$rank",
+                                color = Color(0xFFE65100)
                             )
                             ResultStatBox(
                                 title = "Percentile",
-                                value = "96.8%",
-                                color = Color(0xFF00897B)
+                                value = "%.1f%%".format(percentile),
+                                color = Color(0xFF2E7D32)
                             )
                         }
 
@@ -305,7 +334,7 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "${userAnswers.size} / ${activeQuestions.size}",
+                                text = "$attemptedCount / $totalQ",
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -322,6 +351,36 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 text = "%.1f%%".format(accuracyPercent),
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF2E7D32)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Time Taken:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = timeDisplay,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Mock Test Speed / MCQ:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = speedDisplay,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -599,6 +658,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 questionIndex = origIdx,
                                 question = question,
                                 userChoice = userChoice,
+                                markPerQuestion = qMarksMap[question.id] ?: defaultMarkPerQuestion,
+                                negPerQuestion = negPerQuestion,
                                 analysisLanguage = analysisLanguage,
                                 appLanguage = language,
                                 bookmarkedIds = bookmarkedIds,
@@ -622,6 +683,8 @@ fun QuestionAnalysisCard(
     questionIndex: Int,
     question: QuestionEntity,
     userChoice: Int?,
+    markPerQuestion: Float = 1.0f,
+    negPerQuestion: Float = 0.25f,
     analysisLanguage: AppLanguage,
     appLanguage: AppLanguage,
     bookmarkedIds: Set<Long>,
@@ -653,9 +716,11 @@ fun QuestionAnalysisCard(
         else -> Icons.Default.RemoveCircleOutline
     }
 
+    val markStr = if (markPerQuestion % 1 == 0f) markPerQuestion.toInt().toString() else "%.2f".format(markPerQuestion)
+    val negStr = if (negPerQuestion % 1 == 0f) negPerQuestion.toInt().toString() else "%.2f".format(negPerQuestion)
     val statusText = when {
-        isCorrect -> "Correct (+1.0)"
-        isIncorrect -> "Incorrect (-0.25)"
+        isCorrect -> "Correct (+$markStr)"
+        isIncorrect -> "Incorrect (-$negStr)"
         else -> "Skipped (0.0)"
     }
 

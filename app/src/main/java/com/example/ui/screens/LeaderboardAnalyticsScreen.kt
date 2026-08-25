@@ -86,8 +86,8 @@ data class MockHistoryItem(
     val titleEn: String,
     val titleAs: String,
     val date: String,
-    val score: Int,
-    val totalMarks: Int,
+    val score: Float,
+    val totalMarks: Float,
     val accuracy: Int,
     val percentile: Float,
     val rank: Int,
@@ -192,7 +192,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
 
         val mockAvg = remember(mockHistoryList) {
             if (mockHistoryList.isNotEmpty()) {
-                mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
+                mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1f)) * 100f }.average().toFloat()
             } else {
                 0f
             }
@@ -300,7 +300,7 @@ fun ExamClearanceProbabilityCard(
     var showExplanationDialog by remember { mutableStateOf(false) }
 
     val mockAvg = if (mockHistoryList.isNotEmpty()) {
-        mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
+        mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1f)) * 100f }.average().toFloat()
     } else {
         0f
     }
@@ -1400,7 +1400,7 @@ fun MissedQuestionsModalDialog(
 // -----------------------------------------------------------------------------
 @Composable
 fun MockTestScoreTrendCard(mockHistoryList: List<MockHistoryItem>, isAssamese: Boolean) {
-    val scores = mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }
+    val scores = mockHistoryList.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1f)) * 100f }
     val labels = mockHistoryList.mapIndexed { index, _ -> "M${index + 1}" }
     val hasData = scores.isNotEmpty()
 
@@ -1817,13 +1817,13 @@ fun LeaderboardTabContent(
         val filtered = mockHistoryList.filter { isMockBelongsToExam(it.category, activeSelectedExam) }
         val grouped = filtered.groupBy { if (it.testId != 0L) it.testId.toString() else it.titleEn }
         grouped.map { (_, attempts) ->
-            attempts.maxByOrNull { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }!!
+            attempts.maxByOrNull { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1f)) * 100f }!!
         }
     }
 
     val userExamMockAvg = remember(userExamMocksGrouped) {
         if (userExamMocksGrouped.isNotEmpty()) {
-            userExamMocksGrouped.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1)) * 100f }.average().toFloat()
+            userExamMocksGrouped.map { (it.score.toFloat() / it.totalMarks.coerceAtLeast(1f)) * 100f }.average().toFloat()
         } else {
             0f
         }

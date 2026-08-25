@@ -53,8 +53,23 @@ interface MockAttemptDao {
     @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId AND userId = :userId ORDER BY timestamp DESC")
     fun getAttemptsForMock(mockTestId: Long, userId: String): Flow<List<MockAttemptEntity>>
 
+    @Query("SELECT * FROM mock_attempts WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getAllAttemptsForUser(userId: String): Flow<List<MockAttemptEntity>>
+
+    @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId ORDER BY score DESC, accuracy DESC, timestamp ASC")
+    fun getAllAttemptsForMock(mockTestId: Long): Flow<List<MockAttemptEntity>>
+
+    @Query("SELECT * FROM mock_attempts WHERE id = :attemptId")
+    suspend fun getAttemptById(attemptId: Long): MockAttemptEntity?
+
+    @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId AND userId = :userId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestAttemptForMock(mockTestId: Long, userId: String): MockAttemptEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAttempt(attempt: MockAttemptEntity): Long
+
+    @Query("DELETE FROM mock_attempts WHERE mockTestId = :mockTestId")
+    suspend fun deleteAttemptsForMock(mockTestId: Long)
 }
 
 

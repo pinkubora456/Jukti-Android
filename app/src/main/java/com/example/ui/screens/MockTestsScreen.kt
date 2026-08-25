@@ -316,7 +316,8 @@ fun MockTestsScreen(viewModel: JuktiViewModel) {
                     MockTestCardDetailed(
                         mock = mock,
                         language = language,
-                        onStart = { viewModel.selectMockTest(mock) }
+                        onStart = { viewModel.selectMockTest(mock) },
+                        onViewResult = { viewModel.viewMockResultForTest(mock) }
                     )
                 }
             }
@@ -582,7 +583,8 @@ fun ContinueLastMockCard(
 fun MockTestCardDetailed(
     mock: MockTestEntity,
     language: AppLanguage,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onViewResult: (() -> Unit)? = null
 ) {
     val isAssamese = language == AppLanguage.ASSAMESE
 
@@ -764,36 +766,73 @@ fun MockTestCardDetailed(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Action Button
-            Button(
-                onClick = onStart,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = if (mock.isCompleted) {
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                } else {
-                    ButtonDefaults.buttonColors()
+            // Action Buttons
+            if (mock.isCompleted && onViewResult != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onViewResult,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "View Result",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Re-attempt",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
-            ) {
-                Icon(
-                    imageVector = if (mock.isCompleted) Icons.Default.Refresh else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (mock.isCompleted) {
-                        "Re-attempt Mock"
-                    } else if (mock.inProgress) {
-                        "Resume Test"
-                    } else {
-                        "Start Mock Test"
-                    },
-                    fontWeight = FontWeight.Bold
-                )
+            } else {
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = if (mock.inProgress) Icons.Default.PlayArrow else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (mock.inProgress) {
+                            "Resume Test"
+                        } else {
+                            "Start Mock Test"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

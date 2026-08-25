@@ -123,11 +123,15 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var showSummary by rememberSaveable { mutableStateOf(false) }
     val userAnswers = remember { mutableStateMapOf<Long, Int>() }
 
+    var sessionTotalSeconds by rememberSaveable { mutableIntStateOf(0) }
     var activeSessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
     var lastStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
 
     LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice) {
         if (isSessionStarted) {
+            userAnswers.clear()
+            scoreCount = 0
+            sessionTotalSeconds = 0
             val eligible = practiceQuestions.shuffled().toMutableList()
             if (eligible.size > 1 && eligible[0].id == lastStartingQuestionId) {
                 val temp = eligible[0]
@@ -141,6 +145,16 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             currentQuestionIndex = 0
         } else {
             activeSessionQuestions = emptyList()
+        }
+    }
+
+    // Session Live Timer
+    LaunchedEffect(isSessionStarted, showSummary) {
+        if (isSessionStarted && !showSummary) {
+            while (true) {
+                delay(1000L)
+                sessionTotalSeconds++
+            }
         }
     }
 
@@ -501,12 +515,33 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             }
         } else if (showSummary) {
             PracticeSummaryView(
-                questions = practiceQuestions,
+                questions = displayQuestions,
                 userAnswers = userAnswers,
+                totalTimeSeconds = sessionTotalSeconds,
                 onFinish = {
                     showSummary = false
                     isSessionStarted = false
+                    userAnswers.clear()
+                    scoreCount = 0
                     viewModel.navigateTo(Screen.HOME)
+                },
+                onPracticeAgain = {
+                    showSummary = false
+                    userAnswers.clear()
+                    scoreCount = 0
+                    currentQuestionIndex = 0
+                    sessionTotalSeconds = 0
+                    val eligible = practiceQuestions.shuffled().toMutableList()
+                    if (eligible.size > 1 && eligible[0].id == lastStartingQuestionId) {
+                        val temp = eligible[0]
+                        eligible[0] = eligible[1]
+                        eligible[1] = temp
+                    }
+                    if (eligible.isNotEmpty()) {
+                        lastStartingQuestionId = eligible[0].id
+                    }
+                    activeSessionQuestions = eligible
+                    isSessionStarted = true
                 },
                 questionLanguage = questionLanguage,
                 isSmartPractice = isSmartPractice
@@ -1101,13 +1136,15 @@ private fun PracticeSubjectBannerCard(
 fun PracticeSummaryView(
     questions: List<com.example.data.local.QuestionEntity>,
     userAnswers: Map<Long, Int>,
+    totalTimeSeconds: Int,
     onFinish: () -> Unit,
+    onPracticeAgain: () -> Unit,
     questionLanguage: AppLanguage,
     isSmartPractice: Boolean = false
 ) {
     var correctCount = 0
     var incorrectCount = 0
-    val unattemptedCount = questions.size - userAnswers.size
+    val unattemptedCount = (questions.size - userAnswers.size).coerceAtLeast(0)
 
     val answeredQuestions = mutableListOf<Pair<com.example.data.local.QuestionEntity, Boolean>>()
 
@@ -1122,6 +1159,8 @@ fun PracticeSummaryView(
 
     val totalAttempted = correctCount + incorrectCount
     val accuracy = if (totalAttempted > 0) (correctCount.toFloat() / totalAttempted * 100).toInt() else 0
+    val score = correctCount * 10
+    val avgSpeedPerMcq = if (totalAttempted > 0) (totalTimeSeconds.toFloat() / totalAttempted).toInt() else 0
 
     Column(
         modifier = Modifier
@@ -1132,7 +1171,7 @@ fun PracticeSummaryView(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary",
+            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary 🎉",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -1140,37 +1179,100 @@ fun PracticeSummaryView(
         )
 
         Text(
-            text = "${questions.size} Questions Practiced",
+            text = "${questions.size} Questions in Session • $totalAttempted Attempted",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Text(
-            text = "Accuracy: $accuracy%",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        // Key Performance Cards Row 1
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                SummaryStatCard(title = "Score", count = score, subtitle = "pts", color = MaterialTheme.colorScheme.primary)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                SummaryStatCard(title = "Accuracy", count = accuracy, subtitle = "%", color = if (accuracy >= 60) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error)
+            }
+        }
+
+        // Breakdown Cards Row 2
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                SummaryStatCard(title = "Correct", count = correctCount, subtitle = "", color = MaterialTheme.colorScheme.success)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                SummaryStatCard(title = "Incorrect", count = incorrectCount, subtitle = "", color = MaterialTheme.colorScheme.error)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                SummaryStatCard(title = "Skipped", count = unattemptedCount, subtitle = "", color = MaterialTheme.colorScheme.outline)
+            }
+        }
+
+        // Time & Solving Speed Row 3
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val m = totalTimeSeconds / 60
+                    val s = totalTimeSeconds % 60
+                    Text(
+                        text = if (m > 0) "${m}m ${s}s" else "${s}s",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(text = "Time Spent", style = MaterialTheme.typography.labelSmall)
+                }
+                Divider(modifier = Modifier.height(30.dp).width(1.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = if (avgSpeedPerMcq > 0) "${avgSpeedPerMcq}s" else "-",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(text = "Speed / MCQ", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            SummaryStatCard(title = "Correct", count = correctCount, color = MaterialTheme.colorScheme.success)
-            SummaryStatCard(title = "Incorrect", count = incorrectCount, color = MaterialTheme.colorScheme.error)
-            SummaryStatCard(title = "Skipped", count = unattemptedCount, color = MaterialTheme.colorScheme.outline)
-        }
-
-        Button(
-            onClick = onFinish,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Text("Finish Practice")
+            OutlinedButton(
+                onClick = onPracticeAgain,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Practice Again")
+            }
+            Button(
+                onClick = onFinish,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Finish Practice")
+            }
         }
 
         if (answeredQuestions.isNotEmpty()) {
             Text(
-                text = "Detailed Review",
+                text = "Detailed Question Review",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -1241,17 +1343,23 @@ fun PracticeSummaryView(
 }
 
 @Composable
-fun SummaryStatCard(title: String, count: Int, color: Color) {
+fun SummaryStatCard(title: String, count: Int, subtitle: String = "", color: Color) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        border = BorderStroke(1.dp, color)
+        border = BorderStroke(1.dp, color),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = color)
+            Text(
+                text = if (subtitle.isNotBlank()) "$count$subtitle" else count.toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
             Text(text = title, style = MaterialTheme.typography.labelMedium, color = color)
         }
     }

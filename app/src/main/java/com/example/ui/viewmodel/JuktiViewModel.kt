@@ -271,42 +271,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
     val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
 
-    val bookmarkedIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-        repository.getUserStates(uid).map { list ->
-            list.filter { it.isBookmarked }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    } ?: MutableStateFlow(emptySet())
-
-    val hiddenIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-        repository.getUserStates(uid).map { list ->
-            list.filter { it.isHidden }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    } ?: MutableStateFlow(emptySet())
-
-    val likedIds: StateFlow<Set<Long>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-        repository.getUserStates(uid).map { list ->
-            list.filter { it.isLiked }.map { it.questionId.toLongOrNull() ?: -1L }.toSet()
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    } ?: MutableStateFlow(emptySet())
-
-    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
-        repository.allQuestions,
-        bookmarkedIds
-    ) { questions, ids ->
-        questions.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
-        repository.allQuestions,
-        hiddenIds
-    ) { questions, ids ->
-        questions.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
-        repository.getSmartPracticeQuestions(uid).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    } ?: MutableStateFlow(emptyList())
-
     // Navigation State
     private val _currentScreen = MutableStateFlow(Screen.SPLASH)
     private var splashFinished = false
@@ -468,6 +432,54 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val userProfile = repository.userProfile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), null
     )
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val bookmarkedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) flowOf(emptySet())
+        else repository.getUserStates(uid).map { list ->
+            list.filter { it.isBookmarked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val hiddenIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) flowOf(emptySet())
+        else repository.getUserStates(uid).map { list ->
+            list.filter { it.isHidden }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val likedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) flowOf(emptySet())
+        else repository.getUserStates(uid).map { list ->
+            list.filter { it.isLiked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
+        repository.allQuestions,
+        bookmarkedIds
+    ) { questions, ids ->
+        questions.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
+        repository.allQuestions,
+        hiddenIds
+    ) { questions, ids ->
+        questions.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = userProfile.flatMapLatest { profile ->
+        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) flowOf(emptyList())
+        else repository.getSmartPracticeQuestions(uid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Data Flows from Repository
     val plans = repository.allPlans.stateIn(
@@ -734,6 +746,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val isGuestMode: StateFlow<Boolean> = _isGuestMode.asStateFlow()
 
     // Active Mock Test Session State
+    private val _activeMockQuestions = MutableStateFlow<List<QuestionEntity>>(emptyList())
+    val activeMockQuestions: StateFlow<List<QuestionEntity>> = _activeMockQuestions.asStateFlow()
+
+    private val _currentMockAttempt = MutableStateFlow<MockAttemptEntity?>(null)
+    val currentMockAttempt: StateFlow<MockAttemptEntity?> = _currentMockAttempt.asStateFlow()
+
     private val _mockUserAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
     val mockUserAnswers: StateFlow<Map<Int, Int>> = _mockUserAnswers.asStateFlow()
 
@@ -742,6 +760,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _mockTimeRemainingSeconds = MutableStateFlow(5400) // 90 mins
     val mockTimeRemainingSeconds: StateFlow<Int> = _mockTimeRemainingSeconds.asStateFlow()
+
+    private val _mockSessionTotalSeconds = MutableStateFlow(0)
+    val mockSessionTotalSeconds: StateFlow<Int> = _mockSessionTotalSeconds.asStateFlow()
+
+    private val _isSubmittingMock = MutableStateFlow(false)
+    val isSubmittingMock: StateFlow<Boolean> = _isSubmittingMock.asStateFlow()
 
     val activityLogs: StateFlow<List<ActivityLogEntity>> = repository.activityLogs.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -1013,20 +1037,139 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         _isGuestMode.value = false
     }
 
+    private fun parseNegativeMarkingRate(value: String): Float {
+        if (value.equals("None", ignoreCase = true) || value.isBlank()) return 0.0f
+        val match = Regex("""([0-9]+(?:\.[0-9]+)?)""").find(value)
+        return match?.value?.toFloatOrNull() ?: 0.0f
+    }
+
+    private fun serializeMockAttemptAnswers(
+        answers: Map<Int, Int>,
+        questionIds: List<Long>,
+        timeSpentSeconds: Int,
+        rawScore: Float
+    ): String {
+        val root = org.json.JSONObject()
+        val answersObj = org.json.JSONObject()
+        answers.forEach { (idx, opt) ->
+            val qId = questionIds.getOrNull(idx)
+            answersObj.put(idx.toString(), opt)
+            if (qId != null) {
+                answersObj.put("qid_$qId", opt)
+            }
+        }
+        root.put("answers", answersObj)
+        root.put("timeSpentSeconds", timeSpentSeconds)
+        root.put("rawScore", rawScore.toDouble())
+        return root.toString()
+    }
+
+    private fun deserializeMockAttemptAnswers(
+        jsonStr: String,
+        questionIds: List<Long>
+    ): Pair<Map<Int, Int>, Int> {
+        if (jsonStr.isBlank()) return Pair(emptyMap(), 0)
+        val map = mutableMapOf<Int, Int>()
+        var timeSpent = 0
+        try {
+            val root = org.json.JSONObject(jsonStr)
+            if (root.has("answers")) {
+                val answersObj = root.getJSONObject("answers")
+                questionIds.forEachIndexed { index, qId ->
+                    if (answersObj.has(index.toString())) {
+                        map[index] = answersObj.getInt(index.toString())
+                    } else if (answersObj.has("qid_$qId")) {
+                        map[index] = answersObj.getInt("qid_$qId")
+                    }
+                }
+                timeSpent = root.optInt("timeSpentSeconds", 0)
+            } else {
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    val idx = k.toIntOrNull()
+                    if (idx != null) {
+                        map[idx] = root.getInt(k)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore format errors
+        }
+        return Pair(map, timeSpent)
+    }
+
     fun selectMockTest(mock: MockTestEntity) {
         if (mock.isPremium && !isUserPremium.value) {
             _showPremiumPaywall.value = true
             return
         }
         _selectedMockTest.value = mock
+        _currentMockAttempt.value = null
         _mockUserAnswers.value = emptyMap()
         _mockMarkedForReview.value = emptySet()
-        _mockTimeRemainingSeconds.value = mock.durationMinutes * 60
+        _mockTimeRemainingSeconds.value = (mock.durationMinutes * 60).coerceAtLeast(60)
+        _mockSessionTotalSeconds.value = 0
+        _isSubmittingMock.value = false
+
+        // Resolve and lock the EXACT questions belonging to this mock test session
+        val allQuestionsList = questions.value
+        val resolvedQuestions: List<QuestionEntity> = when {
+            mock.questionIds.isNotBlank() -> {
+                val ids = mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+                val idMap = allQuestionsList.associateBy { it.id }
+                val fromIds = ids.mapNotNull { idMap[it] }
+                if (fromIds.isNotEmpty()) {
+                    fromIds
+                } else {
+                    allQuestionsList.take(mock.totalQuestions)
+                }
+            }
+            mock.testType.equals("Subject-wise", ignoreCase = true) && mock.subjectOrChapter.isNotBlank() -> {
+                val matching = allQuestionsList.filter { 
+                    it.subject.equals(mock.subjectOrChapter.trim(), ignoreCase = true) 
+                }
+                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+            }
+            mock.testType.equals("Chapter-wise", ignoreCase = true) && mock.subjectOrChapter.isNotBlank() -> {
+                val parts = mock.subjectOrChapter.split("||")
+                val subj = parts.getOrNull(0)?.trim() ?: ""
+                val chap = parts.getOrNull(1)?.trim() ?: ""
+                val matching = allQuestionsList.filter { 
+                    it.subject.equals(subj, ignoreCase = true) && (chap.isBlank() || it.topic.equals(chap, ignoreCase = true))
+                }
+                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+            }
+            else -> {
+                val matching = if (mock.category.isNotBlank() && !mock.category.equals("All", ignoreCase = true)) {
+                    allQuestionsList.filter { 
+                        it.examCategory.equals(mock.category.trim(), ignoreCase = true) || it.subject.equals(mock.category.trim(), ignoreCase = true) 
+                    }
+                } else {
+                    allQuestionsList
+                }
+                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+            }
+        }
+        
+        _activeMockQuestions.value = resolvedQuestions
         navigateTo(Screen.MOCK_PLAYER)
     }
 
+    fun decrementMockTimer() {
+        if (_mockTimeRemainingSeconds.value > 0) {
+            _mockTimeRemainingSeconds.value -= 1
+            _mockSessionTotalSeconds.value += 1
+            if (_mockTimeRemainingSeconds.value == 0) {
+                submitCurrentMockTest()
+            }
+        }
+    }
+
     fun recordMockAnswer(questionIndex: Int, optionIndex: Int) {
-        _mockUserAnswers.value = _mockUserAnswers.value + (questionIndex to optionIndex)
+        val currentAnswers = _mockUserAnswers.value
+        // If clicking already selected option, toggle / keep or re-select
+        _mockUserAnswers.value = currentAnswers + (questionIndex to optionIndex)
     }
 
     fun toggleMarkForReview(questionIndex: Int) {
@@ -1051,82 +1194,248 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun analyzeMockFromHistory(
-        titleEn: String,
-        titleAs: String,
-        score: Int,
-        totalMarks: Int,
-        accuracy: Int,
-        rank: Int,
-        percentile: Float
-    ) {
-        val existingMock = mockTests.value.firstOrNull { it.titleEn == titleEn }
-        val mockEntity = existingMock ?: MockTestEntity(
-            id = 999,
-            titleEn = titleEn,
-            titleAs = titleAs,
-            category = "Mock History",
-            durationMinutes = 90,
-            totalQuestions = 10,
-            totalMarks = totalMarks,
-            userScore = score,
-            userAccuracy = accuracy.toFloat(),
-            userRank = rank,
-            userPercentile = percentile,
-            isCompleted = true
-        )
-        _selectedMockTest.value = mockEntity
-
-        // Generate realistic user answers for question analysis based on accuracy
-        val currentQuestionsList = questions.value.take(10)
-        val answerMap = mutableMapOf<Int, Int>()
-        if (currentQuestionsList.isNotEmpty()) {
-            val totalQ = currentQuestionsList.size
-            val targetCorrect = ((accuracy / 100f) * totalQ).toInt().coerceAtLeast(1).coerceAtMost(totalQ)
-            val targetIncorrect = (totalQ - targetCorrect - 1).coerceAtLeast(0)
-
-            currentQuestionsList.forEachIndexed { index, q ->
-                when {
-                    index < targetCorrect -> {
-                        answerMap[index] = q.correctOptionIndex
-                    }
-                    index < targetCorrect + targetIncorrect -> {
-                        answerMap[index] = (q.correctOptionIndex + 1) % 4
-                    }
-                    else -> {
-                        // Skipped
-                    }
-                }
+    fun viewMockResultForTest(mock: MockTestEntity) {
+        viewModelScope.launch {
+            val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+            val latestAttempt = repository.getLatestAttemptForMock(mock.id, userId)
+            if (latestAttempt != null) {
+                viewMockAttemptResult(mock, latestAttempt)
+            } else {
+                selectMockTest(mock)
             }
         }
-        _mockUserAnswers.value = answerMap
+    }
+
+    fun viewMockAttemptResult(mock: MockTestEntity, attempt: MockAttemptEntity) {
+        _selectedMockTest.value = mock
+        _currentMockAttempt.value = attempt
+        
+        val allQuestionsList = questions.value
+        val idMap = allQuestionsList.associateBy { it.id }
+        val ids = attempt.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+        val attemptQuestions = ids.mapNotNull { idMap[it] }
+        _activeMockQuestions.value = if (attemptQuestions.isNotEmpty()) attemptQuestions else allQuestionsList.take(mock.totalQuestions)
+        
+        val (restoredAnswers, _) = deserializeMockAttemptAnswers(attempt.userAnswersJson, ids)
+        _mockUserAnswers.value = restoredAnswers
+        _mockMarkedForReview.value = emptySet()
+        
         navigateTo(Screen.MOCK_RESULT)
     }
 
-    fun submitCurrentMockTest() {
-        val test = _selectedMockTest.value ?: return
-        val currentQuestionsList = questions.value
-        val answers = _mockUserAnswers.value
-        var correct = 0
-        currentQuestionsList.take(test.totalQuestions).forEachIndexed { index, q ->
-            if (answers[index] == q.correctOptionIndex) {
-                correct++
+    fun analyzeMockFromHistory(
+        titleEn: String,
+        titleAs: String,
+        score: Float,
+        totalMarks: Float,
+        accuracy: Int,
+        rank: Int,
+        percentile: Float,
+        mockTestId: Long = 0L
+    ) {
+        viewModelScope.launch {
+            val existingMock = mockTests.value.firstOrNull { (mockTestId != 0L && it.id == mockTestId) || it.titleEn == titleEn }
+            val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+            val targetMockId = existingMock?.id ?: mockTestId
+            
+            val attempt = if (targetMockId != 0L) {
+                repository.getLatestAttemptForMock(targetMockId, userId)
+            } else null
+
+            val mockEntity = existingMock ?: MockTestEntity(
+                id = if (targetMockId != 0L) targetMockId else 999L,
+                titleEn = titleEn,
+                titleAs = titleAs,
+                category = "Mock History",
+                durationMinutes = 90,
+                totalQuestions = 10,
+                totalMarks = totalMarks,
+                userScore = score,
+                userAccuracy = accuracy.toFloat(),
+                userRank = rank,
+                userPercentile = percentile,
+                isCompleted = true
+            )
+
+            if (attempt != null) {
+                viewMockAttemptResult(mockEntity, attempt)
+            } else {
+                _selectedMockTest.value = mockEntity
+                val allQ = questions.value
+                val resolvedQ = if (mockEntity.questionIds.isNotBlank()) {
+                    val ids = mockEntity.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+                    val idMap = allQ.associateBy { it.id }
+                    ids.mapNotNull { idMap[it] }
+                } else {
+                    allQ.take(mockEntity.totalQuestions.coerceAtLeast(10))
+                }
+                _activeMockQuestions.value = resolvedQ
+
+                val answerMap = mutableMapOf<Int, Int>()
+                val totalQ = resolvedQ.size
+                val targetCorrect = ((accuracy / 100f) * totalQ).toInt().coerceIn(0, totalQ)
+                val targetIncorrect = ((mockEntity.totalQuestions - targetCorrect) / 2).coerceIn(0, totalQ - targetCorrect)
+
+                resolvedQ.forEachIndexed { index, q ->
+                    when {
+                        index < targetCorrect -> answerMap[index] = q.correctOptionIndex
+                        index < targetCorrect + targetIncorrect -> answerMap[index] = (q.correctOptionIndex + 1) % 4
+                    }
+                }
+                _mockUserAnswers.value = answerMap
+
+                val synthAttempt = MockAttemptEntity(
+                    id = System.currentTimeMillis(),
+                    mockTestId = mockEntity.id,
+                    userId = userId,
+                    timestamp = System.currentTimeMillis(),
+                    questionIds = resolvedQ.map { it.id }.joinToString(","),
+                    userAnswersJson = serializeMockAttemptAnswers(answerMap, resolvedQ.map { it.id }, 1800, score.toFloat()),
+                    score = score,
+                    totalMarks = totalMarks,
+                    accuracy = accuracy.toFloat(),
+                    correctCount = targetCorrect,
+                    totalAttempted = targetCorrect + targetIncorrect,
+                    questionMarksJson = mockEntity.questionMarksJson
+                )
+                _currentMockAttempt.value = synthAttempt
+                navigateTo(Screen.MOCK_RESULT)
             }
         }
-        val totalAttempted = answers.size
-        val score = (correct * (test.totalMarks / test.totalQuestions.coerceAtLeast(1)))
-        val accuracy = if (answers.isNotEmpty()) (correct.toFloat() / answers.size.toFloat()) * 100f else 0f
+    }
+
+    fun submitCurrentMockTest() {
+        if (_isSubmittingMock.value) return
+        val test = _selectedMockTest.value ?: return
+        val currentQuestionsList = _activeMockQuestions.value
+        if (currentQuestionsList.isEmpty()) return
+
+        _isSubmittingMock.value = true
+        val answers = _mockUserAnswers.value
+
+        val totalQ = currentQuestionsList.size
+        
+        var qMarksMap: org.json.JSONObject? = null
+        try {
+            if (test.questionMarksJson.isNotBlank() && test.questionMarksJson != "{}") {
+                qMarksMap = org.json.JSONObject(test.questionMarksJson)
+            }
+        } catch (e: Exception) {}
+        
+        val markPerQuestion = if (test.markPerQuestion > 0f) test.markPerQuestion else (test.totalMarks / totalQ.coerceAtLeast(1).toFloat())
+        val negPerQuestion = parseNegativeMarkingRate(test.negativeMarking)
+
+        var correctCount = 0
+        var incorrectCount = 0
+        var skippedCount = 0
+        var earnedMarks = 0f
+        var deductedMarks = 0f
+
+        val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+
+        currentQuestionsList.forEachIndexed { index, q ->
+            val userChoice = answers[index]
+            val actualMarkForQ = if (qMarksMap != null && qMarksMap.has(q.id.toString())) {
+                qMarksMap.getDouble(q.id.toString()).toFloat()
+            } else {
+                markPerQuestion
+            }
+            
+            when {
+                userChoice == q.correctOptionIndex -> {
+                    correctCount++
+                    earnedMarks += actualMarkForQ
+                    viewModelScope.launch {
+                        try {
+                            repository.recordQuestionAnswer(userId = userId, questionId = q.id.toString(), isCorrect = true)
+                        } catch (e: Exception) {}
+                    }
+                }
+                userChoice != null -> {
+                    incorrectCount++
+                    deductedMarks += negPerQuestion
+                    viewModelScope.launch {
+                        try {
+                            repository.recordQuestionAnswer(userId = userId, questionId = q.id.toString(), isCorrect = false)
+                        } catch (e: Exception) {}
+                    }
+                }
+                else -> {
+                    skippedCount++
+                }
+            }
+        }
+
+        val totalAttempted = correctCount + incorrectCount
+        val rawScore = earnedMarks - deductedMarks
+        val finalScore = rawScore.coerceAtLeast(0f)
+        val accuracy = if (totalAttempted > 0) ((correctCount.toFloat() / totalAttempted.toFloat()) * 100f).coerceIn(0f, 100f) else 0f
+        val timeSpentSec = ((test.durationMinutes * 60) - _mockTimeRemainingSeconds.value).coerceAtLeast(1)
+
+        val questionIdsList = currentQuestionsList.map { it.id }
+        val answersJson = serializeMockAttemptAnswers(answers, questionIdsList, timeSpentSec, rawScore)
+
+        val attempt = MockAttemptEntity(
+            id = 0,
+            mockTestId = test.id,
+            userId = userId,
+            timestamp = System.currentTimeMillis(),
+            questionIds = questionIdsList.joinToString(","),
+            userAnswersJson = answersJson,
+            score = finalScore,
+            totalMarks = test.totalMarks,
+            accuracy = accuracy,
+            correctCount = correctCount,
+            totalAttempted = totalAttempted,
+            questionMarksJson = test.questionMarksJson
+        )
 
         viewModelScope.launch {
-            repository.submitMockResult(
-                mockId = test.id,
-                score = score,
-                accuracy = accuracy,
-                timeSpentMins = test.durationMinutes,
-                totalAttempted = totalAttempted,
-                correctCount = correct
-            )
-            navigateTo(Screen.MOCK_RESULT)
+            try {
+                // 1. Save attempt record locally and sync to Firebase
+                val insertedAttemptId = repository.saveMockAttempt(attempt)
+                val savedAttempt = attempt.copy(id = insertedAttemptId)
+                _currentMockAttempt.value = savedAttempt
+
+                // 2. Compute dynamic rank & percentile against all completed attempts
+                val attemptsForMock = repository.getAllAttemptsForMock(test.id).firstOrNull() ?: emptyList()
+                val scorePercentage = if (test.totalMarks > 0f) ((finalScore.toFloat() / test.totalMarks.toFloat()) * 100f) else 0f
+                val dynamicPercentile = if (attemptsForMock.size > 1) {
+                    val lowerScoreCount = attemptsForMock.count { it.score < finalScore }
+                    ((lowerScoreCount.toFloat() / (attemptsForMock.size - 1).toFloat()) * 100f).coerceIn(5.0f, 99.9f)
+                } else {
+                    (scorePercentage * 0.7f + accuracy * 0.3f).coerceIn(5.0f, 99.9f)
+                }
+
+                val rank = if (attemptsForMock.isNotEmpty()) {
+                    val higherCount = attemptsForMock.count { it.score > finalScore }
+                    higherCount + 1
+                } else 1
+
+                // 3. Update mock test in database with submission results
+                repository.submitMockResult(
+                    mockId = test.id,
+                    score = finalScore,
+                    accuracy = accuracy,
+                    timeSpentMins = (timeSpentSec / 60).coerceAtLeast(1),
+                    totalAttempted = totalAttempted,
+
+                    correctCount = correctCount
+                )
+
+                _selectedMockTest.value = test.copy(
+                    isCompleted = true,
+                    userScore = finalScore,
+                    userAccuracy = accuracy,
+                    userRank = rank,
+                    userPercentile = dynamicPercentile
+                )
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Error submitting mock test", e)
+            } finally {
+                _isSubmittingMock.value = false
+                navigateTo(Screen.MOCK_RESULT)
+            }
         }
     }
 
@@ -1274,9 +1583,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean, timeSpentSec: Int = 10) {
         viewModelScope.launch {
-            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+            val userId = userProfile.value?.uid ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
             repository.recordQuestionAnswer(userId, questionId.toString(), isCorrect, timeSpentSec, today)
+        }
+    }
+
+    fun recordQuestionStudied(questionId: Long, timeSpentSec: Int = 10) {
+        viewModelScope.launch {
+            val userId = userProfile.value?.uid ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+            repository.recordQuestionStudied(userId, questionId.toString(), timeSpentSec)
         }
     }
 
@@ -1642,6 +1958,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             _userEntitlement.value = null
             _sessionMessage.value = null
             _isGuestMode.value = false
+            _currentMockAttempt.value = null
+            _selectedMockTest.value = null
+            _mockUserAnswers.value = emptyMap()
+            _mockMarkedForReview.value = emptySet()
+            _activeMockQuestions.value = emptyList()
             _currentScreen.value = Screen.AUTH
             _isAuthLoading.value = false
         }
@@ -1667,6 +1988,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     uid = ""
                 )
                 _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
+                _currentMockAttempt.value = null
+                _selectedMockTest.value = null
+                _mockUserAnswers.value = emptyMap()
+                _mockMarkedForReview.value = emptySet()
+                _activeMockQuestions.value = emptyList()
                 _currentScreen.value = Screen.AUTH
                 
                 withContext(Dispatchers.IO) {

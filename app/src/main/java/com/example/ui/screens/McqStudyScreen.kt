@@ -725,7 +725,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         if (!learnedQuestionIds.value.contains(questionId)) {
             learnedQuestionIds.value = learnedQuestionIds.value + questionId
             studiedQuestionsCountInSession++
-            viewModel.recordStudyProgress(0, 10)
+            viewModel.recordQuestionStudied(questionId, 10)
             if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
                 viewModel.showPaywall()
             }
@@ -1419,7 +1419,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         onClick = {
                             markQuestionLearned(currentQuestion.id)
                             finalSessionTime = sessionTotalSeconds
-                            finalSessionQuestions = studiedQuestionsCountInSession - sessionInitialSolvedCount
+                            finalSessionQuestions = learnedQuestionIds.value.size
                             isStudySessionStarted = false
                             showSummaryDialog = true
                         },
@@ -1450,31 +1450,55 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     modifier = Modifier.size(36.dp)
                 )
             },
-            title = { Text("Learning Session Summary", fontWeight = FontWeight.Bold) },
+            title = { Text("Learning Session Summary 📚", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Great job! Here is a summary of your study session:",
+                        text = "Great job! Here is what you achieved in this study session:",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Questions Learned:", fontWeight = FontWeight.Medium)
-                        Text("$finalSessionQuestions", fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Time Spent:", fontWeight = FontWeight.Medium)
-                        val m = finalSessionTime / 60
-                        val s = finalSessionTime % 60
-                        Text("${m} min ${s} sec", fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Questions Studied:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text("$finalSessionQuestions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("XP Earned:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text("+${finalSessionQuestions * 5} XP", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Time Spent:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                val m = finalSessionTime / 60
+                                val s = finalSessionTime % 60
+                                val timeStr = if (m > 0) "${m}m ${s}s" else "${s}s"
+                                Text(timeStr, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            }
+                            if (finalSessionQuestions > 0 && finalSessionTime > 0) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Avg Time / Question:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                    Text("${(finalSessionTime.toFloat() / finalSessionQuestions).toInt()}s", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
                     }
                 }
             },

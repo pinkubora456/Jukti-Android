@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,9 +32,12 @@ import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 
 enum class HeroTab(val id: String, val titleEn: String, val titleAs: String, val icon: ImageVector) {
+    ALL("All", "All Updates", "সকলো জাননী", Icons.Default.AllInclusive),
     SYLLABUS("Syllabus", "Syllabus", "পাঠ্যক্ৰম", Icons.Default.MenuBook),
     PATTERN("Pattern", "Exam Pattern", "পৰীক্ষাৰ আৰ্হি", Icons.Default.Assignment),
-    CUTOFF("Cutoff", "Cutoff Marks", "কাট-অফ নম্বৰ", Icons.Default.BarChart)
+    CUTOFF("Cutoff", "Cutoff Marks", "কাট-অফ নম্বৰ", Icons.Default.BarChart),
+    NOTICES("Notification", "Official Notices", "চৰকাৰী জাননী", Icons.Default.NotificationsActive),
+    ADMIT_CARD("Admit Card", "Admit Cards", "এডমিট কাৰ্ড", Icons.Default.ConfirmationNumber)
 }
 
 @Composable
@@ -45,8 +49,10 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = LocalContext.current
 
-    var selectedHeroTab by remember { mutableStateOf(HeroTab.PATTERN) }
+    var selectedHeroTab by remember { mutableStateOf(HeroTab.ALL) }
     var selectedExamTab by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
+
     val examTabs = remember(examsList) {
         listOf("All") + examsList.map { it.title }
     }
@@ -57,20 +63,39 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
         }
     }
 
-    val filteredUpdates = updates.filter { update ->
-        val examNameLower = update.examName.lowercase()
-        val titleLower = update.titleEn.lowercase()
-        if (examNameLower.contains("dummy") || examNameLower.contains("test") ||
-            titleLower.contains("dummy") || titleLower.contains("test")) {
-            return@filter false
+    val filteredUpdates = remember(updates, selectedExamTab, selectedHeroTab, searchQuery) {
+        updates.filter { update ->
+            val matchesExam = (selectedExamTab == "All" ||
+                    update.examName.equals(selectedExamTab, ignoreCase = true) ||
+                    update.examName.contains(selectedExamTab, ignoreCase = true))
+
+            val matchesCategory = when (selectedHeroTab) {
+                HeroTab.ALL -> true
+                HeroTab.SYLLABUS -> update.category.contains("Syllabus", ignoreCase = true) ||
+                        update.titleEn.contains("Syllabus", ignoreCase = true)
+                HeroTab.PATTERN -> update.category.contains("Pattern", ignoreCase = true) ||
+                        update.titleEn.contains("Pattern", ignoreCase = true)
+                HeroTab.CUTOFF -> update.category.contains("Cutoff", ignoreCase = true) ||
+                        update.titleEn.contains("Cutoff", ignoreCase = true)
+                HeroTab.NOTICES -> update.category.contains("Notification", ignoreCase = true) ||
+                        update.category.contains("Notice", ignoreCase = true) ||
+                        update.titleEn.contains("Notice", ignoreCase = true) ||
+                        update.titleEn.contains("Notification", ignoreCase = true)
+                HeroTab.ADMIT_CARD -> update.category.contains("Admit Card", ignoreCase = true) ||
+                        update.titleEn.contains("Admit Card", ignoreCase = true)
+            }
+
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                val q = searchQuery.trim().lowercase()
+                update.titleEn.lowercase().contains(q) ||
+                        update.titleAs.lowercase().contains(q) ||
+                        update.detailEn.lowercase().contains(q) ||
+                        update.detailAs.lowercase().contains(q) ||
+                        update.examName.lowercase().contains(q)
+            }
+
+            matchesExam && matchesCategory && matchesSearch
         }
-        val matchesExam = (selectedExamTab == "All" || update.examName.equals(selectedExamTab, ignoreCase = true) || update.examName.contains(selectedExamTab, ignoreCase = true))
-        val matchesCategory = when (selectedHeroTab) {
-            HeroTab.SYLLABUS -> update.category.contains("Syllabus", ignoreCase = true) || update.titleEn.contains("Syllabus", ignoreCase = true)
-            HeroTab.PATTERN -> update.category.contains("Pattern", ignoreCase = true) || update.titleEn.contains("Pattern", ignoreCase = true)
-            HeroTab.CUTOFF -> update.category.contains("Cutoff", ignoreCase = true) || update.titleEn.contains("Cutoff", ignoreCase = true)
-        }
-        matchesExam && matchesCategory
     }
 
     var showExamPatternChoiceDialog by remember { mutableStateOf(false) }
@@ -82,8 +107,8 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
     ) {
         // TOP APP BAR WITH BACK BUTTON
         com.example.ui.components.JuktiTopAppBar(
-            title = "Exam Pattern & Cutoff Hub",
-            subtitle = "Syllabus, Exam Patterns & Category Cutoffs",
+            title = if (isAssamese) "পৰীক্ষাৰ জাননী আৰু নিৰ্দেশনা" else "Exam Info, Pattern & Syllabus",
+            subtitle = if (isAssamese) "পাঠ্যক্ৰম, পৰীক্ষাৰ আৰ্হি আৰু কাট-অফ নম্বৰ" else "Official Syllabus, Pattern, Cutoffs & Notifications",
             onBackClick = { viewModel.navigateTo(Screen.HOME) },
             actions = {
                 if (isAdminOrOwner) {
@@ -105,13 +130,13 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             AlertDialog(
                 onDismissRequest = { showExamPatternChoiceDialog = false },
                 title = { Text("Exam Patterns, Syllabus & Cutoff") },
-                text = { Text("Choose an option:") },
+                text = { Text("Choose an action:") },
                 confirmButton = {
                     TextButton(onClick = {
                         showExamPatternChoiceDialog = false
                         viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_UPDATE)
                     }) {
-                        Text("Update (Add New)")
+                        Text("Add New Update")
                     }
                 },
                 dismissButton = {
@@ -119,7 +144,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                         showExamPatternChoiceDialog = false
                         viewModel.navigateTo(Screen.MANAGE_EXAM_PATTERN_CUTOFF_VIEW)
                     }) {
-                        Text("View (All, Edit & Delete)")
+                        Text("Manage Existing")
                     }
                 }
             )
@@ -162,7 +187,7 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = tab.titleEn,
+                                    text = if (isAssamese) tab.titleAs else tab.titleEn,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = contentColor
@@ -194,12 +219,42 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
             }
         }
 
+        // SEARCH BAR
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(if (isAssamese) "পৰীক্ষাৰ জাননী সন্ধান কৰক..." else "Search exam info, syllabus, cutoff...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            )
+        )
+
         // CONTENT SECTION BASED ON HERO TAB SELECTION
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
         ) {
             when (selectedHeroTab) {
+                HeroTab.ALL -> {
+                    item {
+                        AllUpdatesHeroHeader(isAssamese)
+                    }
+                }
                 HeroTab.SYLLABUS -> {
                     item {
                         SyllabusHeroHeader(isAssamese)
@@ -215,6 +270,16 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                         CutoffHeroHeader(isAssamese)
                     }
                 }
+                HeroTab.NOTICES -> {
+                    item {
+                        NoticesHeroHeader(isAssamese)
+                    }
+                }
+                HeroTab.ADMIT_CARD -> {
+                    item {
+                        AdmitCardHeroHeader(isAssamese)
+                    }
+                }
             }
 
             if (filteredUpdates.isNotEmpty()) {
@@ -223,8 +288,21 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                         update = update,
                         language = language,
                         onOpenLink = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(update.officialLink))
-                            context.startActivity(intent)
+                            if (update.officialLink.isNotBlank()) {
+                                try {
+                                    val url = if (update.officialLink.startsWith("http://") || update.officialLink.startsWith("https://")) {
+                                        update.officialLink
+                                    } else {
+                                        "https://${update.officialLink}"
+                                    }
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Could not open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "No official link provided for this entry.", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     )
                 }
@@ -238,25 +316,28 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(40.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No entries found",
+                                text = if (isAssamese) "কোনো তথ্য পোৱা নগ'ল" else "No entries found",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "No syllabus, exam pattern, or cutoff details have been added yet for this filter. Admin users can add or update entries via the top-right manage icon.",
+                                text = if (isAssamese)
+                                    "নিৰ্বাচিত ফিল্টাৰৰ বাবে কোনো তথ্য উপলব্ধ নহয়। এডমিনে ওপৰৰ এডিট বুটামৰ সহায়ত নতুন তথ্য যোগ কৰিব পাৰে।"
+                                else
+                                    "No syllabus, exam pattern, or cutoff details are available for this selection yet.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -272,6 +353,41 @@ fun ExamInfoScreen(viewModel: JuktiViewModel) {
 /* =====================================================================
    HERO HEADERS
    ===================================================================== */
+@Composable
+fun AllUpdatesHeroHeader(isAssamese: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.AllInclusive,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = if (isAssamese) "পৰীক্ষাৰ সম্পূৰ্ণ জাননী আৰু তথ্য" else "All Exam Information & Updates",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = if (isAssamese) "পাঠ্যক্ৰম, নম্বৰ বিভাজন আৰু আনুষ্ঠানিক জাননী" else "Official syllabus, exam pattern, cutoffs & notices from government portals",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun SyllabusHeroHeader(isAssamese: Boolean) {
     Card(
@@ -292,13 +408,13 @@ fun SyllabusHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Exam Syllabus & Subject Breakdown",
+                    text = if (isAssamese) "পাঠ্যক্ৰম আৰু বিষয়বস্তু" else "Exam Syllabus & Subject Breakdown",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "Comprehensive topic-wise breakdown for all Assam Govt. Exams",
+                    text = if (isAssamese) "অসমৰ চৰকাৰী পৰীক্ষাৰ অধ্যায়ভিত্তিক পাঠ্যক্ৰম" else "Comprehensive topic-wise breakdown for all Assam Govt. Exams",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
@@ -327,13 +443,13 @@ fun ExamPatternHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Exam Pattern & Marking Scheme",
+                    text = if (isAssamese) "পৰীক্ষাৰ আৰ্হি আৰু নম্বৰ প্ৰণালী" else "Exam Pattern & Marking Scheme",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
-                    text = "Duration, total marks, negative marking & question distribution",
+                    text = if (isAssamese) "সময়, মুঠ নম্বৰ, ঋণাত্মক নম্বৰ আৰু প্ৰশ্নৰ গাঁথনি" else "Duration, total marks, negative marking & question distribution",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                 )
@@ -362,13 +478,13 @@ fun CutoffHeroHeader(isAssamese: Boolean) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Previous Year & Expected Cutoffs",
+                    text = if (isAssamese) "কাট-অফ নম্বৰ আৰু প্ৰত্যাশিত নম্বৰ" else "Previous Year & Expected Cutoffs",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
-                    text = "Category-wise minimum qualifying scores (UR, OBC, SC, ST, EWS)",
+                    text = if (isAssamese) "শ্ৰেণী অনুসৰি ন্যূনতম নম্বৰ (UR, OBC, SC, ST, EWS)" else "Category-wise minimum qualifying scores (UR, OBC, SC, ST, EWS)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                 )
@@ -377,357 +493,72 @@ fun CutoffHeroHeader(isAssamese: Boolean) {
     }
 }
 
-/* =====================================================================
-   SYLLABUS CARDS
-   ===================================================================== */
 @Composable
-fun AdreSyllabusCard(isAssamese: Boolean) {
+fun NoticesHeroHeader(isAssamese: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "ADRE Grade 3 & 4 Syllabus Breakdown",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text("1. General Knowledge & Assam Affairs:", fontWeight = FontWeight.Bold)
-            Text("• Assam History (Ahom Dynasty, Freedom Movement, Modern Assam)", style = MaterialTheme.typography.bodySmall)
-            Text("• Assam Geography, Rivers, National Parks & Culture", style = MaterialTheme.typography.bodySmall)
-            Text("• Indian History, Constitution, Indian Economy & Current Affairs", style = MaterialTheme.typography.bodySmall)
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("2. General English:", fontWeight = FontWeight.Bold)
-            Text("• Tenses, Prepositions, Synonyms & Antonyms, Comprehension", style = MaterialTheme.typography.bodySmall)
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("3. General Mathematics & Reasoning:", fontWeight = FontWeight.Bold)
-            Text("• Class 10th level Arithmetic, Profit & Loss, Ratio, Percentage, Logical Series", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-fun ApscSyllabusCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "APSC CCE Prelims & Mains Syllabus",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text("General Studies Paper I (200 Marks):", fontWeight = FontWeight.Bold)
-            Text("• History, Culture & Heritage of Assam & India", style = MaterialTheme.typography.bodySmall)
-            Text("• Indian & World Geography, Polity, Panchayati Raj", style = MaterialTheme.typography.bodySmall)
-            Text("• Environmental Ecology, Biodiversity & Climate Change", style = MaterialTheme.typography.bodySmall)
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("General Studies Paper II - CSAT (200 Marks):", fontWeight = FontWeight.Bold)
-            Text("• Comprehension, Analytical Ability, Data Interpretation, Basic Numeracy", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-fun AssamPoliceSyllabusCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Police SI & AB/UB Constable Syllabus",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text("• Assam History, Geography & Law Awareness", style = MaterialTheme.typography.bodySmall)
-            Text("• General Knowledge, Current Events & Sports", style = MaterialTheme.typography.bodySmall)
-            Text("• Logical Reasoning, Mental Ability & Mathematics", style = MaterialTheme.typography.bodySmall)
-            Text("• Assamese Language & English Grammar Skills", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-fun TetSyllabusCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Special TET Paper I & II Syllabus",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text("• Child Development & Pedagogy (30 Marks)", style = MaterialTheme.typography.bodySmall)
-            Text("• Language I (Assamese / Bodo / Bengali) (30 Marks)", style = MaterialTheme.typography.bodySmall)
-            Text("• Language II (English) (30 Marks)", style = MaterialTheme.typography.bodySmall)
-            Text("• Mathematics & Science / Social Studies (60 Marks)", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-/* =====================================================================
-   EXAM PATTERN CARDS
-   ===================================================================== */
-@Composable
-fun AdreExamPatternCardDetailed(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "ADRE Grade 3 & 4 Exam Pattern (2026)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("• Total Questions: 100 MCQs")
-            Text("• Total Marks: 150 Marks")
-            Text("• Duration: 90 Minutes (1.5 Hours)")
-            Text("• Negative Marking: 0.25 Marks per wrong answer")
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Subject-wise Weightage:",
-                fontWeight = FontWeight.Bold
-            )
-            Text("1. General Knowledge & Assam GK: 35 Qs (52.5 Marks)")
-            Text("2. General English: 25 Qs (37.5 Marks)")
-            Text("3. General Mathematics: 20 Qs (30 Marks)")
-            Text("4. Logical Reasoning: 20 Qs (30 Marks)")
-        }
-    }
-}
-
-@Composable
-fun ApscExamPatternCardDetailed(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "APSC CCE Prelims Exam Pattern",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("• Paper 1: General Studies 1 (200 Marks, 100 Qs)")
-            Text("• Paper 2: GS Paper 2 - CSAT (200 Marks, 80 Qs - Qualifying 33%)")
-            Text("• Duration: 2 Hours per Paper")
-            Text("• Negative Marking: 0.25 Marks deducted per wrong attempt")
-        }
-    }
-}
-
-@Composable
-fun AssamPoliceExamPatternCardDetailed(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Police SI & AB/UB Constable Pattern",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("• Written Test: 100 Marks (100 Questions)")
-            Text("• Physical Efficiency Test (PET): 40 Marks")
-            Text("• Extra Qualification / NCC / Computer: 10 Marks")
-            Text("• Total Merit Base: 150 Marks")
-        }
-    }
-}
-
-@Composable
-fun TetExamPatternCardDetailed(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Special TET Exam Pattern",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("• Total Questions: 150 MCQs")
-            Text("• Total Marks: 150 Marks (No negative marking)")
-            Text("• Duration: 150 Minutes")
-            Text("• Minimum Passing Cutoff: 60% (90 Marks) for General, 55% (83.5 Marks) for Reserved categories")
-        }
-    }
-}
-
-/* =====================================================================
-   CUTOFF CARDS
-   ===================================================================== */
-@Composable
-fun AdreCutoffCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "ADRE Grade 3 & 4 Expected Cutoff Marks (Out of 150)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            CutoffRow("Unreserved (UR General)", "118 - 124 Marks")
-            CutoffRow("OBC / MOBC Category", "110 - 116 Marks")
-            CutoffRow("EWS Category", "108 - 114 Marks")
-            CutoffRow("SC Category", "102 - 108 Marks")
-            CutoffRow("ST (Plains) / ST (Hills)", "96 - 102 Marks")
-        }
-    }
-}
-
-@Composable
-fun ApscCutoffCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "APSC CCE Prelims GS Paper 1 Cutoff (Out of 200)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            CutoffRow("General (UR Male)", "112 - 118 Marks")
-            CutoffRow("General (UR Female)", "106 - 112 Marks")
-            CutoffRow("OBC / MOBC Category", "104 - 110 Marks")
-            CutoffRow("SC / ST Category", "95 - 102 Marks")
-        }
-    }
-}
-
-@Composable
-fun AssamPoliceCutoffCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Police SI Written Test Cutoff (Out of 100)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            CutoffRow("UR Male Candidate", "74 - 78 / 100")
-            CutoffRow("UR Female Candidate", "68 - 72 / 100")
-            CutoffRow("OBC / MOBC", "69 - 73 / 100")
-            CutoffRow("SC / ST Candidate", "62 - 67 / 100")
-        }
-    }
-}
-
-@Composable
-fun TetCutoffCard(isAssamese: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Assam Special TET Qualifying Cutoff Marks",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            CutoffRow("General / Unreserved", "90 Marks (60%)")
-            CutoffRow("OBC / SC / ST / PwD", "83.5 Marks (55%)")
-        }
-    }
-}
-
-@Composable
-fun CutoffRow(category: String, score: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(category, style = MaterialTheme.typography.bodyMedium)
-        Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            shape = RoundedCornerShape(6.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = score,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+            Icon(
+                imageVector = Icons.Default.NotificationsActive,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
             )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = if (isAssamese) "অফিচিয়েল জাননী আৰু ঘোষণা" else "Official Notices & Announcements",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (isAssamese) "চৰকাৰী বিভাগসমূহৰ পৰা শেহতীয়া ঘোষণা" else "Latest notifications published by recruitment commissions",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdmitCardHeroHeader(isAssamese: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.ConfirmationNumber,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = if (isAssamese) "এডমিট কাৰ্ড আৰু ডাউনলোড লিংক" else "Admit Cards & Hall Tickets",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (isAssamese) "পৰীক্ষাৰ এডমিট কাৰ্ড ডাউনলোডৰ প্ৰত্যক্ষ লিংক" else "Direct portal links to download examination admit cards",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+            }
         }
     }
 }
@@ -753,26 +584,47 @@ fun ExamUpdateItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(6.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = update.examName,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = update.category,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+
+                if (update.updateDate.isNotBlank()) {
                     Text(
-                        text = "${update.examName} • ${update.category}",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        text = update.updateDate,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = update.updateDate,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             BilingualText(
                 textEn = update.titleEn,
@@ -782,27 +634,40 @@ fun ExamUpdateItemCard(
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            if (update.detailEn.isNotBlank() || update.detailAs.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                BilingualText(
+                    textEn = update.detailEn,
+                    textAs = update.detailAs,
+                    language = language,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            BilingualText(
-                textEn = update.detailEn,
-                textAs = update.detailAs,
-                language = language,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = onOpenLink,
-                modifier = Modifier.align(Alignment.End),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Official Website Link")
+            if (update.officialLink.isNotBlank()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = onOpenLink,
+                    modifier = Modifier.align(Alignment.End),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Launch,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (language == AppLanguage.ASSAMESE) "অফিচিয়েল লিংক খোলক" else "Official Portal Link",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
         }
     }
 }
+

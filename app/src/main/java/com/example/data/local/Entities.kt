@@ -42,11 +42,11 @@ data class MockTestEntity(
     val category: String,          // "ADRE", "APSC", "Assam Police", "TET", "PYQ"
     val durationMinutes: Int,
     val totalQuestions: Int,
-    val totalMarks: Int,
+    val totalMarks: Float,
     val isScheduled: Boolean = false,
     val scheduledDate: String = "",
     val isCompleted: Boolean = false,
-    val userScore: Int = 0,
+    val userScore: Float = 0f,
     val userAccuracy: Float = 0f,
     val userRank: Int = 0,
     val userPercentile: Float = 0f,
@@ -60,7 +60,8 @@ data class MockTestEntity(
     val questionsAnswered: Int = 0,
     val timeRemainingSeconds: Int = 0,
     val questionIds: String = "",
-    val markPerQuestion: Float = 1f
+    val markPerQuestion: Float = 1f,
+    val questionMarksJson: String = "{}"
 )
 
 @Entity(tableName = "mock_attempts")
@@ -71,11 +72,12 @@ data class MockAttemptEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val questionIds: String, // Comma-separated list of question IDs
     val userAnswersJson: String, // JSON mapping of index to option
-    val score: Int,
-    val totalMarks: Int,
+    val score: Float,
+    val totalMarks: Float,
     val accuracy: Float,
     val correctCount: Int,
-    val totalAttempted: Int
+    val totalAttempted: Int,
+    val questionMarksJson: String = "{}"
 )
 
 @Entity(tableName = "study_notes")

@@ -202,10 +202,13 @@ class FirebaseSyncManager(
         "durationMinutes" to m.durationMinutes,
         "totalQuestions" to m.totalQuestions,
         "totalMarks" to m.totalMarks,
+        
+        "questionMarksJson" to m.questionMarksJson,
         "isScheduled" to m.isScheduled,
         "scheduledDate" to m.scheduledDate,
         "isCompleted" to m.isCompleted,
         "userScore" to m.userScore,
+        
         "userAccuracy" to m.userAccuracy,
         "userRank" to m.userRank,
         "userPercentile" to m.userPercentile,
@@ -374,10 +377,26 @@ class FirebaseSyncManager(
         "playStoreUrl" to config.playStoreUrl
     )
 
+    fun mockAttemptToMap(a: MockAttemptEntity): Map<String, Any?> = mapOf(
+        "id" to a.id,
+        "mockTestId" to a.mockTestId,
+        "userId" to a.userId,
+        "timestamp" to a.timestamp,
+        "questionIds" to a.questionIds,
+        "userAnswersJson" to a.userAnswersJson,
+        "score" to a.score,
+        "totalMarks" to a.totalMarks,
+        "accuracy" to a.accuracy,
+        "correctCount" to a.correctCount,
+        "totalAttempted" to a.totalAttempted,
+        "questionMarksJson" to a.questionMarksJson
+    )
+
     private fun getCollectionName(dataType: String): String {
         return when (dataType.uppercase()) {
             "QUESTION" -> "questions"
             "MOCK_TEST" -> "mock_tests"
+            "MOCK_ATTEMPT" -> "mock_attempts"
             "STUDY_NOTE" -> "study_notes"
             "EXAM_UPDATE" -> "exam_updates"
             "BANNER" -> "banners"

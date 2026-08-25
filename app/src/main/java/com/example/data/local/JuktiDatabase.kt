@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 35,
+    version = 36,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -153,6 +153,20 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `mock_tests_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `titleEn` TEXT NOT NULL, `titleAs` TEXT NOT NULL, `category` TEXT NOT NULL, `durationMinutes` INTEGER NOT NULL, `totalQuestions` INTEGER NOT NULL, `totalMarks` REAL NOT NULL, `isScheduled` INTEGER NOT NULL, `scheduledDate` TEXT NOT NULL, `isCompleted` INTEGER NOT NULL, `userScore` REAL NOT NULL, `userAccuracy` REAL NOT NULL, `userRank` INTEGER NOT NULL, `userPercentile` REAL NOT NULL, `isPublished` INTEGER NOT NULL, `testType` TEXT NOT NULL, `subjectOrChapter` TEXT NOT NULL, `negativeMarking` TEXT NOT NULL, `difficulty` TEXT NOT NULL, `isPremium` INTEGER NOT NULL, `inProgress` INTEGER NOT NULL, `questionsAnswered` INTEGER NOT NULL, `timeRemainingSeconds` INTEGER NOT NULL, `questionIds` TEXT NOT NULL, `markPerQuestion` REAL NOT NULL, `questionMarksJson` TEXT NOT NULL DEFAULT '{}')")
+                db.execSQL("INSERT INTO `mock_tests_new` (`id`, `titleEn`, `titleAs`, `category`, `durationMinutes`, `totalQuestions`, `totalMarks`, `isScheduled`, `scheduledDate`, `isCompleted`, `userScore`, `userAccuracy`, `userRank`, `userPercentile`, `isPublished`, `testType`, `subjectOrChapter`, `negativeMarking`, `difficulty`, `isPremium`, `inProgress`, `questionsAnswered`, `timeRemainingSeconds`, `questionIds`, `markPerQuestion`) SELECT `id`, `titleEn`, `titleAs`, `category`, `durationMinutes`, `totalQuestions`, CAST(`totalMarks` AS REAL), `isScheduled`, `scheduledDate`, `isCompleted`, CAST(`userScore` AS REAL), `userAccuracy`, `userRank`, `userPercentile`, `isPublished`, `testType`, `subjectOrChapter`, `negativeMarking`, `difficulty`, `isPremium`, `inProgress`, `questionsAnswered`, `timeRemainingSeconds`, `questionIds`, `markPerQuestion` FROM `mock_tests`")
+                db.execSQL("DROP TABLE `mock_tests`")
+                db.execSQL("ALTER TABLE `mock_tests_new` RENAME TO `mock_tests`")
+
+                db.execSQL("CREATE TABLE IF NOT EXISTS `mock_attempts_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mockTestId` INTEGER NOT NULL, `userId` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `questionIds` TEXT NOT NULL, `userAnswersJson` TEXT NOT NULL, `score` REAL NOT NULL, `totalMarks` REAL NOT NULL, `accuracy` REAL NOT NULL, `correctCount` INTEGER NOT NULL, `totalAttempted` INTEGER NOT NULL, `questionMarksJson` TEXT NOT NULL DEFAULT '{}')")
+                db.execSQL("INSERT INTO `mock_attempts_new` (`id`, `mockTestId`, `userId`, `timestamp`, `questionIds`, `userAnswersJson`, `score`, `totalMarks`, `accuracy`, `correctCount`, `totalAttempted`) SELECT `id`, `mockTestId`, `userId`, `timestamp`, `questionIds`, `userAnswersJson`, CAST(`score` AS REAL), CAST(`totalMarks` AS REAL), `accuracy`, `correctCount`, `totalAttempted` FROM `mock_attempts`")
+                db.execSQL("DROP TABLE `mock_attempts`")
+                db.execSQL("ALTER TABLE `mock_attempts_new` RENAME TO `mock_attempts`")
+            }
+        }
+
         val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `user_question_states` (`userId` TEXT NOT NULL, `questionId` TEXT NOT NULL, `isBookmarked` INTEGER NOT NULL DEFAULT 0, `isLiked` INTEGER NOT NULL DEFAULT 0, `isHidden` INTEGER NOT NULL DEFAULT 0, `isMastered` INTEGER NOT NULL DEFAULT 0, `everGotWrong` INTEGER NOT NULL DEFAULT 0, `incorrectCount` INTEGER NOT NULL DEFAULT 0, `totalAttempts` INTEGER NOT NULL DEFAULT 0, `firstAttemptCorrect` INTEGER, `lastUpdatedDateStr` TEXT NOT NULL DEFAULT '', `lastUpdated` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`userId`, `questionId`))")
@@ -166,7 +180,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
