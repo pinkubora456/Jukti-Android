@@ -1335,11 +1335,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
         currentQuestionsList.forEachIndexed { index, q ->
             val userChoice = answers[index]
-            val actualMarkForQ = if (qMarksMap != null && qMarksMap.has(q.id.toString())) {
-                qMarksMap.getDouble(q.id.toString()).toFloat()
-            } else {
-                markPerQuestion
-            }
+            var actualMarkForQ = markPerQuestion
+            try {
+                if (qMarksMap != null && qMarksMap.has(q.id.toString())) {
+                    actualMarkForQ = qMarksMap.getDouble(q.id.toString()).toFloat()
+                }
+            } catch (e: Exception) {}
             
             when {
                 userChoice == q.correctOptionIndex -> {

@@ -674,7 +674,7 @@ class JuktiRepository(
         totalAttempted: Int = 0,
         correctCount: Int = 0
     ) {
-        val mock = allMockTests.firstOrNull()?.find { it.id == mockId }
+        val mock = mockTestDao.getAllMockTests().firstOrNull()?.find { it.id == mockId }
         if (mock != null) {
             val scorePercentage = if (mock.totalMarks > 0) ((score.toFloat() / mock.totalMarks.toFloat()) * 100f) else 0f
             val calculatedPercentile = (scorePercentage * 0.7f + accuracy * 0.3f).coerceIn(5.0f, 99.9f)
