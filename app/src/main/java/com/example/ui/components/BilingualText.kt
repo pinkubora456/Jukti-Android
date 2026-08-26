@@ -52,7 +52,7 @@ fun BilingualText(
                 Text(
                     text = textAs,
                     style = style.copy(fontSize = if (style.fontSize.isSp) (style.fontSize.value * 0.95f).sp else style.fontSize),
-                    color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else color.copy(alpha = 0.85f),
+                    color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else color.copy(alpha = 0.92f),
                     fontWeight = fontWeight,
                     textAlign = textAlign,
                     maxLines = maxLines,

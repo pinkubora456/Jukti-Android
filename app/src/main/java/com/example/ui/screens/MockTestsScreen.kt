@@ -519,8 +519,11 @@ fun ContinueLastMockCard(
                     }
                 }
 
+                val remH = (mock.timeRemainingSeconds / 3600).coerceAtLeast(0)
+                val remM = ((mock.timeRemainingSeconds % 3600) / 60).coerceAtLeast(0)
+                val remS = (mock.timeRemainingSeconds % 60).coerceAtLeast(0)
                 Text(
-                    text = "${mock.timeRemainingSeconds / 60}m remaining",
+                    text = "%02d:%02d:%02d remaining".format(remH, remM, remS),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold

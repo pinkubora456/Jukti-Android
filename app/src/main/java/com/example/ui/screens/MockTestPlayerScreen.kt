@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -26,13 +28,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.ui.components.ReportQuestionDialog
-import androidx.compose.material.icons.filled.Report
 import androidx.compose.ui.unit.sp
+import com.example.data.local.QuestionEntity
 import com.example.ui.components.BilingualText
+import com.example.ui.components.ReportQuestionDialog
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
+
+/**
+ * Maps raw question subject/category to user-facing display subject.
+ * Requirement: Social Studies + GK are grouped together as "General Knowledge".
+ * Any other subject present in the mock (e.g. Mathematics, Reasoning, English, Transport Rules, Computer, etc.)
+ * is preserved and dynamically displayed.
+ */
+fun mapQuestionSubjectToDisplaySubject(rawSubject: String?): String {
+    val trimmed = (rawSubject ?: "").trim()
+    if (trimmed.isBlank()) return "General Knowledge"
+    val lower = trimmed.lowercase()
+    return when {
+        // Group Social Studies and GK together into "General Knowledge"
+        lower == "social studies" || lower == "social study" || lower == "social science" ||
+        lower == "gk" || lower == "general knowledge" || lower == "general studies" ||
+        lower == "general awareness" || lower == "assam gk" || lower == "static gk" ||
+        lower.startsWith("social stud") || lower.startsWith("social sci") ||
+        lower.contains("history") || lower.contains("geography") || lower.contains("polity") || lower.contains("constitution") || lower.contains("economy") -> "General Knowledge"
+
+        lower == "general mathematics" || lower == "mathematics" || lower == "math" || lower == "maths" || lower == "quantitative aptitude" -> "Mathematics"
+
+        lower == "logical reasoning & mental ability" || lower == "logical reasoning" || lower == "reasoning" || lower == "mental ability" || lower == "reasoning & mental ability" -> "Reasoning"
+
+        lower == "general english" || lower == "english" || lower == "english language" || lower == "comprehension" -> "English"
+
+        lower == "computer knowledge" || lower == "computer" || lower == "computer awareness" || lower == "computer science" || lower == "it" -> "Computer"
+
+        lower == "transport rule" || lower == "transport rules" || lower == "transport" || lower == "motor vehicle" -> "Transport Rules"
+
+        lower == "current affairs" || lower == "current affairs & general awareness" -> "Current Affairs"
+
+        lower == "general science" || lower == "science" -> "General Science"
+
+        else -> trimmed
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,10 +86,47 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     val isSubmittingMock by viewModel.isSubmittingMock.collectAsState()
 
     var currentQuestionIndex by remember { mutableStateOf(0) }
+    var selectedSubject by remember { mutableStateOf("All") }
     var showPaletteSheet by remember { mutableStateOf(false) }
     var showSubmitConfirmDialog by remember { mutableStateOf(false) }
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
+
+    // Map each question to its normalized display subject
+    val questionDisplaySubjects = remember(activeMockQuestions) {
+        activeMockQuestions.map { q -> mapQuestionSubjectToDisplaySubject(q.subject) }
+    }
+
+    // Dynamic, mock-specific subject list detected from questions
+    val availableSubjects = remember(questionDisplaySubjects) {
+        val subjectsInMock = mutableListOf<String>()
+        questionDisplaySubjects.forEach { subj ->
+            if (subj.isNotBlank() && !subjectsInMock.contains(subj)) {
+                subjectsInMock.add(subj)
+            }
+        }
+        listOf("All") + subjectsInMock
+    }
+
+    // Reset selected subject if not present in available subjects
+    LaunchedEffect(availableSubjects) {
+        if (selectedSubject !in availableSubjects) {
+            selectedSubject = "All"
+        }
+    }
+
+    // Questions list scoped to selected subject paired with original global index
+    val currentSubjectQuestions: List<Pair<Int, QuestionEntity>> = remember(activeMockQuestions, selectedSubject, questionDisplaySubjects) {
+        if (selectedSubject == "All") {
+            activeMockQuestions.mapIndexed { idx, q -> idx to q }
+        } else {
+            activeMockQuestions.mapIndexedNotNull { idx, q ->
+                if (questionDisplaySubjects.getOrNull(idx) == selectedSubject) {
+                    idx to q
+                } else null
+            }
+        }
+    }
 
     // Active test timer countdown
     LaunchedEffect(Unit) {
@@ -63,8 +138,10 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
 
     val currentQuestion = activeMockQuestions.getOrNull(currentQuestionIndex)
 
-    val minutesLeft = timeRemainingSeconds / 60
-    val secondsLeft = timeRemainingSeconds % 60
+    val hoursLeft = (timeRemainingSeconds / 3600).coerceAtLeast(0)
+    val minutesLeft = ((timeRemainingSeconds % 3600) / 60).coerceAtLeast(0)
+    val secondsLeft = (timeRemainingSeconds % 60).coerceAtLeast(0)
+    val formattedTime = "%02d:%02d:%02d".format(hoursLeft, minutesLeft, secondsLeft)
 
     if (showExitConfirmDialog) {
         AlertDialog(
@@ -75,6 +152,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                 Button(
                     onClick = {
                         showExitConfirmDialog = false
+                        viewModel.cancelMockTimer()
                         viewModel.navigateTo(Screen.MOCK_TESTS)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -169,10 +247,10 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Time Left: %02d:%02d".format(minutesLeft, secondsLeft),
+                        text = "Time Remaining: $formattedTime",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.error
+                        color = if (timeRemainingSeconds < 300) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                     
                     val mockType = mockTest?.testType
@@ -198,8 +276,92 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
             onBackClick = { showExitConfirmDialog = true }
         )
 
-        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 1.dp) {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            shadowElevation = 1.dp
+        ) {
             Column {
+                // Dynamic Subject Switcher Row (Only appears if subjects exist in this mock)
+                if (availableSubjects.size > 1) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(availableSubjects) { subject ->
+                            val isSelected = (subject == selectedSubject)
+                            val totalForSubj = if (subject == "All") {
+                                activeMockQuestions.size
+                            } else {
+                                questionDisplaySubjects.count { it == subject }
+                            }
+                            val answeredForSubj = if (subject == "All") {
+                                userAnswers.size
+                            } else {
+                                activeMockQuestions.indices.count { idx ->
+                                    questionDisplaySubjects.getOrNull(idx) == subject && userAnswers.containsKey(idx)
+                                }
+                            }
+
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (selectedSubject != subject) {
+                                        selectedSubject = subject
+                                        val subjectIndices = if (subject == "All") {
+                                            activeMockQuestions.indices.toList()
+                                        } else {
+                                            activeMockQuestions.indices.filter { questionDisplaySubjects.getOrNull(it) == subject }
+                                        }
+                                        // If current viewed question is not in the newly selected subject, jump to its first question
+                                        if (subjectIndices.isNotEmpty() && currentQuestionIndex !in subjectIndices) {
+                                            currentQuestionIndex = subjectIndices.first()
+                                        }
+                                    }
+                                },
+                                label = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Text(
+                                            text = subject,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 12.sp
+                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        ) {
+                                            Text(
+                                                text = "$answeredForSubj/$totalForSubj",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                ),
+                                modifier = Modifier.height(32.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                }
+
                 // Question Language Switcher Bar with Question Palette Button
                 Row(
                     modifier = Modifier
@@ -254,16 +416,30 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
         }
 
         if (showPaletteSheet) {
+            val paletteAnsweredCount = currentSubjectQuestions.count { userAnswers.containsKey(it.first) }
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Question Palette (${userAnswers.size}/${activeMockQuestions.size} Answered)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (selectedSubject == "All") "Question Palette ($paletteAnsweredCount/${currentSubjectQuestions.size} Answered)" else "Palette: $selectedSubject ($paletteAnsweredCount/${currentSubjectQuestions.size} Answered)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (selectedSubject != "All") {
+                            Text(
+                                text = "Total Mock: ${userAnswers.size}/${activeMockQuestions.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(6),
@@ -271,9 +447,10 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        itemsIndexed(activeMockQuestions) { index, _ ->
-                            val isAnswered = userAnswers.containsKey(index)
-                            val isReviewed = markedForReview.contains(index)
+                        itemsIndexed(currentSubjectQuestions) { subPos, (origIndex, _) ->
+                            val isAnswered = userAnswers.containsKey(origIndex)
+                            val isReviewed = markedForReview.contains(origIndex)
+                            val isCurrent = (origIndex == currentQuestionIndex)
 
                             val cellBg = when {
                                 isReviewed -> MaterialTheme.colorScheme.warning
@@ -286,16 +463,20 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(cellBg)
+                                    .then(
+                                        if (isCurrent) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                                        else Modifier
+                                    )
                                     .clickable {
-                                        currentQuestionIndex = index
+                                        currentQuestionIndex = origIndex
                                         showPaletteSheet = false
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "${index + 1}",
+                                    text = "${origIndex + 1}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
                                     color = if (isAnswered || isReviewed) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -307,6 +488,10 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
 
         // Active Question Area
         if (currentQuestion != null) {
+            val currentPosInSubject = currentSubjectQuestions.indexOfFirst { it.first == currentQuestionIndex }.coerceAtLeast(0)
+            val totalInCurrentSubject = currentSubjectQuestions.size
+            val activeQuestionSubject = questionDisplaySubjects.getOrNull(currentQuestionIndex) ?: "General Knowledge"
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -318,12 +503,35 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Question ${currentQuestionIndex + 1} of ${activeMockQuestions.size}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Column {
+                        if (selectedSubject == "All") {
+                            Text(
+                                text = "Question ${currentQuestionIndex + 1} of ${activeMockQuestions.size}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = activeQuestionSubject,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else {
+                            Text(
+                                text = "Question ${currentPosInSubject + 1} of $totalInCurrentSubject • $selectedSubject",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Mock Q#${currentQuestionIndex + 1} of ${activeMockQuestions.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                     Row {
                         IconButton(onClick = { showReportDialog = true }) {
                             Icon(
@@ -415,9 +623,16 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val hasPrevious = currentPosInSubject > 0
+                    val hasNext = currentPosInSubject < currentSubjectQuestions.size - 1
+
                     OutlinedButton(
-                        onClick = { if (currentQuestionIndex > 0) currentQuestionIndex-- },
-                        enabled = (currentQuestionIndex > 0)
+                        onClick = {
+                            if (hasPrevious) {
+                                currentQuestionIndex = currentSubjectQuestions[currentPosInSubject - 1].first
+                            }
+                        },
+                        enabled = hasPrevious
                     ) {
                         Text("Previous")
                     }
@@ -431,11 +646,11 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
 
                     Button(
                         onClick = {
-                            if (currentQuestionIndex < activeMockQuestions.size - 1) {
-                                currentQuestionIndex++
+                            if (hasNext) {
+                                currentQuestionIndex = currentSubjectQuestions[currentPosInSubject + 1].first
                             }
                         },
-                        enabled = (currentQuestionIndex < activeMockQuestions.size - 1)
+                        enabled = hasNext
                     ) {
                         Text("Next")
                     }
@@ -456,3 +671,4 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
         }
     }
 }
+

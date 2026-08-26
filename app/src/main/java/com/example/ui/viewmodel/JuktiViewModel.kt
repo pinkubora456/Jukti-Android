@@ -29,6 +29,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 enum class AppLanguage {
     ENGLISH,
@@ -761,6 +764,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _mockTimeRemainingSeconds = MutableStateFlow(5400) // 90 mins
     val mockTimeRemainingSeconds: StateFlow<Int> = _mockTimeRemainingSeconds.asStateFlow()
 
+    private var mockTimerJob: kotlinx.coroutines.Job? = null
+    private var mockEndTimeMillis: Long = 0L
+
     private val _mockSessionTotalSeconds = MutableStateFlow(0)
     val mockSessionTotalSeconds: StateFlow<Int> = _mockSessionTotalSeconds.asStateFlow()
 
@@ -1108,9 +1114,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         _currentMockAttempt.value = null
         _mockUserAnswers.value = emptyMap()
         _mockMarkedForReview.value = emptySet()
-        _mockTimeRemainingSeconds.value = (mock.durationMinutes * 60).coerceAtLeast(60)
+        val totalSec = (mock.durationMinutes * 60).coerceAtLeast(60)
+        _mockTimeRemainingSeconds.value = totalSec
         _mockSessionTotalSeconds.value = 0
         _isSubmittingMock.value = false
+        mockEndTimeMillis = System.currentTimeMillis() + (totalSec * 1000L)
+        startMockTimer()
 
         // Resolve and lock the EXACT questions belonging to this mock test session
         val allQuestionsList = questions.value
@@ -1156,14 +1165,45 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         navigateTo(Screen.MOCK_PLAYER)
     }
 
+    private fun startMockTimer() {
+        mockTimerJob?.cancel()
+        mockTimerJob = viewModelScope.launch {
+            while (isActive) {
+                delay(500L)
+                if (mockEndTimeMillis > 0L) {
+                    val now = System.currentTimeMillis()
+                    val remainingSec = ((mockEndTimeMillis - now + 999L) / 1000L).coerceAtLeast(0L).toInt()
+                    _mockTimeRemainingSeconds.value = remainingSec
+                    if (remainingSec <= 0) {
+                        if (!_isSubmittingMock.value) {
+                            submitCurrentMockTest()
+                        }
+                        break
+                    }
+                }
+            }
+        }
+    }
+
     fun decrementMockTimer() {
-        if (_mockTimeRemainingSeconds.value > 0) {
+        if (mockEndTimeMillis > 0L) {
+            val now = System.currentTimeMillis()
+            val remainingSec = ((mockEndTimeMillis - now + 999L) / 1000L).coerceAtLeast(0L).toInt()
+            _mockTimeRemainingSeconds.value = remainingSec
+            if (remainingSec <= 0 && !_isSubmittingMock.value) {
+                submitCurrentMockTest()
+            }
+        } else if (_mockTimeRemainingSeconds.value > 0) {
             _mockTimeRemainingSeconds.value -= 1
             _mockSessionTotalSeconds.value += 1
-            if (_mockTimeRemainingSeconds.value == 0) {
+            if (_mockTimeRemainingSeconds.value == 0 && !_isSubmittingMock.value) {
                 submitCurrentMockTest()
             }
         }
+    }
+
+    fun cancelMockTimer() {
+        mockTimerJob?.cancel()
     }
 
     fun recordMockAnswer(questionIndex: Int, optionIndex: Int) {
@@ -1310,6 +1350,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val currentQuestionsList = _activeMockQuestions.value
         if (currentQuestionsList.isEmpty()) return
 
+        cancelMockTimer()
         _isSubmittingMock.value = true
         val answers = _mockUserAnswers.value
 

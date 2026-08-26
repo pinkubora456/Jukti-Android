@@ -300,8 +300,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 label = "Correct",
                                 count = "$correctCount",
                                 icon = Icons.Default.CheckCircle,
-                                color = Color(0xFF2E7D32),
-                                containerColor = Color(0xFFE8F5E9)
+                                color = MaterialTheme.colorScheme.onSuccessContainer,
+                                containerColor = MaterialTheme.colorScheme.successContainer
                             )
                             // Incorrect
                             BreakdownChip(
@@ -309,8 +309,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 label = "Incorrect",
                                 count = "$incorrectCount",
                                 icon = Icons.Default.Cancel,
-                                color = Color(0xFFC62828),
-                                containerColor = Color(0xFFFFEBEE)
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                containerColor = MaterialTheme.colorScheme.errorContainer
                             )
                             // Skipped
                             BreakdownChip(
@@ -318,8 +318,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 label = "Skipped",
                                 count = "$skippedCount",
                                 icon = Icons.Default.RemoveCircleOutline,
-                                color = Color(0xFFE65100),
-                                containerColor = Color(0xFFFFF3E0)
+                                color = MaterialTheme.colorScheme.onWarningContainer,
+                                containerColor = MaterialTheme.colorScheme.warningContainer
                             )
                         }
 
@@ -510,8 +510,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 onClick = { analysisFilter = AnalysisFilter.CORRECT },
                                 label = { Text("Correct ($correctCount)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFE8F5E9),
-                                    selectedLabelColor = Color(0xFF2E7D32)
+                                    selectedContainerColor = MaterialTheme.colorScheme.successContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSuccessContainer
                                 ),
                                 modifier = Modifier.height(30.dp)
                             )
@@ -520,8 +520,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 onClick = { analysisFilter = AnalysisFilter.INCORRECT },
                                 label = { Text("Incorrect ($incorrectCount)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFFFEBEE),
-                                    selectedLabelColor = Color(0xFFC62828)
+                                    selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
                                 ),
                                 modifier = Modifier.height(30.dp)
                             )
@@ -530,8 +530,8 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 onClick = { analysisFilter = AnalysisFilter.SKIPPED },
                                 label = { Text("Skipped ($skippedCount)", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFFFF3E0),
-                                    selectedLabelColor = Color(0xFFE65100)
+                                    selectedContainerColor = MaterialTheme.colorScheme.warningContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onWarningContainer
                                 ),
                                 modifier = Modifier.height(30.dp)
                             )
@@ -699,15 +699,15 @@ fun QuestionAnalysisCard(
     val isLiked = question.id in likedIds
 
     val statusContainerColor = when {
-        isCorrect -> Color(0xFFE8F5E9)
-        isIncorrect -> Color(0xFFFFEBEE)
-        else -> Color(0xFFFFF3E0)
+        isCorrect -> MaterialTheme.colorScheme.successContainer
+        isIncorrect -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.warningContainer
     }
 
     val statusTextColor = when {
-        isCorrect -> Color(0xFF2E7D32)
-        isIncorrect -> Color(0xFFC62828)
-        else -> Color(0xFFE65100)
+        isCorrect -> MaterialTheme.colorScheme.onSuccessContainer
+        isIncorrect -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onWarningContainer
     }
 
     val statusIcon = when {
@@ -724,19 +724,18 @@ fun QuestionAnalysisCard(
         else -> "Skipped (0.0)"
     }
 
+    val cardBorderColor = when {
+        isCorrect -> MaterialTheme.colorScheme.success.copy(alpha = 0.5f)
+        isIncorrect -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.warning.copy(alpha = 0.5f)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(
-            1.dp,
-            when {
-                isCorrect -> Color(0xFF81C784)
-                isIncorrect -> Color(0xFFE57373)
-                else -> Color(0xFFFFB74D)
-            }
-        )
+        border = BorderStroke(1.dp, cardBorderColor)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // QUESTION HEADER & STATUS BADGE
@@ -802,6 +801,7 @@ fun QuestionAnalysisCard(
                 textAs = question.questionAs,
                 language = analysisLanguage,
                 style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
             )
 
@@ -820,15 +820,27 @@ fun QuestionAnalysisCard(
                 val isThisUserChoice = userChoice == optIndex
 
                 val optionBg = when {
-                    isThisCorrect -> Color(0xFFE8F5E9)
-                    isThisUserChoice -> Color(0xFFFFEBEE)
-                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    isThisCorrect -> MaterialTheme.colorScheme.successContainer
+                    isThisUserChoice -> MaterialTheme.colorScheme.errorContainer
+                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 }
 
                 val optionBorder = when {
-                    isThisCorrect -> Color(0xFF4CAF50)
-                    isThisUserChoice -> Color(0xFFF44336)
-                    else -> Color.Transparent
+                    isThisCorrect -> MaterialTheme.colorScheme.success
+                    isThisUserChoice -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                }
+
+                val prefixColor = when {
+                    isThisCorrect -> MaterialTheme.colorScheme.onSuccessContainer
+                    isThisUserChoice -> MaterialTheme.colorScheme.onErrorContainer
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                val optionTextColor = when {
+                    isThisCorrect -> MaterialTheme.colorScheme.onSuccessContainer
+                    isThisUserChoice -> MaterialTheme.colorScheme.onErrorContainer
+                    else -> MaterialTheme.colorScheme.onSurface
                 }
 
                 Surface(
@@ -837,10 +849,10 @@ fun QuestionAnalysisCard(
                         .padding(vertical = 4.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = optionBg,
-                    border = BorderStroke(1.dp, optionBorder)
+                    border = BorderStroke(if (isThisCorrect || isThisUserChoice) 1.5.dp else 1.dp, optionBorder)
                 ) {
                     Row(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -857,44 +869,48 @@ fun QuestionAnalysisCard(
 
                             Text(
                                 text = optionPrefix,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isThisCorrect) Color(0xFF2E7D32) else if (isThisUserChoice) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = prefixColor
                             )
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             BilingualText(
                                 textEn = pair.first,
                                 textAs = pair.second,
                                 language = analysisLanguage,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = optionTextColor,
                                 fontWeight = if (isThisCorrect || isThisUserChoice) FontWeight.Bold else FontWeight.Normal
                             )
                         }
 
                         // BADGES FOR USER CHOICE / CORRECT ANSWER
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
                             if (isThisUserChoice && !isThisCorrect) {
                                 Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFFFFCDD2)
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.error
                                 ) {
                                     Text(
                                         text = "Your Answer ✕",
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFB71C1C),
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                     )
                                 }
                             }
 
                             if (isThisCorrect) {
                                 Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFFC8E6C9)
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.success
                                 ) {
                                     Text(
                                         text = if (isThisUserChoice) {
@@ -903,10 +919,10 @@ fun QuestionAnalysisCard(
                                             "Correct Answer ✓"
                                         },
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1B5E20),
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                     )
                                 }
                             }
