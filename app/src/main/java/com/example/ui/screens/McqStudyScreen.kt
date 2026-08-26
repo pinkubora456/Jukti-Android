@@ -537,9 +537,13 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                 }
 
                 if (showSavedQuestionsDialog) {
+                    val isPremium by viewModel.isUserPremium.collectAsState()
+                    val isAdmin by viewModel.isAdminOrOwner.collectAsState()
                     SavedQuestionsDialog(
                         questions = bookmarkedQuestions,
                         language = language,
+                        isUserPremium = isPremium,
+                        isAdminOrOwner = isAdmin,
                         onDismiss = { showSavedQuestionsDialog = false },
                         onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) }
                     )
@@ -702,6 +706,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
@@ -728,14 +733,12 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
             learnedQuestionIds.value = learnedQuestionIds.value + questionId
             studiedQuestionsCountInSession++
             viewModel.recordQuestionStudied(questionId, 10)
-            if (!isUserPremium && studiedQuestionsCountInSession >= 25) {
-                viewModel.showPaywall()
-            }
+
         }
     }
 
     var sessionTotalSeconds by remember { mutableStateOf(0) }
-    var showLimitModal by remember { mutableStateOf(false) }
+
     var showReportDialog by remember { mutableStateOf(false) }
     var showSummaryDialog by remember { mutableStateOf(false) }
     var finalSessionQuestions by remember { mutableStateOf(0) }
@@ -1239,20 +1242,45 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     // Question Text
-                    com.example.ui.components.QuestionTypeBadge(
-                        questionType = currentQuestion.questionType,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    BilingualText(
-                        textEn = currentQuestion.questionEn,
-                        textAs = currentQuestion.questionAs,
-                        language = questionLanguage,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (!viewModel.canAccessQuestion(currentQuestion)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Lock, contentDescription = "Premium Content", modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Premium Question", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("This question is only available to Premium users.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onErrorContainer)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = { viewModel.showPaywall() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                                    Text("Unlock Premium")
+                                }
+                            }
+                        }
+                    } else {
+                        com.example.ui.components.QuestionTypeBadge(
+                            questionType = currentQuestion.questionType,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        BilingualText(
+                            textEn = currentQuestion.questionEn,
+                            textAs = currentQuestion.questionAs,
+                            language = questionLanguage,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    if (viewModel.canAccessQuestion(currentQuestion)) {
                     // Options List - Directly highlights the correct answer
                     val options = listOf(
                         currentQuestion.optionAEn to currentQuestion.optionAAs,
@@ -1389,6 +1417,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         }
                     }
 
+                    } // Closing the premium check for options/explanation
+                    
                     Spacer(modifier = Modifier.height(18.dp))
 
                     // Previous & Next Navigation Buttons
@@ -1540,37 +1570,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         )
     }
 
-        // Free Plan Limit Dialog
-        if (showLimitModal) {
-            AlertDialog(
-                onDismissRequest = { showLimitModal = false },
-                icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) },
-                title = {
-                    Text(
-                        text = "Free Daily Limit Reached",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Text(
-                        text = "You have studied 25 questions in this session. Upgrade to Jukti Premium to unlock unlimited MCQ practice, custom tests, and detailed PDF study notes!"
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        showLimitModal = false
-                        viewModel.navigateTo(Screen.PREMIUM_PLANS)
-                    }) {
-                        Text("Upgrade to Premium")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showLimitModal = false }) {
-                        Text("Continue Free")
-                    }
-                }
-            )
-        }
+
 
         if (showHideNotice) {
             AlertDialog(
@@ -2270,6 +2270,9 @@ fun QuestionStudyCard(
     question: QuestionEntity,
     language: AppLanguage,
     bookmarkedIds: Set<Long>,
+    isUserPremium: Boolean = false,
+    isAdminOrOwner: Boolean = false,
+    onUnlockClick: () -> Unit = {},
     onBookmarkToggle: () -> Unit,
     onLikeToggle: () -> Unit,
     onReportClick: () -> Unit,
@@ -2604,7 +2607,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             } else {
                 items(currentAffairsNotes, key = { it.id }) { note ->
                     Card(
-                        onClick = { selectedNote = note },
+                        onClick = { viewModel.selectStudyNote(note) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -2616,17 +2619,45 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Text(
-                                        text = note.topic,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = note.topic,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                    if (note.isPremium) {
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.errorContainer,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = "Premium",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "PREMIUM",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
 
                                 Text(
@@ -2660,7 +2691,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TextButton(onClick = { selectedNote = note }) {
+                                TextButton(onClick = { viewModel.selectStudyNote(note) }) {
                                     Text("Read Full Notes →", fontWeight = FontWeight.Bold)
                                 }
 

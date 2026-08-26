@@ -541,3 +541,5 @@ export const verifyAndProvisionStarterPass = functions.https.onCall(async (data,
     return { success: true, expiry };
   });
 });
+import { getPremiumContent } from "./premium_content";
+export { getPremiumContent };

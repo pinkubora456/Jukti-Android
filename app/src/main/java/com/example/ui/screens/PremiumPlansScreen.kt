@@ -45,7 +45,6 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
     val billingManager = remember { PlayBillingManager(context) }
     val billingStatus by billingManager.billingStatus.collectAsState()
     val pendingVerificationInfo by billingManager.pendingVerificationInfo.collectAsState()
-    val entitlement by viewModel.userEntitlement.collectAsState()
 
     LaunchedEffect(Unit) {
         billingManager.startConnection()

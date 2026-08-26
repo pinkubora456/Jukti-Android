@@ -91,17 +91,17 @@ service cloud.firestore {
 
     // Content management collections: ADMIN or OWNER only
     match /questions/{questionId} {
-      allow read: if true;
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
       allow write: if isAdminOrOwner();
     }
 
     match /mock_tests/{testId} {
-      allow read: if true;
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
       allow write: if isAdminOrOwner();
     }
 
     match /study_notes/{noteId} {
-      allow read: if true;
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
       allow write: if isAdminOrOwner();
     }
 

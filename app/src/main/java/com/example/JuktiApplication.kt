@@ -35,6 +35,21 @@ class JuktiApplication : Application() {
     }
 
     companion object {
+        private var persistenceDisabled = false
+        private fun disableFirestorePersistence() {
+            if (persistenceDisabled) return
+            persistenceDisabled = true
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                    .setLocalCacheSettings(com.google.firebase.firestore.MemoryCacheSettings.newBuilder().build())
+                    .build()
+                db.firestoreSettings = settings
+                android.util.Log.i("JuktiApplication", "Firestore persistence disabled for secure premium content.")
+            } catch (e: Exception) {
+                android.util.Log.e("JuktiApplication", "Failed to disable Firestore persistence", e)
+            }
+        }
         fun ensureFirebaseInitialized(context: Context): FirebaseApp? {
             val existingApps = FirebaseApp.getApps(context)
             if (existingApps.isNotEmpty()) {
@@ -45,6 +60,7 @@ class JuktiApplication : Application() {
                 val defaultApp = FirebaseApp.initializeApp(context)
                 if (defaultApp != null) {
                     Log.i("JuktiApplication", "FirebaseApp initialized automatically from resources.")
+                    disableFirestorePersistence()
                     return defaultApp
                 }
             } catch (e: Throwable) {

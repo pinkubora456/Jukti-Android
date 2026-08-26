@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Activity
+import com.example.util.NetworkMonitor
 import android.app.Application
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -112,9 +113,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private var sessionTrustedServerTime: Long = 0L
     private var sessionTrustedRealtime: Long = 0L
 
-    init {
-        syncTrustedTime()
-    }
+
+    private val networkMonitor = NetworkMonitor(application)
+    val isConnected = networkMonitor.isConnected
 
     private fun syncTrustedTime() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -185,9 +186,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return maxSeen
     }
 
-    init {
-        com.example.JuktiApplication.ensureFirebaseInitialized(application)
-    }
 
     private val database = JuktiDatabase.getDatabase(application)
     
@@ -217,6 +215,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.entitlementHistoryDao(),
         com.example.data.repository.FirebaseSyncManager(database)
     )
+
+    // Data Flows from Repository
+    val plans = repository.allPlans.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+
 
     val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -337,7 +342,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isRefreshingFromFirebase.value = true
             try {
-                val result = repository.refreshDataFromFirebase()
+                val result = repository.refreshDataFromFirebase(getTrustedTime())
                 if (result.isSuccess) {
                     _refreshStatusMessage.value = "App data refreshed successfully!"
                 } else {
@@ -463,50 +468,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
-        repository.allQuestions,
-        bookmarkedIds
-    ) { questions, ids ->
-        questions.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
-        repository.allQuestions,
-        hiddenIds
-    ) { questions, ids ->
-        questions.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = userProfile.flatMapLatest { profile ->
-        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
-        if (uid.isNullOrBlank()) flowOf(emptyList())
-        else repository.getSmartPracticeQuestions(uid)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    // Data Flows from Repository
-    val plans = repository.allPlans.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-    val questions = repository.allQuestions.map { list ->
-        list.filter { !it.isReported }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val reportedQuestions = repository.allQuestions.map { list -> list.filter { it.isReported } }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-
-    val mockTests = repository.allMockTests.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-
-    val studyNotes = repository.allNotes.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
-
-    val savedNotes = repository.savedNotes.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
     val examUpdates = repository.allExamUpdates.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -651,22 +613,21 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return canPerformDeleteOrBan(actorRole, targetRole)
     }
 
-    private val _userEntitlement = MutableStateFlow<EntitlementEntity?>(null)
-    val userEntitlement: StateFlow<EntitlementEntity?> = _userEntitlement.asStateFlow()
+    private val _userEntitlements = MutableStateFlow<List<EntitlementEntity>>(emptyList())
+    val userEntitlements: StateFlow<List<EntitlementEntity>> = _userEntitlements.asStateFlow()
 
-    fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = getTrustedTime()): Boolean {
-        return com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, currentTime)
+    fun validateEntitlements(entitlements: List<EntitlementEntity>?, currentTime: Long = getTrustedTime()): Boolean {
+        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, currentTime)
+        return effective.isPremium
     }
 
     fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
-        val entitlement = userEntitlement.value
+        val entitlements = userEntitlements.value
         val now = getTrustedTime()
-        if (entitlement != null && com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, now)) {
-            val matchesId = entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true)
-            val matchesName = entitlement.planName.equals(plan.planName, ignoreCase = true)
-            return matchesId || matchesName
+        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, now)
+        return effective.activePlans.any { entitlement ->
+            entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true) || entitlement.planName.equals(plan.planName, ignoreCase = true)
         }
-        return false
     }
 
     suspend fun validatePurchaseEligibility(plan: com.example.data.local.PlanEntity): Pair<Boolean, String> {
@@ -705,132 +666,70 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return Pair(true, "")
     }
 
-    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlement) { profile, admin, entitlement ->
-        val isUserAdminOrOwner = admin || profile?.role == "ADMIN" || profile?.role == "OWNER"
-        if (isUserAdminOrOwner) {
+    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlements, plans) { profile, admin, entitlements, allPlans ->
+        val email = profile?.email?.trim()?.lowercase() ?: ""
+        val isOwner = email == "juktieducation@gmail.com"
+        if (isOwner || admin) {
             true
         } else {
-            com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, getTrustedTime())
+            com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime()).isPremium
         }
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
     )
 
-    val accessibleContentCounts: StateFlow<com.example.data.util.PlanAccessibleContentCounts> = combine(
-        userProfile,
-        userEntitlement,
-        plans,
-        mockTests,
-        studyNotes,
-        questions,
-        isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        val entitlement = args[1] as? EntitlementEntity
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val notes = args[4] as? List<StudyNoteEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val qs = args[5] as? List<QuestionEntity> ?: emptyList()
-        val admin = args[6] as? Boolean ?: false
+    val effectiveEntitlement: StateFlow<com.example.data.util.EffectiveUserEntitlement?> = combine(
+        userProfile, isAdminOrOwner, userEntitlements, plans
+    ) { profile, admin, entitlements, allPlans ->
+        val email = profile?.email?.trim()?.lowercase() ?: ""
+        val isOwner = email == "juktieducation@gmail.com"
+        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime())
+        if (isOwner || admin) {
+            effective.copy(isPremium = true, hasAllExamsAccess = true)
+        } else {
+            effective
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    
+    fun canAccessQuestion(question: com.example.data.local.QuestionEntity): Boolean {
+        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        return com.example.data.util.PlanValidityEngine.isQuestionAccessible(question, effective, isAdminOrOwner.value)
+    }
+    
+    fun canAccessMockTest(mock: com.example.data.local.MockTestEntity): Boolean {
+        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        return com.example.data.util.PlanValidityEngine.isMockTestAccessible(mock, effective, isAdminOrOwner.value)
+    }
+    
+    fun canAccessStudyNote(note: com.example.data.local.StudyNoteEntity): Boolean {
+        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        return com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(note, effective, isAdminOrOwner.value)
+    }
 
-        com.example.data.util.PlanValidityEngine.calculateAccessibleCounts(
-            userProfile = profile,
-            entitlement = entitlement,
-            plans = allPlans,
-            mockTests = mocks,
-            studyNotes = notes,
-            questions = qs,
-            isAdminOrOwner = admin,
-            currentTime = getTrustedTime()
-        )
-    }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.data.util.PlanAccessibleContentCounts()
-    )
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = combine(
+        userProfile.flatMapLatest { profile ->
+            val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+            if (uid.isNullOrBlank()) flowOf(emptyList())
+            else repository.getSmartPracticeQuestions(uid)
+        },
+        effectiveEntitlement,
+        isAdminOrOwner,
+        networkMonitor.isConnected
+    ) { questions, effective, isAdmin, isConnected ->
+        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        questions.filter { q ->
+            !q.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val accessibleMockTests: StateFlow<List<MockTestEntity>> = combine(
-        userProfile,
-        userEntitlement,
-        plans,
-        mockTests,
-        isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        val entitlement = args[1] as? EntitlementEntity
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
 
-        com.example.data.util.PlanValidityEngine.filterAccessibleMockTests(
-            userProfile = profile,
-            entitlement = entitlement,
-            plans = allPlans,
-            mockTests = mocks,
-            isAdminOrOwner = admin,
-            currentTime = getTrustedTime()
-        )
-    }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
 
-    val accessibleStudyNotes: StateFlow<List<StudyNoteEntity>> = combine(
-        userProfile,
-        userEntitlement,
-        plans,
-        studyNotes,
-        isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        val entitlement = args[1] as? EntitlementEntity
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
 
-        com.example.data.util.PlanValidityEngine.filterAccessibleStudyNotes(
-            userProfile = profile,
-            entitlement = entitlement,
-            plans = allPlans,
-            studyNotes = notes,
-            isAdminOrOwner = admin,
-            currentTime = getTrustedTime()
-        )
-    }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
 
-    val accessibleQuestions: StateFlow<List<QuestionEntity>> = combine(
-        userProfile,
-        userEntitlement,
-        plans,
-        questions,
-        isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        val entitlement = args[1] as? EntitlementEntity
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val qs = args[3] as? List<QuestionEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
 
-        com.example.data.util.PlanValidityEngine.filterAccessibleQuestions(
-            userProfile = profile,
-            entitlement = entitlement,
-            plans = allPlans,
-            questions = qs,
-            isAdminOrOwner = admin,
-            currentTime = getTrustedTime()
-        )
-    }.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
+
+
 
     // Selection & Filter States
     private val _selectedSubject = MutableStateFlow("All")
@@ -849,6 +748,190 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val selectedStudyNote: StateFlow<StudyNoteEntity?> = _selectedStudyNote.asStateFlow()
 
     // Guest Mode
+    val mockTests: StateFlow<List<MockTestEntity>> = combine(
+        kotlinx.coroutines.flow.combine(repository.allMockTests, repository.premiumMockTests) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected
+    ) { list, effective, isAdmin, isConnected ->
+        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        list.map { m ->
+            if (!m.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isMockTestAccessible(m, eff, isAdmin))) m
+            else m.copy(
+                titleEn = "Premium Content 🔒", titleAs = "প্ৰিমিয়াম সমল 🔒"
+            )
+        }
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val accessibleMockTests: StateFlow<List<MockTestEntity>> = combine(
+        userProfile,
+        userEntitlements,
+        plans,
+        mockTests,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        @Suppress("UNCHECKED_CAST")
+        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleMockTests(
+            userProfile = profile,
+            entitlements = entitlements,
+            plans = allPlans,
+            mockTests = mocks,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val questions: StateFlow<List<QuestionEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<QuestionEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
+        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        list.filter { !it.isReported }.map { q ->
+            if (!q.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin))) q
+            else q.copy(
+                questionEn = "Premium Content 🔒", questionAs = "প্ৰিমিয়াম সমল 🔒",
+                optionAEn = "Unlock to view", optionAAs = "Unlock to view",
+                optionBEn = "Unlock to view", optionBAs = "Unlock to view",
+                optionCEn = "Unlock to view", optionCAs = "Unlock to view",
+                optionDEn = "Unlock to view", optionDAs = "Unlock to view",
+                correctOptionIndex = -1, explanationEn = "Locked", explanationAs = "Locked"
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val reportedQuestions = questions.map { list -> list.filter { it.isReported } }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+
+
+
+
+
+    val studyNotes: StateFlow<List<StudyNoteEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allNotes, repository.premiumStudyNotes) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<StudyNoteEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
+        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+        list.map { n ->
+            if (!n.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(n, eff, isAdmin))) n
+            else n.copy(contentEn = "Premium Content 🔒", contentAs = "Premium Content 🔒")
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val savedNotes = studyNotes.map { list -> list.filter { it.isBookmarked || it.isDownloaded } }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val accessibleContentCounts: StateFlow<com.example.data.util.PlanAccessibleContentCounts> = combine(
+        userProfile,
+        userEntitlements,
+        plans,
+        mockTests,
+        studyNotes,
+        questions,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        @Suppress("UNCHECKED_CAST")
+        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val notes = args[4] as? List<StudyNoteEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val qs = args[5] as? List<QuestionEntity> ?: emptyList()
+        val admin = args[6] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.calculateAccessibleCounts(
+            userProfile = profile,
+            entitlements = entitlements,
+            plans = allPlans,
+            mockTests = mocks,
+            studyNotes = notes,
+            questions = qs,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.data.util.PlanAccessibleContentCounts()
+    )
+
+    val accessibleStudyNotes: StateFlow<List<StudyNoteEntity>> = combine(
+        userProfile,
+        userEntitlements,
+        plans,
+        studyNotes,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        @Suppress("UNCHECKED_CAST")
+        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleStudyNotes(
+            userProfile = profile,
+            entitlements = entitlements,
+            plans = allPlans,
+            studyNotes = notes,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val accessibleQuestions: StateFlow<List<QuestionEntity>> = combine(
+        userProfile,
+        userEntitlements,
+        plans,
+        questions,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        @Suppress("UNCHECKED_CAST")
+        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val qs = args[3] as? List<QuestionEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleQuestions(
+            userProfile = profile,
+            entitlements = entitlements,
+            plans = allPlans,
+            questions = qs,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
+        questions,
+        bookmarkedIds
+    ) { qs, ids ->
+        qs.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
+        questions,
+        hiddenIds
+    ) { qs, ids ->
+        qs.filter { it.id in ids }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _isGuestMode = MutableStateFlow(false)
     val isGuestMode: StateFlow<Boolean> = _isGuestMode.asStateFlow()
 
@@ -883,15 +966,79 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private var isLoggingOutDueToDevice = false
 
+
+
+
     init {
+        com.example.JuktiApplication.ensureFirebaseInitialized(application)
+        syncTrustedTime()
+
+        viewModelScope.launch {
+            networkMonitor.isConnected.collect { online ->
+                if (!online) {
+                    repository.clearPremiumCache()
+                    
+                    if (_activeMockQuestions.value.any { it.isPremium }) {
+                        _activeMockQuestions.value = emptyList()
+                        _currentMockAttempt.value = null
+                        _sessionMessage.value = "Premium Content is unavailable offline."
+                        if (_currentScreen.value == Screen.MOCK_PLAYER || _currentScreen.value == Screen.MOCK_RESULT) {
+                            navigateTo(Screen.HOME)
+                        }
+                    }
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            combine(effectiveEntitlement, networkMonitor.isConnected) { eff, online -> Pair(eff, online) }
+                .collect { (eff, online) ->
+                    if (online && eff != null && eff.isPremium) {
+                        repository.refreshPremiumContent()
+                    } else {
+                        repository.clearPremiumCache()
+                    }
+                }
+        }
+
+        viewModelScope.launch {
+            effectiveEntitlement.collect { eff ->
+                val currentEff = eff ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+                val isAdmin = isAdminOrOwner.value
+                if (_activeMockQuestions.value.any { q -> q.isPremium && !com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, currentEff, isAdmin) }) {
+                     _activeMockQuestions.value = emptyList()
+                     _currentMockAttempt.value = null
+                     _sessionMessage.value = "Your Premium Entitlement has expired."
+                     if (_currentScreen.value == Screen.MOCK_PLAYER || _currentScreen.value == Screen.MOCK_RESULT) {
+                          navigateTo(Screen.HOME)
+                     }
+                }
+                if (_selectedStudyNote.value?.isPremium == true && !com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(_selectedStudyNote.value!!, currentEff, isAdmin)) {
+                     _selectedStudyNote.value = null
+                     _sessionMessage.value = "Your Premium Entitlement has expired."
+                     if (_currentScreen.value == Screen.STUDY_NOTES) {
+                          navigateTo(Screen.HOME)
+                     }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            aboutConfig.collect { config ->
+                if (config.logoUrl.isNotEmpty()) {
+                    syncLogoLocally(config.logoUrl, config.logoUpdatedAt)
+                }
+            }
+        }
+
         viewModelScope.launch {
             userProfile.collectLatest { prof ->
                 if (prof != null) {
                     val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
                     val email = prof.email.trim().lowercase()
                     val uid = prof.uid.trim()
-                    repository.getUserEntitlement(sanitizedDocId, uid, email).collectLatest { ent ->
-                        _userEntitlement.value = ent
+                    repository.getUserEntitlements(sanitizedDocId, uid, email).collectLatest { ents ->
+                        _userEntitlements.value = ents
                     }
                 }
             }
@@ -1210,9 +1357,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectMockTest(mock: MockTestEntity) {
-        val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
-        val isAccessible = isUserAdmin || accessibleMockTests.value.any { it.id == mock.id }
-        if (!isAccessible || (mock.isPremium && !isUserPremium.value && !isUserAdmin)) {
+        if (!canAccessMockTest(mock)) {
             _showPremiumPaywall.value = true
             return
         }
@@ -1329,9 +1474,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectStudyNote(note: StudyNoteEntity?) {
         if (note != null) {
-            val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
-            val isAccessible = isUserAdmin || accessibleStudyNotes.value.any { it.id == note.id }
-            if (!isAccessible || (note.isPremium && !isUserPremium.value && !isUserAdmin)) {
+            if (!canAccessStudyNote(note)) {
                 _showPremiumPaywall.value = true
                 return
             }
@@ -1714,7 +1857,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleDownloadNote(n: StudyNoteEntity) {
-        val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
+        val isUserAdmin = isAdminOrOwner.value
         val isAccessible = isUserAdmin || accessibleStudyNotes.value.any { it.id == n.id }
         if (!isAccessible || (n.isPremium && !isUserPremium.value && !isUserAdmin)) {
             _showPremiumPaywall.value = true
@@ -1761,26 +1904,31 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun fetchUserEntitlementDirect(email: String): com.example.data.local.EntitlementEntity? {
+        return fetchUserEntitlementsDirect(email).firstOrNull()
+    }
+
+    suspend fun fetchUserEntitlementsDirect(email: String): List<com.example.data.local.EntitlementEntity> {
         return try {
             val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(email)
             val trimmedEmail = email.trim().lowercase()
-            // 1. Check local Room DB first
-            val local = repository.getUserEntitlementDirect(sanitizedDocId, trimmedEmail)
-            if (local != null && validateEntitlement(local)) {
+            
+            val local = repository.getUserEntitlementsDirect(sanitizedDocId, trimmedEmail)
+            if (local.isNotEmpty() && validateEntitlements(local)) {
                 return local
             }
-            // 2. Fetch from Firebase
-            val remote = repository.fetchUserEntitlementFromFirebase(email)
-            if (remote != null) {
-                repository.insertEntitlement(remote)
-                if (sanitizedDocId.isNotBlank() && sanitizedDocId != remote.userId) {
-                    repository.insertEntitlement(remote.copy(userId = sanitizedDocId))
+            
+            val remote = repository.fetchUserEntitlementsFromFirebase(email)
+            if (remote.isNotEmpty()) {
+                repository.insertEntitlements(remote)
+                val mapped = if (sanitizedDocId.isNotBlank()) remote.map { it.copy(userId = sanitizedDocId) } else emptyList()
+                if (mapped.isNotEmpty()) {
+                    repository.insertEntitlements(mapped)
                 }
                 return remote
             }
             local
         } catch (e: Exception) {
-            null
+            emptyList()
         }
     }
 
@@ -2068,6 +2216,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val googleAuthManager = GoogleAuthManager(getApplication())
                 googleAuthManager.signOut()
+                repository.clearPremiumCache()
             } catch (e: Throwable) {
                 Log.e("JuktiViewModel", "Error during sign out", e)
             }
@@ -2094,7 +2243,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            _userEntitlement.value = null
+            _userEntitlements.value = emptyList()
             _sessionMessage.value = null
             _isGuestMode.value = false
             _currentMockAttempt.value = null
@@ -2117,6 +2266,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 if (currentProf.email.isNotBlank()) {
                     UserSessionManager.unregisterSession(currentProf.email)
                 }
+                repository.clearPremiumCache()
                 val cleanProfile = SampleData.initialUserProfile.copy(
                     id = 1,
                     isLoggedIn = false,
@@ -2226,15 +2376,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     
-    init {
-        viewModelScope.launch {
-            aboutConfig.collect { config ->
-                if (config.logoUrl.isNotEmpty()) {
-                    syncLogoLocally(config.logoUrl, config.logoUpdatedAt)
-                }
-            }
-        }
-    }
+
+
 
     private fun syncLogoLocally(url: String, updatedAt: Long) {
         val app = getApplication<android.app.Application>()
@@ -2808,7 +2951,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         explicitValidUntil: Long = 0L,
         onResult: (Boolean, String) -> Unit
     ) {
-        val canDirectlyAssign = isOwner.value || isAdminOrOwner.value || userProfile.value?.role == "OWNER" || userProfile.value?.role == "ADMIN"
+        val canDirectlyAssign = isAdminOrOwner.value
         if (canDirectlyAssign) {
             viewModelScope.launch {
                 val success = grantPlanToUser(
@@ -3107,9 +3250,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             // 3. If target user is the currently logged in user, update StateFlows and local profile
             val currentProf = userProfile.value
             if (currentProf != null && currentProf.email.equals(trimmedEmail, ignoreCase = true)) {
-                _userEntitlement.value = newEntitlement
+                _userEntitlements.value = _userEntitlements.value + newEntitlement
                 val updatedProf = currentProf.copy(isPremium = (newEntitlement.status == "ACTIVE" && !planName.equals("Free Plan", ignoreCase = true)))
                 repository.updateUserProfile(updatedProf)
+                // Download premium data since entitlement changed
+                refreshDataFromFirebase()
             }
 
             // 4. Optionally invoke Cloud Function if present
@@ -3186,7 +3331,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun exportQuestionsCsv(context: android.content.Context) {
         viewModelScope.launch {
-            val qs = repository.allQuestions.firstOrNull() ?: emptyList()
+            val qs = questions.value ?: emptyList()
             val csvContent = StringBuilder("ID,Subject,Question\n")
             for (q in qs) {
                 csvContent.append("${q.id},${q.subject},${q.questionEn}\n")

@@ -25,6 +25,8 @@ import com.example.ui.viewmodel.Screen
 @Composable
 fun GlobalSearchScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val questions by viewModel.accessibleQuestions.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
@@ -108,6 +110,9 @@ fun GlobalSearchScreen(viewModel: JuktiViewModel) {
                             question = q,
                             language = language,
                             bookmarkedIds = bookmarkedIds,
+                            isUserPremium = isUserPremium,
+                            isAdminOrOwner = isAdminOrOwner,
+                            onUnlockClick = { viewModel.showPaywall() },
                             onBookmarkToggle = { viewModel.toggleBookmarkQuestion(q) },
                             onLikeToggle = { viewModel.toggleLikeQuestion(q) },
                             onReportClick = { viewModel.reportQuestion(q); android.widget.Toast.makeText(context, "Question reported successfully", android.widget.Toast.LENGTH_SHORT).show() }

@@ -31,14 +31,15 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val language by viewModel.language.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val userEntitlement by viewModel.userEntitlement.collectAsState()
+    val userEntitlements by viewModel.userEntitlements.collectAsState()
+    val plans by viewModel.plans.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val effectivePlanName = com.example.data.util.PlanValidityEngine.getEffectivePlanName(userEntitlement)
-    val effectiveValidity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(userEntitlement)
-    val validityDisplay = com.example.data.util.PlanValidityEngine.formatValidityDisplay(userEntitlement)
+    val effectivePlanName = com.example.data.util.PlanValidityEngine.getEffectivePlanName(userEntitlements, plans)
+    val effectiveValidity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(userEntitlements, plans)
+    val validityDisplay = com.example.data.util.PlanValidityEngine.formatValidityDisplay(userEntitlements, plans)
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var quickNameInput by remember { mutableStateOf("") }

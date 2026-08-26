@@ -820,6 +820,8 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
 fun SavedQuestionsDialog(
     questions: List<QuestionEntity>,
     language: AppLanguage,
+    isUserPremium: Boolean = false,
+    isAdminOrOwner: Boolean = false,
     onDismiss: () -> Unit,
     onToggleBookmark: (QuestionEntity) -> Unit
 ) {

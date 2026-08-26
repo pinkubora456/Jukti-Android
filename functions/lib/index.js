@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyAndProvisionStarterPass = exports.playBillingRtdn = exports.deleteUserCompletely = exports.toggleUserBlockState = exports.approvePendingRequest = exports.processPurchaseRequest = exports.grantPlanToUser = exports.assignCustomClaims = void 0;
+exports.getPremiumContent = exports.verifyAndProvisionStarterPass = exports.playBillingRtdn = exports.deleteUserCompletely = exports.toggleUserBlockState = exports.approvePendingRequest = exports.processPurchaseRequest = exports.grantPlanToUser = exports.assignCustomClaims = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const googleapis_1 = require("googleapis");
@@ -342,7 +342,7 @@ exports.toggleUserBlockState = functions.https.onCall(async (data, context) => {
 });
 // 6. Trusted User Deletion
 exports.deleteUserCompletely = functions.https.onCall(async (data, context) => {
-    await requireOwner(context);
+    await requireAdminOrOwner(context);
     const { targetUid } = data;
     if (!targetUid) {
         throw new functions.https.HttpsError("invalid-argument", "Missing targetUid");
@@ -463,4 +463,6 @@ exports.verifyAndProvisionStarterPass = functions.https.onCall(async (data, cont
         return { success: true, expiry };
     });
 });
+const premium_content_1 = require("./premium_content");
+Object.defineProperty(exports, "getPremiumContent", { enumerable: true, get: function () { return premium_content_1.getPremiumContent; } });
 //# sourceMappingURL=index.js.map

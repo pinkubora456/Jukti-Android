@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -273,46 +274,65 @@ class JuktiRepository(
     fun observeUserProfile(email: String, uid: String?): Flow<UserProfileEntity?> =
         firebaseRepository.observeUserProfile(email, uid)
 
+    fun observeUserEntitlements(email: String, uid: String? = null): Flow<List<EntitlementEntity>> =
+        firebaseRepository.observeUserEntitlements(email, uid)
+
     fun observeUserEntitlement(email: String, uid: String? = null): Flow<EntitlementEntity?> =
         firebaseRepository.observeUserEntitlement(email, uid)
     
-    fun getUserEntitlement(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?> {
+    fun getUserEntitlements(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<List<EntitlementEntity>> {
         val email = if (userId.contains("@")) userId else if (altUserId1.contains("@")) altUserId1 else if (altUserId2.contains("@")) altUserId2 else ""
         val uid = if (!userId.contains("@") && userId.isNotBlank()) userId else if (!altUserId1.contains("@") && altUserId1.isNotBlank()) altUserId1 else if (!altUserId2.contains("@") && altUserId2.isNotBlank()) altUserId2 else null
         
         val localFlow = if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
-            entitlementDao.getEntitlementMulti(userId, altUserId1, altUserId2)
+            entitlementDao.getEntitlementsMulti(userId, altUserId1, altUserId2)
         } else {
-            entitlementDao.getEntitlement(userId)
+            entitlementDao.getEntitlements(userId)
         }
 
         return combine(
-            firebaseRepository.observeUserEntitlement(email, uid),
+            firebaseRepository.observeUserEntitlements(email, uid),
             localFlow
-        ) { remoteEnt, localEnt ->
-            if (remoteEnt != null) {
+        ) { remoteEnts, localEnts ->
+            if (remoteEnts.isNotEmpty()) {
                 try {
-                    entitlementDao.insertEntitlement(remoteEnt)
+                    entitlementDao.insertEntitlements(remoteEnts)
                 } catch (e: Throwable) {
                     // Ignore transient local cache errors
                 }
-                remoteEnt
+                remoteEnts
             } else {
-                localEnt
+                localEnts
             }
         }
     }
 
-    suspend fun getUserEntitlementDirect(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity? {
+    fun getUserEntitlement(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?> {
+        return getUserEntitlements(userId, altUserId1, altUserId2).map { it.firstOrNull() }
+    }
+
+    suspend fun getUserEntitlementsDirect(userId: String, altUserId1: String = "", altUserId2: String = ""): List<EntitlementEntity> {
         return if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
-            entitlementDao.getEntitlementDirectMulti(userId, altUserId1, altUserId2)
+            entitlementDao.getEntitlementsDirectMulti(userId, altUserId1, altUserId2)
         } else {
-            entitlementDao.getEntitlementDirect(userId)
+            entitlementDao.getEntitlementsDirect(userId)
         }
+    }
+
+    suspend fun getUserEntitlementDirect(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity? {
+        return getUserEntitlementsDirect(userId, altUserId1, altUserId2).firstOrNull()
     }
 
     suspend fun insertEntitlement(entitlement: EntitlementEntity) {
         entitlementDao.insertEntitlement(entitlement)
+    }
+
+    suspend fun insertEntitlements(entitlements: List<EntitlementEntity>) {
+        entitlementDao.insertEntitlements(entitlements)
+    }
+
+    suspend fun fetchUserEntitlementsFromFirebase(email: String, uid: String? = null): List<EntitlementEntity> {
+        return firebaseRepository.fetchUserEntitlements(email, uid)
     }
 
     suspend fun fetchUserEntitlementFromFirebase(email: String, uid: String? = null): EntitlementEntity? {
@@ -385,6 +405,32 @@ class JuktiRepository(
         }
     }
 
+
+    private val _premiumQuestions = kotlinx.coroutines.flow.MutableStateFlow<List<QuestionEntity>>(emptyList())
+    val premiumQuestions: kotlinx.coroutines.flow.StateFlow<List<QuestionEntity>> = _premiumQuestions.asStateFlow()
+
+    private val _premiumMockTests = kotlinx.coroutines.flow.MutableStateFlow<List<MockTestEntity>>(emptyList())
+    val premiumMockTests: kotlinx.coroutines.flow.StateFlow<List<MockTestEntity>> = _premiumMockTests.asStateFlow()
+
+    private val _premiumStudyNotes = kotlinx.coroutines.flow.MutableStateFlow<List<StudyNoteEntity>>(emptyList())
+    val premiumStudyNotes: kotlinx.coroutines.flow.StateFlow<List<StudyNoteEntity>> = _premiumStudyNotes.asStateFlow()
+
+    suspend fun refreshPremiumContent() {
+        try {
+            _premiumQuestions.value = firebaseRepository.fetchPremiumQuestions()
+            _premiumMockTests.value = firebaseRepository.fetchPremiumMockTests()
+            _premiumStudyNotes.value = firebaseRepository.fetchPremiumStudyNotes()
+        } catch (e: Exception) {
+            clearPremiumCache()
+        }
+    }
+
+    fun clearPremiumCache() {
+        _premiumQuestions.value = emptyList()
+        _premiumMockTests.value = emptyList()
+        _premiumStudyNotes.value = emptyList()
+    }
+
     val allPlans: Flow<List<PlanEntity>> = combine(
         firebaseRepository.observePlans(),
         planDao.getAllPlans()
@@ -398,6 +444,13 @@ class JuktiRepository(
             local.map { loc -> remoteMap[loc.id] ?: loc }
         }
     }
+
+
+
+
+
+
+
 
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
     val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
@@ -1047,6 +1100,12 @@ class JuktiRepository(
                 val isSameUser = localProfile != null && (localProfile.email.equals(email, ignoreCase = true) || (currentUid != null && localProfile.uid == currentUid))
                 val safeTotalSolved = if (isSameUser && localProfile != null) maxOf(localProfile.totalSolved, remoteProfile.totalSolved) else remoteProfile.totalSolved
                 val safeCorrectCount = if (isSameUser && localProfile != null) maxOf(localProfile.correctCount, remoteProfile.correctCount).coerceAtMost(safeTotalSolved) else remoteProfile.correctCount.coerceAtMost(safeTotalSolved)
+                val isOwner = email.trim().lowercase() == "juktieducation@gmail.com"
+                val hasActivePaidEntitlement = remoteEntitlement != null &&
+                    remoteEntitlement.status == "ACTIVE" &&
+                    !remoteEntitlement.planName.equals("Free Plan", ignoreCase = true) &&
+                    (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)
+
                 val merged = if (isSameUser && localProfile != null) {
                     localProfile.copy(
                         uid = currentUid ?: remoteProfile.uid,
@@ -1057,10 +1116,8 @@ class JuktiRepository(
                         totalSolved = safeTotalSolved,
                         correctCount = safeCorrectCount,
                         totalTimeMinutes = maxOf(localProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes),
-                        isPremium = localProfile.isPremium || remoteProfile.isPremium,
-                        role = if (localProfile.role == "OWNER" || remoteProfile.role == "OWNER" || localProfile.role == "ADMIN" || remoteProfile.role == "ADMIN") {
-                            if (localProfile.role == "OWNER" || remoteProfile.role == "OWNER") "OWNER" else "ADMIN"
-                        } else "USER",
+                        isPremium = isOwner || hasActivePaidEntitlement,
+                        role = if (isOwner) "OWNER" else "USER",
                         isLoggedIn = true,
                         currentDeviceId = localProfile.currentDeviceId.ifBlank { remoteProfile.currentDeviceId },
                         activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId },
@@ -1078,6 +1135,8 @@ class JuktiRepository(
                         email = email,
                         totalSolved = safeTotalSolved,
                         correctCount = safeCorrectCount,
+                        isPremium = isOwner || hasActivePaidEntitlement,
+                        role = if (isOwner) "OWNER" else "USER",
                         isLoggedIn = true
                     )
                 }
@@ -1478,24 +1537,43 @@ class JuktiRepository(
         activityLogDao.deleteOldOwnerLogs(thresholdTime)
     }
 
-    suspend fun refreshDataFromFirebase(): Result<String> {
+    suspend fun refreshDataFromFirebase(currentTime: Long = System.currentTimeMillis()): Result<String> {
         return try {
+            val userProfile = userProfileDao.getUserProfileDirect()
+            val isAdminOrOwner = userProfile?.role == "ADMIN" || userProfile?.role == "OWNER" || userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com"
+            val sanitizedDocId = if (userProfile != null) firebaseRepository.getSanitizedUserDocId(userProfile.email) else ""
+            val entitlements = if (sanitizedDocId.isNotBlank()) entitlementDao.getEntitlementsDirectMulti(sanitizedDocId, userProfile?.uid ?: "", userProfile?.email ?: "") else emptyList()
+            val allPlans = planDao.getAllPlansDirect()
+            val effectiveEntitlement = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, currentTime)
+
             syncManager.fetchAllExams()
             
             val questions = firebaseRepository.fetchAllQuestions()
-            if (questions.isNotEmpty()) {
-                questionDao.insertAll(questions)
+            questionDao.deletePremiumQuestions()
+            val freeQuestions = questions.filter { !it.isPremium }
+            val premiumQs = questions.filter { it.isPremium }
+            if (freeQuestions.isNotEmpty()) {
+                questionDao.insertAll(freeQuestions)
             }
+            _premiumQuestions.value = premiumQs
 
             val mocks = firebaseRepository.fetchAllMockTests()
-            if (mocks.isNotEmpty()) {
-                mockTestDao.insertAll(mocks)
+            mockTestDao.deletePremiumMockTests()
+            val freeMocks = mocks.filter { !it.isPremium }
+            val premiumMs = mocks.filter { it.isPremium }
+            if (freeMocks.isNotEmpty()) {
+                mockTestDao.insertAll(freeMocks)
             }
+            _premiumMockTests.value = premiumMs
 
             val notes = firebaseRepository.fetchAllStudyNotes()
-            if (notes.isNotEmpty()) {
-                studyNoteDao.insertAll(notes)
+            studyNoteDao.deletePremiumStudyNotes()
+            val freeNotes = notes.filter { !it.isPremium }
+            val premiumNs = notes.filter { it.isPremium }
+            if (freeNotes.isNotEmpty()) {
+                studyNoteDao.insertAll(freeNotes)
             }
+            _premiumStudyNotes.value = premiumNs
 
             val updates = firebaseRepository.fetchAllExamUpdates()
             if (updates.isNotEmpty()) {

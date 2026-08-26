@@ -49,11 +49,12 @@ object AppVersionMigrationManager {
                         // Preserve existing fields, merge highest XP, accuracy metrics and authoritative premium status
                         val safeTotalSolved = maxOf(userProfile.totalSolved, remoteProfile.totalSolved)
                         val safeCorrectCount = maxOf(userProfile.correctCount, remoteProfile.correctCount).coerceAtMost(safeTotalSolved)
+                        val isOwner = userProfile.email.trim().lowercase() == "juktieducation@gmail.com"
                         val mergedProfile = userProfile.copy(
                             xp = maxOf(userProfile.xp, remoteProfile.xp),
                             level = maxOf(userProfile.level, remoteProfile.level),
-                            isPremium = userProfile.isPremium || remoteProfile.isPremium,
-                            role = if (remoteProfile.role != "USER") remoteProfile.role else userProfile.role,
+                            isPremium = isOwner,
+                            role = if (isOwner) "OWNER" else "USER",
                             dailyStreak = maxOf(userProfile.dailyStreak, remoteProfile.dailyStreak),
                             totalSolved = safeTotalSolved,
                             correctCount = safeCorrectCount,

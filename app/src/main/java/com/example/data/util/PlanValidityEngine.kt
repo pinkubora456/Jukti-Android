@@ -13,6 +13,20 @@ data class PlanAccessibleContentCounts(
     val isPlanActive: Boolean = false
 )
 
+data class EffectiveUserEntitlement(
+    val userId: String = "",
+    val activePlans: List<EntitlementEntity> = emptyList(),
+    val activePlanEntities: List<PlanEntity> = emptyList(),
+    val effectivePlanName: String = "Free Plan",
+    val effectiveValidityLabel: String = "Lifetime",
+    val isPremium: Boolean = false,
+    val isLifetime: Boolean = false,
+    val combinedBenefits: Set<String> = emptySet(),
+    val combinedTargetExams: Set<String> = emptySet(),
+    val hasAllExamsAccess: Boolean = false,
+    val maxExpiryTime: Long = 0L
+)
+
 object PlanValidityEngine {
 
     const val TYPE_DAYS = "DAYS"
@@ -165,7 +179,7 @@ object PlanValidityEngine {
     }
 
     /**
-     * Determines whether an entitlement is currently active.
+     * Determines whether a single entitlement is currently active.
      */
     fun isEntitlementActive(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): Boolean {
         if (entitlement == null) return false
@@ -185,8 +199,174 @@ object PlanValidityEngine {
     }
 
     /**
+     * Helper to infer exam targets directly from plan names if examTarget attribute is not explicitly populated.
+     */
+    fun inferExamTargetsFromPlan(planName: String, examTarget: String = ""): List<String> {
+        val targets = mutableListOf<String>()
+        if (examTarget.isNotBlank()) {
+            targets.addAll(examTarget.split(",", "|").map { it.trim() }.filter { it.isNotBlank() })
+        }
+        val nameLower = planName.lowercase(Locale.ROOT)
+        when {
+            nameLower.contains("all exam") || nameLower.contains("all-exam") || nameLower.contains("combo") || nameLower.contains("mega") -> {
+                targets.add("All Exams")
+            }
+            nameLower.contains("grade 4") || nameLower.contains("grade iv") || nameLower.contains("class 4") -> {
+                targets.add("ADRE Grade 4")
+                targets.add("ADRE Grade IV")
+                targets.add("Grade 4")
+                targets.add("Grade IV")
+            }
+            nameLower.contains("grade 3") || nameLower.contains("grade iii") || nameLower.contains("class 3") -> {
+                targets.add("ADRE Grade 3")
+                targets.add("ADRE Grade III")
+                targets.add("Grade 3")
+                targets.add("Grade III")
+            }
+            nameLower.contains("driver") -> {
+                targets.add("Driver")
+                targets.add("ADRE Driver")
+            }
+            nameLower.contains("police") -> {
+                targets.add("Assam Police")
+                targets.add("Police")
+                targets.add("Constable")
+                targets.add("SI")
+            }
+            nameLower.contains("tet") -> {
+                targets.add("Assam TET")
+                targets.add("TET")
+            }
+            nameLower.contains("apsc") -> {
+                targets.add("APSC")
+            }
+            nameLower.contains("forest") -> {
+                targets.add("Forest Guard")
+                targets.add("Forester")
+            }
+        }
+        return targets.distinct()
+    }
+
+    /**
+     * Multi-Plan Entitlement Combination Engine:
+     * Evaluates all plans belonging to the current user, filters active/valid plans,
+     * and generates the combined EffectiveUserEntitlement.
+     *
+     * If no active paid plans remain, falls back to Basic/Free Lifetime plan.
+     */
+    fun resolveEffectiveEntitlement(
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity> = emptyList(),
+        currentTime: Long = System.currentTimeMillis()
+    ): EffectiveUserEntitlement {
+        val userEnts = entitlements ?: emptyList()
+        val activePaidEntitlements = userEnts.filter { isEntitlementActive(it, currentTime) && !it.planName.equals("Free Plan", ignoreCase = true) && !it.planId.equals("free_plan", ignoreCase = true) }
+
+        if (activePaidEntitlements.isEmpty()) {
+            return EffectiveUserEntitlement(
+                userId = userEnts.firstOrNull()?.userId ?: "",
+                activePlans = emptyList(),
+                activePlanEntities = emptyList(),
+                effectivePlanName = "Free Plan",
+                effectiveValidityLabel = "Lifetime",
+                isPremium = false,
+                isLifetime = true,
+                combinedBenefits = setOf("Basic Questions", "Daily Tests", "Syllabus Updates"),
+                combinedTargetExams = emptySet(),
+                hasAllExamsAccess = false,
+                maxExpiryTime = 0L
+            )
+        }
+
+        val activeMatchingPlanEntities = mutableListOf<PlanEntity>()
+        val combinedBenefitsSet = mutableSetOf<String>()
+        val combinedTargetsSet = mutableSetOf<String>()
+        var hasAllExamsAccess = false
+        var isLifetime = false
+        var maxExpiry = 0L
+
+        for (ent in activePaidEntitlements) {
+            val matchingPlan = plans.find {
+                it.id.toString() == ent.planId ||
+                it.planName.equals(ent.planName, ignoreCase = true) ||
+                it.planName.contains(ent.planName, ignoreCase = true) ||
+                ent.planName.contains(it.planName, ignoreCase = true)
+            }
+            if (matchingPlan != null) {
+                activeMatchingPlanEntities.add(matchingPlan)
+            }
+
+            if (ent.isLifetime || ent.validityType.uppercase(Locale.ROOT) == TYPE_LIFETIME || matchingPlan?.isLifetime == true) {
+                isLifetime = true
+            } else if (ent.validUntil > maxExpiry) {
+                maxExpiry = ent.validUntil
+            }
+
+            // Benefits combination
+            if (ent.benefits.isNotBlank()) {
+                ent.benefits.split(",", "|").map { it.trim() }.filter { it.isNotBlank() }.forEach {
+                    combinedBenefitsSet.add(it)
+                }
+            }
+            matchingPlan?.features?.let {
+                it.split(",", "|").map { f -> f.trim() }.filter { f -> f.isNotBlank() }.forEach { f ->
+                    combinedBenefitsSet.add(f)
+                }
+            }
+            matchingPlan?.contents?.let {
+                it.split(",", "|").map { c -> c.trim() }.filter { c -> c.isNotBlank() }.forEach { c ->
+                    combinedBenefitsSet.add(c)
+                }
+            }
+
+            // Target exams combination
+            val targets = inferExamTargetsFromPlan(ent.planName, matchingPlan?.examTarget ?: "")
+            if (targets.any { it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) } ||
+                (matchingPlan != null && matchingPlan.examTarget.isBlank() && matchingPlan.planName.contains("All", ignoreCase = true))) {
+                hasAllExamsAccess = true
+            }
+            combinedTargetsSet.addAll(targets)
+        }
+
+        if (combinedTargetsSet.any { it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) }) {
+            hasAllExamsAccess = true
+        }
+
+        val distinctPlanNames = activePaidEntitlements.map { it.planName }.distinct()
+        val effectivePlanName = when {
+            distinctPlanNames.size == 1 -> distinctPlanNames.first()
+            distinctPlanNames.size == 2 -> "${distinctPlanNames[0]} + ${distinctPlanNames[1]}"
+            else -> "${distinctPlanNames.first()} + ${distinctPlanNames.size - 1} More (${distinctPlanNames.size} Plans)"
+        }
+
+        val effectiveValidityLabel = when {
+            isLifetime -> "Lifetime Access"
+            distinctPlanNames.size == 1 -> formatValidityDisplay(activePaidEntitlements.first(), currentTime)
+            maxExpiry > 0L -> {
+                val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+                "${activePaidEntitlements.size} Active Plans (Valid till ${sdf.format(Date(maxExpiry))})"
+            }
+            else -> "Active Access"
+        }
+
+        return EffectiveUserEntitlement(
+            userId = activePaidEntitlements.first().userId,
+            activePlans = activePaidEntitlements,
+            activePlanEntities = activeMatchingPlanEntities,
+            effectivePlanName = effectivePlanName,
+            effectiveValidityLabel = effectiveValidityLabel,
+            isPremium = true,
+            isLifetime = isLifetime,
+            combinedBenefits = combinedBenefitsSet,
+            combinedTargetExams = combinedTargetsSet,
+            hasAllExamsAccess = hasAllExamsAccess,
+            maxExpiryTime = if (isLifetime) 0L else maxExpiry
+        )
+    }
+
+    /**
      * Resolves the effective plan name for a user.
-     * If the user has not bought a plan, or their plan has expired, returns "Free Plan".
      */
     fun getEffectivePlanName(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
         if (entitlement == null) return "Free Plan"
@@ -195,11 +375,17 @@ object PlanValidityEngine {
         return entitlement.planName
     }
 
+    fun getEffectivePlanName(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
+        return resolveEffectiveEntitlement(entitlements, plans, currentTime).effectivePlanName
+    }
+
     /**
      * Resolves the effective validity string for a user.
-     * Free plan users or users with expired plans get "Lifetime".
-     * Active time-limited plans return formatted expiry date and label.
      */
+    fun getEffectiveValidityLabel(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
+        return resolveEffectiveEntitlement(entitlements, plans, currentTime).effectiveValidityLabel
+    }
+
     fun getEffectiveValidityLabel(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
         if (entitlement == null) return "Lifetime"
         if (!isEntitlementActive(entitlement, currentTime)) return "Lifetime"
@@ -215,6 +401,13 @@ object PlanValidityEngine {
     /**
      * Formats remaining time or expiry date for UI display.
      */
+    fun formatValidityDisplay(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
+        val resolved = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        if (!resolved.isPremium) return "Free Lifetime Access"
+        if (resolved.effectiveValidityLabel.equals("Lifetime", ignoreCase = true)) return "Lifetime Premium Access"
+        return "Valid until ${resolved.effectiveValidityLabel}"
+    }
+
     fun formatValidityDisplay(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
         if (entitlement == null || !isEntitlementActive(entitlement, currentTime) || entitlement.planName.equals("Free Plan", ignoreCase = true)) {
             return "Free Plan (Lifetime Access)"
@@ -240,11 +433,6 @@ object PlanValidityEngine {
 
     /**
      * Extracts numerical limit from plan feature or content descriptor strings.
-     * E.g. "Mock Test (ADRE): 20" -> 20
-     *      "Questions (All Exams): 2000" -> 2000
-     *      "Study Notes: 100" -> 100
-     *      "Current Affairs: 500" -> 500
-     * Returns null if "All" or unlimited.
      */
     fun extractNumericalLimit(featureStr: String): Int? {
         val clean = featureStr.trim()
@@ -270,13 +458,38 @@ object PlanValidityEngine {
         return allowedExams.any { allowed ->
             cat.contains(allowed, ignoreCase = true) ||
             title.contains(allowed, ignoreCase = true) ||
-            allowed.contains(cat, ignoreCase = true)
+            allowed.contains(cat, ignoreCase = true) ||
+            (allowed.contains("Grade 4", ignoreCase = true) && (cat.contains("Grade IV", ignoreCase = true) || title.contains("Grade IV", ignoreCase = true))) ||
+            (allowed.contains("Grade 3", ignoreCase = true) && (cat.contains("Grade III", ignoreCase = true) || title.contains("Grade III", ignoreCase = true)))
         }
     }
 
     /**
-     * Determines whether a specific mock test is accessible under the given entitlement and plan configuration.
+     * Determines whether a specific mock test is accessible.
      */
+    fun isMockTestAccessible(
+        mock: MockTestEntity,
+        effectiveEntitlement: EffectiveUserEntitlement,
+        isAdminOrOwner: Boolean
+    ): Boolean {
+        if (isAdminOrOwner) return true
+        if (!mock.isPremium) return true
+        if (!effectiveEntitlement.isPremium) return false
+        if (effectiveEntitlement.hasAllExamsAccess) return true
+        return matchesExamTarget(mock.category, mock.titleEn, effectiveEntitlement.combinedTargetExams.toList())
+    }
+
+    fun isMockTestAccessible(
+        mock: MockTestEntity,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): Boolean {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        return isMockTestAccessible(mock, effective, isAdminOrOwner)
+    }
+
     fun isMockTestAccessible(
         mock: MockTestEntity,
         entitlement: EntitlementEntity?,
@@ -284,17 +497,37 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        if (isAdminOrOwner) return true
-        if (!mock.isPremium) return true
-        if (!isEntitlementActive(entitlement, currentTime)) return false
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-        return matchesExamTarget(mock.category, mock.titleEn, allowedExams)
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        val plans = if (activePlan != null) listOf(activePlan) else emptyList()
+        return isMockTestAccessible(mock, ents, plans, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Determines whether a specific study note is accessible under the given entitlement and plan configuration.
+     * Determines whether a specific study note is accessible.
      */
+    fun isStudyNoteAccessible(
+        note: StudyNoteEntity,
+        effectiveEntitlement: EffectiveUserEntitlement,
+        isAdminOrOwner: Boolean
+    ): Boolean {
+        if (isAdminOrOwner) return true
+        if (!note.isPremium) return true
+        if (!effectiveEntitlement.isPremium) return false
+        if (effectiveEntitlement.hasAllExamsAccess) return true
+        return matchesExamTarget(note.subject, "${note.topic} ${note.titleEn}", effectiveEntitlement.combinedTargetExams.toList())
+    }
+
+    fun isStudyNoteAccessible(
+        note: StudyNoteEntity,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): Boolean {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        return isStudyNoteAccessible(note, effective, isAdminOrOwner)
+    }
+
     fun isStudyNoteAccessible(
         note: StudyNoteEntity,
         entitlement: EntitlementEntity?,
@@ -302,17 +535,37 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        if (isAdminOrOwner) return true
-        if (!note.isPremium) return true
-        if (!isEntitlementActive(entitlement, currentTime)) return false
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-        return matchesExamTarget(note.subject, "${note.topic} ${note.titleEn}", allowedExams)
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        val plans = if (activePlan != null) listOf(activePlan) else emptyList()
+        return isStudyNoteAccessible(note, ents, plans, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Determines whether a specific question is accessible under the given entitlement and plan configuration.
+     * Determines whether a specific question is accessible.
      */
+    fun isQuestionAccessible(
+        question: QuestionEntity,
+        effectiveEntitlement: EffectiveUserEntitlement,
+        isAdminOrOwner: Boolean
+    ): Boolean {
+        if (isAdminOrOwner) return true
+        if (!question.isPremium) return true
+        if (!effectiveEntitlement.isPremium) return false
+        if (effectiveEntitlement.hasAllExamsAccess) return true
+        return matchesExamTarget(question.examCategory, "${question.subject} ${question.topic}", effectiveEntitlement.combinedTargetExams.toList())
+    }
+
+    fun isQuestionAccessible(
+        question: QuestionEntity,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): Boolean {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        return isQuestionAccessible(question, effective, isAdminOrOwner)
+    }
+
     fun isQuestionAccessible(
         question: QuestionEntity,
         entitlement: EntitlementEntity?,
@@ -320,17 +573,26 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        if (isAdminOrOwner) return true
-        if (!question.isPremium) return true
-        if (!isEntitlementActive(entitlement, currentTime)) return false
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-        return matchesExamTarget(question.examCategory, "${question.subject} ${question.topic}", allowedExams)
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        val plans = if (activePlan != null) listOf(activePlan) else emptyList()
+        return isQuestionAccessible(question, ents, plans, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Filters mock tests accessible under the user's active entitlement / plan.
+     * Filters mock tests accessible under the user's active entitlements / plans.
      */
+    fun filterAccessibleMockTests(
+        userProfile: UserProfileEntity?,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        mockTests: List<MockTestEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): List<MockTestEntity> {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        return mockTests.filter { isMockTestAccessible(it, effective, isAdminOrOwner) }
+    }
+    
     fun filterAccessibleMockTests(
         userProfile: UserProfileEntity?,
         entitlement: EntitlementEntity?,
@@ -339,69 +601,25 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<MockTestEntity> {
-        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
-        if (isUserAdmin) return mockTests
-
-        val isActive = isEntitlementActive(entitlement, currentTime)
-
-        if (!isActive) {
-            val freeMocks = mockTests.filter { !it.isPremium }
-            val freePlan = plans.find { it.planName.equals("Free Plan", ignoreCase = true) || it.finalPrice == "0" || it.finalPrice == "₹0" }
-            val freeFeatures = buildList {
-                freePlan?.features?.let { addAll(it.split("|", ",")) }
-                freePlan?.contents?.let { addAll(it.split("|", ",")) }
-                entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-            }.map { it.trim() }.filter { it.isNotBlank() }
-            val mockLimitFeature = freeFeatures.find { 
-                it.startsWith("Mock Test", ignoreCase = true) || it.startsWith("Mock Tests", ignoreCase = true) || it.contains("Mock", ignoreCase = true)
-            }
-            val mockLimit = mockLimitFeature?.let { extractNumericalLimit(it) }
-            return if (mockLimit != null && mockLimit < freeMocks.size) {
-                freeMocks.take(mockLimit)
-            } else {
-                freeMocks
-            }
-        }
-
-        val activePlan = entitlement?.let { ent ->
-            plans.find { it.id.toString() == ent.planId || it.planName.equals(ent.planName, ignoreCase = true) }
-        }
-
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-
-        val candidateMocks = if (allowedExams.isEmpty()) {
-            mockTests
-        } else {
-            mockTests.filter { mock ->
-                !mock.isPremium || matchesExamTarget(mock.category, mock.titleEn, allowedExams)
-            }
-        }
-
-        val featuresAndContents = buildList {
-            activePlan?.features?.let { addAll(it.split("|", ",")) }
-            activePlan?.contents?.let { addAll(it.split("|", ",")) }
-            entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-        }.map { it.trim() }.filter { it.isNotBlank() }
-
-        val mockLimitFeature = featuresAndContents.find { 
-            it.startsWith("Mock Test", ignoreCase = true) || it.startsWith("Mock Tests", ignoreCase = true) || it.contains("Mock", ignoreCase = true)
-        }
-        val mockLimit = mockLimitFeature?.let { extractNumericalLimit(it) }
-
-        return if (mockLimit != null && mockLimit < candidateMocks.size) {
-            val freeMocks = candidateMocks.filter { !it.isPremium }
-            val premiumMocks = candidateMocks.filter { it.isPremium }
-            val remainingLimit = (mockLimit - freeMocks.size).coerceAtLeast(0)
-            (freeMocks + premiumMocks.take(remainingLimit)).distinctBy { it.id }
-        } else {
-            candidateMocks
-        }
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        return filterAccessibleMockTests(userProfile, ents, plans, mockTests, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Filters study notes accessible under the user's active entitlement / plan.
+     * Filters study notes accessible under the user's active entitlements / plans.
      */
+    fun filterAccessibleStudyNotes(
+        userProfile: UserProfileEntity?,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        studyNotes: List<StudyNoteEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): List<StudyNoteEntity> {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        return studyNotes.filter { isStudyNoteAccessible(it, effective, isAdminOrOwner) }
+    }
+
     fun filterAccessibleStudyNotes(
         userProfile: UserProfileEntity?,
         entitlement: EntitlementEntity?,
@@ -410,114 +628,26 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<StudyNoteEntity> {
-        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
-        if (isUserAdmin) return studyNotes
-
-        val isActive = isEntitlementActive(entitlement, currentTime)
-
-        if (!isActive) {
-            val freeNotes = studyNotes.filter { !it.isPremium }
-            val freePlan = plans.find { it.planName.equals("Free Plan", ignoreCase = true) || it.finalPrice == "0" || it.finalPrice == "₹0" }
-            val freeFeatures = buildList {
-                freePlan?.features?.let { addAll(it.split("|", ",")) }
-                freePlan?.contents?.let { addAll(it.split("|", ",")) }
-                entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-            }.map { it.trim() }.filter { it.isNotBlank() }
-
-            val notesLimitFeature = freeFeatures.find { 
-                it.startsWith("Study Note", ignoreCase = true) || it.startsWith("Study Notes", ignoreCase = true) || it.contains("Notes", ignoreCase = true)
-            }
-            val notesLimit = notesLimitFeature?.let { extractNumericalLimit(it) }
-
-            val nonCaNotes = freeNotes.filter { !it.subject.contains("Current Affairs", ignoreCase = true) }
-            val caNotes = freeNotes.filter { it.subject.contains("Current Affairs", ignoreCase = true) }
-
-            val finalNonCa = if (notesLimit != null && notesLimit < nonCaNotes.size) {
-                nonCaNotes.take(notesLimit)
-            } else {
-                nonCaNotes
-            }
-
-            val caLimitFeature = freeFeatures.find { 
-                it.startsWith("Current Affair", ignoreCase = true) || it.startsWith("Current Affairs", ignoreCase = true) || it.contains("Current Affairs", ignoreCase = true)
-            }
-            val caLimit = caLimitFeature?.let { extractNumericalLimit(it) }
-
-            val finalCa = if (caLimit != null && caLimit < caNotes.size) {
-                caNotes.take(caLimit)
-            } else {
-                caNotes
-            }
-
-            return finalNonCa + finalCa
-        }
-
-        val activePlan = entitlement?.let { ent ->
-            plans.find { it.id.toString() == ent.planId || it.planName.equals(ent.planName, ignoreCase = true) }
-        }
-
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-
-        val nonCaNotes = studyNotes.filter { !it.subject.contains("Current Affairs", ignoreCase = true) }
-        val caNotes = studyNotes.filter { it.subject.contains("Current Affairs", ignoreCase = true) }
-
-        val candidateNonCa = if (allowedExams.isEmpty()) {
-            nonCaNotes
-        } else {
-            nonCaNotes.filter { note ->
-                !note.isPremium || matchesExamTarget(note.subject, "${note.topic} ${note.titleEn}", allowedExams)
-            }
-        }
-
-        val candidateCa = if (allowedExams.isEmpty()) {
-            caNotes
-        } else {
-            caNotes.filter { note ->
-                !note.isPremium || matchesExamTarget(note.subject, "${note.topic} ${note.titleEn}", allowedExams)
-            }
-        }
-
-        val featuresAndContents = buildList {
-            activePlan?.features?.let { addAll(it.split("|", ",")) }
-            activePlan?.contents?.let { addAll(it.split("|", ",")) }
-            entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-        }.map { it.trim() }.filter { it.isNotBlank() }
-
-        val notesLimitFeature = featuresAndContents.find { 
-            it.startsWith("Study Note", ignoreCase = true) || it.startsWith("Study Notes", ignoreCase = true) || it.contains("Notes", ignoreCase = true)
-        }
-        val notesLimit = notesLimitFeature?.let { extractNumericalLimit(it) }
-
-        val finalNonCa = if (notesLimit != null && notesLimit < candidateNonCa.size) {
-            val freeNotes = candidateNonCa.filter { !it.isPremium }
-            val premiumNotes = candidateNonCa.filter { it.isPremium }
-            val remainingLimit = (notesLimit - freeNotes.size).coerceAtLeast(0)
-            (freeNotes + premiumNotes.take(remainingLimit)).distinctBy { it.id }
-        } else {
-            candidateNonCa
-        }
-
-        val caLimitFeature = featuresAndContents.find { 
-            it.startsWith("Current Affair", ignoreCase = true) || it.startsWith("Current Affairs", ignoreCase = true) || it.contains("Current Affairs", ignoreCase = true)
-        }
-        val caLimit = caLimitFeature?.let { extractNumericalLimit(it) }
-
-        val finalCa = if (caLimit != null && caLimit < candidateCa.size) {
-            val freeCa = candidateCa.filter { !it.isPremium }
-            val premiumCa = candidateCa.filter { it.isPremium }
-            val remainingLimit = (caLimit - freeCa.size).coerceAtLeast(0)
-            (freeCa + premiumCa.take(remainingLimit)).distinctBy { it.id }
-        } else {
-            candidateCa
-        }
-
-        return finalNonCa + finalCa
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        return filterAccessibleStudyNotes(userProfile, ents, plans, studyNotes, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Filters questions accessible under the user's active entitlement / plan.
+     * Filters questions accessible under the user's active entitlements / plans.
      */
+    fun filterAccessibleQuestions(
+        userProfile: UserProfileEntity?,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        questions: List<QuestionEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): List<QuestionEntity> {
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val validQuestions = questions.filter { !it.isReported }
+        return validQuestions.filter { isQuestionAccessible(it, effective, isAdminOrOwner) }
+    }
+
     fun filterAccessibleQuestions(
         userProfile: UserProfileEntity?,
         entitlement: EntitlementEntity?,
@@ -526,72 +656,50 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<QuestionEntity> {
-        val validQuestions = questions.filter { !it.isReported }
-        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
-        if (isUserAdmin) return validQuestions
-
-        val isActive = isEntitlementActive(entitlement, currentTime)
-
-        if (!isActive) {
-            val freeQuestions = validQuestions.filter { !it.isPremium }
-            val freePlan = plans.find { it.planName.equals("Free Plan", ignoreCase = true) || it.finalPrice == "0" || it.finalPrice == "₹0" }
-            val freeFeatures = buildList {
-                freePlan?.features?.let { addAll(it.split("|", ",")) }
-                freePlan?.contents?.let { addAll(it.split("|", ",")) }
-                entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-            }.map { it.trim() }.filter { it.isNotBlank() }
-
-            val qLimitFeature = freeFeatures.find { 
-                it.startsWith("Question", ignoreCase = true) || it.startsWith("Questions", ignoreCase = true) || it.contains("MCQ", ignoreCase = true)
-            }
-            val qLimit = qLimitFeature?.let { extractNumericalLimit(it) }
-            return if (qLimit != null && qLimit < freeQuestions.size) {
-                freeQuestions.take(qLimit)
-            } else {
-                freeQuestions
-            }
-        }
-
-        val activePlan = entitlement?.let { ent ->
-            plans.find { it.id.toString() == ent.planId || it.planName.equals(ent.planName, ignoreCase = true) }
-        }
-
-        val rawExamTarget = activePlan?.examTarget ?: ""
-        val allowedExams = rawExamTarget.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.equals("All Exams", ignoreCase = true) }
-
-        val candidateQuestions = if (allowedExams.isEmpty()) {
-            validQuestions
-        } else {
-            validQuestions.filter { q ->
-                !q.isPremium || matchesExamTarget(q.examCategory, "${q.subject} ${q.topic}", allowedExams)
-            }
-        }
-
-        val featuresAndContents = buildList {
-            activePlan?.features?.let { addAll(it.split("|", ",")) }
-            activePlan?.contents?.let { addAll(it.split("|", ",")) }
-            entitlement?.benefits?.let { addAll(it.split("|", ",")) }
-        }.map { it.trim() }.filter { it.isNotBlank() }
-
-        val qLimitFeature = featuresAndContents.find { 
-            it.startsWith("Question", ignoreCase = true) || it.startsWith("Questions", ignoreCase = true) || it.contains("MCQ", ignoreCase = true)
-        }
-        val qLimit = qLimitFeature?.let { extractNumericalLimit(it) }
-
-        return if (qLimit != null && qLimit < candidateQuestions.size) {
-            val freeQuestions = candidateQuestions.filter { !it.isPremium }
-            val premiumQuestions = candidateQuestions.filter { it.isPremium }
-            val remainingLimit = (qLimit - freeQuestions.size).coerceAtLeast(0)
-            (freeQuestions + premiumQuestions.take(remainingLimit)).distinctBy { it.id }
-        } else {
-            candidateQuestions
-        }
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        return filterAccessibleQuestions(userProfile, ents, plans, questions, isAdminOrOwner, currentTime)
     }
 
     /**
-     * Calculates authoritative counts of accessible content for the specific user's active plan.
-     * Guaranteed user isolation based on current user's profile and entitlement.
+     * Calculates authoritative counts of accessible content for the specific user's active plans.
+     * Guaranteed user isolation based on current user's profile and entitlements.
      */
+    fun calculateAccessibleCounts(
+        userProfile: UserProfileEntity?,
+        entitlements: List<EntitlementEntity>?,
+        plans: List<PlanEntity>,
+        mockTests: List<MockTestEntity>,
+        studyNotes: List<StudyNoteEntity>,
+        questions: List<QuestionEntity>,
+        isAdminOrOwner: Boolean,
+        currentTime: Long = System.currentTimeMillis()
+    ): PlanAccessibleContentCounts {
+        val accessibleMocks = filterAccessibleMockTests(userProfile, entitlements, plans, mockTests, isAdminOrOwner, currentTime)
+        val accessibleNotes = filterAccessibleStudyNotes(userProfile, entitlements, plans, studyNotes, isAdminOrOwner, currentTime)
+        val accessibleQs = filterAccessibleQuestions(userProfile, entitlements, plans, questions, isAdminOrOwner, currentTime)
+
+        val nonCaCount = accessibleNotes.count { !it.subject.contains("Current Affairs", ignoreCase = true) }
+        val caCount = accessibleNotes.count { it.subject.contains("Current Affairs", ignoreCase = true) }
+
+        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+
+        val effectivePlanName = when {
+            isUserAdmin -> "Admin Access"
+            effective.isPremium -> effective.effectivePlanName
+            else -> "Free Plan"
+        }
+
+        return PlanAccessibleContentCounts(
+            mockTestsCount = accessibleMocks.size,
+            studyNotesCount = nonCaCount,
+            currentAffairsCount = caCount,
+            questionsCount = accessibleQs.size,
+            effectivePlanName = effectivePlanName,
+            isPlanActive = isUserAdmin || effective.isPremium
+        )
+    }
+
     fun calculateAccessibleCounts(
         userProfile: UserProfileEntity?,
         entitlement: EntitlementEntity?,
@@ -602,34 +710,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): PlanAccessibleContentCounts {
-        val accessibleMocks = filterAccessibleMockTests(userProfile, entitlement, plans, mockTests, isAdminOrOwner, currentTime)
-        val accessibleNotes = filterAccessibleStudyNotes(userProfile, entitlement, plans, studyNotes, isAdminOrOwner, currentTime)
-        val accessibleQs = filterAccessibleQuestions(userProfile, entitlement, plans, questions, isAdminOrOwner, currentTime)
-
-        val nonCaCount = accessibleNotes.count { !it.subject.contains("Current Affairs", ignoreCase = true) }
-        val caCount = accessibleNotes.count { it.subject.contains("Current Affairs", ignoreCase = true) }
-
-        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
-        val isActive = isEntitlementActive(entitlement, currentTime)
-
-        val activePlan = entitlement?.let { ent ->
-            plans.find { it.id.toString() == ent.planId || it.planName.equals(ent.planName, ignoreCase = true) }
-        }
-
-        val effectivePlanName = when {
-            isUserAdmin -> "Admin Access"
-            isActive && activePlan != null -> activePlan.planName
-            isActive && entitlement != null && entitlement.planName.isNotBlank() -> entitlement.planName
-            else -> "Free Plan"
-        }
-
-        return PlanAccessibleContentCounts(
-            mockTestsCount = accessibleMocks.size,
-            studyNotesCount = nonCaCount,
-            currentAffairsCount = caCount,
-            questionsCount = accessibleQs.size,
-            effectivePlanName = effectivePlanName,
-            isPlanActive = isUserAdmin || isActive
-        )
+        val ents = if (entitlement != null) listOf(entitlement) else emptyList()
+        return calculateAccessibleCounts(userProfile, ents, plans, mockTests, studyNotes, questions, isAdminOrOwner, currentTime)
     }
 }

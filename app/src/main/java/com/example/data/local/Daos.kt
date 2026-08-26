@@ -4,178 +4,229 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface QuestionDao {
+abstract class QuestionDao {
+    @Query("DELETE FROM questions WHERE isPremium = 1")
+    abstract suspend fun deletePremiumQuestions()
+
     @Query("SELECT * FROM questions ORDER BY id DESC")
-    fun getAllQuestions(): Flow<List<QuestionEntity>>
+    abstract fun getAllQuestions(): Flow<List<QuestionEntity>>
 
     @Query("SELECT * FROM questions WHERE subject = :subject")
-    fun getQuestionsBySubject(subject: String): Flow<List<QuestionEntity>>
+    abstract fun getQuestionsBySubject(subject: String): Flow<List<QuestionEntity>>
 
     @Query("SELECT * FROM questions WHERE id = :id")
-    suspend fun getQuestionById(id: Long): QuestionEntity?
+    abstract suspend fun getQuestionById(id: Long): QuestionEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertQuestion(question: QuestionEntity): Long
+    abstract suspend fun insertQuestionInternal(question: QuestionEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(questions: List<QuestionEntity>)
+    abstract suspend fun insertAllInternal(questions: List<QuestionEntity>)
+    
+    @Transaction
+    open suspend fun insertQuestion(question: QuestionEntity): Long {
+        if (question.accessType == "PREMIUM" || question.isPremium) return -1L // Prevent inserting Premium questions into Room
+        return insertQuestionInternal(question)
+    }
+
+    @Transaction
+    open suspend fun insertAll(questions: List<QuestionEntity>) {
+        val freeQuestions = questions.filter { it.accessType != "PREMIUM" && !it.isPremium }
+        if (freeQuestions.isNotEmpty()) {
+            insertAllInternal(freeQuestions)
+        }
+    }
 
     @Update
-    suspend fun updateQuestion(question: QuestionEntity)
+    abstract suspend fun updateQuestion(question: QuestionEntity)
 
     @Delete
-    suspend fun deleteQuestion(question: QuestionEntity)
+    abstract suspend fun deleteQuestion(question: QuestionEntity)
 
     @Query("DELETE FROM questions WHERE id = :id")
-    suspend fun deleteQuestionById(id: Long)
+    abstract suspend fun deleteQuestionById(id: Long)
 }
 
 @Dao
-interface MockTestDao {
+abstract class MockTestDao {
+    @Query("DELETE FROM mock_tests WHERE isPremium = 1")
+    abstract suspend fun deletePremiumMockTests()
+
     @Query("SELECT * FROM mock_tests ORDER BY id DESC")
-    fun getAllMockTests(): Flow<List<MockTestEntity>>
+    abstract fun getAllMockTests(): Flow<List<MockTestEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMockTest(test: MockTestEntity): Long
+    abstract suspend fun insertMockTestInternal(test: MockTestEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(tests: List<MockTestEntity>)
+    abstract suspend fun insertAllMockTestsInternal(tests: List<MockTestEntity>)
+
+    @Transaction
+    open suspend fun insertMockTest(test: MockTestEntity): Long {
+        if (test.accessType == "PREMIUM" || test.isPremium) return -1L
+        return insertMockTestInternal(test)
+    }
+
+    @Transaction
+    open suspend fun insertAll(tests: List<MockTestEntity>) {
+        val freeTests = tests.filter { it.accessType != "PREMIUM" && !it.isPremium }
+        if (freeTests.isNotEmpty()) {
+            insertAllMockTestsInternal(freeTests)
+        }
+    }
 
     @Update
-    suspend fun updateMockTest(test: MockTestEntity)
+    abstract suspend fun updateMockTest(test: MockTestEntity)
 
     @Delete
-    suspend fun deleteMockTest(test: MockTestEntity)
+    abstract suspend fun deleteMockTest(test: MockTestEntity)
 }
 
 @Dao
 interface MockAttemptDao {
     @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId AND userId = :userId ORDER BY timestamp DESC")
-    fun getAttemptsForMock(mockTestId: Long, userId: String): Flow<List<MockAttemptEntity>>
+    abstract fun getAttemptsForMock(mockTestId: Long, userId: String): Flow<List<MockAttemptEntity>>
 
     @Query("SELECT * FROM mock_attempts WHERE userId = :userId ORDER BY timestamp DESC")
-    fun getAllAttemptsForUser(userId: String): Flow<List<MockAttemptEntity>>
+    abstract fun getAllAttemptsForUser(userId: String): Flow<List<MockAttemptEntity>>
 
     @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId ORDER BY score DESC, accuracy DESC, timestamp ASC")
-    fun getAllAttemptsForMock(mockTestId: Long): Flow<List<MockAttemptEntity>>
+    abstract fun getAllAttemptsForMock(mockTestId: Long): Flow<List<MockAttemptEntity>>
 
     @Query("SELECT * FROM mock_attempts WHERE id = :attemptId")
-    suspend fun getAttemptById(attemptId: Long): MockAttemptEntity?
+    abstract suspend fun getAttemptById(attemptId: Long): MockAttemptEntity?
 
     @Query("SELECT * FROM mock_attempts WHERE mockTestId = :mockTestId AND userId = :userId ORDER BY timestamp DESC LIMIT 1")
-    suspend fun getLatestAttemptForMock(mockTestId: Long, userId: String): MockAttemptEntity?
+    abstract suspend fun getLatestAttemptForMock(mockTestId: Long, userId: String): MockAttemptEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAttempt(attempt: MockAttemptEntity): Long
+    abstract suspend fun insertAttempt(attempt: MockAttemptEntity): Long
 
     @Query("DELETE FROM mock_attempts WHERE mockTestId = :mockTestId")
-    suspend fun deleteAttemptsForMock(mockTestId: Long)
+    abstract suspend fun deleteAttemptsForMock(mockTestId: Long)
 }
 
 
 @Dao
 interface UserQuestionStateDao {
     @Query("SELECT * FROM user_question_states WHERE userId = :userId")
-    fun getUserStates(userId: String): Flow<List<UserQuestionStateEntity>>
+    abstract fun getUserStates(userId: String): Flow<List<UserQuestionStateEntity>>
 
     @Query("SELECT * FROM user_question_states WHERE userId = :userId AND questionId = :questionId")
-    suspend fun getState(userId: String, questionId: String): UserQuestionStateEntity?
+    abstract suspend fun getState(userId: String, questionId: String): UserQuestionStateEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertState(state: UserQuestionStateEntity)
+    abstract suspend fun insertState(state: UserQuestionStateEntity)
 }
 
 @Dao
-interface StudyNoteDao {
+abstract class StudyNoteDao {
+    @Query("DELETE FROM study_notes WHERE isPremium = 1")
+    abstract suspend fun deletePremiumStudyNotes()
+
     @Query("SELECT * FROM study_notes ORDER BY id DESC")
-    fun getAllNotes(): Flow<List<StudyNoteEntity>>
+    abstract fun getAllNotes(): Flow<List<StudyNoteEntity>>
 
     @Query("SELECT * FROM study_notes WHERE isBookmarked = 1 OR isDownloaded = 1")
-    fun getSavedNotes(): Flow<List<StudyNoteEntity>>
+    abstract fun getSavedNotes(): Flow<List<StudyNoteEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNote(note: StudyNoteEntity): Long
+    abstract suspend fun insertNoteInternal(note: StudyNoteEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(notes: List<StudyNoteEntity>)
+    abstract suspend fun insertAllNotesInternal(notes: List<StudyNoteEntity>)
+
+    @Transaction
+    open suspend fun insertNote(note: StudyNoteEntity): Long {
+        if (note.accessType == "PREMIUM" || note.isPremium) return -1L
+        return insertNoteInternal(note)
+    }
+
+    @Transaction
+    open suspend fun insertAll(notes: List<StudyNoteEntity>) {
+        val freeNotes = notes.filter { it.accessType != "PREMIUM" && !it.isPremium }
+        if (freeNotes.isNotEmpty()) {
+            insertAllNotesInternal(freeNotes)
+        }
+    }
 
     @Update
-    suspend fun updateNote(note: StudyNoteEntity)
+    abstract suspend fun updateNote(note: StudyNoteEntity)
 
     @Delete
-    suspend fun deleteNote(note: StudyNoteEntity)
+    abstract suspend fun deleteNote(note: StudyNoteEntity)
 }
 
 @Dao
 interface ExamUpdateDao {
     @Query("SELECT * FROM exam_updates ORDER BY id DESC")
-    fun getAllUpdates(): Flow<List<ExamUpdateEntity>>
+    abstract fun getAllUpdates(): Flow<List<ExamUpdateEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUpdate(update: ExamUpdateEntity): Long
+    abstract suspend fun insertUpdate(update: ExamUpdateEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(updates: List<ExamUpdateEntity>)
+    abstract suspend fun insertAll(updates: List<ExamUpdateEntity>)
 
     @Update
-    suspend fun updateExamUpdate(update: ExamUpdateEntity)
+    abstract suspend fun updateExamUpdate(update: ExamUpdateEntity)
 
     @Delete
-    suspend fun deleteUpdate(update: ExamUpdateEntity)
+    abstract suspend fun deleteUpdate(update: ExamUpdateEntity)
 }
 
 @Dao
 interface BannerDao {
     @Query("SELECT * FROM banners WHERE isActive = 1 ORDER BY id ASC")
-    fun getActiveBanners(): Flow<List<BannerEntity>>
+    abstract fun getActiveBanners(): Flow<List<BannerEntity>>
 
     @Query("SELECT * FROM banners ORDER BY id DESC")
-    fun getAllBanners(): Flow<List<BannerEntity>>
+    abstract fun getAllBanners(): Flow<List<BannerEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBanner(banner: BannerEntity): Long
+    abstract suspend fun insertBanner(banner: BannerEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(banners: List<BannerEntity>)
+    abstract suspend fun insertAll(banners: List<BannerEntity>)
 
     @Update
-    suspend fun updateBanner(banner: BannerEntity)
+    abstract suspend fun updateBanner(banner: BannerEntity)
 
     @Query("DELETE FROM banners WHERE id = :id")
-    suspend fun deleteById(id: Long)
+    abstract suspend fun deleteById(id: Long)
 
     @Delete
-    suspend fun deleteBanner(banner: BannerEntity)
+    abstract suspend fun deleteBanner(banner: BannerEntity)
 }
 
 @Dao
 interface NotificationDao {
     @Query("SELECT * FROM notifications ORDER BY id DESC")
-    fun getAllNotifications(): Flow<List<NotificationEntity>>
+    abstract fun getAllNotifications(): Flow<List<NotificationEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNotification(notification: NotificationEntity): Long
+    abstract suspend fun insertNotification(notification: NotificationEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(notifications: List<NotificationEntity>)
+    abstract suspend fun insertAll(notifications: List<NotificationEntity>)
 
     @Delete
-    suspend fun deleteNotification(notification: NotificationEntity)
+    abstract suspend fun deleteNotification(notification: NotificationEntity)
 }
 
 @Dao
 interface UserProfileDao {
     @Query("SELECT * FROM user_profile WHERE id = 1")
-    fun getUserProfile(): Flow<UserProfileEntity?>
+    abstract fun getUserProfile(): Flow<UserProfileEntity?>
 
     @Query("SELECT * FROM user_profile WHERE id = 1")
-    suspend fun getUserProfileDirect(): UserProfileEntity?
+    abstract suspend fun getUserProfileDirect(): UserProfileEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateProfileRaw(profile: UserProfileEntity)
+    abstract suspend fun insertOrUpdateProfileRaw(profile: UserProfileEntity)
 
     @Transaction
-    suspend fun insertOrUpdateProfile(profile: UserProfileEntity) {
+    open suspend fun insertOrUpdateProfile(profile: UserProfileEntity) {
         insertOrUpdateProfileRaw(profile.withResolvedName())
     }
 }
@@ -183,213 +234,234 @@ interface UserProfileDao {
 @Dao
 interface AboutConfigDao {
     @Query("SELECT * FROM about_config WHERE id = 1")
-    fun getAboutConfig(): Flow<AboutConfigEntity?>
+    abstract fun getAboutConfig(): Flow<AboutConfigEntity?>
 
     @Query("SELECT * FROM about_config WHERE id = 1")
-    suspend fun getAboutConfigDirect(): AboutConfigEntity?
+    abstract suspend fun getAboutConfigDirect(): AboutConfigEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateAboutConfig(config: AboutConfigEntity)
+    abstract suspend fun insertOrUpdateAboutConfig(config: AboutConfigEntity)
 }
 
 
 @Dao
 interface PlanDao {
     @Query("SELECT * FROM subscription_plans ORDER BY id DESC")
-    fun getAllPlans(): Flow<List<PlanEntity>>
+    abstract fun getAllPlans(): Flow<List<PlanEntity>>
+    
+    @Query("SELECT * FROM subscription_plans ORDER BY id DESC")
+    abstract suspend fun getAllPlansDirect(): List<PlanEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlan(plan: PlanEntity): Long
+    abstract suspend fun insertPlan(plan: PlanEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(plans: List<PlanEntity>)
+    abstract suspend fun insertAll(plans: List<PlanEntity>)
 
     @Delete
-    suspend fun deletePlan(plan: PlanEntity)
+    abstract suspend fun deletePlan(plan: PlanEntity)
 }
 
 @Dao
 interface ExamDao {
     @Query("SELECT * FROM exams ORDER BY id DESC")
-    fun getAllExams(): Flow<List<ExamEntity>>
+    abstract fun getAllExams(): Flow<List<ExamEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExam(exam: ExamEntity): Long
+    abstract suspend fun insertExam(exam: ExamEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(exams: List<ExamEntity>)
+    abstract suspend fun insertAll(exams: List<ExamEntity>)
 
     @Update
-    suspend fun updateExam(exam: ExamEntity)
+    abstract suspend fun updateExam(exam: ExamEntity)
 
     @Delete
-    suspend fun deleteExam(exam: ExamEntity)
+    abstract suspend fun deleteExam(exam: ExamEntity)
 }
 
 @Dao
 interface SubjectChapterDao {
     @Query("SELECT * FROM subjects_chapters ORDER BY subject ASC, chapter ASC")
-    fun getAllSubjectsChapters(): Flow<List<SubjectChapterEntity>>
+    abstract fun getAllSubjectsChapters(): Flow<List<SubjectChapterEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSubjectChapter(subjectChapter: SubjectChapterEntity): Long
+    abstract suspend fun insertSubjectChapter(subjectChapter: SubjectChapterEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(subjectsChapters: List<SubjectChapterEntity>)
+    abstract suspend fun insertAll(subjectsChapters: List<SubjectChapterEntity>)
 
     @Update
-    suspend fun updateSubjectChapter(subjectChapter: SubjectChapterEntity)
+    abstract suspend fun updateSubjectChapter(subjectChapter: SubjectChapterEntity)
 
     @Delete
-    suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)
+    abstract suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)
 }
 
 @Dao
 interface PendingRequestDao {
     @Query("SELECT * FROM pending_requests ORDER BY id DESC")
-    fun getAllPendingRequests(): Flow<List<PendingRequestEntity>>
+    abstract fun getAllPendingRequests(): Flow<List<PendingRequestEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRequest(request: PendingRequestEntity): Long
+    abstract suspend fun insertRequest(request: PendingRequestEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(requests: List<PendingRequestEntity>)
+    abstract suspend fun insertAll(requests: List<PendingRequestEntity>)
 
     @Update
-    suspend fun updateRequest(request: PendingRequestEntity)
+    abstract suspend fun updateRequest(request: PendingRequestEntity)
 
     @Delete
-    suspend fun deleteRequest(request: PendingRequestEntity)
+    abstract suspend fun deleteRequest(request: PendingRequestEntity)
 
     @Query("DELETE FROM pending_requests WHERE status != 'PENDING' AND timestamp < :thresholdTime")
-    suspend fun deleteOldRequests(thresholdTime: String)
+    abstract suspend fun deleteOldRequests(thresholdTime: String)
 }
 
 @Dao
 interface FaqDao {
     @Query("SELECT * FROM faqs ORDER BY id ASC")
-    fun getAllFaqs(): Flow<List<FaqEntity>>
+    abstract fun getAllFaqs(): Flow<List<FaqEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFaq(faq: FaqEntity): Long
+    abstract suspend fun insertFaq(faq: FaqEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(faqs: List<FaqEntity>)
+    abstract suspend fun insertAll(faqs: List<FaqEntity>)
 
     @Update
-    suspend fun updateFaq(faq: FaqEntity)
+    abstract suspend fun updateFaq(faq: FaqEntity)
 
     @Delete
-    suspend fun deleteFaq(faq: FaqEntity)
+    abstract suspend fun deleteFaq(faq: FaqEntity)
 }
 
 
 @Dao
 interface ActivityLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLog(log: ActivityLogEntity): Long
+    abstract suspend fun insertLog(log: ActivityLogEntity): Long
 
     @Query("SELECT * FROM activity_logs ORDER BY timestamp DESC")
-    fun getAllLogs(): Flow<List<ActivityLogEntity>>
+    abstract fun getAllLogs(): Flow<List<ActivityLogEntity>>
 
     @Query("DELETE FROM activity_logs WHERE role = 'ADMIN' AND timestamp < :thresholdTime")
-    suspend fun deleteOldAdminLogs(thresholdTime: Long)
+    abstract suspend fun deleteOldAdminLogs(thresholdTime: Long)
 
     @Query("DELETE FROM activity_logs WHERE role = 'OWNER' AND timestamp < :thresholdTime")
-    suspend fun deleteOldOwnerLogs(thresholdTime: Long)
+    abstract suspend fun deleteOldOwnerLogs(thresholdTime: Long)
 
     @Query("DELETE FROM activity_logs WHERE timestamp < :thresholdTime")
-    suspend fun deleteLogsOlderThan(thresholdTime: Long)
+    abstract suspend fun deleteLogsOlderThan(thresholdTime: Long)
 }
 
 
 @Dao
 interface NotificationCategoryDao {
     @Query("SELECT * FROM notification_categories")
-    fun getAllNotificationCategories(): Flow<List<NotificationCategoryEntity>>
+    abstract fun getAllNotificationCategories(): Flow<List<NotificationCategoryEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNotificationCategory(category: NotificationCategoryEntity)
+    abstract suspend fun insertNotificationCategory(category: NotificationCategoryEntity)
 
     @Delete
-    suspend fun deleteNotificationCategory(category: NotificationCategoryEntity)
+    abstract suspend fun deleteNotificationCategory(category: NotificationCategoryEntity)
 }
 
 @Dao
 interface SyncQueueDao {
     @Query("SELECT * FROM sync_queue ORDER BY createdAt ASC")
-    fun getAllSyncQueueFlow(): Flow<List<SyncQueueEntity>>
+    abstract fun getAllSyncQueueFlow(): Flow<List<SyncQueueEntity>>
 
     @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' OR syncStatus = 'FAILED' OR syncStatus = 'UPLOADING' ORDER BY createdAt ASC")
-    fun getPendingSyncs(): Flow<List<SyncQueueEntity>>
+    abstract fun getPendingSyncs(): Flow<List<SyncQueueEntity>>
 
     @Query("SELECT * FROM sync_queue WHERE syncStatus = 'PENDING' OR syncStatus = 'FAILED' OR syncStatus = 'UPLOADING' ORDER BY createdAt ASC")
-    suspend fun getPendingSyncsList(): List<SyncQueueEntity>
+    abstract suspend fun getPendingSyncsList(): List<SyncQueueEntity>
 
     @Query("SELECT * FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId LIMIT 1")
-    suspend fun getSyncByEntity(dataType: String, entityId: String): SyncQueueEntity?
+    abstract suspend fun getSyncByEntity(dataType: String, entityId: String): SyncQueueEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSync(sync: SyncQueueEntity): Long
+    abstract suspend fun insertSync(sync: SyncQueueEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllSyncs(syncs: List<SyncQueueEntity>)
+    abstract suspend fun insertAllSyncs(syncs: List<SyncQueueEntity>)
 
     @Update
-    suspend fun updateSync(sync: SyncQueueEntity)
+    abstract suspend fun updateSync(sync: SyncQueueEntity)
 
     @Delete
-    suspend fun deleteSync(sync: SyncQueueEntity)
+    abstract suspend fun deleteSync(sync: SyncQueueEntity)
 
     @Query("DELETE FROM sync_queue WHERE syncId = :syncId")
-    suspend fun deleteSyncById(syncId: Long)
+    abstract suspend fun deleteSyncById(syncId: Long)
 
     @Query("DELETE FROM sync_queue WHERE syncStatus = 'SYNCED'")
-    suspend fun clearSyncedItems()
+    abstract suspend fun clearSyncedItems()
 
     @Query("DELETE FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId")
-    suspend fun deleteSyncByEntity(dataType: String, entityId: String)
+    abstract suspend fun deleteSyncByEntity(dataType: String, entityId: String)
 }
 
 @Dao
 interface EntitlementDao {
-    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != '' LIMIT 1")
-    fun getEntitlement(userId: String): Flow<EntitlementEntity?>
+    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != ''")
+    abstract fun getEntitlements(userId: String): Flow<List<EntitlementEntity>>
+
+    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != ''")
+    abstract suspend fun getEntitlementsDirect(userId: String): List<EntitlementEntity>
+
+    @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC")
+    abstract fun getEntitlementsMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<List<EntitlementEntity>>
+
+    @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC")
+    abstract suspend fun getEntitlementsDirectMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): List<EntitlementEntity>
 
     @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != '' LIMIT 1")
-    suspend fun getEntitlementDirect(userId: String): EntitlementEntity?
+    abstract fun getEntitlement(userId: String): Flow<EntitlementEntity?>
+
+    @Query("SELECT * FROM entitlements WHERE userId = :userId AND :userId != '' LIMIT 1")
+    abstract suspend fun getEntitlementDirect(userId: String): EntitlementEntity?
 
     @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC LIMIT 1")
-    fun getEntitlementMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?>
+    abstract fun getEntitlementMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?>
 
     @Query("SELECT * FROM entitlements WHERE (userId = :userId AND :userId != '') OR (userId = :altUserId1 AND :altUserId1 != '') OR (userId = :altUserId2 AND :altUserId2 != '') ORDER BY updatedAt DESC LIMIT 1")
-    suspend fun getEntitlementDirectMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity?
+    abstract suspend fun getEntitlementDirectMulti(userId: String, altUserId1: String = "", altUserId2: String = ""): EntitlementEntity?
 
     @Query("SELECT * FROM entitlements")
-    suspend fun getAllEntitlementsDirect(): List<EntitlementEntity>
+    abstract suspend fun getAllEntitlementsDirect(): List<EntitlementEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertEntitlement(entitlement: EntitlementEntity)
+    abstract suspend fun insertEntitlement(entitlement: EntitlementEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertEntitlements(entitlements: List<EntitlementEntity>)
+
+    @Query("DELETE FROM entitlements WHERE userId = :userId AND planId = :planId")
+    abstract suspend fun deleteEntitlementByPlan(userId: String, planId: String)
 
     @Query("DELETE FROM entitlements WHERE userId = :userId")
-    suspend fun deleteEntitlement(userId: String)
+    abstract suspend fun deleteEntitlement(userId: String)
 }
 
 @Dao
 interface EntitlementHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertHistory(history: EntitlementHistoryEntity): Long
+    abstract suspend fun insertHistory(history: EntitlementHistoryEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(histories: List<EntitlementHistoryEntity>)
+    abstract suspend fun insertAll(histories: List<EntitlementHistoryEntity>)
 
     @Query("SELECT * FROM entitlement_history WHERE (userId = :userId AND :userId != '') OR (userEmail = :userEmail AND :userEmail != '') ORDER BY timestamp DESC")
-    fun getHistoryForUser(userId: String, userEmail: String = ""): Flow<List<EntitlementHistoryEntity>>
+    abstract fun getHistoryForUser(userId: String, userEmail: String = ""): Flow<List<EntitlementHistoryEntity>>
 
     @Query("SELECT * FROM entitlement_history ORDER BY timestamp DESC LIMIT :limit")
-    fun getRecentHistory(limit: Int = 100): Flow<List<EntitlementHistoryEntity>>
+    abstract fun getRecentHistory(limit: Int = 100): Flow<List<EntitlementHistoryEntity>>
 
     @Query("SELECT * FROM entitlement_history WHERE (userId = :userId AND :userId != '') OR (userEmail = :userEmail AND :userEmail != '') ORDER BY timestamp DESC")
-    suspend fun getHistoryForUserDirect(userId: String, userEmail: String = ""): List<EntitlementHistoryEntity>
+    abstract suspend fun getHistoryForUserDirect(userId: String, userEmail: String = ""): List<EntitlementHistoryEntity>
 }
 

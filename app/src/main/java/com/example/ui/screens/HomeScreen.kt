@@ -376,7 +376,14 @@ Row(
             PerformanceSummaryCard(
                 userProfile = userProfile,
                 language = language,
-                onViewAnalytics = { viewModel.navigateTo(Screen.MY_ANALYTICS) }
+                isPremium = isUserPremium || isAdminOrOwner,
+                onViewAnalytics = { 
+                    if (isUserPremium || isAdminOrOwner) {
+                        viewModel.navigateTo(Screen.MY_ANALYTICS)
+                    } else {
+                        viewModel.navigateTo(Screen.PREMIUM_PLANS)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -776,6 +783,7 @@ fun DailyQuizCard(language: AppLanguage, onStartQuiz: () -> Unit) {
 fun PerformanceSummaryCard(
     userProfile: UserProfileEntity?,
     language: AppLanguage,
+    isPremium: Boolean = false,
     onViewAnalytics: () -> Unit
 ) {
     Card(
@@ -792,13 +800,41 @@ fun PerformanceSummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Performance Summary",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Performance Summary",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!isPremium) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Locked",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "FREE PREVIEW",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
                 TextButton(onClick = onViewAnalytics) {
-                    Text("View Analytics")
+                    Text(if (isPremium) "Full Analytics" else "Unlock Analytics")
                 }
             }
 

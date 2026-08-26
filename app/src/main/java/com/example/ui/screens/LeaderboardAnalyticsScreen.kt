@@ -102,7 +102,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val userProfile by viewModel.userProfile.collectAsState()
     val examsList by viewModel.examsList.collectAsState()
     val plans by viewModel.plans.collectAsState()
-    val userEntitlement by viewModel.userEntitlement.collectAsState()
+    val userEntitlements by viewModel.userEntitlements.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
 
@@ -135,18 +135,17 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
         }
     }
 
-    val activePlan = remember(userEntitlement, plans) {
-        val entitlement = userEntitlement ?: return@remember null
-        if (entitlement.status != "ACTIVE") return@remember null
-        plans.find { it.id.toString() == entitlement.planId || it.planName.equals(entitlement.planName, ignoreCase = true) }
+    val activePlans = remember(userEntitlements, plans) {
+        com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements, plans, System.currentTimeMillis()).activePlans.mapNotNull { ent ->
+            plans.find { it.id.toString() == ent.planId || it.planName.equals(ent.planName, ignoreCase = true) }
+        }
     }
 
-    val userAllowedExams = remember(activePlan, examsList, isAdminOrOwner) {
-        if (isAdminOrOwner || activePlan?.examTarget?.equals("All Exams", ignoreCase = true) == true || activePlan?.examTarget?.isBlank() == true) {
+    val userAllowedExams = remember(activePlans, examsList, isAdminOrOwner) {
+        if (isAdminOrOwner || activePlans.any { it.examTarget.equals("All Exams", ignoreCase = true) || it.examTarget.isBlank() }) {
             examsList
         } else {
-            val targetStr = activePlan?.examTarget ?: ""
-            val allowedExamNames = targetStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val allowedExamNames = activePlans.flatMap { it.examTarget.split(",") }.map { it.trim() }.filter { it.isNotEmpty() }
             if (allowedExamNames.isEmpty()) {
                 emptyList()
             } else {
@@ -199,62 +198,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
             }
         }
 
-        if (!isUserPremium && !isAdminOrOwner) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    modifier = Modifier.size(80.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "Locked",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    text = if (isAssamese) "প্ৰিমিয়াম সুবিধা তলাবদ্ধ" else "Premium Analytics & Leaderboard Locked",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = if (isAssamese)
-                        "ৰাজ্যিক লিডাৰব'ৰ্ড, পৰীক্ষা পাছ কৰাৰ সম্ভাৱনা শতাংশ, আৰু বিষয়ভিত্তিক সঠিকতা বিশ্লেষণ কেৱল প্ৰিমিয়াম সদস্যৰ বাবে উপলব্ধ। আপোনাৰ প্লেন আপগ্ৰেড কৰক।"
-                    else
-                        "State Leaderboard ranking, exam clearance probability, accuracy analytics, and subject-wise weakness radar are exclusive benefits for paid subscribers.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { viewModel.showPaywall() },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Icon(imageVector = Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isAssamese) "প্লেনসমূহ চাওক" else "View Premium Plans",
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        } else {
-            Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
+        Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
             if (tab == 0) {
                 // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
                 LeaderboardTabContent(
@@ -329,7 +273,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                     }
                 )
             }
-        }
+        
         }
         }
     }

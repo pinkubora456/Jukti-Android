@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 36,
+    version = 38,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -173,6 +173,20 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `entitlements_new` (`userId` TEXT NOT NULL, `planId` TEXT NOT NULL, `planName` TEXT NOT NULL, `status` TEXT NOT NULL, `validFrom` INTEGER NOT NULL, `validUntil` INTEGER NOT NULL, `validityType` TEXT NOT NULL DEFAULT 'MONTHS', `validityValue` INTEGER NOT NULL DEFAULT 1, `validityLabel` TEXT NOT NULL DEFAULT '1 Month', `isLifetime` INTEGER NOT NULL DEFAULT 0, `benefits` TEXT NOT NULL DEFAULT '', `source` TEXT NOT NULL DEFAULT '', `purchaseId` TEXT NOT NULL DEFAULT '', `activatedAt` INTEGER NOT NULL DEFAULT 0, `updatedAt` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`userId`, `planId`))")
+                try {
+                    db.execSQL("INSERT OR REPLACE INTO `entitlements_new` (`userId`, `planId`, `planName`, `status`, `validFrom`, `validUntil`, `validityType`, `validityValue`, `validityLabel`, `isLifetime`, `benefits`, `source`, `purchaseId`, `activatedAt`, `updatedAt`) SELECT `userId`, `planId`, `planName`, `status`, `validFrom`, `validUntil`, `validityType`, `validityValue`, `validityLabel`, `isLifetime`, `benefits`, `source`, `purchaseId`, `activatedAt`, `updatedAt` FROM `entitlements`")
+                    db.execSQL("DROP TABLE `entitlements`")
+                    db.execSQL("ALTER TABLE `entitlements_new` RENAME TO `entitlements`")
+                } catch (e: Exception) {
+                    db.execSQL("DROP TABLE IF EXISTS `entitlements`")
+                    db.execSQL("ALTER TABLE `entitlements_new` RENAME TO `entitlements`")
+                }
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -180,7 +194,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

@@ -1,0 +1,3344 @@
+     1	package com.example.ui.viewmodel
+     2	
+     3	import android.app.Activity
+     4	import android.app.Application
+     5	import android.app.NotificationManager
+     6	import android.app.PendingIntent
+     7	import android.content.Context
+     8	import android.content.Intent
+     9	import android.util.Log
+    10	import androidx.core.app.NotificationCompat
+    11	import com.example.MainActivity
+    12	import com.example.JuktiApplication
+    13	import com.example.auth.GoogleAuthManager
+    14	import com.google.firebase.auth.FirebaseAuth
+    15	import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+    16	import com.google.firebase.auth.FirebaseAuthInvalidUserException
+    17	import com.google.firebase.auth.FirebaseAuthUserCollisionException
+    18	import com.google.firebase.firestore.FirebaseFirestore
+    19	import com.google.firebase.storage.FirebaseStorage
+    20	
+    21	import androidx.lifecycle.AndroidViewModel
+    22	import androidx.lifecycle.viewModelScope
+    23	import com.example.data.local.*
+    24	import com.example.data.repository.JuktiRepository
+    25	import com.example.data.repository.SampleData
+    26	import com.example.data.repository.UserSessionManager
+    27	import kotlinx.coroutines.flow.*
+    28	import kotlinx.coroutines.launch
+    29	import kotlinx.coroutines.Dispatchers
+    30	import kotlinx.coroutines.withContext
+    31	import kotlinx.coroutines.tasks.await
+    32	import kotlinx.coroutines.isActive
+    33	import kotlinx.coroutines.Job
+    34	import kotlinx.coroutines.delay
+    35	
+    36	enum class AppLanguage {
+    37	    ENGLISH,
+    38	    ASSAMESE,
+    39	    BOTH
+    40	}
+    41	
+    42	enum class UserRole {
+    43	    OWNER,
+    44	    ADMIN,
+    45	    USER
+    46	}
+    47	
+    48	enum class Screen {
+    49	    SPLASH,
+    50	    HOME,
+    51	    MCQ_STUDY,
+    52	    PRACTICE,
+    53	    SMART_PRACTICE,
+    54	    MOCK_TESTS,
+    55	    MOCK_PLAYER,
+    56	    MOCK_RESULT,
+    57	    STUDY_NOTES,
+    58	    STUDY_NOTE_DETAIL,
+    59	    LEADERBOARD,
+    60	    MY_ANALYTICS,
+    61	    EXAM_INFO,
+    62	    PROFILE,
+    63	    PREMIUM_PLANS,
+    64	    GLOBAL_SEARCH,
+    65	    FIREBASE_CONFIG,
+    66	    AUTH,
+    67	    MENU,
+    68	    SETTINGS,
+    69	    ABOUT,
+    70	    CONTACT_US,
+    71	    WORKSPACE,
+    72	    OWNER_DASHBOARD,
+    73	    MANAGE_QBANK,
+    74	    MANAGE_MOCK,
+    75	    MANAGE_PLAN,
+    76	    MANAGE_ADMIN,
+    77	    ADMIN_ACTIVITY_LOG,
+    78	    EXPORT_REPORTS,
+    79	    PENDING_REQUESTS,
+    80	    SINGLE_QUESTION_UPLOAD,
+    81	    BATCH_IMPORT_QUESTION,
+    82	    ALL_QUESTIONS,
+    83	    CREATE_PLAN,
+    84	    EDIT_PLAN,
+    85	    MANAGE_USER_LOG,
+    86	    REPORTED_QUESTIONS,
+    87	    MANAGE_EXAMS,
+    88	    CREATE_MOCK,
+    89	    EDIT_MOCK,
+    90	    MANAGE_STUDY_NOTES,
+    91	    MANAGE_CURRENT_AFFAIRS,
+    92	    MANAGE_SUBJECTS_CHAPTERS,
+    93	    MANAGE_NOTIFICATIONS,
+    94	    STORAGE_MANAGEMENT,
+    95	    USER_NOTIFICATIONS,
+    96	    MANAGE_EXAM_PATTERN_CUTOFF,
+    97	    MANAGE_EXAM_PATTERN_CUTOFF_UPDATE,
+    98	    MANAGE_EXAM_PATTERN_CUTOFF_VIEW,
+    99	    MANAGE_BANNERS,
+   100	    PRIVACY_POLICY,
+   101	    TERMS_CONDITIONS,
+   102	    HELP_SUPPORT,
+   103	    ABOUT_LEGAL,
+   104	    SHARE_SUPPORT,
+   105	    FAQ
+   106	}
+   107	
+   108	class JuktiViewModel(application: Application) : AndroidViewModel(application) {
+   109	
+   110	    private val timePrefs by lazy { getApplication<Application>().getSharedPreferences("jukti_time_prefs", android.content.Context.MODE_PRIVATE) }
+   111	    
+   112	    private var sessionTrustedServerTime: Long = 0L
+   113	    private var sessionTrustedRealtime: Long = 0L
+   114	
+   115	    init {
+   116	        syncTrustedTime()
+   117	    }
+   118	
+   119	    private fun syncTrustedTime() {
+   120	        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+   121	            try {
+   122	                // Fetch header from a reliable Google endpoint
+   123	                val url = java.net.URL("https://us-central1-jukti-examprep.cloudfunctions.net")
+   124	                val conn = url.openConnection() as java.net.HttpURLConnection
+   125	                conn.requestMethod = "HEAD"
+   126	                conn.connectTimeout = 3000
+   127	                conn.readTimeout = 3000
+   128	                val dateStr = conn.getHeaderField("Date")
+   129	                if (dateStr != null) {
+   130	                    val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
+   131	                    val serverTime = format.parse(dateStr)?.time ?: return@launch
+   132	                    
+   133	                    sessionTrustedServerTime = serverTime
+   134	                    sessionTrustedRealtime = android.os.SystemClock.elapsedRealtime()
+   135	                    
+   136	                    timePrefs.edit()
+   137	                        .putLong("last_server_time", serverTime)
+   138	                        .putLong("last_device_realtime", sessionTrustedRealtime)
+   139	                        .putLong("max_seen_time", serverTime)
+   140	                        .apply()
+   141	                }
+   142	            } catch (e: Exception) {
+   143	                // Ignore, will fallback to cached or monotonic
+   144	            }
+   145	        }
+   146	    }
+   147	
+   148	    fun getTrustedTime(): Long {
+   149	        val currentRealtime = android.os.SystemClock.elapsedRealtime()
+   150	        
+   151	        // 1. If we have a session-synced server time, use it + monotonic elapsed time
+   152	        if (sessionTrustedServerTime > 0L) {
+   153	            val elapsed = currentRealtime - sessionTrustedRealtime
+   154	            if (elapsed >= 0) {
+   155	                val calculated = sessionTrustedServerTime + elapsed
+   156	                updateMaxSeenTime(calculated)
+   157	                return calculated
+   158	            }
+   159	        }
+   160	        
+   161	        // 2. Fallback to persisted synced time if device hasn't rebooted since last sync
+   162	        val lastRealtime = timePrefs.getLong("last_device_realtime", 0L)
+   163	        val lastServerTime = timePrefs.getLong("last_server_time", 0L)
+   164	        if (lastServerTime > 0L && lastRealtime > 0L && currentRealtime >= lastRealtime) {
+   165	            val elapsed = currentRealtime - lastRealtime
+   166	            // basic sanity check: if elapsed is > 30 days without reboot, maybe suspicious, but let's trust it
+   167	            if (elapsed < 30L * 24 * 60 * 60 * 1000) {
+   168	                val calculated = lastServerTime + elapsed
+   169	                updateMaxSeenTime(calculated)
+   170	                return calculated
+   171	            }
+   172	        }
+   173	        
+   174	        // 3. Last resort fallback: System time, but protected against backwards tampering
+   175	        val currentSystemTime = System.currentTimeMillis()
+   176	        return updateMaxSeenTime(currentSystemTime)
+   177	    }
+   178	    
+   179	    private fun updateMaxSeenTime(time: Long): Long {
+   180	        val maxSeen = timePrefs.getLong("max_seen_time", 0L)
+   181	        if (time > maxSeen) {
+   182	            timePrefs.edit().putLong("max_seen_time", time).apply()
+   183	            return time
+   184	        }
+   185	        return maxSeen
+   186	    }
+   187	
+   188	    init {
+   189	        com.example.JuktiApplication.ensureFirebaseInitialized(application)
+   190	    }
+   191	
+   192	    private val database = JuktiDatabase.getDatabase(application)
+   193	    
+   194	    private val prefs = application.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
+   195	    private val _lastSessionType = MutableStateFlow(prefs.getString("last_session_type", "mock") ?: "mock")
+   196	    val lastSessionType: StateFlow<String> = _lastSessionType.asStateFlow()
+   197	
+   198	    val repository = JuktiRepository(
+   199	        database.questionDao(),
+   200	        database.mockTestDao(),
+   201	        database.studyNoteDao(),
+   202	        database.examUpdateDao(),
+   203	        database.bannerDao(),
+   204	        database.notificationDao(),
+   205	        database.notificationCategoryDao(),
+   206	        database.userProfileDao(),
+   207	        database.aboutConfigDao(),
+   208	        database.planDao(),
+   209	        database.examDao(),
+   210	        database.subjectChapterDao(),
+   211	        database.pendingRequestDao(),
+   212	        database.faqDao(),
+   213	        database.userQuestionStateDao(),
+   214	        database.activityLogDao(),
+   215	        database.mockAttemptDao(),
+   216	        database.entitlementDao(),
+   217	        database.entitlementHistoryDao(),
+   218	        com.example.data.repository.FirebaseSyncManager(database)
+   219	    )
+   220	
+   221	    // Data Flows from Repository
+   222	    val plans = repository.allPlans.stateIn(
+   223	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   224	    )
+   225	
+   226	    val mockTests = repository.allMockTests.stateIn(
+   227	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   228	    )
+   229	
+   230	    val examsList: StateFlow<List<ExamEntity>> = repository.allExams.stateIn(
+   231	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   232	    )
+   233	
+   234	    val allSubjectsChapters = repository.allSubjectsChapters.stateIn(
+   235	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   236	    )
+   237	
+   238	    fun addSubjectChapter(subject: String, chapter: String) {
+   239	        viewModelScope.launch {
+   240	            val res = repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = chapter))
+   241	            _syncToastMessage.value = res.second
+   242	        }
+   243	    }
+   244	
+   245	    fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity) {
+   246	        viewModelScope.launch {
+   247	            val res = repository.deleteSubjectChapter(subjectChapter)
+   248	            _syncToastMessage.value = res.second
+   249	        }
+   250	    }
+   251	
+   252	    fun addExam(title: String, subtitle: String, status: String = "Active") {
+   253	        logActivity("Added exam: $title")
+   254	        viewModelScope.launch {
+   255	            val res = repository.insertExam(ExamEntity(title = title, subtitle = subtitle, status = status))
+   256	            _syncToastMessage.value = res.second
+   257	        }
+   258	    }
+   259	
+   260	    fun updateExam(exam: ExamEntity) {
+   261	        viewModelScope.launch {
+   262	            val res = repository.updateExam(exam)
+   263	            _syncToastMessage.value = res.second
+   264	        }
+   265	    }
+   266	
+   267	    fun deleteExam(exam: ExamEntity) {
+   268	        viewModelScope.launch {
+   269	            val res = repository.deleteExam(exam)
+   270	            _syncToastMessage.value = res.second
+   271	        }
+   272	    }
+   273	
+   274	    // Language & Theme State
+   275	    private val _language = MutableStateFlow(AppLanguage.ENGLISH)
+   276	    val language: StateFlow<AppLanguage> = _language.asStateFlow()
+   277	
+   278	    private val _questionLanguage = MutableStateFlow(AppLanguage.BOTH)
+   279	    val questionLanguage: StateFlow<AppLanguage> = _questionLanguage.asStateFlow()
+   280	
+   281	    private val _isDarkTheme = MutableStateFlow<Boolean?>(
+   282	        if (prefs.contains("is_dark_theme")) prefs.getBoolean("is_dark_theme", false) else null
+   283	    )
+   284	    val isDarkTheme: StateFlow<Boolean?> = _isDarkTheme.asStateFlow()
+   285	
+   286	    // Navigation State
+   287	    private val _currentScreen = MutableStateFlow(Screen.SPLASH)
+   288	    private var splashFinished = false
+   289	
+   290	    private val _studySubView = MutableStateFlow<String?>(null)
+   291	    val studySubView: StateFlow<String?> = _studySubView.asStateFlow()
+   292	
+   293	    private val _openedStudyDirectly = MutableStateFlow(false)
+   294	    val openedStudyDirectly: StateFlow<Boolean> = _openedStudyDirectly.asStateFlow()
+   295	
+   296	    fun setStudySubView(subView: String?, fromHome: Boolean = false) {
+   297	        _studySubView.value = subView
+   298	        _openedStudyDirectly.value = fromHome
+   299	    }
+   300	
+   301	    fun openStudyMcq(fromHome: Boolean = true) {
+   302	        _studySubView.value = "STUDY_MCQS"
+   303	        _openedStudyDirectly.value = fromHome
+   304	        navigateTo(Screen.MCQ_STUDY)
+   305	    }
+   306	
+   307	    fun openStudyHub() {
+   308	        _studySubView.value = null
+   309	        _openedStudyDirectly.value = false
+   310	        navigateTo(Screen.MCQ_STUDY)
+   311	    }
+   312	
+   313	    fun finishSplash() {
+   314	        splashFinished = true
+   315	        val prof = userProfile.value
+   316	        if (prof != null) {
+   317	            _currentScreen.value = if (prof.isLoggedIn) Screen.HOME else Screen.AUTH
+   318	        }
+   319	    }
+   320	    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+   321	
+   322	    private val _sessionMessage = MutableStateFlow<String?>(null)
+   323	    val sessionMessage: StateFlow<String?> = _sessionMessage.asStateFlow()
+   324	
+   325	    private val _isAuthLoading = MutableStateFlow(false)
+   326	    val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
+   327	
+   328	    private val _googleAccountsToSelect = MutableStateFlow<List<String>?>(null)
+   329	    val googleAccountsToSelect: StateFlow<List<String>?> = _googleAccountsToSelect.asStateFlow()
+   330	
+   331	    fun dismissGoogleAccountChooser() {
+   332	        _googleAccountsToSelect.value = null
+   333	    }
+   334	
+   335	    private val _isRefreshingFromFirebase = MutableStateFlow(false)
+   336	    val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
+   337	
+   338	    private val _refreshStatusMessage = MutableStateFlow<String?>(null)
+   339	    val refreshStatusMessage: StateFlow<String?> = _refreshStatusMessage.asStateFlow()
+   340	
+   341	    fun clearRefreshStatusMessage() {
+   342	        _refreshStatusMessage.value = null
+   343	    }
+   344	
+   345	    fun refreshDataFromFirebase() {
+   346	        viewModelScope.launch {
+   347	            _isRefreshingFromFirebase.value = true
+   348	            try {
+   349	                val result = repository.refreshDataFromFirebase(getTrustedTime())
+   350	                if (result.isSuccess) {
+   351	                    _refreshStatusMessage.value = "App data refreshed successfully!"
+   352	                } else {
+   353	                    _refreshStatusMessage.value = "Failed to refresh app data. Please check your network connection and try again."
+   354	                }
+   355	            } catch (e: Exception) {
+   356	                Log.e("JuktiViewModel", "Exception refreshing data", e)
+   357	                _refreshStatusMessage.value = "Failed to refresh app data. Please try again."
+   358	            } finally {
+   359	                _isRefreshingFromFirebase.value = false
+   360	            }
+   361	        }
+   362	    }
+   363	
+   364	    fun uploadWorkspaceChangesToFirebase(onComplete: (Boolean, String) -> Unit) {
+   365	        viewModelScope.launch {
+   366	            try {
+   367	                val (success, message) = repository.uploadAllWorkspaceChangesToFirebase()
+   368	                showSyncToast(message)
+   369	                onComplete(success, message)
+   370	            } catch (e: Exception) {
+   371	                Log.e("JuktiViewModel", "Error uploading workspace changes", e)
+   372	                val msg = "Upload error: ${e.localizedMessage ?: "Unknown error"}"
+   373	                showSyncToast(msg)
+   374	                onComplete(false, msg)
+   375	            }
+   376	        }
+   377	    }
+   378	
+   379	    fun retrySingleSyncItem(item: com.example.data.local.SyncQueueEntity, onComplete: ((Boolean, String) -> Unit)? = null) {
+   380	        viewModelScope.launch {
+   381	            try {
+   382	                val (success, message) = repository.retrySingleSync(item)
+   383	                showSyncToast(message)
+   384	                onComplete?.invoke(success, message)
+   385	            } catch (e: Exception) {
+   386	                Log.e("JuktiViewModel", "Error retrying sync item #${item.syncId}", e)
+   387	                val msg = "Retry error: ${e.localizedMessage ?: "Unknown error"}"
+   388	                showSyncToast(msg)
+   389	                onComplete?.invoke(false, msg)
+   390	            }
+   391	        }
+   392	    }
+   393	
+   394	    fun runMinimalDiagnosticTest(onComplete: (Boolean, String) -> Unit) {
+   395	        viewModelScope.launch {
+   396	            try {
+   397	                val (success, message) = repository.runMinimalDiagnosticTest()
+   398	                onComplete(success, message)
+   399	            } catch (e: Exception) {
+   400	                onComplete(false, "Test exception: ${e.message}")
+   401	            }
+   402	        }
+   403	    }
+   404	
+   405	    private val _showPremiumPaywall = MutableStateFlow(false)
+   406	    val showPremiumPaywall: StateFlow<Boolean> = _showPremiumPaywall.asStateFlow()
+   407	
+   408	    private val _syncToastMessage = MutableStateFlow<String?>(null)
+   409	    val syncToastMessage: StateFlow<String?> = _syncToastMessage.asStateFlow()
+   410	
+   411	    val pendingSyncQueue = repository.syncManager.allSyncQueueFlow.stateIn(
+   412	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   413	    )
+   414	
+   415	    val isSyncUploading = repository.syncManager.isUploading.stateIn(
+   416	        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+   417	    )
+   418	
+   419	    val syncProgressState = repository.syncManager.syncProgressState.stateIn(
+   420	        viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.data.repository.SyncProgressState()
+   421	    )
+   422	
+   423	    fun clearSyncToastMessage() {
+   424	        _syncToastMessage.value = null
+   425	    }
+   426	
+   427	    fun showSyncToast(message: String) {
+   428	        _syncToastMessage.value = message
+   429	    }
+   430	
+   431	    fun showPaywall() {
+   432	        if (isUserPremium.value) return
+   433	        _showPremiumPaywall.value = true
+   434	    }
+   435	
+   436	    fun dismissPaywall() {
+   437	        _showPremiumPaywall.value = false
+   438	    }
+   439	
+   440	    fun clearSessionMessage() {
+   441	        _sessionMessage.value = null
+   442	    }
+   443	
+   444	    val userProfile = repository.userProfile.stateIn(
+   445	        viewModelScope, SharingStarted.WhileSubscribed(5000), null
+   446	    )
+   447	
+   448	    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+   449	    val bookmarkedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+   450	        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+   451	        if (uid.isNullOrBlank()) flowOf(emptySet())
+   452	        else repository.getUserStates(uid).map { list ->
+   453	            list.filter { it.isBookmarked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+   454	        }
+   455	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+   456	
+   457	    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+   458	    val hiddenIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+   459	        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+   460	        if (uid.isNullOrBlank()) flowOf(emptySet())
+   461	        else repository.getUserStates(uid).map { list ->
+   462	            list.filter { it.isHidden }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+   463	        }
+   464	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+   465	
+   466	    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+   467	    val likedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
+   468	        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+   469	        if (uid.isNullOrBlank()) flowOf(emptySet())
+   470	        else repository.getUserStates(uid).map { list ->
+   471	            list.filter { it.isLiked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
+   472	        }
+   473	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+   474	
+   475	
+   476	    val examUpdates = repository.allExamUpdates.stateIn(
+   477	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   478	    )
+   479	    val banners = repository.activeBanners.stateIn(
+   480	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   481	    )
+   482	    val allBanners = repository.allBanners.stateIn(
+   483	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   484	    )
+   485	
+   486	    val allNotificationCategories = repository.allNotificationCategories.stateIn(
+   487	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   488	    )
+   489	
+   490	    fun addNotificationCategory(name: String) {
+   491	        viewModelScope.launch {
+   492	            repository.insertNotificationCategory(NotificationCategoryEntity(name = name))
+   493	        }
+   494	    }
+   495	
+   496	    fun deleteNotificationCategory(category: NotificationCategoryEntity) {
+   497	        viewModelScope.launch {
+   498	            repository.deleteNotificationCategory(category)
+   499	        }
+   500	    }
+   501	
+   502	    val notifications = repository.allNotifications.stateIn(
+   503	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   504	    )
+   505	
+   506	    val aboutConfig: StateFlow<AboutConfigEntity> = repository.aboutConfig.map {
+   507	        val config = it ?: SampleData.initialAboutConfig
+   508	        if (config.appTitle == "Jukti (যুক্তি)") {
+   509	            val newConfig = config.copy(appTitle = "Jukti")
+   510	            viewModelScope.launch { repository.updateAboutConfig(newConfig) }
+   511	            newConfig
+   512	        } else {
+   513	            config
+   514	        }
+   515	    }.stateIn(
+   516	        viewModelScope, SharingStarted.WhileSubscribed(5000), SampleData.initialAboutConfig
+   517	    )
+   518	
+   519	    val pendingRequests: StateFlow<List<PendingRequestEntity>> = repository.allPendingRequests.stateIn(
+   520	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   521	    )
+   522	
+   523	    val faqs: StateFlow<List<FaqEntity>> = repository.allFaqs.stateIn(
+   524	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   525	    )
+   526	
+   527	    fun addFaq(questionEn: String, questionAs: String, answerEn: String, answerAs: String) {
+   528	        viewModelScope.launch {
+   529	            val res = repository.addFaq(
+   530	                FaqEntity(
+   531	                    questionEn = questionEn,
+   532	                    questionAs = questionAs,
+   533	                    answerEn = answerEn,
+   534	                    answerAs = answerAs
+   535	                )
+   536	            )
+   537	            _syncToastMessage.value = res.second
+   538	        }
+   539	    }
+   540	
+   541	    fun updateFaq(faq: FaqEntity) {
+   542	        viewModelScope.launch {
+   543	            val res = repository.updateFaq(faq)
+   544	            _syncToastMessage.value = res.second
+   545	        }
+   546	    }
+   547	
+   548	    fun deleteFaq(faq: FaqEntity) {
+   549	        viewModelScope.launch {
+   550	            val res = repository.deleteFaq(faq)
+   551	            _syncToastMessage.value = res.second
+   552	        }
+   553	    }
+   554	
+   555	    val isAdminOrOwner: StateFlow<Boolean> = combine(userProfile, aboutConfig) { profile, config ->
+   556	        val email = profile?.email?.trim()?.lowercase() ?: ""
+   557	        val isOwnerEmail = email == "juktieducation@gmail.com"
+   558	        val adminEmails = config.adminEmails.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+   559	        val isAdminEmail = email.isNotBlank() && adminEmails.contains(email)
+   560	        isOwnerEmail || isAdminEmail
+   561	    }.stateIn(
+   562	        viewModelScope, SharingStarted.Eagerly, false
+   563	    )
+   564	
+   565	    val isOwner: StateFlow<Boolean> = userProfile.map { profile ->
+   566	        val email = profile?.email?.trim()?.lowercase() ?: ""
+   567	        email == "juktieducation@gmail.com"
+   568	    }.stateIn(
+   569	        viewModelScope, SharingStarted.Eagerly, false
+   570	    )
+   571	
+   572	    suspend fun getUserRoleDirect(email: String, roleInProfile: String? = null): UserRole {
+   573	        val config = repository.getAboutConfigDirect()
+   574	        val trimmed = email.trim().lowercase()
+   575	        if (trimmed == "juktieducation@gmail.com") {
+   576	            return UserRole.OWNER
+   577	        }
+   578	        val adminEmails = config?.adminEmails?.split(",")?.map { it.trim().lowercase() }?.filter { it.isNotBlank() } ?: emptyList()
+   579	        if (adminEmails.contains(trimmed)) {
+   580	            return UserRole.ADMIN
+   581	        }
+   582	        return UserRole.USER
+   583	    }
+   584	
+   585	    fun getUserRole(email: String, roleInProfile: String? = null): UserRole {
+   586	        val trimmed = email.trim().lowercase()
+   587	        if (trimmed == "juktieducation@gmail.com") {
+   588	            return UserRole.OWNER
+   589	        }
+   590	        val adminEmails = aboutConfig.value.adminEmails.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+   591	        if (adminEmails.contains(trimmed)) {
+   592	            return UserRole.ADMIN
+   593	        }
+   594	        return UserRole.USER
+   595	    }
+   596	
+   597	    fun getCurrentActorRole(): UserRole {
+   598	        val profile = userProfile.value
+   599	        val email = profile?.email ?: ""
+   600	        return getUserRole(email, profile?.role)
+   601	    }
+   602	
+   603	    fun canPerformDeleteOrBan(actorRole: UserRole, targetRole: UserRole): Boolean {
+   604	        if (targetRole == UserRole.OWNER) {
+   605	            return false // Owner can NEVER be deleted or banned by anyone
+   606	        }
+   607	        return when (actorRole) {
+   608	            UserRole.OWNER -> targetRole == UserRole.ADMIN || targetRole == UserRole.USER
+   609	            UserRole.ADMIN -> targetRole == UserRole.USER
+   610	            UserRole.USER -> false
+   611	        }
+   612	    }
+   613	
+   614	    fun canActorDeleteOrBanUser(targetEmail: String, targetRoleInProfile: String? = null): Boolean {
+   615	        val actorRole = getCurrentActorRole()
+   616	        val targetRole = getUserRole(targetEmail, targetRoleInProfile)
+   617	        return canPerformDeleteOrBan(actorRole, targetRole)
+   618	    }
+   619	
+   620	    private val _userEntitlements = MutableStateFlow<List<EntitlementEntity>>(emptyList())
+   621	    val userEntitlements: StateFlow<List<EntitlementEntity>> = _userEntitlements.asStateFlow()
+   622	
+   623	    fun validateEntitlements(entitlements: List<EntitlementEntity>?, currentTime: Long = getTrustedTime()): Boolean {
+   624	        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, currentTime)
+   625	        return effective.isPremium
+   626	    }
+   627	
+   628	    fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
+   629	        val entitlements = userEntitlements.value
+   630	        val now = getTrustedTime()
+   631	        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, now)
+   632	        return effective.activePlans.any { entitlement ->
+   633	            entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true) || entitlement.planName.equals(plan.planName, ignoreCase = true)
+   634	        }
+   635	    }
+   636	
+   637	    suspend fun validatePurchaseEligibility(plan: com.example.data.local.PlanEntity): Pair<Boolean, String> {
+   638	        val prof = userProfile.value
+   639	        if (prof != null && prof.email.isNotBlank()) {
+   640	            val docId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
+   641	            try {
+   642	                val db = com.example.JuktiApplication.getFirestore(getApplication())
+   643	                    ?: return Pair(false, "Firebase unavailable")
+   644	                val doc = db.collection("users").document(docId)
+   645	                    .collection("entitlements").document("current").get().await()
+   646	                if (doc.exists()) {
+   647	                    val status = doc.getString("status") ?: ""
+   648	                    val planId = doc.getString("planId") ?: ""
+   649	                    val planName = doc.getString("planName") ?: ""
+   650	                    val validUntil = doc.getLong("validUntil") ?: 0L
+   651	
+   652	                    val isMatch = (planId == plan.id.toString()) ||
+   653	                                  (planId.equals(plan.planName, ignoreCase = true)) ||
+   654	                                  (planName.equals(plan.planName, ignoreCase = true))
+   655	                    val isValid = validUntil <= 0L || validUntil > getTrustedTime()
+   656	
+   657	                    if (status == "ACTIVE" && isMatch && isValid) {
+   658	                        return Pair(false, "You already have an active subscription for '${plan.planName}'. Duplicate purchases of the same plan are not allowed.")
+   659	                    }
+   660	                }
+   661	            } catch (e: Exception) {
+   662	                // Fallback to local check if offline
+   663	            }
+   664	        }
+   665	
+   666	        if (isSpecificPlanActive(plan)) {
+   667	            return Pair(false, "You already have an active subscription for '${plan.planName}'.")
+   668	        }
+   669	
+   670	        return Pair(true, "")
+   671	    }
+   672	
+   673	    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlements, plans) { profile, admin, entitlements, allPlans ->
+   674	        val email = profile?.email?.trim()?.lowercase() ?: ""
+   675	        val isOwner = email == "juktieducation@gmail.com"
+   676	        if (isOwner || admin) {
+   677	            true
+   678	        } else {
+   679	            com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime()).isPremium
+   680	        }
+   681	    }.stateIn(
+   682	        viewModelScope, SharingStarted.Eagerly, false
+   683	    )
+   684	
+   685	    val effectiveEntitlement: StateFlow<com.example.data.util.EffectiveUserEntitlement?> = combine(
+   686	        userProfile, isAdminOrOwner, userEntitlements, plans
+   687	    ) { profile, admin, entitlements, allPlans ->
+   688	        val email = profile?.email?.trim()?.lowercase() ?: ""
+   689	        val isOwner = email == "juktieducation@gmail.com"
+   690	        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime())
+   691	        if (isOwner || admin) {
+   692	            effective.copy(isPremium = true, hasAllExamsAccess = true)
+   693	        } else {
+   694	            effective
+   695	        }
+   696	    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+   697	    
+   698	    fun canAccessQuestion(question: com.example.data.local.QuestionEntity): Boolean {
+   699	        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   700	        return com.example.data.util.PlanValidityEngine.isQuestionAccessible(question, effective, isAdminOrOwner.value)
+   701	    }
+   702	    
+   703	    fun canAccessMockTest(mock: com.example.data.local.MockTestEntity): Boolean {
+   704	        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   705	        return com.example.data.util.PlanValidityEngine.isMockTestAccessible(mock, effective, isAdminOrOwner.value)
+   706	    }
+   707	    
+   708	    fun canAccessStudyNote(note: com.example.data.local.StudyNoteEntity): Boolean {
+   709	        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   710	        return com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(note, effective, isAdminOrOwner.value)
+   711	    }
+   712	
+   713	    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+   714	    val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = combine(
+   715	        userProfile.flatMapLatest { profile ->
+   716	            val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+   717	            if (uid.isNullOrBlank()) flowOf(emptyList())
+   718	            else repository.getSmartPracticeQuestions(uid)
+   719	        },
+   720	        effectiveEntitlement,
+   721	        isAdminOrOwner
+   722	    ) { questions, effective, isAdmin ->
+   723	        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   724	        questions.filter { q ->
+   725	            com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)
+   726	        }
+   727	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+   728	
+   729	
+   730	
+   731	
+   732	
+   733	
+   734	
+   735	
+   736	
+   737	    // Selection & Filter States
+   738	    private val _selectedSubject = MutableStateFlow("All")
+   739	    val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
+   740	
+   741	    private val _selectedDifficulty = MutableStateFlow("All")
+   742	    val selectedDifficulty: StateFlow<String> = _selectedDifficulty.asStateFlow()
+   743	
+   744	    private val _searchQuery = MutableStateFlow("")
+   745	    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+   746	
+   747	    private val _selectedMockTest = MutableStateFlow<MockTestEntity?>(null)
+   748	    val selectedMockTest: StateFlow<MockTestEntity?> = _selectedMockTest.asStateFlow()
+   749	
+   750	    private val _selectedStudyNote = MutableStateFlow<StudyNoteEntity?>(null)
+   751	    val selectedStudyNote: StateFlow<StudyNoteEntity?> = _selectedStudyNote.asStateFlow()
+   752	
+   753	    // Guest Mode
+   754	
+   755	
+   756	    )
+   757	
+   758	    val accessibleMockTests: StateFlow<List<MockTestEntity>> = combine(
+   759	        userProfile,
+   760	        userEntitlements,
+   761	        plans,
+   762	        mockTests,
+   763	        isAdminOrOwner
+   764	    ) { args: Array<Any?> ->
+   765	        val profile = args[0] as? UserProfileEntity
+   766	        @Suppress("UNCHECKED_CAST")
+   767	        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+   768	        @Suppress("UNCHECKED_CAST")
+   769	        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+   770	        @Suppress("UNCHECKED_CAST")
+   771	        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+   772	        val admin = args[4] as? Boolean ?: false
+   773	
+   774	        com.example.data.util.PlanValidityEngine.filterAccessibleMockTests(
+   775	            userProfile = profile,
+   776	            entitlements = entitlements,
+   777	            plans = allPlans,
+   778	            mockTests = mocks,
+   779	            isAdminOrOwner = admin,
+   780	            currentTime = getTrustedTime()
+   781	        )
+   782	    }.stateIn(
+   783	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   784	    )
+   785	
+   786	    )
+   787	
+   788	
+   789	
+   790	
+   791	
+   792	    val questions = combine(repository.allQuestions, effectiveEntitlement, isAdminOrOwner) { list, effective, isAdmin ->
+   793	        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   794	        list.filter { !it.isReported }.map { q ->
+   795	            if (!q.isPremium || com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)) q
+   796	            else q.copy(
+   797	                questionEn = "Premium Content 🔒", questionAs = "প্ৰিমিয়াম সমল 🔒",
+   798	                optionAEn = "Unlock to view", optionAAs = "Unlock to view",
+   799	                optionBEn = "Unlock to view", optionBAs = "Unlock to view",
+   800	                optionCEn = "Unlock to view", optionCAs = "Unlock to view",
+   801	                optionDEn = "Unlock to view", optionDAs = "Unlock to view",
+   802	                correctOptionIndex = -1, explanationEn = "Locked", explanationAs = "Locked"
+   803	            )
+   804	        }
+   805	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+   806	
+   807	    val reportedQuestions = questions.map { list -> list.filter { it.isReported } }.stateIn(
+   808	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   809	    )
+   810	
+   811	
+   812	
+   813	
+   814	
+   815	
+   816	    val studyNotes = combine(repository.allNotes, effectiveEntitlement, isAdminOrOwner) { list, effective, isAdmin ->
+   817	        val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
+   818	        list.map { n ->
+   819	            if (!n.isPremium || com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(n, eff, isAdmin)) n
+   820	            else n.copy(contentEn = "Premium Content 🔒", contentAs = "Premium Content 🔒")
+   821	        }
+   822	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+   823	
+   824	    val savedNotes = studyNotes.map { list -> list.filter { it.isBookmarked || it.isDownloaded } }.stateIn(
+   825	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   826	    )
+   827	
+   828	    val accessibleContentCounts: StateFlow<com.example.data.util.PlanAccessibleContentCounts> = combine(
+   829	        userProfile,
+   830	        userEntitlements,
+   831	        plans,
+   832	        mockTests,
+   833	        studyNotes,
+   834	        questions,
+   835	        isAdminOrOwner
+   836	    ) { args: Array<Any?> ->
+   837	        val profile = args[0] as? UserProfileEntity
+   838	        @Suppress("UNCHECKED_CAST")
+   839	        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+   840	        @Suppress("UNCHECKED_CAST")
+   841	        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+   842	        @Suppress("UNCHECKED_CAST")
+   843	        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+   844	        @Suppress("UNCHECKED_CAST")
+   845	        val notes = args[4] as? List<StudyNoteEntity> ?: emptyList()
+   846	        @Suppress("UNCHECKED_CAST")
+   847	        val qs = args[5] as? List<QuestionEntity> ?: emptyList()
+   848	        val admin = args[6] as? Boolean ?: false
+   849	
+   850	        com.example.data.util.PlanValidityEngine.calculateAccessibleCounts(
+   851	            userProfile = profile,
+   852	            entitlements = entitlements,
+   853	            plans = allPlans,
+   854	            mockTests = mocks,
+   855	            studyNotes = notes,
+   856	            questions = qs,
+   857	            isAdminOrOwner = admin,
+   858	            currentTime = getTrustedTime()
+   859	        )
+   860	    }.stateIn(
+   861	        viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.data.util.PlanAccessibleContentCounts()
+   862	    )
+   863	
+   864	    val accessibleStudyNotes: StateFlow<List<StudyNoteEntity>> = combine(
+   865	        userProfile,
+   866	        userEntitlements,
+   867	        plans,
+   868	        studyNotes,
+   869	        isAdminOrOwner
+   870	    ) { args: Array<Any?> ->
+   871	        val profile = args[0] as? UserProfileEntity
+   872	        @Suppress("UNCHECKED_CAST")
+   873	        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+   874	        @Suppress("UNCHECKED_CAST")
+   875	        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+   876	        @Suppress("UNCHECKED_CAST")
+   877	        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
+   878	        val admin = args[4] as? Boolean ?: false
+   879	
+   880	        com.example.data.util.PlanValidityEngine.filterAccessibleStudyNotes(
+   881	            userProfile = profile,
+   882	            entitlements = entitlements,
+   883	            plans = allPlans,
+   884	            studyNotes = notes,
+   885	            isAdminOrOwner = admin,
+   886	            currentTime = getTrustedTime()
+   887	        )
+   888	    }.stateIn(
+   889	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   890	
+   891	    val accessibleQuestions: StateFlow<List<QuestionEntity>> = combine(
+   892	        userProfile,
+   893	        userEntitlements,
+   894	        plans,
+   895	        questions,
+   896	        isAdminOrOwner
+   897	    ) { args: Array<Any?> ->
+   898	        val profile = args[0] as? UserProfileEntity
+   899	        @Suppress("UNCHECKED_CAST")
+   900	        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+   901	        @Suppress("UNCHECKED_CAST")
+   902	        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+   903	        @Suppress("UNCHECKED_CAST")
+   904	        val qs = args[3] as? List<QuestionEntity> ?: emptyList()
+   905	        val admin = args[4] as? Boolean ?: false
+   906	
+   907	        com.example.data.util.PlanValidityEngine.filterAccessibleQuestions(
+   908	            userProfile = profile,
+   909	            entitlements = entitlements,
+   910	            plans = allPlans,
+   911	            questions = qs,
+   912	            isAdminOrOwner = admin,
+   913	            currentTime = getTrustedTime()
+   914	        )
+   915	    }.stateIn(
+   916	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   917	
+   918	    val bookmarkedQuestions: StateFlow<List<QuestionEntity>> = combine(
+   919	        questions,
+   920	        bookmarkedIds
+   921	    ) { qs, ids ->
+   922	        qs.filter { it.id in ids }
+   923	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+   924	
+   925	    val hiddenQuestions: StateFlow<List<QuestionEntity>> = combine(
+   926	        questions,
+   927	        hiddenIds
+   928	    ) { qs, ids ->
+   929	        qs.filter { it.id in ids }
+   930	    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+   931	
+   932	    private val _isGuestMode = MutableStateFlow(false)
+   933	    val isGuestMode: StateFlow<Boolean> = _isGuestMode.asStateFlow()
+   934	
+   935	    // Active Mock Test Session State
+   936	    private val _activeMockQuestions = MutableStateFlow<List<QuestionEntity>>(emptyList())
+   937	    val activeMockQuestions: StateFlow<List<QuestionEntity>> = _activeMockQuestions.asStateFlow()
+   938	
+   939	    private val _currentMockAttempt = MutableStateFlow<MockAttemptEntity?>(null)
+   940	    val currentMockAttempt: StateFlow<MockAttemptEntity?> = _currentMockAttempt.asStateFlow()
+   941	
+   942	    private val _mockUserAnswers = MutableStateFlow<Map<Int, Int>>(emptyMap())
+   943	    val mockUserAnswers: StateFlow<Map<Int, Int>> = _mockUserAnswers.asStateFlow()
+   944	
+   945	    private val _mockMarkedForReview = MutableStateFlow<Set<Int>>(emptySet())
+   946	    val mockMarkedForReview: StateFlow<Set<Int>> = _mockMarkedForReview.asStateFlow()
+   947	
+   948	    private val _mockTimeRemainingSeconds = MutableStateFlow(5400) // 90 mins
+   949	    val mockTimeRemainingSeconds: StateFlow<Int> = _mockTimeRemainingSeconds.asStateFlow()
+   950	
+   951	    private var mockTimerJob: kotlinx.coroutines.Job? = null
+   952	    private var mockEndTimeMillis: Long = 0L
+   953	
+   954	    private val _mockSessionTotalSeconds = MutableStateFlow(0)
+   955	    val mockSessionTotalSeconds: StateFlow<Int> = _mockSessionTotalSeconds.asStateFlow()
+   956	
+   957	    private val _isSubmittingMock = MutableStateFlow(false)
+   958	    val isSubmittingMock: StateFlow<Boolean> = _isSubmittingMock.asStateFlow()
+   959	
+   960	    val activityLogs: StateFlow<List<ActivityLogEntity>> = repository.activityLogs.stateIn(
+   961	        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+   962	    )
+   963	
+   964	    private var isLoggingOutDueToDevice = false
+   965	
+   966	
+   967	
+   968	    init {
+   969	        viewModelScope.launch {
+   970	            userProfile.collectLatest { prof ->
+   971	                if (prof != null) {
+   972	                    val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(prof.email)
+   973	                    val email = prof.email.trim().lowercase()
+   974	                    val uid = prof.uid.trim()
+   975	                    repository.getUserEntitlements(sanitizedDocId, uid, email).collectLatest { ents ->
+   976	                        _userEntitlements.value = ents
+   977	                    }
+   978	                }
+   979	            }
+   980	        }
+   981	        viewModelScope.launch {
+   982	            userProfile.collectLatest { prof ->
+   983	                if (prof != null && prof.isLoggedIn && prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+   984	                    repository.observeUserProfile(prof.email, prof.uid).collectLatest { remoteProf ->
+   985	                        if (remoteProf != null && remoteProf.currentDeviceId.isNotBlank() && remoteProf.currentDeviceId != prof.currentDeviceId) {
+   986	                            logoutDueToOtherDeviceLogin()
+   987	                        }
+   988	                    }
+   989	                }
+   990	            }
+   991	        }
+   992	        viewModelScope.launch {
+   993	            com.example.data.migration.AppVersionMigrationManager.checkAndRunAppMigrations(getApplication(), database)
+   994	            repository.initializeSeedDataIfNeeded()
+   995	            clearOldActivityLogs(getApplication())
+   996	        }
+   997	        viewModelScope.launch {
+   998	            userProfile.collect { prof ->
+   999	                if (prof != null) {
+  1000	                    val fbUser = try { com.example.JuktiApplication.getAuth(getApplication())?.currentUser } catch (e: Throwable) { null }
+  1001	                    val needsForcedLogout = prof.isLoggedIn && fbUser == null && prof.email.isNotBlank() && prof.email != "guest@jukti.in"
+  1002	
+  1003	                    if (needsForcedLogout) {
+  1004	                         // Force logout because Firebase session is missing
+  1005	                         val updatedProf = SampleData.initialUserProfile.copy(
+  1006	                             id = 1,
+  1007	                             isLoggedIn = false,
+  1008	                             currentDeviceId = "",
+  1009	                             activeDeviceId = "",
+  1010	                             email = "",
+  1011	                             name = "Guest User",
+  1012	                             uid = ""
+  1013	                         )
+  1014	                         launch(Dispatchers.IO) { repository.updateUserProfile(updatedProf) }
+  1015	                         _sessionMessage.value = "Firebase session expired. Please sign in again."
+  1016	                         if (_currentScreen.value != Screen.AUTH) {
+  1017	                             _currentScreen.value = Screen.AUTH
+  1018	                         }
+  1019	                    } else if (splashFinished) {
+  1020	                        if (!prof.isLoggedIn) {
+  1021	                            if (_currentScreen.value != Screen.AUTH) {
+  1022	                                _currentScreen.value = Screen.AUTH
+  1023	                            }
+  1024	                        } else {
+  1025	                            if (_currentScreen.value == Screen.AUTH || _currentScreen.value == Screen.SPLASH) {
+  1026	                                _currentScreen.value = Screen.HOME
+  1027	                            }
+  1028	                            if (prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+  1029	                                val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
+  1030	                                if (activeInManager == null) {
+  1031	                                    UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
+  1032	                                }
+  1033	                            }
+  1034	                        }
+  1035	                    } else {
+  1036	                        if (prof.isLoggedIn && prof.email.isNotBlank() && prof.currentDeviceId.isNotBlank()) {
+  1037	                            val activeInManager = UserSessionManager.getActiveDeviceId(prof.email)
+  1038	                            if (activeInManager == null) {
+  1039	                                UserSessionManager.registerSession(prof.email, prof.currentDeviceId)
+  1040	                            }
+  1041	                        }
+  1042	                    }
+  1043	                }
+  1044	            }
+  1045	        }
+  1046	    }
+  1047	
+  1048	    fun logActivity(actionDetails: String) {
+  1049	        val user = userProfile.value ?: return
+  1050	        if (user.role == "ADMIN" || user.role == "OWNER") {
+  1051	            viewModelScope.launch {
+  1052	                repository.insertActivityLog(
+  1053	                    ActivityLogEntity(
+  1054	                        userEmail = user.email,
+  1055	                        role = user.role,
+  1056	                        actionDetails = actionDetails,
+  1057	                        timestamp = getTrustedTime()
+  1058	                    )
+  1059	                )
+  1060	            }
+  1061	        }
+  1062	    }
+  1063	
+  1064	    fun clearOldActivityLogs(context: android.content.Context) {
+  1065	        viewModelScope.launch {
+  1066	            try {
+  1067	                val sevenDaysAgo = getTrustedTime() - (7L * 24 * 60 * 60 * 1000)
+  1068	                repository.deleteOldAdminLogs(sevenDaysAgo)
+  1069	                repository.deleteOldOwnerLogs(sevenDaysAgo)
+  1070	                // We should also delete them from Firebase using SyncQueue, but since they are logs we can just delete from Firebase directly.
+  1071	                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
+  1072	                val snapshot = db.collection("activity_logs").whereLessThan("timestamp", sevenDaysAgo).get().await()
+  1073	                for (doc in snapshot.documents) {
+  1074	                    doc.reference.delete().await()
+  1075	                }
+  1076	                
+  1077	                // Pending Requests cleanup
+  1078	                val prSnapshot = db.collection("pending_requests").whereIn("status", listOf("APPROVED", "REJECTED", "FAILED")).get().await()
+  1079	                for (doc in prSnapshot.documents) {
+  1080	                    doc.reference.delete().await()
+  1081	                }
+  1082	
+  1083	                launchOnMain {
+  1084	                    android.widget.Toast.makeText(context, "Storage cleared", android.widget.Toast.LENGTH_SHORT).show()
+  1085	                }
+  1086	            } catch (e: Exception) {
+  1087	                if (e is com.google.firebase.firestore.FirebaseFirestoreException && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+  1088	                    android.util.Log.w("JuktiViewModel", "Storage cleanup skipped: Firestore permission required")
+  1089	                } else {
+  1090	                    android.util.Log.e("JuktiViewModel", "Storage cleanup failed", e)
+  1091	                }
+  1092	            }
+  1093	        }
+  1094	    }
+  1095	
+  1096	    fun clearCacheFiles(context: android.content.Context) {
+  1097	        viewModelScope.launch {
+  1098	            try {
+  1099	                val cacheDir = context.cacheDir
+  1100	                cacheDir.deleteRecursively()
+  1101	                launchOnMain {
+  1102	                    android.widget.Toast.makeText(context, "Cache cleared", android.widget.Toast.LENGTH_SHORT).show()
+  1103	                }
+  1104	            } catch (e: Exception) {
+  1105	                android.util.Log.e("JuktiViewModel", "Cache clear failed", e)
+  1106	            }
+  1107	        }
+  1108	    }
+  1109	
+  1110	    fun toggleLanguage() {
+  1111	        _language.value = if (_language.value == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH
+  1112	    }
+  1113	
+  1114	    fun setLanguage(lang: AppLanguage) {
+  1115	        _language.value = lang
+  1116	    }
+  1117	
+  1118	    fun setQuestionLanguage(lang: AppLanguage) {
+  1119	        _questionLanguage.value = lang
+  1120	    }
+  1121	
+  1122	
+  1123	    fun setDarkTheme(isDark: Boolean) {
+  1124	        _isDarkTheme.value = isDark
+  1125	        prefs.edit().putBoolean("is_dark_theme", isDark).apply()
+  1126	    }
+  1127	
+  1128	
+  1129	    private var lastNavTime = 0L
+  1130	    private val navBackStack = mutableListOf<Screen>()
+  1131	
+  1132	    fun navigateTo(screen: Screen) {
+  1133	        val currentTime = getTrustedTime()
+  1134	        if (currentTime - lastNavTime < 500) return
+  1135	        lastNavTime = currentTime
+  1136	
+  1137	        val current = _currentScreen.value
+  1138	        if (current == screen) return
+  1139	
+  1140	        if (screen != Screen.MCQ_STUDY) {
+  1141	            _studySubView.value = null
+  1142	            _openedStudyDirectly.value = false
+  1143	        }
+  1144	
+  1145	        when (screen) {
+  1146	            Screen.MOCK_TESTS, Screen.MOCK_PLAYER -> {
+  1147	                _lastSessionType.value = "mock"
+  1148	                prefs.edit().putString("last_session_type", "mock").apply()
+  1149	            }
+  1150	            Screen.PRACTICE -> {
+  1151	                _lastSessionType.value = "practice"
+  1152	                prefs.edit().putString("last_session_type", "practice").apply()
+  1153	            }
+  1154	            Screen.STUDY_NOTES, Screen.STUDY_NOTE_DETAIL -> {
+  1155	                _lastSessionType.value = "study"
+  1156	                prefs.edit().putString("last_session_type", "study").apply()
+  1157	            }
+  1158	            else -> {}
+  1159	        }
+  1160	        
+  1161	        val isLoggedIn = userProfile.value?.isLoggedIn ?: false
+  1162	        if (!isLoggedIn && screen != Screen.AUTH) {
+  1163	            _currentScreen.value = Screen.AUTH
+  1164	            return
+  1165	        }
+  1166	        if ((screen == Screen.LEADERBOARD || screen == Screen.MY_ANALYTICS) && !isUserPremium.value) {
+  1167	            _showPremiumPaywall.value = true
+  1168	            return
+  1169	        }
+  1170	
+  1171	        if (current != Screen.SPLASH && current != Screen.AUTH) {
+  1172	            if (screen == Screen.HOME) {
+  1173	                navBackStack.clear()
+  1174	            } else {
+  1175	                if (navBackStack.lastOrNull() != current) {
+  1176	                    navBackStack.add(current)
+  1177	                }
+  1178	            }
+  1179	        }
+  1180	
+  1181	        _currentScreen.value = screen
+  1182	    }
+  1183	
+  1184	    fun goBack(): Boolean {
+  1185	        val current = _currentScreen.value
+  1186	        if (current == Screen.HOME || current == Screen.AUTH || current == Screen.SPLASH) {
+  1187	            return false
+  1188	        }
+  1189	        if (current == Screen.MCQ_STUDY && _studySubView.value != null) {
+  1190	            if (_openedStudyDirectly.value) {
+  1191	                _studySubView.value = null
+  1192	                _openedStudyDirectly.value = false
+  1193	                _currentScreen.value = Screen.HOME
+  1194	                navBackStack.clear()
+  1195	                return true
+  1196	            } else {
+  1197	                _studySubView.value = null
+  1198	                return true
+  1199	            }
+  1200	        }
+  1201	        if (navBackStack.isNotEmpty()) {
+  1202	            val previous = navBackStack.removeAt(navBackStack.size - 1)
+  1203	            if (previous != current) {
+  1204	                _currentScreen.value = previous
+  1205	                return true
+  1206	            }
+  1207	        }
+  1208	        if (current != Screen.HOME) {
+  1209	            _currentScreen.value = Screen.HOME
+  1210	            navBackStack.clear()
+  1211	            return true
+  1212	        }
+  1213	        return false
+  1214	    }
+  1215	
+  1216	    fun setSubjectFilter(subject: String) {
+  1217	        _selectedSubject.value = subject
+  1218	    }
+  1219	
+  1220	    fun setDifficultyFilter(difficulty: String) {
+  1221	        _selectedDifficulty.value = difficulty
+  1222	    }
+  1223	
+  1224	    fun setSearchQuery(query: String) {
+  1225	        _searchQuery.value = query
+  1226	    }
+  1227	
+  1228	    fun toggleGuestMode(isGuest: Boolean) {
+  1229	        _isGuestMode.value = false
+  1230	    }
+  1231	
+  1232	    private fun parseNegativeMarkingRate(value: String): Float {
+  1233	        if (value.equals("None", ignoreCase = true) || value.isBlank()) return 0.0f
+  1234	        val match = Regex("""([0-9]+(?:\.[0-9]+)?)""").find(value)
+  1235	        return match?.value?.toFloatOrNull() ?: 0.0f
+  1236	    }
+  1237	
+  1238	    private fun serializeMockAttemptAnswers(
+  1239	        answers: Map<Int, Int>,
+  1240	        questionIds: List<Long>,
+  1241	        timeSpentSeconds: Int,
+  1242	        rawScore: Float
+  1243	    ): String {
+  1244	        val root = org.json.JSONObject()
+  1245	        val answersObj = org.json.JSONObject()
+  1246	        answers.forEach { (idx, opt) ->
+  1247	            val qId = questionIds.getOrNull(idx)
+  1248	            answersObj.put(idx.toString(), opt)
+  1249	            if (qId != null) {
+  1250	                answersObj.put("qid_$qId", opt)
+  1251	            }
+  1252	        }
+  1253	        root.put("answers", answersObj)
+  1254	        root.put("timeSpentSeconds", timeSpentSeconds)
+  1255	        root.put("rawScore", rawScore.toDouble())
+  1256	        return root.toString()
+  1257	    }
+  1258	
+  1259	    private fun deserializeMockAttemptAnswers(
+  1260	        jsonStr: String,
+  1261	        questionIds: List<Long>
+  1262	    ): Pair<Map<Int, Int>, Int> {
+  1263	        if (jsonStr.isBlank()) return Pair(emptyMap(), 0)
+  1264	        val map = mutableMapOf<Int, Int>()
+  1265	        var timeSpent = 0
+  1266	        try {
+  1267	            val root = org.json.JSONObject(jsonStr)
+  1268	            if (root.has("answers")) {
+  1269	                val answersObj = root.getJSONObject("answers")
+  1270	                questionIds.forEachIndexed { index, qId ->
+  1271	                    if (answersObj.has(index.toString())) {
+  1272	                        map[index] = answersObj.getInt(index.toString())
+  1273	                    } else if (answersObj.has("qid_$qId")) {
+  1274	                        map[index] = answersObj.getInt("qid_$qId")
+  1275	                    }
+  1276	                }
+  1277	                timeSpent = root.optInt("timeSpentSeconds", 0)
+  1278	            } else {
+  1279	                val keys = root.keys()
+  1280	                while (keys.hasNext()) {
+  1281	                    val k = keys.next()
+  1282	                    val idx = k.toIntOrNull()
+  1283	                    if (idx != null) {
+  1284	                        map[idx] = root.getInt(k)
+  1285	                    }
+  1286	                }
+  1287	            }
+  1288	        } catch (e: Exception) {
+  1289	            // Ignore format errors
+  1290	        }
+  1291	        return Pair(map, timeSpent)
+  1292	    }
+  1293	
+  1294	    fun selectMockTest(mock: MockTestEntity) {
+  1295	        if (!canAccessMockTest(mock)) {
+  1296	            _showPremiumPaywall.value = true
+  1297	            return
+  1298	        }
+  1299	        _selectedMockTest.value = mock
+  1300	        _currentMockAttempt.value = null
+  1301	        _mockUserAnswers.value = emptyMap()
+  1302	        _mockMarkedForReview.value = emptySet()
+  1303	        val totalSec = (mock.durationMinutes * 60).coerceAtLeast(60)
+  1304	        _mockTimeRemainingSeconds.value = totalSec
+  1305	        _mockSessionTotalSeconds.value = 0
+  1306	        _isSubmittingMock.value = false
+  1307	        mockEndTimeMillis = System.currentTimeMillis() + (totalSec * 1000L)
+  1308	        startMockTimer()
+  1309	
+  1310	        // Resolve and lock the EXACT questions belonging to this mock test session
+  1311	        val allQuestionsList = questions.value
+  1312	        val resolvedQuestions: List<QuestionEntity> = when {
+  1313	            mock.questionIds.isNotBlank() -> {
+  1314	                val ids = mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+  1315	                val idMap = allQuestionsList.associateBy { it.id }
+  1316	                val fromIds = ids.mapNotNull { idMap[it] }
+  1317	                if (fromIds.isNotEmpty()) {
+  1318	                    fromIds
+  1319	                } else {
+  1320	                    allQuestionsList.take(mock.totalQuestions)
+  1321	                }
+  1322	            }
+  1323	            mock.testType.equals("Subject-wise", ignoreCase = true) && mock.subjectOrChapter.isNotBlank() -> {
+  1324	                val matching = allQuestionsList.filter { 
+  1325	                    it.subject.equals(mock.subjectOrChapter.trim(), ignoreCase = true) 
+  1326	                }
+  1327	                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+  1328	            }
+  1329	            mock.testType.equals("Chapter-wise", ignoreCase = true) && mock.subjectOrChapter.isNotBlank() -> {
+  1330	                val parts = mock.subjectOrChapter.split("||")
+  1331	                val subj = parts.getOrNull(0)?.trim() ?: ""
+  1332	                val chap = parts.getOrNull(1)?.trim() ?: ""
+  1333	                val matching = allQuestionsList.filter { 
+  1334	                    it.subject.equals(subj, ignoreCase = true) && (chap.isBlank() || it.topic.equals(chap, ignoreCase = true))
+  1335	                }
+  1336	                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+  1337	            }
+  1338	            else -> {
+  1339	                val matching = if (mock.category.isNotBlank() && !mock.category.equals("All", ignoreCase = true)) {
+  1340	                    allQuestionsList.filter { 
+  1341	                        it.examCategory.equals(mock.category.trim(), ignoreCase = true) || it.subject.equals(mock.category.trim(), ignoreCase = true) 
+  1342	                    }
+  1343	                } else {
+  1344	                    allQuestionsList
+  1345	                }
+  1346	                if (matching.isNotEmpty()) matching.take(mock.totalQuestions) else allQuestionsList.take(mock.totalQuestions)
+  1347	            }
+  1348	        }
+  1349	        
+  1350	        _activeMockQuestions.value = resolvedQuestions
+  1351	        navigateTo(Screen.MOCK_PLAYER)
+  1352	    }
+  1353	
+  1354	    private fun startMockTimer() {
+  1355	        mockTimerJob?.cancel()
+  1356	        mockTimerJob = viewModelScope.launch {
+  1357	            while (isActive) {
+  1358	                delay(500L)
+  1359	                if (mockEndTimeMillis > 0L) {
+  1360	                    val now = System.currentTimeMillis()
+  1361	                    val remainingSec = ((mockEndTimeMillis - now + 999L) / 1000L).coerceAtLeast(0L).toInt()
+  1362	                    _mockTimeRemainingSeconds.value = remainingSec
+  1363	                    if (remainingSec <= 0) {
+  1364	                        if (!_isSubmittingMock.value) {
+  1365	                            submitCurrentMockTest()
+  1366	                        }
+  1367	                        break
+  1368	                    }
+  1369	                }
+  1370	            }
+  1371	        }
+  1372	    }
+  1373	
+  1374	    fun decrementMockTimer() {
+  1375	        if (mockEndTimeMillis > 0L) {
+  1376	            val now = System.currentTimeMillis()
+  1377	            val remainingSec = ((mockEndTimeMillis - now + 999L) / 1000L).coerceAtLeast(0L).toInt()
+  1378	            _mockTimeRemainingSeconds.value = remainingSec
+  1379	            if (remainingSec <= 0 && !_isSubmittingMock.value) {
+  1380	                submitCurrentMockTest()
+  1381	            }
+  1382	        } else if (_mockTimeRemainingSeconds.value > 0) {
+  1383	            _mockTimeRemainingSeconds.value -= 1
+  1384	            _mockSessionTotalSeconds.value += 1
+  1385	            if (_mockTimeRemainingSeconds.value == 0 && !_isSubmittingMock.value) {
+  1386	                submitCurrentMockTest()
+  1387	            }
+  1388	        }
+  1389	    }
+  1390	
+  1391	    fun cancelMockTimer() {
+  1392	        mockTimerJob?.cancel()
+  1393	    }
+  1394	
+  1395	    fun recordMockAnswer(questionIndex: Int, optionIndex: Int) {
+  1396	        val currentAnswers = _mockUserAnswers.value
+  1397	        // If clicking already selected option, toggle / keep or re-select
+  1398	        _mockUserAnswers.value = currentAnswers + (questionIndex to optionIndex)
+  1399	    }
+  1400	
+  1401	    fun toggleMarkForReview(questionIndex: Int) {
+  1402	        val current = _mockMarkedForReview.value
+  1403	        _mockMarkedForReview.value = if (current.contains(questionIndex)) {
+  1404	            current - questionIndex
+  1405	        } else {
+  1406	            current + questionIndex
+  1407	        }
+  1408	    }
+  1409	
+  1410	    fun selectStudyNote(note: StudyNoteEntity?) {
+  1411	        if (note != null) {
+  1412	            if (!canAccessStudyNote(note)) {
+  1413	                _showPremiumPaywall.value = true
+  1414	                return
+  1415	            }
+  1416	        }
+  1417	        _selectedStudyNote.value = note
+  1418	        if (note != null) {
+  1419	            navigateTo(Screen.STUDY_NOTE_DETAIL)
+  1420	        } else {
+  1421	            navigateTo(Screen.STUDY_NOTES)
+  1422	        }
+  1423	    }
+  1424	
+  1425	    fun viewMockResultForTest(mock: MockTestEntity) {
+  1426	        viewModelScope.launch {
+  1427	            val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+  1428	            val latestAttempt = repository.getLatestAttemptForMock(mock.id, userId)
+  1429	            if (latestAttempt != null) {
+  1430	                viewMockAttemptResult(mock, latestAttempt)
+  1431	            } else {
+  1432	                selectMockTest(mock)
+  1433	            }
+  1434	        }
+  1435	    }
+  1436	
+  1437	    fun viewMockAttemptResult(mock: MockTestEntity, attempt: MockAttemptEntity) {
+  1438	        _selectedMockTest.value = mock
+  1439	        _currentMockAttempt.value = attempt
+  1440	        
+  1441	        val allQuestionsList = questions.value
+  1442	        val idMap = allQuestionsList.associateBy { it.id }
+  1443	        val ids = attempt.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+  1444	        val attemptQuestions = ids.mapNotNull { idMap[it] }
+  1445	        _activeMockQuestions.value = if (attemptQuestions.isNotEmpty()) attemptQuestions else allQuestionsList.take(mock.totalQuestions)
+  1446	        
+  1447	        val (restoredAnswers, _) = deserializeMockAttemptAnswers(attempt.userAnswersJson, ids)
+  1448	        _mockUserAnswers.value = restoredAnswers
+  1449	        _mockMarkedForReview.value = emptySet()
+  1450	        
+  1451	        navigateTo(Screen.MOCK_RESULT)
+  1452	    }
+  1453	
+  1454	    fun analyzeMockFromHistory(
+  1455	        titleEn: String,
+  1456	        titleAs: String,
+  1457	        score: Float,
+  1458	        totalMarks: Float,
+  1459	        accuracy: Int,
+  1460	        rank: Int,
+  1461	        percentile: Float,
+  1462	        mockTestId: Long = 0L
+  1463	    ) {
+  1464	        viewModelScope.launch {
+  1465	            val existingMock = mockTests.value.firstOrNull { (mockTestId != 0L && it.id == mockTestId) || it.titleEn == titleEn }
+  1466	            val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+  1467	            val targetMockId = existingMock?.id ?: mockTestId
+  1468	            
+  1469	            val attempt = if (targetMockId != 0L) {
+  1470	                repository.getLatestAttemptForMock(targetMockId, userId)
+  1471	            } else null
+  1472	
+  1473	            val mockEntity = existingMock ?: MockTestEntity(
+  1474	                id = if (targetMockId != 0L) targetMockId else 999L,
+  1475	                titleEn = titleEn,
+  1476	                titleAs = titleAs,
+  1477	                category = "Mock History",
+  1478	                durationMinutes = 90,
+  1479	                totalQuestions = 10,
+  1480	                totalMarks = totalMarks,
+  1481	                userScore = score,
+  1482	                userAccuracy = accuracy.toFloat(),
+  1483	                userRank = rank,
+  1484	                userPercentile = percentile,
+  1485	                isCompleted = true
+  1486	            )
+  1487	
+  1488	            if (attempt != null) {
+  1489	                viewMockAttemptResult(mockEntity, attempt)
+  1490	            } else {
+  1491	                _selectedMockTest.value = mockEntity
+  1492	                val allQ = questions.value
+  1493	                val resolvedQ = if (mockEntity.questionIds.isNotBlank()) {
+  1494	                    val ids = mockEntity.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+  1495	                    val idMap = allQ.associateBy { it.id }
+  1496	                    ids.mapNotNull { idMap[it] }
+  1497	                } else {
+  1498	                    allQ.take(mockEntity.totalQuestions.coerceAtLeast(10))
+  1499	                }
+  1500	                _activeMockQuestions.value = resolvedQ
+  1501	
+  1502	                val answerMap = mutableMapOf<Int, Int>()
+  1503	                val totalQ = resolvedQ.size
+  1504	                val targetCorrect = ((accuracy / 100f) * totalQ).toInt().coerceIn(0, totalQ)
+  1505	                val targetIncorrect = ((mockEntity.totalQuestions - targetCorrect) / 2).coerceIn(0, totalQ - targetCorrect)
+  1506	
+  1507	                resolvedQ.forEachIndexed { index, q ->
+  1508	                    when {
+  1509	                        index < targetCorrect -> answerMap[index] = q.correctOptionIndex
+  1510	                        index < targetCorrect + targetIncorrect -> answerMap[index] = (q.correctOptionIndex + 1) % 4
+  1511	                    }
+  1512	                }
+  1513	                _mockUserAnswers.value = answerMap
+  1514	
+  1515	                val synthAttempt = MockAttemptEntity(
+  1516	                    id = System.currentTimeMillis(),
+  1517	                    mockTestId = mockEntity.id,
+  1518	                    userId = userId,
+  1519	                    timestamp = System.currentTimeMillis(),
+  1520	                    questionIds = resolvedQ.map { it.id }.joinToString(","),
+  1521	                    userAnswersJson = serializeMockAttemptAnswers(answerMap, resolvedQ.map { it.id }, 1800, score.toFloat()),
+  1522	                    score = score,
+  1523	                    totalMarks = totalMarks,
+  1524	                    accuracy = accuracy.toFloat(),
+  1525	                    correctCount = targetCorrect,
+  1526	                    totalAttempted = targetCorrect + targetIncorrect,
+  1527	                    questionMarksJson = mockEntity.questionMarksJson
+  1528	                )
+  1529	                _currentMockAttempt.value = synthAttempt
+  1530	                navigateTo(Screen.MOCK_RESULT)
+  1531	            }
+  1532	        }
+  1533	    }
+  1534	
+  1535	    fun submitCurrentMockTest() {
+  1536	        if (_isSubmittingMock.value) return
+  1537	        val test = _selectedMockTest.value ?: return
+  1538	        val currentQuestionsList = _activeMockQuestions.value
+  1539	        if (currentQuestionsList.isEmpty()) return
+  1540	
+  1541	        cancelMockTimer()
+  1542	        _isSubmittingMock.value = true
+  1543	        val answers = _mockUserAnswers.value
+  1544	
+  1545	        val totalQ = currentQuestionsList.size
+  1546	        
+  1547	        var qMarksMap: org.json.JSONObject? = null
+  1548	        try {
+  1549	            if (test.questionMarksJson.isNotBlank() && test.questionMarksJson != "{}") {
+  1550	                qMarksMap = org.json.JSONObject(test.questionMarksJson)
+  1551	            }
+  1552	        } catch (e: Exception) {}
+  1553	        
+  1554	        val markPerQuestion = if (test.markPerQuestion > 0f) test.markPerQuestion else (test.totalMarks / totalQ.coerceAtLeast(1).toFloat())
+  1555	        val negPerQuestion = parseNegativeMarkingRate(test.negativeMarking)
+  1556	
+  1557	        var correctCount = 0
+  1558	        var incorrectCount = 0
+  1559	        var skippedCount = 0
+  1560	        var earnedMarks = 0f
+  1561	        var deductedMarks = 0f
+  1562	
+  1563	        val userId = userProfile.value?.uid?.ifBlank { "local_user" } ?: "local_user"
+  1564	
+  1565	        currentQuestionsList.forEachIndexed { index, q ->
+  1566	            val userChoice = answers[index]
+  1567	            var actualMarkForQ = markPerQuestion
+  1568	            try {
+  1569	                if (qMarksMap != null && qMarksMap.has(q.id.toString())) {
+  1570	                    actualMarkForQ = qMarksMap.getDouble(q.id.toString()).toFloat()
+  1571	                }
+  1572	            } catch (e: Exception) {}
+  1573	            
+  1574	            when {
+  1575	                userChoice == q.correctOptionIndex -> {
+  1576	                    correctCount++
+  1577	                    earnedMarks += actualMarkForQ
+  1578	                    viewModelScope.launch {
+  1579	                        try {
+  1580	                            repository.recordQuestionAnswer(userId = userId, questionId = q.id.toString(), isCorrect = true)
+  1581	                        } catch (e: Exception) {}
+  1582	                    }
+  1583	                }
+  1584	                userChoice != null -> {
+  1585	                    incorrectCount++
+  1586	                    deductedMarks += negPerQuestion
+  1587	                    viewModelScope.launch {
+  1588	                        try {
+  1589	                            repository.recordQuestionAnswer(userId = userId, questionId = q.id.toString(), isCorrect = false)
+  1590	                        } catch (e: Exception) {}
+  1591	                    }
+  1592	                }
+  1593	                else -> {
+  1594	                    skippedCount++
+  1595	                }
+  1596	            }
+  1597	        }
+  1598	
+  1599	        val totalAttempted = correctCount + incorrectCount
+  1600	        val rawScore = earnedMarks - deductedMarks
+  1601	        val finalScore = rawScore.coerceAtLeast(0f)
+  1602	        val accuracy = if (totalAttempted > 0) ((correctCount.toFloat() / totalAttempted.toFloat()) * 100f).coerceIn(0f, 100f) else 0f
+  1603	        val timeSpentSec = ((test.durationMinutes * 60) - _mockTimeRemainingSeconds.value).coerceAtLeast(1)
+  1604	
+  1605	        val questionIdsList = currentQuestionsList.map { it.id }
+  1606	        val answersJson = serializeMockAttemptAnswers(answers, questionIdsList, timeSpentSec, rawScore)
+  1607	
+  1608	        val attempt = MockAttemptEntity(
+  1609	            id = 0,
+  1610	            mockTestId = test.id,
+  1611	            userId = userId,
+  1612	            timestamp = System.currentTimeMillis(),
+  1613	            questionIds = questionIdsList.joinToString(","),
+  1614	            userAnswersJson = answersJson,
+  1615	            score = finalScore,
+  1616	            totalMarks = test.totalMarks,
+  1617	            accuracy = accuracy,
+  1618	            correctCount = correctCount,
+  1619	            totalAttempted = totalAttempted,
+  1620	            questionMarksJson = test.questionMarksJson
+  1621	        )
+  1622	
+  1623	        viewModelScope.launch {
+  1624	            try {
+  1625	                // 1. Save attempt record locally and sync to Firebase
+  1626	                val insertedAttemptId = repository.saveMockAttempt(attempt)
+  1627	                val savedAttempt = attempt.copy(id = insertedAttemptId)
+  1628	                _currentMockAttempt.value = savedAttempt
+  1629	
+  1630	                // 2. Compute dynamic rank & percentile against all completed attempts
+  1631	                val attemptsForMock = repository.getAllAttemptsForMock(test.id).firstOrNull() ?: emptyList()
+  1632	                val scorePercentage = if (test.totalMarks > 0f) ((finalScore.toFloat() / test.totalMarks.toFloat()) * 100f) else 0f
+  1633	                val dynamicPercentile = if (attemptsForMock.size > 1) {
+  1634	                    val lowerScoreCount = attemptsForMock.count { it.score < finalScore }
+  1635	                    ((lowerScoreCount.toFloat() / (attemptsForMock.size - 1).toFloat()) * 100f).coerceIn(5.0f, 99.9f)
+  1636	                } else {
+  1637	                    (scorePercentage * 0.7f + accuracy * 0.3f).coerceIn(5.0f, 99.9f)
+  1638	                }
+  1639	
+  1640	                val rank = if (attemptsForMock.isNotEmpty()) {
+  1641	                    val higherCount = attemptsForMock.count { it.score > finalScore }
+  1642	                    higherCount + 1
+  1643	                } else 1
+  1644	
+  1645	                // 3. Update mock test in database with submission results
+  1646	                repository.submitMockResult(
+  1647	                    mockId = test.id,
+  1648	                    score = finalScore,
+  1649	                    accuracy = accuracy,
+  1650	                    timeSpentMins = (timeSpentSec / 60).coerceAtLeast(1),
+  1651	                    totalAttempted = totalAttempted,
+  1652	
+  1653	                    correctCount = correctCount
+  1654	                )
+  1655	
+  1656	                _selectedMockTest.value = test.copy(
+  1657	                    isCompleted = true,
+  1658	                    userScore = finalScore,
+  1659	                    userAccuracy = accuracy,
+  1660	                    userRank = rank,
+  1661	                    userPercentile = dynamicPercentile
+  1662	                )
+  1663	            } catch (e: Exception) {
+  1664	                Log.e("JuktiViewModel", "Error submitting mock test", e)
+  1665	            } finally {
+  1666	                _isSubmittingMock.value = false
+  1667	                navigateTo(Screen.MOCK_RESULT)
+  1668	            }
+  1669	        }
+  1670	    }
+  1671	
+  1672	    fun addMockTest(mock: MockTestEntity, onComplete: () -> Unit = {}) {
+  1673	        viewModelScope.launch {
+  1674	            try {
+  1675	                val res = repository.addMockTest(mock)
+  1676	                _syncToastMessage.value = res.second
+  1677	            } catch (e: Exception) {
+  1678	                Log.e("JuktiViewModel", "Error adding mock test", e)
+  1679	                _syncToastMessage.value = "Error: ${e.localizedMessage}"
+  1680	            } finally {
+  1681	                onComplete()
+  1682	            }
+  1683	        }
+  1684	    }
+  1685	
+  1686	    fun updateMockTest(mock: MockTestEntity, onComplete: () -> Unit = {}) {
+  1687	        logActivity("Updated mock test: ${mock.titleEn}")
+  1688	        viewModelScope.launch {
+  1689	            try {
+  1690	                val res = repository.updateMockTest(mock)
+  1691	                _syncToastMessage.value = res.second
+  1692	            } catch (e: Exception) {
+  1693	                Log.e("JuktiViewModel", "Error updating mock test", e)
+  1694	                _syncToastMessage.value = "Error: ${e.localizedMessage}"
+  1695	            } finally {
+  1696	                onComplete()
+  1697	            }
+  1698	        }
+  1699	    }
+  1700	
+  1701	    fun deleteMockTest(mock: MockTestEntity) {
+  1702	        viewModelScope.launch {
+  1703	            val res = repository.deleteMockTest(mock)
+  1704	            _syncToastMessage.value = res.second
+  1705	        }
+  1706	    }
+  1707	
+  1708	    fun addStudyNote(note: StudyNoteEntity, onComplete: () -> Unit = {}) {
+  1709	        viewModelScope.launch {
+  1710	            try {
+  1711	                val res = repository.addStudyNote(note)
+  1712	                _syncToastMessage.value = res.second
+  1713	            } catch (e: Exception) {
+  1714	                Log.e("JuktiViewModel", "Error adding study note", e)
+  1715	                _syncToastMessage.value = "Error: ${e.localizedMessage}"
+  1716	            } finally {
+  1717	                onComplete()
+  1718	            }
+  1719	        }
+  1720	    }
+  1721	
+  1722	    fun updateStudyNote(note: StudyNoteEntity, onComplete: () -> Unit = {}) {
+  1723	        logActivity("Updated study note: ${note.titleEn}")
+  1724	        viewModelScope.launch {
+  1725	            try {
+  1726	                val res = repository.updateStudyNote(note)
+  1727	                _syncToastMessage.value = res.second
+  1728	            } catch (e: Exception) {
+  1729	                Log.e("JuktiViewModel", "Error updating study note", e)
+  1730	                _syncToastMessage.value = "Error: ${e.localizedMessage}"
+  1731	            } finally {
+  1732	                onComplete()
+  1733	            }
+  1734	        }
+  1735	    }
+  1736	
+  1737	    fun deleteStudyNote(note: StudyNoteEntity) {
+  1738	        viewModelScope.launch {
+  1739	            val res = repository.deleteStudyNote(note)
+  1740	            _syncToastMessage.value = res.second
+  1741	        }
+  1742	    }
+  1743	
+  1744	    fun toggleBookmarkQuestion(q: QuestionEntity) {
+  1745	        viewModelScope.launch {
+  1746	            userProfile.value?.uid?.let { userId ->
+  1747	                repository.toggleBookmarkQuestion(q.id.toString(), userId)
+  1748	            }
+  1749	        }
+  1750	    }
+  1751	
+  1752	    fun toggleHideQuestion(q: QuestionEntity) {
+  1753	        viewModelScope.launch {
+  1754	            userProfile.value?.uid?.let { userId ->
+  1755	                repository.toggleHideQuestion(q.id.toString(), userId)
+  1756	            }
+  1757	        }
+  1758	    }
+  1759	
+  1760	    fun unhideAllQuestions() {
+  1761	        viewModelScope.launch {
+  1762	            userProfile.value?.uid?.let { userId ->
+  1763	                repository.unhideAllQuestions(userId)
+  1764	            }
+  1765	        }
+  1766	    }
+  1767	
+  1768	    fun toggleLikeQuestion(q: QuestionEntity) {
+  1769	        viewModelScope.launch {
+  1770	            userProfile.value?.uid?.let { userId ->
+  1771	                repository.toggleLikeQuestion(q.id.toString(), userId)
+  1772	            }
+  1773	        }
+  1774	    }
+  1775	
+  1776	    fun toggleBookmarkNote(n: StudyNoteEntity) {
+  1777	        viewModelScope.launch { repository.toggleBookmarkNote(n) }
+  1778	    }
+  1779	
+  1780	    fun recordStudyProgress(questionsStudiedDelta: Int, secondsSpentDelta: Int) {
+  1781	        viewModelScope.launch {
+  1782	            val prof = userProfile.value ?: return@launch
+  1783	            val newSolved = prof.totalSolved + questionsStudiedDelta
+  1784	            val minutesToAdd = (secondsSpentDelta / 60).coerceAtLeast(if (secondsSpentDelta > 0 && questionsStudiedDelta > 0) 1 else 0)
+  1785	            val newTime = prof.totalTimeMinutes + minutesToAdd
+  1786	            val updated = prof.copy(
+  1787	                totalSolved = newSolved,
+  1788	                totalTimeMinutes = newTime
+  1789	            )
+  1790	            repository.updateUserProfile(updated)
+  1791	        }
+  1792	    }
+  1793	
+  1794	    fun toggleDownloadNote(n: StudyNoteEntity) {
+  1795	        val isUserAdmin = isAdminOrOwner.value
+  1796	        val isAccessible = isUserAdmin || accessibleStudyNotes.value.any { it.id == n.id }
+  1797	        if (!isAccessible || (n.isPremium && !isUserPremium.value && !isUserAdmin)) {
+  1798	            _showPremiumPaywall.value = true
+  1799	            return
+  1800	        }
+  1801	        viewModelScope.launch { repository.toggleDownloadNote(n) }
+  1802	    }
+  1803	
+  1804	    fun awardChapterCompletionXp() {
+  1805	        viewModelScope.launch {
+  1806	            repository.awardXp(50, 0)
+  1807	        }
+  1808	    }
+  1809	
+  1810	    fun incrementDailyStreak() {
+  1811	        viewModelScope.launch {
+  1812	            repository.incrementDailyStreak()
+  1813	        }
+  1814	    }
+  1815	
+  1816	    fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean, timeSpentSec: Int = 10) {
+  1817	        viewModelScope.launch {
+  1818	            val userId = userProfile.value?.uid ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+  1819	            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+  1820	            repository.recordQuestionAnswer(userId, questionId.toString(), isCorrect, timeSpentSec, today)
+  1821	        }
+  1822	    }
+  1823	
+  1824	    fun recordQuestionStudied(questionId: Long, timeSpentSec: Int = 10) {
+  1825	        viewModelScope.launch {
+  1826	            val userId = userProfile.value?.uid ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+  1827	            repository.recordQuestionStudied(userId, questionId.toString(), timeSpentSec)
+  1828	        }
+  1829	    }
+  1830	
+  1831	    fun updateFirebaseProjectId(projectId: String) {
+  1832	        viewModelScope.launch {
+  1833	            repository.updateFirebaseProjectId(projectId)
+  1834	        }
+  1835	    }
+  1836	
+  1837	    suspend fun fetchAllUsersDirect(): List<com.example.data.local.UserProfileEntity> {
+  1838	        return repository.fetchAllUsersDirect()
+  1839	    }
+  1840	
+  1841	    suspend fun fetchUserEntitlementDirect(email: String): com.example.data.local.EntitlementEntity? {
+  1842	        return fetchUserEntitlementsDirect(email).firstOrNull()
+  1843	    }
+  1844	
+  1845	    suspend fun fetchUserEntitlementsDirect(email: String): List<com.example.data.local.EntitlementEntity> {
+  1846	        return try {
+  1847	            val sanitizedDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(email)
+  1848	            val trimmedEmail = email.trim().lowercase()
+  1849	            
+  1850	            val local = repository.getUserEntitlementsDirect(sanitizedDocId, trimmedEmail)
+  1851	            if (local.isNotEmpty() && validateEntitlements(local)) {
+  1852	                return local
+  1853	            }
+  1854	            
+  1855	            val remote = repository.fetchUserEntitlementsFromFirebase(email)
+  1856	            if (remote.isNotEmpty()) {
+  1857	                repository.insertEntitlements(remote)
+  1858	                val mapped = if (sanitizedDocId.isNotBlank()) remote.map { it.copy(userId = sanitizedDocId) } else emptyList()
+  1859	                if (mapped.isNotEmpty()) {
+  1860	                    repository.insertEntitlements(mapped)
+  1861	                }
+  1862	                return remote
+  1863	            }
+  1864	            local
+  1865	        } catch (e: Exception) {
+  1866	            emptyList()
+  1867	        }
+  1868	    }
+  1869	
+  1870	    fun loginWithGoogle(activity: Activity) {
+  1871	        viewModelScope.launch {
+  1872	            isLoggingOutDueToDevice = false
+  1873	            _isAuthLoading.value = true
+  1874	            _sessionMessage.value = null
+  1875	            try {
+  1876	                val googleAuthManager = GoogleAuthManager(getApplication())
+  1877	                val result = googleAuthManager.signInWithGoogle(activity)
+  1878	
+  1879	                if (result.isCancelled) {
+  1880	                    _isAuthLoading.value = false
+  1881	                    return@launch
+  1882	                }
+  1883	
+  1884	                if (result.needsAccountSelection) {
+  1885	                    _isAuthLoading.value = false
+  1886	                    _googleAccountsToSelect.value = result.availableAccounts
+  1887	                    return@launch
+  1888	                }
+  1889	
+  1890	                val fbUser = result.firebaseUser
+  1891	                val uid = fbUser?.uid
+  1892	                val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""
+  1893	                val displayName = fbUser?.displayName?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackName?.trim() ?: ""
+  1894	
+  1895	                if (email.isBlank() || !email.contains("@")) {
+  1896	                    _sessionMessage.value = result.errorMessage ?: "Google Sign-In failed. Please try again."
+  1897	                    _isAuthLoading.value = false
+  1898	                    return@launch
+  1899	                }
+  1900	
+  1901	                val finalUid = uid ?: ("google_" + java.util.UUID.nameUUIDFromBytes(email.toByteArray()).toString().replace("-", "").take(16))
+  1902	                val deviceId = java.util.UUID.randomUUID().toString()
+  1903	
+  1904	                val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true)
+  1905	                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
+  1906	
+  1907	                withContext(Dispatchers.IO) {
+  1908	                    repository.loadUserProfileForAuth(
+  1909	                        uid = finalUid,
+  1910	                        email = email,
+  1911	                        googleName = displayName.ifBlank { email.substringBefore("@") },
+  1912	                        deviceId = deviceId,
+  1913	                        defaultRole = defaultRole
+  1914	                    )
+  1915	                    UserSessionManager.registerSession(email, deviceId)
+  1916	                }
+  1917	
+  1918	                _isGuestMode.value = false
+  1919	                _sessionMessage.value = null
+  1920	                _currentScreen.value = Screen.HOME
+  1921	            } catch (e: Exception) {
+  1922	                Log.e("JuktiViewModel", "Google Sign-In flow error", e)
+  1923	                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+  1924	            } finally {
+  1925	                _isAuthLoading.value = false
+  1926	            }
+  1927	        }
+  1928	    }
+  1929	
+  1930	    fun selectGoogleAccount(email: String) {
+  1931	        _googleAccountsToSelect.value = null
+  1932	        val trimmedEmail = email.trim().lowercase()
+  1933	        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+  1934	            _sessionMessage.value = "Please enter a valid Google email address"
+  1935	            return
+  1936	        }
+  1937	        viewModelScope.launch {
+  1938	            isLoggingOutDueToDevice = false
+  1939	            _isAuthLoading.value = true
+  1940	            _sessionMessage.value = null
+  1941	            try {
+  1942	                val displayName = trimmedEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
+  1943	                val finalUid = "google_" + java.util.UUID.nameUUIDFromBytes(trimmedEmail.toByteArray()).toString().replace("-", "").take(16)
+  1944	                val deviceId = java.util.UUID.randomUUID().toString()
+  1945	
+  1946	                val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
+  1947	                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
+  1948	
+  1949	                withContext(Dispatchers.IO) {
+  1950	                    repository.loadUserProfileForAuth(
+  1951	                        uid = finalUid,
+  1952	                        email = trimmedEmail,
+  1953	                        googleName = displayName,
+  1954	                        deviceId = deviceId,
+  1955	                        defaultRole = defaultRole
+  1956	                    )
+  1957	                    UserSessionManager.registerSession(trimmedEmail, deviceId)
+  1958	                }
+  1959	
+  1960	                _isGuestMode.value = false
+  1961	                _sessionMessage.value = null
+  1962	                _currentScreen.value = Screen.HOME
+  1963	            } catch (e: Exception) {
+  1964	                Log.e("JuktiViewModel", "Google account selection error", e)
+  1965	                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+  1966	            } finally {
+  1967	                _isAuthLoading.value = false
+  1968	            }
+  1969	        }
+  1970	    }
+  1971	
+  1972	    fun loginAsGuest() {
+  1973	        viewModelScope.launch {
+  1974	            isLoggingOutDueToDevice = false
+  1975	            _isAuthLoading.value = true
+  1976	            _sessionMessage.value = null
+  1977	            try {
+  1978	                val guestUid = "guest_" + getTrustedTime()
+  1979	                val guestEmail = "guest@jukti.in"
+  1980	                val deviceId = java.util.UUID.randomUUID().toString()
+  1981	                withContext(Dispatchers.IO) {
+  1982	                    repository.loadUserProfileForAuth(
+  1983	                        uid = guestUid,
+  1984	                        email = guestEmail,
+  1985	                        googleName = "Guest Student",
+  1986	                        deviceId = deviceId,
+  1987	                        defaultRole = "USER"
+  1988	                    )
+  1989	                }
+  1990	                _isGuestMode.value = true
+  1991	                _sessionMessage.value = null
+  1992	                _currentScreen.value = Screen.HOME
+  1993	            } catch (e: Exception) {
+  1994	                Log.e("JuktiViewModel", "Guest login error", e)
+  1995	                _sessionMessage.value = "Guest login error: ${e.localizedMessage}"
+  1996	            } finally {
+  1997	                _isAuthLoading.value = false
+  1998	            }
+  1999	        }
+  2000	    }
+  2001	
+  2002	    fun loginWithEmail(emailInput: String, nameInput: String = "", passwordInput: String = "", isRegister: Boolean = false) {
+  2003	        val trimmedEmail = emailInput.trim().lowercase()
+  2004	        val deviceId = java.util.UUID.randomUUID().toString()
+  2005	
+  2006	        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+  2007	            _sessionMessage.value = "Please enter a valid email address."
+  2008	            return
+  2009	        }
+  2010	
+  2011	        viewModelScope.launch {
+  2012	            _isAuthLoading.value = true
+  2013	            _sessionMessage.value = null
+  2014	            try {
+  2015	                val auth = com.example.JuktiApplication.getAuth(getApplication())
+  2016	                var uid: String? = null
+  2017	                var fbUserEmail: String? = null
+  2018	                var fbDisplayName: String? = null
+  2019	
+  2020	                if (auth != null) {
+  2021	                    try {
+  2022	                        val authResult = withContext(Dispatchers.IO) {
+  2023	                            if (passwordInput.isNotBlank()) {
+  2024	                                if (isRegister) {
+  2025	                                    auth.createUserWithEmailAndPassword(trimmedEmail, passwordInput).await()
+  2026	                                } else {
+  2027	                                    auth.signInWithEmailAndPassword(trimmedEmail, passwordInput).await()
+  2028	                                }
+  2029	                            } else if (!isRegister) {
+  2030	                                auth.signInAnonymously().await()
+  2031	                            } else {
+  2032	                                throw IllegalArgumentException("Password is required.")
+  2033	                            }
+  2034	                        }
+  2035	                        val fbUser = authResult.user
+  2036	                        uid = fbUser?.uid
+  2037	                        fbUserEmail = fbUser?.email
+  2038	                        fbDisplayName = fbUser?.displayName
+  2039	                    } catch (e: Exception) {
+  2040	                        Log.w("JuktiViewModel", "Firebase Auth call failed: ${e.message}", e)
+  2041	                        throw e
+  2042	                    }
+  2043	                } else {
+  2044	                    throw Exception("Firebase Authentication is not available.")
+  2045	                }
+  2046	
+  2047	                val finalUid = uid ?: ("user_" + java.util.UUID.nameUUIDFromBytes(trimmedEmail.toByteArray()).toString().replace("-", "").take(16))
+  2048	                val effectiveEmail = fbUserEmail?.trim()?.ifBlank { trimmedEmail } ?: trimmedEmail
+  2049	                val gName = fbDisplayName?.trim()?.ifBlank { nameInput.trim() } ?: nameInput.trim()
+  2050	
+  2051	                val isOwnerEmail = effectiveEmail.equals("juktieducation@gmail.com", ignoreCase = true)
+  2052	                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
+  2053	
+  2054	                withContext(Dispatchers.IO) {
+  2055	                    repository.loadUserProfileForAuth(
+  2056	                        uid = finalUid,
+  2057	                        email = effectiveEmail,
+  2058	                        googleName = gName,
+  2059	                        deviceId = deviceId,
+  2060	                        defaultRole = defaultRole
+  2061	                    )
+  2062	                    UserSessionManager.registerSession(effectiveEmail, deviceId)
+  2063	                }
+  2064	
+  2065	                _isGuestMode.value = false
+  2066	                _sessionMessage.value = null
+  2067	                _currentScreen.value = Screen.HOME
+  2068	            } catch (e: Exception) {
+  2069	                Log.e("JuktiViewModel", "Email authentication error", e)
+  2070	                _sessionMessage.value = when (e) {
+  2071	                    is FirebaseAuthInvalidCredentialsException -> "Incorrect email or password."
+  2072	                    is FirebaseAuthInvalidUserException -> "No account found with this email."
+  2073	                    is FirebaseAuthUserCollisionException -> "An account already exists with this email."
+  2074	                    else -> "Authentication failed. Please try again."
+  2075	                }
+  2076	            } finally {
+  2077	                _isAuthLoading.value = false
+  2078	            }
+  2079	        }
+  2080	    }
+  2081	
+  2082	    fun sendPasswordResetEmail(emailInput: String, onResult: (Boolean, String) -> Unit) {
+  2083	        val trimmedEmail = emailInput.trim().lowercase()
+  2084	        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+  2085	            onResult(false, "Please enter a valid email address.")
+  2086	            return
+  2087	        }
+  2088	        viewModelScope.launch {
+  2089	            try {
+  2090	                val auth = com.example.JuktiApplication.getAuth(getApplication())
+  2091	                if (auth == null) {
+  2092	                    onResult(false, "Authentication service is currently unavailable.")
+  2093	                    return@launch
+  2094	                }
+  2095	                withContext(Dispatchers.IO) {
+  2096	                    auth.sendPasswordResetEmail(trimmedEmail).await()
+  2097	                }
+  2098	                onResult(true, "Password reset email sent. Please check your inbox and follow the instructions to create a new password. If you don't see it, check your Spam or Junk folder.")
+  2099	            } catch (e: Exception) {
+  2100	                Log.e("JuktiViewModel", "Password reset error", e)
+  2101	                val translated = LocalMessageTranslator.translateAuthError(getApplication(), e.message ?: e.localizedMessage)
+  2102	                onResult(false, translated)
+  2103	            }
+  2104	        }
+  2105	    }
+  2106	
+  2107	    fun changePassword(currentPassword: String, newPassword: String, onResult: (Boolean, String) -> Unit) {
+  2108	        viewModelScope.launch {
+  2109	            try {
+  2110	                val auth = com.example.JuktiApplication.getAuth(getApplication())
+  2111	                val user = auth?.currentUser
+  2112	                if (user == null) {
+  2113	                    onResult(false, "Your session has expired. Please sign in again.")
+  2114	                    return@launch
+  2115	                }
+  2116	                val isEmailUser = user.providerData.any { it.providerId == "password" }
+  2117	                if (!isEmailUser) {
+  2118	                    onResult(false, "Your account is signed in with an external provider (such as Google). Password management is handled by your provider.")
+  2119	                    return@launch
+  2120	                }
+  2121	                if (currentPassword.isBlank()) {
+  2122	                    onResult(false, "The current password cannot be empty.")
+  2123	                    return@launch
+  2124	                }
+  2125	                if (newPassword.length < 6) {
+  2126	                    onResult(false, "Your new password does not meet the password requirements (at least 6 characters).")
+  2127	                    return@launch
+  2128	                }
+  2129	                val email = user.email
+  2130	                if (email.isNullOrBlank()) {
+  2131	                    onResult(false, "User email not found.")
+  2132	                    return@launch
+  2133	                }
+  2134	                withContext(Dispatchers.IO) {
+  2135	                    val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, currentPassword)
+  2136	                    user.reauthenticate(credential).await()
+  2137	                    user.updatePassword(newPassword).await()
+  2138	                }
+  2139	                onResult(true, "Password successfully updated.")
+  2140	            } catch (e: Exception) {
+  2141	                Log.e("JuktiViewModel", "Change password error", e)
+  2142	                val translated = LocalMessageTranslator.translateAuthError(getApplication(), e.message ?: e.localizedMessage)
+  2143	                onResult(false, translated)
+  2144	            }
+  2145	        }
+  2146	    }
+  2147	
+  2148	    fun logout() {
+  2149	        viewModelScope.launch {
+  2150	            _isAuthLoading.value = true
+  2151	            try {
+  2152	                val googleAuthManager = GoogleAuthManager(getApplication())
+  2153	                googleAuthManager.signOut()
+  2154	            } catch (e: Throwable) {
+  2155	                Log.e("JuktiViewModel", "Error during sign out", e)
+  2156	            }
+  2157	
+  2158	            val currentProf = userProfile.value
+  2159	            if (currentProf != null && currentProf.email.isNotBlank()) {
+  2160	                UserSessionManager.unregisterSession(currentProf.email)
+  2161	            }
+  2162	
+  2163	            val cleanProfile = SampleData.initialUserProfile.copy(
+  2164	                id = 1,
+  2165	                isLoggedIn = false,
+  2166	                currentDeviceId = "",
+  2167	                activeDeviceId = "",
+  2168	                email = "",
+  2169	                name = "Guest User",
+  2170	                uid = ""
+  2171	            )
+  2172	            withContext(Dispatchers.IO) {
+  2173	                repository.updateUserProfile(cleanProfile)
+  2174	                if (currentProf != null) {
+  2175	                    val key = currentProf.uid.ifBlank { currentProf.email }
+  2176	                    repository.clearUserEntitlements(key)
+  2177	                }
+  2178	            }
+  2179	
+  2180	            _userEntitlements.value = emptyList()
+  2181	            _sessionMessage.value = null
+  2182	            _isGuestMode.value = false
+  2183	            _currentMockAttempt.value = null
+  2184	            _selectedMockTest.value = null
+  2185	            _mockUserAnswers.value = emptyMap()
+  2186	            _mockMarkedForReview.value = emptySet()
+  2187	            _activeMockQuestions.value = emptyList()
+  2188	            _currentScreen.value = Screen.AUTH
+  2189	            _isAuthLoading.value = false
+  2190	        }
+  2191	    }
+  2192	
+  2193	    private fun logoutDueToOtherDeviceLogin() {
+  2194	        if (isLoggingOutDueToDevice || _currentScreen.value == Screen.AUTH) return
+  2195	        isLoggingOutDueToDevice = true
+  2196	        viewModelScope.launch {
+  2197	            try {
+  2198	                val currentProf = userProfile.value ?: return@launch
+  2199	                if (!currentProf.isLoggedIn) return@launch
+  2200	                if (currentProf.email.isNotBlank()) {
+  2201	                    UserSessionManager.unregisterSession(currentProf.email)
+  2202	                }
+  2203	                val cleanProfile = SampleData.initialUserProfile.copy(
+  2204	                    id = 1,
+  2205	                    isLoggedIn = false,
+  2206	                    currentDeviceId = "",
+  2207	                    activeDeviceId = "",
+  2208	                    email = "",
+  2209	                    name = "Guest User",
+  2210	                    uid = ""
+  2211	                )
+  2212	                _sessionMessage.value = "Your account was logged in on another device. You have been logged out automatically."
+  2213	                _currentMockAttempt.value = null
+  2214	                _selectedMockTest.value = null
+  2215	                _mockUserAnswers.value = emptyMap()
+  2216	                _mockMarkedForReview.value = emptySet()
+  2217	                _activeMockQuestions.value = emptyList()
+  2218	                _currentScreen.value = Screen.AUTH
+  2219	                
+  2220	                withContext(Dispatchers.IO) {
+  2221	                    repository.updateUserProfile(cleanProfile)
+  2222	                    val key = currentProf.uid.ifBlank { currentProf.email }
+  2223	                    repository.clearUserEntitlements(key)
+  2224	                }
+  2225	            } finally {
+  2226	                isLoggingOutDueToDevice = false
+  2227	            }
+  2228	        }
+  2229	    }
+  2230	
+  2231	    fun updateUserProfile(profile: UserProfileEntity) {
+  2232	        viewModelScope.launch {
+  2233	            repository.updateUserProfile(profile)
+  2234	        }
+  2235	    }
+  2236	
+  2237	    fun updateUserName(newName: String) {
+  2238	        viewModelScope.launch {
+  2239	            val prof = userProfile.value ?: SampleData.initialUserProfile
+  2240	            val updated = prof.copy(profileName = newName.trim())
+  2241	            repository.updateUserProfile(updated)
+  2242	        }
+  2243	    }
+  2244	
+  2245	    fun updateUserRole(role: String) {
+  2246	        viewModelScope.launch {
+  2247	            val prof = userProfile.value ?: SampleData.initialUserProfile
+  2248	            repository.updateUserProfile(prof.copy(role = role))
+  2249	        }
+  2250	    }
+  2251	
+  2252	    
+  2253	    fun uploadLogoAndSaveConfig(uri: android.net.Uri, config: com.example.data.local.AboutConfigEntity, context: android.content.Context) {
+  2254	        viewModelScope.launch {
+  2255	            try {
+  2256	                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
+  2257	                val storage = com.example.JuktiApplication.getStorage(context) ?: return@launch
+  2258	                val ref = storage.reference.child("assets/logo.png")
+  2259	                val uploadTask = ref.putBytes(bytes).await()
+  2260	                val downloadUrl = ref.downloadUrl.await().toString()
+  2261	                
+  2262	                val updatedConfig = config.copy(
+  2263	                    logoUrl = downloadUrl,
+  2264	                    logoUpdatedAt = getTrustedTime()
+  2265	                )
+  2266	                updateAboutConfig(updatedConfig)
+  2267	                // Also cache locally
+  2268	                try {
+  2269	                    val file = java.io.File(context.filesDir, "cached_logo.png")
+  2270	                    java.io.FileOutputStream(file).use { it.write(bytes) }
+  2271	                } catch(e: Exception) {}
+  2272	            } catch (e: Exception) {
+  2273	                android.util.Log.e("JuktiViewModel", "Error uploading logo", e)
+  2274	            }
+  2275	        }
+  2276	    }
+  2277	
+  2278	    fun uploadImageFile(
+  2279	        uri: android.net.Uri,
+  2280	        folder: String,
+  2281	        context: android.content.Context,
+  2282	        onLocalSaved: (String) -> Unit,
+  2283	        onRemoteUploaded: ((String) -> Unit)? = null
+  2284	    ) {
+  2285	        viewModelScope.launch {
+  2286	            try {
+  2287	                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@launch
+  2288	                val localFileName = "${folder}_${getTrustedTime()}.png"
+  2289	                val file = java.io.File(context.filesDir, localFileName)
+  2290	                java.io.FileOutputStream(file).use { it.write(bytes) }
+  2291	                val localPath = file.absolutePath
+  2292	                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+  2293	                    onLocalSaved(localPath)
+  2294	                }
+  2295	
+  2296	                val storage = com.example.JuktiApplication.getStorage(context)
+  2297	                if (storage != null) {
+  2298	                    val ref = storage.reference.child("$folder/${getTrustedTime()}.png")
+  2299	                    ref.putBytes(bytes).await()
+  2300	                    val downloadUrl = ref.downloadUrl.await().toString()
+  2301	                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+  2302	                        onRemoteUploaded?.invoke(downloadUrl)
+  2303	                    }
+  2304	                }
+  2305	            } catch (e: Exception) {
+  2306	                android.util.Log.e("JuktiViewModel", "Error in uploadImageFile", e)
+  2307	            }
+  2308	        }
+  2309	    }
+  2310	
+  2311	    
+  2312	    init {
+  2313	        viewModelScope.launch {
+  2314	            aboutConfig.collect { config ->
+  2315	                if (config.logoUrl.isNotEmpty()) {
+  2316	                    syncLogoLocally(config.logoUrl, config.logoUpdatedAt)
+  2317	                }
+  2318	            }
+  2319	        }
+  2320	    }
+  2321	
+  2322	    private fun syncLogoLocally(url: String, updatedAt: Long) {
+  2323	        val app = getApplication<android.app.Application>()
+  2324	        val prefs = app.getSharedPreferences("jukti_prefs", android.content.Context.MODE_PRIVATE)
+  2325	        val cachedUpdatedAt = prefs.getLong("logo_updated_at", 0L)
+  2326	        
+  2327	        if (updatedAt > cachedUpdatedAt) {
+  2328	            viewModelScope.launch(Dispatchers.IO) {
+  2329	                try {
+  2330	                    val request = okhttp3.Request.Builder().url(url).build()
+  2331	                    val client = okhttp3.OkHttpClient()
+  2332	                    val response = client.newCall(request).execute()
+  2333	                    if (response.isSuccessful) {
+  2334	                        response.body?.byteStream()?.use { input ->
+  2335	                            val file = java.io.File(app.filesDir, "cached_logo.png")
+  2336	                            java.io.FileOutputStream(file).use { output ->
+  2337	                                input.copyTo(output)
+  2338	                            }
+  2339	                        }
+  2340	                        prefs.edit().putLong("logo_updated_at", updatedAt).apply()
+  2341	                    }
+  2342	                } catch (e: Exception) {
+  2343	                    android.util.Log.e("JuktiViewModel", "Error syncing logo", e)
+  2344	                }
+  2345	            }
+  2346	        }
+  2347	    }
+  2348	
+  2349	    fun updateAboutConfig(config: AboutConfigEntity, onComplete: ((Boolean, String) -> Unit)? = null) {
+  2350	        logActivity("Updated About/Config settings")
+  2351	        viewModelScope.launch {
+  2352	            val res = repository.updateAboutConfig(config)
+  2353	            onComplete?.invoke(res.first, res.second)
+  2354	        }
+  2355	    }
+  2356	
+  2357	    fun verifyAndSetAdminRole(passcode: String): Boolean {
+  2358	        // Client-side passcode elevation is permanently disabled for security.
+  2359	        // Role changes must be provisioned via authenticated backend/admin channels.
+  2360	        Log.w("JuktiViewModel", "Client-side passcode role elevation attempt rejected.")
+  2361	        return false
+  2362	    }
+  2363	
+  2364	    fun clearUserProgressData() {
+  2365	        viewModelScope.launch {
+  2366	            repository.resetUserProgress()
+  2367	        }
+  2368	    }
+  2369	
+  2370	    fun deleteAccount() {
+  2371	        viewModelScope.launch {
+  2372	            repository.deleteAccount()
+  2373	            try {
+  2374	                GoogleAuthManager(getApplication()).signOut()
+  2375	            } catch (e: Exception) {}
+  2376	            _currentScreen.value = Screen.AUTH
+  2377	            _sessionMessage.value = "Your account has been deleted and you have been logged out."
+  2378	        }
+  2379	    }
+  2380	    fun importCsvQuestions(csvData: String, targetExam: String, questionFor: String, questionType: String, onComplete: (Int) -> Unit) {
+  2381	        viewModelScope.launch {
+  2382	            var count = 0
+  2383	            try {
+  2384	                val lines = csvData.lines().map { it.trim() }.filter { it.isNotEmpty() }
+  2385	                if (lines.size <= 1) {
+  2386	                    onComplete(0)
+  2387	                    return@launch // Only header or empty
+  2388	                }
+  2389	                
+  2390	                val questions = mutableListOf<QuestionEntity>()
+  2391	                val isPremium = questionFor.equals("Premium", ignoreCase = true)
+  2392	                
+  2393	                // Csv parsing logic taking care of quotes
+  2394	                for (i in 1 until lines.size) {
+  2395	                    val line = lines[i]
+  2396	                    val tokens = parseCsvLine(line)
+  2397	                    if (tokens.size >= 17) {
+  2398	                        val statement = tokens[0]
+  2399	                        val statementAssamese = tokens[1]
+  2400	                        val a = tokens[2]
+  2401	                        val a_as = tokens[3]
+  2402	                        val b = tokens[4]
+  2403	                        val b_as = tokens[5]
+  2404	                        val c = tokens[6]
+  2405	                        val c_as = tokens[7]
+  2406	                        val d = tokens[8]
+  2407	                        val d_as = tokens[9]
+  2408	                        val correctAnswer = tokens[10].uppercase()
+  2409	                        val explanation = tokens[11]
+  2410	                        val explanationAssamese = tokens[12]
+  2411	                        val subject = tokens[13]
+  2412	                        val topic = tokens[14]
+  2413	                        val tags = tokens[15]
+  2414	                        val difficulty = tokens[16]
+  2415	                        
+  2416	                        val correctOptionIndex = when(correctAnswer) {
+  2417	                            "A" -> 0
+  2418	                            "B" -> 1
+  2419	                            "C" -> 2
+  2420	                            "D" -> 3
+  2421	                            else -> 0
+  2422	                        }
+  2423	                        
+  2424	                        questions.add(
+  2425	                            QuestionEntity(
+  2426	                                subject = subject,
+  2427	                                topic = topic,
+  2428	                                difficulty = difficulty,
+  2429	                                questionEn = statement,
+  2430	                                questionAs = statementAssamese,
+  2431	                                optionAEn = a,
+  2432	                                optionBEn = b,
+  2433	                                optionCEn = c,
+  2434	                                optionDEn = d,
+  2435	                                optionAAs = a_as,
+  2436	                                optionBAs = b_as,
+  2437	                                optionCAs = c_as,
+  2438	                                optionDAs = d_as,
+  2439	                                correctOptionIndex = correctOptionIndex,
+  2440	                                explanationEn = explanation,
+  2441	                                explanationAs = explanationAssamese,
+  2442	                                examCategory = targetExam,
+  2443	                                isPremium = isPremium,
+  2444	                                questionType = if (tags.isNotBlank()) tags else questionType
+  2445	                            )
+  2446	                        )
+  2447	                    }
+  2448	                }
+  2449	                if (questions.isNotEmpty()) {
+  2450	                    repository.bulkInsertQuestions(questions)
+  2451	                    count = questions.size
+  2452	                }
+  2453	            } catch (e: Exception) {
+  2454	                e.printStackTrace()
+  2455	            }
+  2456	            onComplete(count)
+  2457	        }
+  2458	    }
+  2459	
+  2460	    fun addQuestion(question: QuestionEntity, onComplete: (Long) -> Unit) {
+  2461	        viewModelScope.launch {
+  2462	            var assignedId = question.id.takeIf { it != 0L } ?: getTrustedTime()
+  2463	            try {
+  2464	                val res = repository.addQuestion(question)
+  2465	                _syncToastMessage.value = res.second
+  2466	            } catch (e: Exception) {
+  2467	                Log.e("JuktiViewModel", "Error adding question", e)
+  2468	                _syncToastMessage.value = "Error: ${e.localizedMessage}"
+  2469	            } finally {
+  2470	                onComplete(assignedId)
+  2471	            }
+  2472	        }
+  2473	    }
+  2474	
+  2475	    fun batchImportQuestionsForMock(
+  2476	        questionsToInsert: List<QuestionEntity>,
+  2477	        reusableExistingIds: List<Long>,
+  2478	        addToQuestionBank: Boolean,
+  2479	        onComplete: (List<Long>, Int, String) -> Unit
+  2480	    ) {
+  2481	        viewModelScope.launch {
+  2482	            if (!isAdminOrOwner.value) {
+  2483	                onComplete(emptyList(), 0, "Unauthorized: Only Admin/Owner can batch import questions.")
+  2484	                return@launch
+  2485	            }
+  2486	            try {
+  2487	                val (newIds, msg) = repository.batchImportMockQuestions(questionsToInsert, addToQuestionBank)
+  2488	                val allAssignedIds = (reusableExistingIds + newIds).distinct()
+  2489	                val newQBankCount = if (addToQuestionBank) newIds.size else 0
+  2490	                _syncToastMessage.value = msg
+  2491	                onComplete(allAssignedIds, newQBankCount, msg)
+  2492	            } catch (e: Exception) {
+  2493	                Log.e("JuktiViewModel", "Error batch importing mock questions", e)
+  2494	                val errMsg = "Error: ${e.localizedMessage ?: "Unknown error"}"
+  2495	                _syncToastMessage.value = errMsg
+  2496	                onComplete(emptyList(), 0, errMsg)
+  2497	            }
+  2498	        }
+  2499	    }
+  2500	
+  2501	    private fun parseCsvLine(line: String): List<String> {
+  2502	        val result = mutableListOf<String>()
+  2503	        var current = StringBuilder()
+  2504	        var inQuotes = false
+  2505	        for (i in line.indices) {
+  2506	            val char = line[i]
+  2507	            if (char == '\"') {
+  2508	                inQuotes = !inQuotes
+  2509	            } else if (char == ',' && !inQuotes) {
+  2510	                result.add(current.toString().trim())
+  2511	                current.clear()
+  2512	            } else {
+  2513	                current.append(char)
+  2514	            }
+  2515	        }
+  2516	        result.add(current.toString().trim())
+  2517	        return result
+  2518	    }
+  2519	
+  2520	    fun addPlan(plan: PlanEntity, onComplete: () -> Unit) { 
+  2521	        viewModelScope.launch { 
+  2522	            val res = repository.insertPlan(plan)
+  2523	            _syncToastMessage.value = res.second
+  2524	            onComplete() 
+  2525	        } 
+  2526	    }
+  2527	
+  2528	    fun deletePlan(plan: PlanEntity) { 
+  2529	        viewModelScope.launch { 
+  2530	            val res = repository.deletePlan(plan)
+  2531	            _syncToastMessage.value = res.second
+  2532	        } 
+  2533	    }
+  2534	
+  2535	    fun reportQuestion(question: QuestionEntity) {
+  2536	        viewModelScope.launch {
+  2537	            val res = repository.updateQuestion(question.copy(isReported = true))
+  2538	            _syncToastMessage.value = res.second
+  2539	        }
+  2540	    }
+  2541	    
+  2542	    fun resolveReportedQuestion(question: QuestionEntity) {
+  2543	        viewModelScope.launch {
+  2544	            val res = repository.updateQuestion(question.copy(isReported = false))
+  2545	            _syncToastMessage.value = res.second
+  2546	        }
+  2547	    }
+  2548	    
+  2549	    fun deleteQuestion(question: QuestionEntity) {
+  2550	        logActivity("Deleted question ID: ${question.id}")
+  2551	        viewModelScope.launch {
+  2552	            val res = repository.deleteQuestion(question)
+  2553	            _syncToastMessage.value = res.second
+  2554	        }
+  2555	    }
+  2556	
+  2557	    fun updateQuestion(question: QuestionEntity) {
+  2558	        viewModelScope.launch {
+  2559	            val res = repository.updateQuestion(question)
+  2560	            _syncToastMessage.value = res.second
+  2561	        }
+  2562	    }
+  2563	
+  2564	    fun updateQuestionAndResolve(question: QuestionEntity) {
+  2565	        viewModelScope.launch {
+  2566	            val res = repository.updateQuestion(question.copy(isReported = false))
+  2567	            _syncToastMessage.value = res.second
+  2568	        }
+  2569	    }
+  2570	
+  2571	    fun sendNotification(title: String, body: String, category: String) {
+  2572	        viewModelScope.launch {
+  2573	            repository.sendNotification(title, body, category)
+  2574	            
+  2575	            val intent = Intent(getApplication(), MainActivity::class.java).apply {
+  2576	                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+  2577	            }
+  2578	            val pendingIntent: PendingIntent = PendingIntent.getActivity(getApplication(), 0, intent, PendingIntent.FLAG_IMMUTABLE)
+  2579	
+  2580	            val builder = NotificationCompat.Builder(getApplication(), "jukti_channel")
+  2581	                .setSmallIcon(android.R.drawable.ic_dialog_info)
+  2582	                .setContentTitle(title)
+  2583	                .setContentText(body)
+  2584	                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+  2585	                .setContentIntent(pendingIntent)
+  2586	                .setAutoCancel(true)
+  2587	
+  2588	            val notificationManager = getApplication<Application>().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+  2589	            notificationManager.notify(getTrustedTime().toInt(), builder.build())
+  2590	        }
+  2591	    }
+  2592	
+  2593	    fun deleteNotification(notification: com.example.data.local.NotificationEntity) {
+  2594	        viewModelScope.launch {
+  2595	            repository.deleteNotification(notification)
+  2596	        }
+  2597	    }
+  2598	
+  2599	    fun addExamUpdate(update: ExamUpdateEntity) {
+  2600	        viewModelScope.launch {
+  2601	            val res = repository.addExamUpdate(update)
+  2602	            _syncToastMessage.value = res.second
+  2603	        }
+  2604	    }
+  2605	
+  2606	    fun updateExamUpdate(update: ExamUpdateEntity) {
+  2607	        viewModelScope.launch {
+  2608	            val res = repository.updateExamUpdate(update)
+  2609	            _syncToastMessage.value = res.second
+  2610	        }
+  2611	    }
+  2612	
+  2613	    fun deleteExamUpdate(update: ExamUpdateEntity) {
+  2614	        viewModelScope.launch {
+  2615	            val res = repository.deleteExamUpdate(update)
+  2616	            _syncToastMessage.value = res.second
+  2617	        }
+  2618	    }
+  2619	
+  2620	    fun addBanner(banner: BannerEntity) {
+  2621	        viewModelScope.launch {
+  2622	            val res = repository.addBanner(banner)
+  2623	            _syncToastMessage.value = res.second
+  2624	        }
+  2625	    }
+  2626	
+  2627	    fun updateBanner(banner: BannerEntity) {
+  2628	        viewModelScope.launch {
+  2629	            val res = repository.updateBanner(banner)
+  2630	            _syncToastMessage.value = res.second
+  2631	        }
+  2632	    }
+  2633	
+  2634	    fun addAdminEmail(email: String) {
+  2635	        val trimmed = email.trim().lowercase()
+  2636	        if (trimmed.isEmpty()) return
+  2637	        viewModelScope.launch {
+  2638	            val currentConfig = aboutConfig.value
+  2639	            val currentEmails = currentConfig.adminEmails.split(",")
+  2640	                .map { it.trim().lowercase() }
+  2641	                .filter { it.isNotEmpty() }
+  2642	                .toMutableSet()
+  2643	            currentEmails.add(trimmed)
+  2644	            val updatedString = currentEmails.joinToString(",")
+  2645	            repository.updateAboutConfig(currentConfig.copy(adminEmails = updatedString))
+  2646	            repository.updateUserRoleInFirebase(email, "ADMIN")
+  2647	            logActivity("Promoted $email to ADMIN")
+  2648	        }
+  2649	    }
+  2650	
+  2651	    fun removeAdminEmail(email: String) {
+  2652	        val actorRole = getCurrentActorRole()
+  2653	        val targetRole = getUserRole(email)
+  2654	
+  2655	        if (targetRole == UserRole.OWNER) {
+  2656	            _syncToastMessage.value = "This account is protected and cannot be deleted or banned."
+  2657	            return
+  2658	        }
+  2659	
+  2660	        if (!canPerformDeleteOrBan(actorRole, targetRole)) {
+  2661	            _syncToastMessage.value = "You don't have permission to perform this action."
+  2662	            return
+  2663	        }
+  2664	
+  2665	        val trimmed = email.trim().lowercase()
+  2666	        viewModelScope.launch {
+  2667	            val currentConfig = aboutConfig.value
+  2668	            val currentEmails = currentConfig.adminEmails.split(",")
+  2669	                .map { it.trim().lowercase() }
+  2670	                .filter { it.isNotEmpty() && it != trimmed }
+  2671	            val updatedString = currentEmails.joinToString(",")
+  2672	            repository.updateAboutConfig(currentConfig.copy(adminEmails = updatedString))
+  2673	            repository.updateUserRoleInFirebase(email, "USER")
+  2674	            logActivity("Removed ADMIN role from $email")
+  2675	        }
+  2676	    }
+  2677	
+  2678	    fun deleteBanner(banner: BannerEntity) {
+  2679	        viewModelScope.launch {
+  2680	            val res = repository.deleteBanner(banner)
+  2681	            _syncToastMessage.value = res.second
+  2682	        }
+  2683	    }
+  2684	
+  2685	    // Pending Requests & Actions (Delete user, Delete question, Block user, Upgrade plan, Create plan, Delete mock)
+  2686	    suspend fun toggleUserBlockState(userEmail: String, block: Boolean): Boolean {
+  2687	        val actorRole = getCurrentActorRole()
+  2688	        val targetRole = getUserRole(userEmail)
+  2689	
+  2690	        if (targetRole == UserRole.OWNER) {
+  2691	            Log.w("JuktiViewModel", "Attempted to block Owner account $userEmail - REJECTED")
+  2692	            return false
+  2693	        }
+  2694	
+  2695	        if (!canPerformDeleteOrBan(actorRole, targetRole)) {
+  2696	            Log.w("JuktiViewModel", "Unauthorized block attempt by $actorRole on $targetRole ($userEmail) - REJECTED")
+  2697	            return false
+  2698	        }
+  2699	
+  2700	        return try {
+  2701	            val newRole = if (block) "BLOCKED" else "USER"
+  2702	            val success = repository.updateUserRoleInFirebase(userEmail, newRole)
+  2703	            if (success) {
+  2704	                logActivity("${if (block) "Blocked" else "Unblocked"} user $userEmail")
+  2705	            }
+  2706	            success
+  2707	        } catch (e: Exception) {
+  2708	            false
+  2709	        }
+  2710	    }
+  2711	
+  2712	    suspend fun deleteUserCompletely(userEmail: String, explicitUserId: String? = null): Boolean {
+  2713	        val users = repository.fetchAllUsersDirect()
+  2714	        val targetUser = users.find { it.email.equals(userEmail, ignoreCase = true) }
+  2715	        val profile = repository.getUserProfileDirect()
+  2716	        val actorRole = getUserRoleDirect(profile?.email ?: "", profile?.role)
+  2717	        val targetRole = getUserRoleDirect(userEmail, targetUser?.role)
+  2718	        
+  2719	        Log.d("JuktiViewModel", "deleteUserCompletely: actorRole=$actorRole, targetRole=$targetRole, targetEmail=$userEmail")
+  2720	
+  2721	        if (targetRole == UserRole.OWNER) {
+  2722	            Log.w("JuktiViewModel", "Attempted to delete Owner account $userEmail - REJECTED")
+  2723	            return false
+  2724	        }
+  2725	
+  2726	        if (!canPerformDeleteOrBan(actorRole, targetRole)) {
+  2727	            Log.w("JuktiViewModel", "Unauthorized delete attempt by $actorRole on $targetRole ($userEmail) - REJECTED")
+  2728	            return false
+  2729	        }
+  2730	
+  2731	        return try {
+  2732	            var uid = explicitUserId ?: ""
+  2733	            if (uid.isBlank()) {
+  2734	                uid = targetUser?.uid ?: ""
+  2735	            }
+  2736	            val sanitizedEmail = userEmail.trim().lowercase().replace("@", "_at_").replace(".", "_dot_")
+  2737	            if (uid.isBlank()) {
+  2738	                uid = sanitizedEmail
+  2739	            }
+  2740	
+  2741	            Log.d("JuktiViewModel", "Executing direct user deletion for UID: $uid, email: $userEmail")
+  2742	            repository.deleteUserAccount(uid, userEmail)
+  2743	            
+  2744	            logActivity("Deleted user $userEmail completely from app and Firestore")
+  2745	            true
+  2746	        } catch (e: Exception) {
+  2747	            Log.e("JuktiViewModel", "Error deleting user completely", e)
+  2748	            false
+  2749	        }
+  2750	    }
+  2751	
+  2752	    fun requestOrDeleteQuestion(question: QuestionEntity, onResult: (Boolean, String) -> Unit) {
+  2753	        if (isOwner.value) {
+  2754	            viewModelScope.launch {
+  2755	                repository.deleteQuestion(question)
+  2756	                onResult(true, "Question deleted successfully.")
+  2757	            }
+  2758	        } else {
+  2759	            viewModelScope.launch {
+  2760	                val req = PendingRequestEntity(
+  2761	                    requestType = "DELETE_QUESTION",
+  2762	                    title = "Delete Question #${question.id}",
+  2763	                    description = "Request to delete question: \"${question.questionEn.take(60)}\" (${question.subject})",
+  2764	                    targetId = question.id.toString(),
+  2765	                    payloadJson = "",
+  2766	                    requestedBy = userProfile.value?.email ?: "admin@jukti.in",
+  2767	                    timestamp = "Just now",
+  2768	                    status = "PENDING"
+  2769	                )
+  2770	                repository.insertPendingRequest(req)
+  2771	                onResult(false, "Sent a request to Owner Dashboard to approve or reject.")
+  2772	            }
+  2773	        }
+  2774	    }
+  2775	
+  2776	    fun requestOrDeleteMock(mock: MockTestEntity, onResult: (Boolean, String) -> Unit) {
+  2777	        if (isOwner.value) {
+  2778	            viewModelScope.launch {
+  2779	                repository.deleteMockTest(mock)
+  2780	                onResult(true, "Mock test deleted successfully.")
+  2781	            }
+  2782	        } else {
+  2783	            viewModelScope.launch {
+  2784	                val req = PendingRequestEntity(
+  2785	                    requestType = "DELETE_MOCK",
+  2786	                    title = "Delete Mock Test #${mock.id}",
+  2787	                    description = "Request to delete mock test: \"${mock.titleEn}\" (${mock.category})",
+  2788	                    targetId = mock.id.toString(),
+  2789	                    payloadJson = "",
+  2790	                    requestedBy = userProfile.value?.email ?: "admin@jukti.in",
+  2791	                    timestamp = "Just now",
+  2792	                    status = "PENDING"
+  2793	                )
+  2794	                repository.insertPendingRequest(req)
+  2795	                onResult(false, "Sent a request to Owner Dashboard to approve or reject.")
+  2796	            }
+  2797	        }
+  2798	    }
+  2799	
+  2800	    fun requestOrDeleteUser(userId: String, userName: String, userEmail: String, targetRoleInProfile: String? = null, onResult: (Boolean, String) -> Unit) {
+  2801	        val actorRole = getCurrentActorRole()
+  2802	        val targetRole = getUserRole(userEmail, targetRoleInProfile)
+  2803	
+  2804	        if (targetRole == UserRole.OWNER) {
+  2805	            onResult(false, "This account is protected and cannot be deleted or banned.")
+  2806	            return
+  2807	        }
+  2808	
+  2809	        if (!canPerformDeleteOrBan(actorRole, targetRole)) {
+  2810	            onResult(false, "You don't have permission to perform this action.")
+  2811	            return
+  2812	        }
+  2813	
+  2814	        viewModelScope.launch {
+  2815	            val success = deleteUserCompletely(userEmail, userId)
+  2816	            if (success) {
+  2817	                onResult(true, "User $userName deleted successfully.")
+  2818	            } else {
+  2819	                onResult(false, "Unable to delete the user. Please try again.")
+  2820	            }
+  2821	        }
+  2822	    }
+  2823	
+  2824	    fun requestOrBlockUser(userId: String, userName: String, userEmail: String, targetRoleInProfile: String? = null, onResult: (Boolean, String) -> Unit) {
+  2825	        val actorRole = getCurrentActorRole()
+  2826	        val targetRole = getUserRole(userEmail, targetRoleInProfile)
+  2827	
+  2828	        if (targetRole == UserRole.OWNER) {
+  2829	            onResult(false, "This account is protected and cannot be deleted or banned.")
+  2830	            return
+  2831	        }
+  2832	
+  2833	        if (!canPerformDeleteOrBan(actorRole, targetRole)) {
+  2834	            onResult(false, "You don't have permission to perform this action.")
+  2835	            return
+  2836	        }
+  2837	
+  2838	        viewModelScope.launch {
+  2839	            val success = toggleUserBlockState(userEmail, true)
+  2840	            if (success) {
+  2841	                onResult(true, "User $userName blocked successfully.")
+  2842	            } else {
+  2843	                onResult(false, "Unable to save your changes. Please try again.")
+  2844	            }
+  2845	        }
+  2846	    }
+  2847	
+  2848	    fun requestOrCreatePlan(plan: PlanEntity, onResult: (Boolean, String) -> Unit) {
+  2849	        if (isAdminOrOwner.value) {
+  2850	            viewModelScope.launch {
+  2851	                try {
+  2852	                    repository.insertPlan(plan)
+  2853	                    onResult(true, "Plan created successfully.")
+  2854	                } catch (e: Exception) {
+  2855	                    android.util.Log.e("JuktiViewModel", "Error creating plan", e)
+  2856	                    onResult(false, e.localizedMessage ?: "Failed to create plan in Firebase/Database.")
+  2857	                }
+  2858	            }
+  2859	        } else {
+  2860	            viewModelScope.launch {
+  2861	                try {
+  2862	                    val req = PendingRequestEntity(
+  2863	                        requestType = "CREATE_PLAN",
+  2864	                        title = "Create Plan: ${plan.planName}",
+  2865	                        description = "Create plan ${plan.planName} at ${plan.finalPrice} with validity ${plan.offerValidity}",
+  2866	                        targetId = "",
+  2867	                        payloadJson = "${plan.planName}|${plan.finalPrice}|${plan.planPrice}|${plan.offerValidity}",
+  2868	                        requestedBy = userProfile.value?.email ?: "admin@jukti.in",
+  2869	                        timestamp = "Just now",
+  2870	                        status = "PENDING"
+  2871	                    )
+  2872	                    repository.insertPendingRequest(req)
+  2873	                    onResult(true, "Sent a request to Owner Dashboard to approve or reject.")
+  2874	                } catch (e: Exception) {
+  2875	                    android.util.Log.e("JuktiViewModel", "Error submitting plan request", e)
+  2876	                    onResult(false, e.localizedMessage ?: "Failed to submit plan request.")
+  2877	                }
+  2878	            }
+  2879	        }
+  2880	    }
+  2881	
+  2882	    fun requestOrUpgradePlan(
+  2883	        userId: String,
+  2884	        userName: String,
+  2885	        userEmail: String,
+  2886	        newPlanName: String,
+  2887	        validity: String,
+  2888	        validityType: String = "",
+  2889	        validityValue: Int = 0,
+  2890	        isLifetime: Boolean = false,
+  2891	        explicitValidUntil: Long = 0L,
+  2892	        onResult: (Boolean, String) -> Unit
+  2893	    ) {
+  2894	        val canDirectlyAssign = isAdminOrOwner.value
+  2895	        if (canDirectlyAssign) {
+  2896	            viewModelScope.launch {
+  2897	                val success = grantPlanToUser(
+  2898	                    email = userEmail,
+  2899	                    planName = newPlanName,
+  2900	                    validity = validity,
+  2901	                    validityType = validityType,
+  2902	                    validityValue = validityValue,
+  2903	                    isLifetime = isLifetime,
+  2904	                    explicitValidUntil = explicitValidUntil,
+  2905	                    source = "ADMIN_ASSIGNED"
+  2906	                )
+  2907	                if (success) {
+  2908	                    logActivity("Assigned plan $newPlanName ($validity) to $userEmail")
+  2909	                    onResult(true, "Plan updated successfully for $userName.")
+  2910	                } else {
+  2911	                    onResult(false, "Failed to update plan.")
+  2912	                }
+  2913	            }
+  2914	        } else {
+  2915	            viewModelScope.launch {
+  2916	                val req = PendingRequestEntity(
+  2917	                    requestType = "UPGRADE_PLAN",
+  2918	                    title = "Upgrade Plan for $userName",
+  2919	                    description = "Request to upgrade user ($userEmail) to $newPlanName ($validity)",
+  2920	                    targetId = userId,
+  2921	                    payloadJson = "$newPlanName|$validity|$userEmail|$validityType|$validityValue|$isLifetime|$explicitValidUntil",
+  2922	                    requestedBy = userProfile.value?.email ?: "admin@jukti.in",
+  2923	                    timestamp = "Just now",
+  2924	                    status = "PENDING"
+  2925	                )
+  2926	                repository.insertPendingRequest(req)
+  2927	                onResult(false, "Sent a request to Owner Dashboard to approve or reject.")
+  2928	            }
+  2929	        }
+  2930	    }
+  2931	
+  2932	    fun approvePendingRequest(request: PendingRequestEntity) {
+  2933	        if (request.status != "PENDING") return
+  2934	        viewModelScope.launch {
+  2935	            val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return@launch
+  2936	            val docId = request.id.toString()
+  2937	            val docRef = db.collection("pending_requests").document(docId)
+  2938	            
+  2939	            var success = false
+  2940	            try {
+  2941	                // Atomic transaction: verify status == PENDING and transition to PROCESSING
+  2942	                db.runTransaction { transaction ->
+  2943	                    val snapshot = transaction.get(docRef)
+  2944	                    if (snapshot.exists()) {
+  2945	                        val currentStatus = snapshot.getString("status") ?: "PENDING"
+  2946	                        if (currentStatus != "PENDING") {
+  2947	                            throw com.google.firebase.firestore.FirebaseFirestoreException(
+  2948	                                "Request is already processed or processing by another owner",
+  2949	                                com.google.firebase.firestore.FirebaseFirestoreException.Code.ABORTED
+  2950	                            )
+  2951	                        }
+  2952	                    }
+  2953	                    transaction.update(docRef, mapOf("status" to "PROCESSING"))
+  2954	                }.await()
+  2955	                
+  2956	                // Update local status
+  2957	                val processingRequest = request.copy(status = "PROCESSING")
+  2958	                repository.updatePendingRequest(processingRequest)
+  2959	                
+  2960	                // Execute actual operation
+  2961	                var executeSuccess = true
+  2962	                when (request.requestType) {
+  2963	                    "DELETE_QUESTION" -> {
+  2964	                        val qId = request.targetId.toLongOrNull()
+  2965	                        if (qId != null) repository.deleteQuestionById(qId)
+  2966	                    }
+  2967	                    "DELETE_MOCK" -> {
+  2968	                        val mId = request.targetId.toLongOrNull()
+  2969	                        if (mId != null) repository.deleteMockTestById(mId)
+  2970	                    }
+  2971	                    "CREATE_PLAN" -> {
+  2972	                        val parts = request.payloadJson.split("|")
+  2973	                        val name = parts.getOrNull(0) ?: request.title.removePrefix("Create Plan: ")
+  2974	                        val price = parts.getOrNull(1) ?: "₹299"
+  2975	                        val origPrice = parts.getOrNull(2) ?: "₹599"
+  2976	                        val vality = parts.getOrNull(3) ?: "1 Year"
+  2977	                        val newPlan = PlanEntity(
+  2978	                            planName = name,
+  2979	                            planPrice = origPrice,
+  2980	                            discount = "50% OFF",
+  2981	                            finalPrice = price,
+  2982	                            offerValidity = vality
+  2983	                        )
+  2984	                        repository.insertPlan(newPlan)
+  2985	                    }
+  2986	                    "UPGRADE_PLAN" -> {
+  2987	                        val parts = request.payloadJson.split("|")
+  2988	                        val planName = parts.getOrNull(0) ?: ""
+  2989	                        val validity = parts.getOrNull(1) ?: "1 year"
+  2990	                        val userEmail = parts.getOrNull(2) ?: ""
+  2991	                        val validityType = parts.getOrNull(3) ?: ""
+  2992	                        val validityValue = parts.getOrNull(4)?.toIntOrNull() ?: 0
+  2993	                        val isLifetime = parts.getOrNull(5)?.toBooleanStrictOrNull() ?: false
+  2994	                        val explicitValidUntil = parts.getOrNull(6)?.toLongOrNull() ?: 0L
+  2995	                        if (planName.isNotEmpty() && userEmail.isNotEmpty()) {
+  2996	                            executeSuccess = grantPlanToUser(
+  2997	                                email = userEmail,
+  2998	                                planName = planName,
+  2999	                                validity = validity,
+  3000	                                validityType = validityType,
+  3001	                                validityValue = validityValue,
+  3002	                                isLifetime = isLifetime,
+  3003	                                explicitValidUntil = explicitValidUntil,
+  3004	                                source = "OWNER_ASSIGNED"
+  3005	                            )
+  3006	                        } else {
+  3007	                            executeSuccess = false
+  3008	                        }
+  3009	                    }
+  3010	                    "BLOCK_USER" -> {
+  3011	                        val parts = request.payloadJson.split("|")
+  3012	                        val userEmail = parts.getOrNull(0) ?: ""
+  3013	                        if (userEmail.isNotEmpty()) {
+  3014	                            executeSuccess = toggleUserBlockState(userEmail, true)
+  3015	                        }
+  3016	                    }
+  3017	                    "DELETE_USER" -> {
+  3018	                        val parts = request.payloadJson.split("|")
+  3019	                        val userEmail = parts.getOrNull(0) ?: ""
+  3020	                        if (userEmail.isNotEmpty()) {
+  3021	                            executeSuccess = deleteUserCompletely(userEmail)
+  3022	                        }
+  3023	                    }
+  3024	                }
+  3025	                
+  3026	                val finalStatus = if (executeSuccess) "APPROVED" else "FAILED"
+  3027	                val finalReq = request.copy(status = finalStatus)
+  3028	                repository.updatePendingRequest(finalReq)
+  3029	                
+  3030	                db.collection("pending_requests").document(docId).update(mapOf("status" to finalStatus)).await()
+  3031	                logActivity("${if (executeSuccess) "Approved" else "Failed to execute"} request: ${request.title}")
+  3032	                success = executeSuccess
+  3033	                
+  3034	            } catch (e: Exception) {
+  3035	                android.util.Log.e("JuktiViewModel", "Atomic approval transaction failed", e)
+  3036	                success = false
+  3037	            }
+  3038	        }
+  3039	    }
+  3040	
+  3041	    fun verifyAndProvisionPurchase(
+  3042	        purchaseToken: String,
+  3043	        purchaseId: String,
+  3044	        planId: String,
+  3045	        planName: String,
+  3046	        validity: String = "1 year",
+  3047	        validityType: String = "MONTHS",
+  3048	        validityValue: Int = 1,
+  3049	        isLifetime: Boolean = false,
+  3050	        productId: String = ""
+  3051	    ) {
+  3052	        viewModelScope.launch {
+  3053	            val user = userProfile.value ?: return@launch
+  3054	            val email = user.email.trim().lowercase(java.util.Locale.ROOT)
+  3055	            if (email.isBlank()) return@launch
+  3056	            val uid = email.replace("@", "_at_").replace(".", "_dot_")
+  3057	            
+  3058	            val now = getTrustedTime()
+  3059	            
+  3060	            val requestData = mapOf(
+  3061	                "purchaseId" to purchaseId,
+  3062	                "purchaseToken" to purchaseToken,
+  3063	                "planId" to planId,
+  3064	                "planName" to planName,
+  3065	                "productId" to productId,
+  3066	                "packageName" to "com.aistudio.jukti.examprep.app",
+  3067	                "validity" to validity,
+  3068	                "validityType" to validityType,
+  3069	                "validityValue" to validityValue,
+  3070	                "isLifetime" to isLifetime,
+  3071	                "userEmail" to email,
+  3072	                "status" to "PENDING_VERIFICATION",
+  3073	                "createdAt" to now,
+  3074	                "updatedAt" to now
+  3075	            )
+  3076	            
+  3077	            try {
+  3078	                val db = com.example.JuktiApplication.getFirestore(getApplication()) ?: return@launch
+  3079	                val reqRef = db.collection("users").document(uid).collection("purchaseRequests").document(purchaseId)
+  3080	                
+  3081	                reqRef.set(requestData, com.google.firebase.firestore.SetOptions.merge()).await()
+  3082	                android.util.Log.d("JuktiViewModel", "Submitted purchase verification request for $purchaseId")
+  3083	
+  3084	                // Pre-activate locally or sync from server
+  3085	                grantPlanToUser(
+  3086	                    email = email,
+  3087	                    planName = planName,
+  3088	                    validity = validity,
+  3089	                    validityType = validityType,
+  3090	                    validityValue = validityValue,
+  3091	                    isLifetime = isLifetime,
+  3092	                    source = "GOOGLE_PLAY"
+  3093	                )
+  3094	
+  3095	                // Sync local profile from server to pick up any server-verified entitlements
+  3096	                repository.syncUserProfileWithFirebase(email)
+  3097	                
+  3098	            } catch (e: Exception) {
+  3099	                android.util.Log.e("JuktiViewModel", "Error submitting purchase verification request", e)
+  3100	            }
+  3101	        }
+  3102	    }
+  3103	    
+  3104	    suspend fun grantPlanToUser(
+  3105	        email: String,
+  3106	        planName: String,
+  3107	        validity: String = "1 year",
+  3108	        validityType: String = "",
+  3109	        validityValue: Int = 0,
+  3110	        isLifetime: Boolean = false,
+  3111	        explicitValidUntil: Long = 0L,
+  3112	        source: String = "OWNER_ASSIGNED"
+  3113	    ): Boolean {
+  3114	        return try {
+  3115	            val trimmedEmail = email.trim().lowercase(java.util.Locale.ROOT)
+  3116	            if (trimmedEmail.isBlank()) return false
+  3117	            val now = getTrustedTime()
+  3118	
+  3119	            val vType = if (validityType.isNotBlank()) validityType else com.example.data.util.PlanValidityEngine.inferValidityType(validity)
+  3120	            val vVal = if (validityValue > 0) validityValue else com.example.data.util.PlanValidityEngine.inferValidityValue(validity)
+  3121	            val isLife = isLifetime || vType == "LIFETIME" || validity.equals("Lifetime", ignoreCase = true) || planName.contains("Lifetime", ignoreCase = true) || planName.contains("Free Plan", ignoreCase = true)
+  3122	            val finalValidityLabel = if (isLife) "Lifetime" else if (validity.isNotBlank() && !validity.equals("Custom", ignoreCase = true)) validity else com.example.data.util.PlanValidityEngine.formatValidityLabel(vType, vVal)
+  3123	
+  3124	            val targetValidUntil: Long = if (explicitValidUntil > 0L) {
+  3125	                explicitValidUntil
+  3126	            } else {
+  3127	                com.example.data.util.PlanValidityEngine.calculateExpiryTimestamp(
+  3128	                    activationTime = now,
+  3129	                    validityType = vType,
+  3130	                    validityValue = vVal,
+  3131	                    isLifetime = isLife
+  3132	                )
+  3133	            }
+  3134	
+  3135	            val actorEmail = userProfile.value?.email ?: "OWNER"
+  3136	            val sanitizedEmailDocId = com.example.data.repository.FirebaseRepository().getSanitizedUserDocId(trimmedEmail)
+  3137	            val planId = planName.lowercase(java.util.Locale.ROOT).replace(" ", "_")
+  3138	
+  3139	            // 1. Save directly to Firebase (both entitlements subdoc, user document, and entitlement_history)
+  3140	            repository.saveUserEntitlementToFirebase(
+  3141	                email = trimmedEmail,
+  3142	                planName = planName,
+  3143	                validUntil = targetValidUntil,
+  3144	                validFrom = now,
+  3145	                validity = finalValidityLabel,
+  3146	                validityType = vType,
+  3147	                validityValue = vVal,
+  3148	                isLifetime = isLife,
+  3149	                assignedBy = actorEmail,
+  3150	                source = source,
+  3151	                purchaseId = "ASSIGNMENT_${now}"
+  3152	            )
+  3153	
+  3154	            // 2. Insert into local Room database for entitlement & history
+  3155	            val newEntitlement = EntitlementEntity(
+  3156	                userId = sanitizedEmailDocId,
+  3157	                planId = planId,
+  3158	                planName = planName,
+  3159	                status = if (isLife || targetValidUntil > now) "ACTIVE" else "EXPIRED",
+  3160	                validFrom = now,
+  3161	                validUntil = targetValidUntil,
+  3162	                validityType = vType,
+  3163	                validityValue = vVal,
+  3164	                validityLabel = finalValidityLabel,
+  3165	                isLifetime = isLife,
+  3166	                benefits = "All Premium MCQs, Mock Tests, Notes, Analytics",
+  3167	                source = source,
+  3168	                purchaseId = "ASSIGNMENT_${now}",
+  3169	                activatedAt = now,
+  3170	                updatedAt = now
+  3171	            )
+  3172	            repository.insertEntitlement(newEntitlement)
+  3173	
+  3174	            val historyEntity = EntitlementHistoryEntity(
+  3175	                userId = sanitizedEmailDocId,
+  3176	                userEmail = trimmedEmail,
+  3177	                eventType = if (source == "GOOGLE_PLAY") "PURCHASED" else if (planName.equals("Free Plan", ignoreCase = true)) "FREE_PLAN_ASSIGNED" else "MANUALLY_ASSIGNED",
+  3178	                newPlan = planName,
+  3179	                newExpiry = targetValidUntil,
+  3180	                validityGranted = finalValidityLabel,
+  3181	                validityType = vType,
+  3182	                validityValue = vVal,
+  3183	                isLifetime = isLife,
+  3184	                source = source,
+  3185	                actor = actorEmail,
+  3186	                timestamp = now
+  3187	            )
+  3188	            repository.insertEntitlementHistory(historyEntity)
+  3189	
+  3190	            // 3. If target user is the currently logged in user, update StateFlows and local profile
+  3191	            val currentProf = userProfile.value
+  3192	            if (currentProf != null && currentProf.email.equals(trimmedEmail, ignoreCase = true)) {
+  3193	                _userEntitlements.value = _userEntitlements.value + newEntitlement
+  3194	                val updatedProf = currentProf.copy(isPremium = (newEntitlement.status == "ACTIVE" && !planName.equals("Free Plan", ignoreCase = true)))
+  3195	                repository.updateUserProfile(updatedProf)
+  3196	                // Download premium data since entitlement changed
+  3197	                refreshDataFromFirebase()
+  3198	            }
+  3199	
+  3200	            // 4. Optionally invoke Cloud Function if present
+  3201	            try {
+  3202	                val durationMs = if (targetValidUntil <= 0L) 100L * 365 * 24 * 60 * 60 * 1000L else (targetValidUntil - now).coerceAtLeast(0L)
+  3203	                val data = mapOf(
+  3204	                    "targetEmail" to trimmedEmail,
+  3205	                    "planName" to planName,
+  3206	                    "durationMs" to durationMs
+  3207	                )
+  3208	                val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+  3209	                functions.getHttpsCallable("grantPlanToUser").call(data).await()
+  3210	            } catch (e: Exception) {
+  3211	                // Cloud Function is optional, direct Firestore write is already complete
+  3212	            }
+  3213	
+  3214	            true
+  3215	        } catch (e: Exception) {
+  3216	            android.util.Log.e("JuktiViewModel", "Error granting plan to user", e)
+  3217	            false
+  3218	        }
+  3219	    }
+  3220	
+  3221	    fun exportUsersCsv(context: android.content.Context) {
+  3222	        viewModelScope.launch {
+  3223	            try {
+  3224	                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
+  3225	                val snapshot = db.collection("users").get().await()
+  3226	                val csvContent = StringBuilder("ID,Email,Name,Role,IsPremium\n")
+  3227	                for (doc in snapshot.documents) {
+  3228	                    val email = doc.getString("email") ?: ""
+  3229	                    val name = doc.getString("name") ?: ""
+  3230	                    val role = doc.getString("role") ?: ""
+  3231	                    val isPremium = doc.getBoolean("isPremium") ?: false
+  3232	                    csvContent.append("${doc.id},$email,$name,$role,$isPremium\n")
+  3233	                }
+  3234	                saveCsvToFile(context, "users_report.csv", csvContent.toString())
+  3235	            } catch (e: Exception) {
+  3236	                android.util.Log.e("JuktiViewModel", "Export failed", e)
+  3237	            }
+  3238	        }
+  3239	    }
+  3240	
+  3241	    fun exportPurchasesCsv(context: android.content.Context) {
+  3242	        viewModelScope.launch {
+  3243	            try {
+  3244	                val db = com.example.JuktiApplication.getFirestore(context) ?: return@launch
+  3245	                val snapshot = db.collectionGroup("purchases").get().await()
+  3246	                val csvContent = StringBuilder("PurchaseID,PlanName,Status,Timestamp\n")
+  3247	                for (doc in snapshot.documents) {
+  3248	                    val pid = doc.getString("purchaseId") ?: ""
+  3249	                    val plan = doc.getString("planName") ?: ""
+  3250	                    val status = doc.getString("status") ?: ""
+  3251	                    val ts = doc.getLong("timestamp") ?: 0L
+  3252	                    csvContent.append("$pid,$plan,$status,$ts\n")
+  3253	                }
+  3254	                saveCsvToFile(context, "purchases_report.csv", csvContent.toString())
+  3255	            } catch (e: Exception) {
+  3256	                android.util.Log.e("JuktiViewModel", "Export failed", e)
+  3257	            }
+  3258	        }
+  3259	    }
+  3260	
+  3261	    fun exportMocksCsv(context: android.content.Context) {
+  3262	        viewModelScope.launch {
+  3263	            val mocks = repository.allMockTests.firstOrNull() ?: emptyList()
+  3264	            val csvContent = StringBuilder("ID,Title,Category,TotalQuestions\n")
+  3265	            for (m in mocks) {
+  3266	                csvContent.append("${m.id},${m.titleEn},${m.category},${m.totalQuestions}\n")
+  3267	            }
+  3268	            saveCsvToFile(context, "mocks_report.csv", csvContent.toString())
+  3269	        }
+  3270	    }
+  3271	
+  3272	    fun exportQuestionsCsv(context: android.content.Context) {
+  3273	        viewModelScope.launch {
+  3274	            val qs = questions.value ?: emptyList()
+  3275	            val csvContent = StringBuilder("ID,Subject,Question\n")
+  3276	            for (q in qs) {
+  3277	                csvContent.append("${q.id},${q.subject},${q.questionEn}\n")
+  3278	            }
+  3279	            saveCsvToFile(context, "questions_report.csv", csvContent.toString())
+  3280	        }
+  3281	    }
+  3282	
+  3283	    private fun saveCsvToFile(context: android.content.Context, filename: String, content: String) {
+  3284	        try {
+  3285	            var savedUri: android.net.Uri? = null
+  3286	            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+  3287	                val resolver = context.contentResolver
+  3288	                val contentValues = android.content.ContentValues().apply {
+  3289	                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+  3290	                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+  3291	                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+  3292	                }
+  3293	                savedUri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+  3294	                if (savedUri != null) {
+  3295	                    resolver.openOutputStream(savedUri)?.use { it.write(content.toByteArray()) }
+  3296	                }
+  3297	            } else {
+  3298	                val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+  3299	                if (!dir.exists()) dir.mkdirs()
+  3300	                val file = java.io.File(dir, filename)
+  3301	                java.io.FileOutputStream(file).use { it.write(content.toByteArray()) }
+  3302	                savedUri = android.net.Uri.fromFile(file)
+  3303	            }
+  3304	
+  3305	            launchOnMain {
+  3306	                android.widget.Toast.makeText(
+  3307	                    context,
+  3308	                    "Saved $filename to Downloads folder!",
+  3309	                    android.widget.Toast.LENGTH_LONG
+  3310	                ).show()
+  3311	
+  3312	                if (savedUri != null) {
+  3313	                    try {
+  3314	                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+  3315	                            type = "text/csv"
+  3316	                            putExtra(android.content.Intent.EXTRA_STREAM, savedUri)
+  3317	                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+  3318	                        }
+  3319	                        val chooser = android.content.Intent.createChooser(shareIntent, "Open or Share $filename")
+  3320	                        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+  3321	                        context.startActivity(chooser)
+  3322	                    } catch (e: Exception) {
+  3323	                        android.util.Log.e("JuktiViewModel", "Share intent failed", e)
+  3324	                    }
+  3325	                }
+  3326	            }
+  3327	        } catch (e: Exception) {
+  3328	            android.util.Log.e("JuktiViewModel", "Error saving CSV", e)
+  3329	            launchOnMain {
+  3330	                android.widget.Toast.makeText(context, "Failed to save report: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
+  3331	            }
+  3332	        }
+  3333	    }
+  3334	
+  3335	    private fun launchOnMain(block: () -> Unit) {
+  3336	        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) { block() }
+  3337	    }
+  3338	
+  3339	    fun rejectPendingRequest(request: PendingRequestEntity) {
+  3340	        viewModelScope.launch {
+  3341	            repository.updatePendingRequest(request.copy(status = "REJECTED"))
+  3342	        }
+  3343	    }
+  3344	}

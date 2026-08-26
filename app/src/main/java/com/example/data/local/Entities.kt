@@ -24,6 +24,7 @@ data class QuestionEntity(
     val explanationAs: String,
     val examCategory: String = "ADRE", // e.g. "ADRE", "APSC", "Assam Police", "TET"
     val isPremium: Boolean = false,
+    val accessType: String = "FREE",
     val questionType: String = "Expected", // "PYQ", "Expected"
     val isReported: Boolean = false,
     val status: String = "ACTIVE", // "ACTIVE", "HIDDEN"
@@ -56,6 +57,7 @@ data class MockTestEntity(
     val negativeMarking: String = "0.25 Marks",
     val difficulty: String = "Medium", // "Easy", "Medium", "Hard"
     val isPremium: Boolean = false,
+    val accessType: String = "FREE",
     val inProgress: Boolean = false,
     val questionsAnswered: Int = 0,
     val timeRemainingSeconds: Int = 0,
@@ -92,7 +94,8 @@ data class StudyNoteEntity(
     val isBookmarked: Boolean = false,
     val isDownloaded: Boolean = false,
     val readTimeMinutes: Int = 5,
-    val isPremium: Boolean = false
+    val isPremium: Boolean = false,
+    val accessType: String = "FREE"
 )
 
 @Entity(tableName = "exam_updates")
@@ -153,6 +156,7 @@ data class UserProfileEntity(
     val correctCount: Int = 0,
     val totalTimeMinutes: Int = 0,
     val isPremium: Boolean = false,
+    val accessType: String = "FREE",
     val role: String = "USER",     // "USER", "ADMIN", "OWNER"
     val firebaseProjectId: String = "jukti-26035",
     val joinedDate: String = "Jul 2026",
@@ -353,9 +357,12 @@ data class SyncQueueEntity(
     val version: Long = 1L
 )
 
-@Entity(tableName = "entitlements")
+@Entity(
+    tableName = "entitlements",
+    primaryKeys = ["userId", "planId"]
+)
 data class EntitlementEntity(
-    @PrimaryKey val userId: String,
+    val userId: String,
     val planId: String,
     val planName: String,
     val status: String = "EXPIRED", // "ACTIVE", "EXPIRED", "REVOKED", "LIFETIME"
