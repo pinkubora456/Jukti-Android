@@ -43,7 +43,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val allQuestions by viewModel.questions.collectAsState()
+    val allQuestions by viewModel.accessibleQuestions.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
@@ -73,6 +73,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     "General English" -> q.subject == "General English"
                     "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                     "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                    "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
                     "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                     else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
                 }
@@ -207,6 +208,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     "General English" -> "General English"
                     "Mathematics", "General Mathematics" -> "Mathematics"
                     "Reasoning" -> "Reasoning"
+                    "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
+                    "Transport Rule" -> "Transport Rule"
                     else -> "All Subjects"
                 }
             }
@@ -395,6 +398,16 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         iconColor = MaterialTheme.colorScheme.secondary
                     ),
                     BannerConfig(
+                        titleEn = "Basic Computer",
+                        titleAs = "মৌলিক কম্পিউটাৰ (Computer)",
+                        subtitleEn = "Computer Fundamentals, MS Office, Hardware, Networking & Cyber Security",
+                        subtitleAs = "কম্পিউটাৰ পৰিচয়, এম.এছ. অফিচ, হাৰ্ডৱেৰ, নেটৱৰ্কিং আৰু চাইবাৰ সুৰক্ষা",
+                        subjectKey = "Basic Computer",
+                        icon = Icons.Default.Computer,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                        iconColor = MaterialTheme.colorScheme.tertiary
+                    ),
+                    BannerConfig(
                         titleEn = "Transport Rule",
                         titleAs = "পৰিবহন নিয়ম (Transport Rule)",
                         subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
@@ -451,6 +464,17 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                 allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
                             }
+                            "Basic Computer", "Computer Knowledge", "Computer" -> {
+                                set.add("Computer Fundamentals & Architecture")
+                                set.add("Operating Systems & MS Office (Word, Excel, PowerPoint)")
+                                set.add("Internet, Networking & Cyber Security")
+                                set.add("Hardware, Software & Input/Output Devices")
+                                set.add("Database, Shortcuts & Computer Abbreviations")
+                                visibleQuestions.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                             "Transport Rule" -> {
                                 set.add("Traffic Signs, Signals & Road Safety")
                                 set.add("Motor Vehicles Act & Traffic Rules")
@@ -484,6 +508,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             "General English" -> visibleQuestions.count { it.subject == "General English" }
                             "General Mathematics" -> visibleQuestions.count { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
                             "Reasoning" -> visibleQuestions.count { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            "Basic Computer", "Computer Knowledge", "Computer" -> visibleQuestions.count { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) || it.topic.contains("MS Office", ignoreCase = true) || it.topic.contains("Operating System", ignoreCase = true) || it.topic.contains("Internet", ignoreCase = true) || it.topic.contains("Hardware", ignoreCase = true) }
                             "Transport Rule" -> visibleQuestions.count { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true) }
                             else -> visibleQuestions.count { it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }

@@ -36,11 +36,14 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             .filter { it.isNotBlank() && !it.equals("Manual Entry", ignoreCase = true) && !it.equals("Manual", ignoreCase = true) }
             .distinct()
             .sorted()
-        if (!list.contains("Transport Rule")) {
-            (list + "Transport Rule").sorted()
-        } else {
-            list
+        var updated = list
+        if (!updated.contains("Transport Rule")) {
+            updated = (updated + "Transport Rule").sorted()
         }
+        if (!updated.contains("Basic Computer")) {
+            updated = (updated + "Basic Computer").sorted()
+        }
+        updated
     }
     val subjectsList: List<String> = rawSubjects
     var subjectExpanded by remember { mutableStateOf(false) }
@@ -62,6 +65,14 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     "Motor Vehicles Act & Traffic Rules",
                     "Driving Regulations, Licences & Permits",
                     "Vehicle Safety, Violations & Penalties"
+                )
+            } else if (normCurrentSubject == "Basic Computer" && fromList.isEmpty()) {
+                listOf(
+                    "Computer Fundamentals & Architecture",
+                    "Operating Systems & MS Office (Word, Excel, PowerPoint)",
+                    "Internet, Networking & Cyber Security",
+                    "Hardware, Software & Input/Output Devices",
+                    "Database, Shortcuts & Computer Abbreviations"
                 )
             } else {
                 fromList

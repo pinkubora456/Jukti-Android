@@ -33,7 +33,7 @@ import com.example.ui.viewmodel.Screen
 fun StudyNotesScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
-    val notes by viewModel.studyNotes.collectAsState()
+    val notes by viewModel.accessibleStudyNotes.collectAsState()
     val selectedNote by viewModel.selectedStudyNote.collectAsState()
 
     var noteSearchQuery by remember { mutableStateOf("") }

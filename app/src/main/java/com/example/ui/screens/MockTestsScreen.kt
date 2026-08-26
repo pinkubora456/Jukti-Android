@@ -42,7 +42,7 @@ import com.example.ui.viewmodel.JuktiViewModel
 @Composable
 fun MockTestsScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
-    val mockTests by viewModel.mockTests.collectAsState()
+    val mockTests by viewModel.accessibleMockTests.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
 
     // Interactive Selection Banner state ("All", "Full-Length", "Subject-wise", "Chapter-wise")

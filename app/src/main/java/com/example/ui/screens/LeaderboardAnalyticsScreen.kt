@@ -103,6 +103,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val examsList by viewModel.examsList.collectAsState()
     val plans by viewModel.plans.collectAsState()
     val userEntitlement by viewModel.userEntitlement.collectAsState()
+    val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
 
     var selectedTab by remember { mutableStateOf(initialTab) }
@@ -113,7 +114,7 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val subjectBreakdownList = remember { emptyList<SubjectBreakdown>() }
 
     // Mock test history data from local database
-    val mockTestsState by viewModel.mockTests.collectAsState()
+    val mockTestsState by viewModel.accessibleMockTests.collectAsState()
     val mockHistoryList = remember(mockTestsState) {
         mockTestsState.filter { it.isCompleted }.map { mock ->
             val scorePct = if (mock.totalMarks > 0) (mock.userScore.toFloat() / mock.totalMarks.toFloat()) * 100f else 0f
@@ -198,7 +199,62 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
             }
         }
 
-        Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
+        if (!isUserPremium && !isAdminOrOwner) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                    modifier = Modifier.size(80.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = if (isAssamese) "প্ৰিমিয়াম সুবিধা তলাবদ্ধ" else "Premium Analytics & Leaderboard Locked",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = if (isAssamese)
+                        "ৰাজ্যিক লিডাৰব'ৰ্ড, পৰীক্ষা পাছ কৰাৰ সম্ভাৱনা শতাংশ, আৰু বিষয়ভিত্তিক সঠিকতা বিশ্লেষণ কেৱল প্ৰিমিয়াম সদস্যৰ বাবে উপলব্ধ। আপোনাৰ প্লেন আপগ্ৰেড কৰক।"
+                    else
+                        "State Leaderboard ranking, exam clearance probability, accuracy analytics, and subject-wise weakness radar are exclusive benefits for paid subscribers.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { viewModel.showPaywall() },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(imageVector = Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isAssamese) "প্লেনসমূহ চাওক" else "View Premium Plans",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else {
+            Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
             if (tab == 0) {
                 // STATE LEADERBOARD TAB (HERO BAR, OVERALL VS SAME EXAM, TOP 3 PODIUM, DROPDOWN & RANK LIST)
                 LeaderboardTabContent(
@@ -274,7 +330,8 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 )
             }
         }
-    }
+        }
+        }
     }
 
     // Modal Dialog for Frequently Incorrect / Skipped Questions
@@ -1789,7 +1846,7 @@ fun LeaderboardTabContent(
         }
     }
  
-    val mockTestsState by viewModel.mockTests.collectAsState()
+    val mockTestsState by viewModel.accessibleMockTests.collectAsState()
     val mockHistoryList = remember(mockTestsState) {
         mockTestsState.filter { it.isCompleted }.map { mock ->
             val scorePct = if (mock.totalMarks > 0) (mock.userScore.toFloat() / mock.totalMarks.toFloat()) * 100f else 0f

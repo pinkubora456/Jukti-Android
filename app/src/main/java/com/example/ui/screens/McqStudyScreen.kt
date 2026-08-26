@@ -275,9 +275,9 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val questions by viewModel.questions.collectAsState()
-    val mockTests by viewModel.mockTests.collectAsState()
-    val studyNotes by viewModel.studyNotes.collectAsState()
+    val questions by viewModel.accessibleQuestions.collectAsState()
+    val mockTests by viewModel.accessibleMockTests.collectAsState()
+    val studyNotes by viewModel.accessibleStudyNotes.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
     
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
@@ -418,10 +418,11 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                 var searchQuery by remember { mutableStateOf("") }
                 var showSavedQuestionsDialog by remember { mutableStateOf(false) }
                 
-                val isPremium by viewModel.isUserPremium.collectAsState()
-                val availableQuestions = if (isPremium) questions.size else questions.count { !it.isPremium }
+                val accessibleCounts by viewModel.accessibleContentCounts.collectAsState()
+                val availableQuestions = accessibleCounts.questionsCount
                 val solvedQuestions = userProfile?.totalSolved ?: 0
-                val availableNotes = if (isPremium) studyNotes.size else studyNotes.count { !it.isPremium }
+                val availableNotes = accessibleCounts.studyNotesCount
+                val availableCurrentAffairs = accessibleCounts.currentAffairsCount
                 
                 Column(
                     modifier = Modifier
@@ -443,7 +444,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         )
                     )
 
-                    // 1. Learn
+                    // 1. Learn (Questions / MCQs)
                     if (searchQuery.isBlank() || "Learn".contains(searchQuery, ignoreCase = true) || "Master chapter-wise questions".contains(searchQuery, ignoreCase = true)) {
                         StudyFeatureCard(
                             title = "Learn",
@@ -458,7 +459,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         )
                     }
 
-                    // 2. Practice
+                    // 2. Practice (Questions / MCQs)
                     if (searchQuery.isBlank() || "Practice".contains(searchQuery, ignoreCase = true) || "Test yourself with instant explanations".contains(searchQuery, ignoreCase = true)) {
                         StudyFeatureCard(
                             title = "Practice",
@@ -487,7 +488,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         )
                     }
 
-                    // 4. Saved Questions
+                    // 5. Saved Questions
                     if (searchQuery.isBlank() || "Saved Questions".contains(searchQuery, ignoreCase = true) || "Review and manage your bookmarked MCQs".contains(searchQuery, ignoreCase = true)) {
                         StudyFeatureCard(
                             title = "Saved Questions",
@@ -502,7 +503,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         )
                     }
 
-                    // 5. Study Notes
+                    // 6. Study Notes
                     if (searchQuery.isBlank() || "Study Notes".contains(searchQuery, ignoreCase = true) || "Read chapter-wise notes".contains(searchQuery, ignoreCase = true)) {
                         StudyFeatureCard(
                             title = "Study Notes",
@@ -512,12 +513,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             iconTintColor = MaterialTheme.colorScheme.primary,
                             onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
-                            progressText = "$availableNotes chapters available",
+                            progressText = "$availableNotes study notes available",
                             badgeText = "🆕 New"
                         )
                     }
 
-                    // 6. Current Affairs
+                    // 7. Current Affairs
                     if (searchQuery.isBlank() || "Current Affairs".contains(searchQuery, ignoreCase = true) || "Stay updated with daily current affairs notes".contains(searchQuery, ignoreCase = true)) {
                         StudyFeatureCard(
                             title = "Current Affairs",
@@ -527,6 +528,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                             iconTintColor = MaterialTheme.colorScheme.tertiary,
                             onClick = { viewModel.setStudySubView("CURRENT_AFFAIRS", fromHome = false) },
+                            progressText = "$availableCurrentAffairs updates available",
                             badgeText = "🆕 New"
                         )
                     }
@@ -700,7 +702,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
-    val questions by viewModel.questions.collectAsState()
+    val questions by viewModel.accessibleQuestions.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
@@ -769,6 +771,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         "General English" -> q.subject == "General English"
                         "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                         "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
                         "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                         else -> q.subject.equals(selectedSubjectTab, ignoreCase = true)
                     }
@@ -904,6 +907,16 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         iconColor = MaterialTheme.colorScheme.secondary
                     ),
                     StudyBannerConfig(
+                        titleEn = "Basic Computer",
+                        titleAs = "মৌলিক কম্পিউটাৰ (Computer)",
+                        subtitleEn = "Computer Fundamentals, MS Office, Hardware, Networking & Cyber Security",
+                        subtitleAs = "কম্পিউটাৰ পৰিচয়, এম.এছ. অফিচ, হাৰ্ডৱেৰ, নেটৱৰ্কিং আৰু চাইবাৰ সুৰক্ষা",
+                        subjectKey = "Basic Computer",
+                        icon = Icons.Default.Computer,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                        iconColor = MaterialTheme.colorScheme.tertiary
+                    ),
+                    StudyBannerConfig(
                         titleEn = "Transport Rule",
                         titleAs = "পৰিবহন নিয়ম (Transport Rule)",
                         subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
@@ -959,6 +972,17 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
                             }
+                            "Basic Computer", "Computer Knowledge", "Computer" -> {
+                                set.add("Computer Fundamentals & Architecture")
+                                set.add("Operating Systems & MS Office (Word, Excel, PowerPoint)")
+                                set.add("Internet, Networking & Cyber Security")
+                                set.add("Hardware, Software & Input/Output Devices")
+                                set.add("Database, Shortcuts & Computer Abbreviations")
+                                questions.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) }
+                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic)) }
+                                allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
+                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter)) }
+                            }
                             "Transport Rule" -> {
                                 set.add("Traffic Signs, Signals & Road Safety")
                                 set.add("Motor Vehicles Act & Traffic Rules")
@@ -992,6 +1016,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General English" -> questions.count { !hiddenIds.contains(it.id) && it.subject == "General English" }
                             "General Mathematics" -> questions.count { !hiddenIds.contains(it.id) && it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
                             "Reasoning" -> questions.count { !hiddenIds.contains(it.id) && it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
+                            "Basic Computer", "Computer Knowledge", "Computer" -> questions.count { !hiddenIds.contains(it.id) && (it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) || it.topic.contains("MS Office", ignoreCase = true) || it.topic.contains("Operating System", ignoreCase = true) || it.topic.contains("Internet", ignoreCase = true) || it.topic.contains("Hardware", ignoreCase = true)) }
                             "Transport Rule" -> questions.count { !hiddenIds.contains(it.id) && (it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) || it.topic.contains("Driving Regulation", ignoreCase = true) || it.topic.contains("Vehicle Safety", ignoreCase = true)) }
                             else -> questions.count { !hiddenIds.contains(it.id) && it.subject.equals(banner.subjectKey, ignoreCase = true) }
                         }
@@ -1036,6 +1061,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             "General English" -> "General English"
                             "General Mathematics" -> "Mathematics"
                             "Reasoning" -> "Reasoning"
+                            "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
+                            "Transport Rule" -> "Transport Rule"
                             else -> "All Subjects"
                         },
                         style = MaterialTheme.typography.titleMedium,
@@ -1585,7 +1612,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val questions by viewModel.questions.collectAsState()
+    val questions by viewModel.accessibleQuestions.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
@@ -2382,7 +2409,7 @@ fun TetExamPatternCard(isAssamese: Boolean) {
 fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
-    val allNotes by viewModel.studyNotes.collectAsState()
+    val allNotes by viewModel.accessibleStudyNotes.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 

@@ -587,18 +587,18 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val isAdminOrOwner: StateFlow<Boolean> = combine(userProfile, aboutConfig) { profile, config ->
-        val email = profile?.email?.trim()
-        val isOwnerEmail = email?.equals("juktieducation@gmail.com", ignoreCase = true) == true
-        val adminEmails = config.adminEmails.split(",").map { it.trim() }
-        profile?.role == "ADMIN" || profile?.role == "OWNER" || isOwnerEmail || (email != null && adminEmails.contains(email))
+        val email = profile?.email?.trim()?.lowercase() ?: ""
+        val isOwnerEmail = email == "juktieducation@gmail.com"
+        val adminEmails = config.adminEmails.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+        val isAdminEmail = email.isNotBlank() && adminEmails.contains(email)
+        isOwnerEmail || isAdminEmail
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
     )
 
     val isOwner: StateFlow<Boolean> = userProfile.map { profile ->
-        val email = profile?.email?.trim()
-        val isOwnerEmail = email?.equals("juktieducation@gmail.com", ignoreCase = true) == true
-        profile?.role == "OWNER" || isOwnerEmail
+        val email = profile?.email?.trim()?.lowercase() ?: ""
+        email == "juktieducation@gmail.com"
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
     )
@@ -606,11 +606,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun getUserRoleDirect(email: String, roleInProfile: String? = null): UserRole {
         val config = repository.getAboutConfigDirect()
         val trimmed = email.trim().lowercase()
-        if (trimmed == "juktieducation@gmail.com" || roleInProfile?.uppercase() == "OWNER") {
+        if (trimmed == "juktieducation@gmail.com") {
             return UserRole.OWNER
         }
-        val adminEmails = config?.adminEmails?.split(",")?.map { it.trim().lowercase() } ?: emptyList()
-        if (roleInProfile?.uppercase() == "ADMIN" || adminEmails.contains(trimmed)) {
+        val adminEmails = config?.adminEmails?.split(",")?.map { it.trim().lowercase() }?.filter { it.isNotBlank() } ?: emptyList()
+        if (adminEmails.contains(trimmed)) {
             return UserRole.ADMIN
         }
         return UserRole.USER
@@ -618,11 +618,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getUserRole(email: String, roleInProfile: String? = null): UserRole {
         val trimmed = email.trim().lowercase()
-        if (trimmed == "juktieducation@gmail.com" || roleInProfile?.uppercase() == "OWNER") {
+        if (trimmed == "juktieducation@gmail.com") {
             return UserRole.OWNER
         }
-        val adminEmails = aboutConfig.value.adminEmails.split(",").map { it.trim().lowercase() }
-        if (roleInProfile?.uppercase() == "ADMIN" || adminEmails.contains(trimmed)) {
+        val adminEmails = aboutConfig.value.adminEmails.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+        if (adminEmails.contains(trimmed)) {
             return UserRole.ADMIN
         }
         return UserRole.USER
@@ -655,24 +655,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val userEntitlement: StateFlow<EntitlementEntity?> = _userEntitlement.asStateFlow()
 
     fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = getTrustedTime()): Boolean {
-        if (entitlement == null) return false
-        if (entitlement.status != "ACTIVE") return false
-        if (entitlement.planId.isBlank() && entitlement.planName.isBlank()) return false
-        if (entitlement.validUntil > 0L && entitlement.validUntil < currentTime) return false
-        if (entitlement.validFrom > 0L && currentTime < entitlement.validFrom - 86400000L) return false
-        return true
+        return com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, currentTime)
     }
 
     fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
         val entitlement = userEntitlement.value
         val now = getTrustedTime()
-        if (entitlement != null && entitlement.status == "ACTIVE") {
+        if (entitlement != null && com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, now)) {
             val matchesId = entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true)
             val matchesName = entitlement.planName.equals(plan.planName, ignoreCase = true)
-            val isValid = entitlement.validUntil <= 0L || entitlement.validUntil > now
-            if ((matchesId || matchesName) && isValid) {
-                return true
-            }
+            return matchesId || matchesName
         }
         return false
     }
@@ -717,15 +709,127 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         val isUserAdminOrOwner = admin || profile?.role == "ADMIN" || profile?.role == "OWNER"
         if (isUserAdminOrOwner) {
             true
-        } else if (validateEntitlement(entitlement)) {
-            true
-        } else if (profile?.isPremium == true && (entitlement == null || entitlement.validUntil <= 0L || entitlement.validUntil > getTrustedTime())) {
-            true
         } else {
-            false
+            com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, getTrustedTime())
         }
     }.stateIn(
         viewModelScope, SharingStarted.Eagerly, false
+    )
+
+    val accessibleContentCounts: StateFlow<com.example.data.util.PlanAccessibleContentCounts> = combine(
+        userProfile,
+        userEntitlement,
+        plans,
+        mockTests,
+        studyNotes,
+        questions,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        val entitlement = args[1] as? EntitlementEntity
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val notes = args[4] as? List<StudyNoteEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val qs = args[5] as? List<QuestionEntity> ?: emptyList()
+        val admin = args[6] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.calculateAccessibleCounts(
+            userProfile = profile,
+            entitlement = entitlement,
+            plans = allPlans,
+            mockTests = mocks,
+            studyNotes = notes,
+            questions = qs,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.data.util.PlanAccessibleContentCounts()
+    )
+
+    val accessibleMockTests: StateFlow<List<MockTestEntity>> = combine(
+        userProfile,
+        userEntitlement,
+        plans,
+        mockTests,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        val entitlement = args[1] as? EntitlementEntity
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleMockTests(
+            userProfile = profile,
+            entitlement = entitlement,
+            plans = allPlans,
+            mockTests = mocks,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val accessibleStudyNotes: StateFlow<List<StudyNoteEntity>> = combine(
+        userProfile,
+        userEntitlement,
+        plans,
+        studyNotes,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        val entitlement = args[1] as? EntitlementEntity
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleStudyNotes(
+            userProfile = profile,
+            entitlement = entitlement,
+            plans = allPlans,
+            studyNotes = notes,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val accessibleQuestions: StateFlow<List<QuestionEntity>> = combine(
+        userProfile,
+        userEntitlement,
+        plans,
+        questions,
+        isAdminOrOwner
+    ) { args: Array<Any?> ->
+        val profile = args[0] as? UserProfileEntity
+        val entitlement = args[1] as? EntitlementEntity
+        @Suppress("UNCHECKED_CAST")
+        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val qs = args[3] as? List<QuestionEntity> ?: emptyList()
+        val admin = args[4] as? Boolean ?: false
+
+        com.example.data.util.PlanValidityEngine.filterAccessibleQuestions(
+            userProfile = profile,
+            entitlement = entitlement,
+            plans = allPlans,
+            questions = qs,
+            isAdminOrOwner = admin,
+            currentTime = getTrustedTime()
+        )
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
     // Selection & Filter States
@@ -1106,7 +1210,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectMockTest(mock: MockTestEntity) {
-        if (mock.isPremium && !isUserPremium.value) {
+        val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
+        val isAccessible = isUserAdmin || accessibleMockTests.value.any { it.id == mock.id }
+        if (!isAccessible || (mock.isPremium && !isUserPremium.value && !isUserAdmin)) {
             _showPremiumPaywall.value = true
             return
         }
@@ -1222,9 +1328,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectStudyNote(note: StudyNoteEntity?) {
-        if (note != null && note.isPremium && !isUserPremium.value) {
-            _showPremiumPaywall.value = true
-            return
+        if (note != null) {
+            val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
+            val isAccessible = isUserAdmin || accessibleStudyNotes.value.any { it.id == note.id }
+            if (!isAccessible || (note.isPremium && !isUserPremium.value && !isUserAdmin)) {
+                _showPremiumPaywall.value = true
+                return
+            }
         }
         _selectedStudyNote.value = note
         if (note != null) {
@@ -1604,7 +1714,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleDownloadNote(n: StudyNoteEntity) {
-        if (n.isPremium && !isUserPremium.value) {
+        val isUserAdmin = isAdminOrOwner.value || userProfile.value?.role in listOf("ADMIN", "OWNER")
+        val isAccessible = isUserAdmin || accessibleStudyNotes.value.any { it.id == n.id }
+        if (!isAccessible || (n.isPremium && !isUserPremium.value && !isUserAdmin)) {
             _showPremiumPaywall.value = true
             return
         }
@@ -1707,12 +1819,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val deviceId = java.util.UUID.randomUUID().toString()
 
                 val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true)
-                val isAdminEmail = email.equals("borapinku151@gmail.com", ignoreCase = true)
-                val defaultRole = when {
-                    isOwnerEmail -> "OWNER"
-                    isAdminEmail -> "ADMIN"
-                    else -> "USER"
-                }
+                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
 
                 withContext(Dispatchers.IO) {
                     repository.loadUserProfileForAuth(
@@ -1754,12 +1861,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val deviceId = java.util.UUID.randomUUID().toString()
 
                 val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true)
-                val isAdminEmail = trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
-                val defaultRole = when {
-                    isOwnerEmail -> "OWNER"
-                    isAdminEmail -> "ADMIN"
-                    else -> "USER"
-                }
+                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
 
                 withContext(Dispatchers.IO) {
                     repository.loadUserProfileForAuth(
@@ -1864,12 +1966,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val gName = fbDisplayName?.trim()?.ifBlank { nameInput.trim() } ?: nameInput.trim()
 
                 val isOwnerEmail = effectiveEmail.equals("juktieducation@gmail.com", ignoreCase = true)
-                val isAdminEmail = effectiveEmail.equals("borapinku151@gmail.com", ignoreCase = true)
-                val defaultRole = when {
-                    isOwnerEmail -> "OWNER"
-                    isAdminEmail -> "ADMIN"
-                    else -> "USER"
-                }
+                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
 
                 withContext(Dispatchers.IO) {
                     repository.loadUserProfileForAuth(

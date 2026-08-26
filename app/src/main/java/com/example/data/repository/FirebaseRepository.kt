@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import android.util.Log
 import com.example.data.local.*
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -239,7 +240,7 @@ class FirebaseRepository {
                 val validityLabel = if (isLifetime) "Lifetime" else snapshot.getString("validityLabel") ?: com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
                 val validFrom = snapshot.getLong("validFrom") ?: snapshot.getLong("activatedAt") ?: 0L
                 val validUntil = if (isLifetime) 0L else snapshot.getLong("validUntil") ?: 0L
-                val isExpired = !isLifetime && validUntil > 0L && validUntil <= System.currentTimeMillis()
+                val isExpired = !isLifetime && (validUntil <= 0L || validUntil <= System.currentTimeMillis())
 
                 if (isExpired || isFree) {
                     return defaultFreeEntitlement
@@ -276,7 +277,7 @@ class FirebaseRepository {
                 val vType = userDocSnapshot.getString("validityType") ?: if (rawIsLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(validity)
                 val isLifetime = isFree || rawIsLifetime || vType == "LIFETIME" || validity.equals("Lifetime", ignoreCase = true) || planName.contains("Lifetime", ignoreCase = true)
                 val validUntil = if (isLifetime) 0L else userDocSnapshot.getLong("validUntil") ?: userDocSnapshot.getLong("assignedValidUntil") ?: 0L
-                val isExpired = !isLifetime && validUntil > 0L && validUntil <= System.currentTimeMillis()
+                val isExpired = !isLifetime && (validUntil <= 0L || validUntil <= System.currentTimeMillis())
 
                 if (isExpired || isFree || (!isPremium && planName.isBlank())) {
                     return defaultFreeEntitlement
@@ -1811,6 +1812,155 @@ class FirebaseRepository {
             trySend(null)
         }
         awaitClose { listener?.remove() }
+    }
+
+    fun observeUserEntitlement(email: String, explicitUid: String? = null): Flow<EntitlementEntity?> = callbackFlow {
+        var entListener: ListenerRegistration? = null
+        var userDocListener: ListenerRegistration? = null
+        try {
+            val db = firestore
+            val trimmedEmail = email.trim().lowercase()
+            val sanitizedEmailDocId = if (trimmedEmail.isNotBlank()) getSanitizedUserDocId(trimmedEmail) else ""
+            val currentUid = explicitUid?.trim()?.ifBlank { null }
+            val resolvedUserId = sanitizedEmailDocId.ifBlank { currentUid ?: "default_user" }
+
+            val defaultFreeEntitlement = EntitlementEntity(
+                userId = resolvedUserId,
+                planId = "free_plan",
+                planName = "Free Plan",
+                status = "ACTIVE",
+                validFrom = 0L,
+                validUntil = 0L,
+                validityType = "LIFETIME",
+                validityValue = 0,
+                validityLabel = "Lifetime",
+                isLifetime = true,
+                benefits = "Basic Questions, Daily Tests, Syllabus Updates",
+                source = "DEFAULT_FREE",
+                purchaseId = "FREE_LIFETIME",
+                activatedAt = 0L,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            if (db == null || (sanitizedEmailDocId.isBlank() && currentUid == null)) {
+                trySend(defaultFreeEntitlement)
+            } else {
+                val primaryDocPath = if (sanitizedEmailDocId.isNotBlank()) sanitizedEmailDocId else currentUid!!
+
+                fun parseSnapshot(snap: DocumentSnapshot?, userSnap: DocumentSnapshot?): EntitlementEntity {
+                    if (snap != null && snap.exists()) {
+                        val planName = snap.getString("planName") ?: ""
+                        val isFree = planName.isBlank() || planName.equals("Free Plan", ignoreCase = true)
+                        val rawIsLifetime = snap.getBoolean("isLifetime") ?: false
+                        val rawVal = snap.getString("validity") ?: snap.getString("validityLabel") ?: ""
+                        val validityType = snap.getString("validityType") ?: if (rawIsLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
+                        val isLifetime = isFree || rawIsLifetime || validityType == "LIFETIME" || rawVal.equals("Lifetime", ignoreCase = true) || planName.contains("Lifetime", ignoreCase = true)
+                        val validityValue = snap.getLong("validityValue")?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(rawVal)
+                        val validityLabel = if (isLifetime) "Lifetime" else snap.getString("validityLabel") ?: com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
+                        val validFrom = snap.getLong("validFrom") ?: snap.getLong("activatedAt") ?: 0L
+                        val validUntil = if (isLifetime) 0L else snap.getLong("validUntil") ?: 0L
+                        val isExpired = !isLifetime && (validUntil <= 0L || validUntil <= System.currentTimeMillis())
+
+                        if (isExpired || isFree) {
+                            return defaultFreeEntitlement
+                        }
+
+                        val status = snap.getString("status") ?: "ACTIVE"
+                        if (status != "ACTIVE" && status != "LIFETIME") {
+                            return defaultFreeEntitlement
+                        }
+
+                        return EntitlementEntity(
+                            userId = resolvedUserId,
+                            planId = snap.getString("planId")?.ifBlank { planName.lowercase(java.util.Locale.ROOT).replace(" ", "_") } ?: planName.lowercase(java.util.Locale.ROOT).replace(" ", "_"),
+                            planName = planName,
+                            status = "ACTIVE",
+                            validFrom = validFrom,
+                            validUntil = validUntil,
+                            validityType = validityType,
+                            validityValue = validityValue,
+                            validityLabel = validityLabel,
+                            isLifetime = isLifetime,
+                            benefits = (snap.get("benefits") as? List<*>)?.joinToString(",") ?: "All Premium MCQs, Mock Tests, Notes, Analytics",
+                            source = snap.getString("source") ?: "OWNER_ASSIGNED",
+                            purchaseId = snap.getString("purchaseId") ?: "",
+                            activatedAt = snap.getLong("activatedAt") ?: validFrom,
+                            updatedAt = snap.getLong("updatedAt") ?: System.currentTimeMillis()
+                        )
+                    } else if (userSnap != null && userSnap.exists()) {
+                        val isPremium = userSnap.getBoolean("isPremium") ?: false
+                        val planName = userSnap.getString("planName") ?: userSnap.getString("assignedPlan") ?: ""
+                        val isFree = planName.isBlank() || planName.equals("Free Plan", ignoreCase = true)
+                        val rawIsLifetime = userSnap.getBoolean("isLifetime") ?: false
+                        val validity = userSnap.getString("validity") ?: userSnap.getString("assignedValidity") ?: ""
+                        val vType = userSnap.getString("validityType") ?: if (rawIsLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(validity)
+                        val isLifetime = isFree || rawIsLifetime || vType == "LIFETIME" || validity.equals("Lifetime", ignoreCase = true) || planName.contains("Lifetime", ignoreCase = true)
+                        val validUntil = if (isLifetime) 0L else userSnap.getLong("validUntil") ?: userSnap.getLong("assignedValidUntil") ?: 0L
+                        val isExpired = !isLifetime && (validUntil <= 0L || validUntil <= System.currentTimeMillis())
+
+                        if (isExpired || isFree || (!isPremium && planName.isBlank())) {
+                            return defaultFreeEntitlement
+                        }
+
+                        val resolvedPlanName = if (planName.isNotBlank()) planName else "Premium Pass"
+                        val planId = resolvedPlanName.lowercase(java.util.Locale.ROOT).replace(" ", "_")
+                        val vVal = userSnap.getLong("validityValue")?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(validity)
+                        val vLabel = if (isLifetime) "Lifetime" else userSnap.getString("validityLabel") ?: com.example.data.util.PlanValidityEngine.formatValidityLabel(vType, vVal)
+                        val validFrom = userSnap.getLong("validFrom") ?: userSnap.getLong("assignedAt") ?: 0L
+
+                        return EntitlementEntity(
+                            userId = resolvedUserId,
+                            planId = planId,
+                            planName = resolvedPlanName,
+                            status = "ACTIVE",
+                            validFrom = validFrom,
+                            validUntil = validUntil,
+                            validityType = vType,
+                            validityValue = vVal,
+                            validityLabel = vLabel,
+                            isLifetime = isLifetime,
+                            benefits = "All Premium MCQs, Mock Tests, Notes, Analytics",
+                            source = userSnap.getString("assignedBy") ?: userSnap.getString("source") ?: "OWNER_ASSIGNED",
+                            purchaseId = "DOC_ASSIGNMENT",
+                            activatedAt = validFrom,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    } else {
+                        return defaultFreeEntitlement
+                    }
+                }
+
+                var lastEntSnap: DocumentSnapshot? = null
+                var lastUserSnap: DocumentSnapshot? = null
+
+                entListener = db.collection("users").document(primaryDocPath)
+                    .collection("entitlements").document("current")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            logListenerError("Error observing entitlement current doc", error)
+                            return@addSnapshotListener
+                        }
+                        lastEntSnap = snapshot
+                        trySend(parseSnapshot(lastEntSnap, lastUserSnap))
+                    }
+
+                userDocListener = db.collection("users").document(primaryDocPath)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            logListenerError("Error observing user doc for entitlement", error)
+                            return@addSnapshotListener
+                        }
+                        lastUserSnap = snapshot
+                        trySend(parseSnapshot(lastEntSnap, lastUserSnap))
+                    }
+            }
+        } catch (e: Throwable) {
+            Log.e("FirebaseRepository", "Error setting up user entitlement observer", e)
+        }
+        awaitClose {
+            entListener?.remove()
+            userDocListener?.remove()
+        }
     }
 
     suspend fun deleteUserAccount(uid: String, email: String) {

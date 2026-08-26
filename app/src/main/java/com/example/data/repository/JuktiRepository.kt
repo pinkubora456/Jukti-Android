@@ -77,6 +77,10 @@ fun normalizeSubjectName(raw: String?): String {
         trimmed.equals("ManualEntry", ignoreCase = true) ||
         trimmed.equals("Transport Rules", ignoreCase = true) ||
         trimmed.equals("Transport Rule", ignoreCase = true) -> "Transport Rule"
+        trimmed.equals("Computer Knowledge", ignoreCase = true) ||
+        trimmed.equals("Basic Computer", ignoreCase = true) ||
+        trimmed.equals("Computer", ignoreCase = true) ||
+        trimmed.equals("Computer Awareness", ignoreCase = true) -> "Basic Computer"
         else -> trimmed
     }
 }
@@ -97,6 +101,13 @@ fun normalizeQuestionEntity(q: QuestionEntity): QuestionEntity {
         normTopic.contains("Driving Regulation", ignoreCase = true) ||
         normTopic.contains("Vehicle Safety", ignoreCase = true) -> "Transport Rule"
         normTopic == "One-Word & Idioms" && (rawSubjectTrimmed.isBlank() || rawSubjectTrimmed.contains("Idiom", ignoreCase = true) || rawSubjectTrimmed.contains("One-Word", ignoreCase = true) || rawSubjectTrimmed.contains("English", ignoreCase = true)) -> "General English"
+        rawSubjectTrimmed.equals("Computer Knowledge", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Basic Computer", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Computer", ignoreCase = true) ||
+        rawSubjectTrimmed.equals("Computer Awareness", ignoreCase = true) ||
+        normTopic.contains("Computer Fundamentals", ignoreCase = true) ||
+        normTopic.contains("MS Office", ignoreCase = true) ||
+        normTopic.contains("Operating Systems", ignoreCase = true) -> "Basic Computer"
         else -> rawSubjectTrimmed
     }
     return if (normTopic != q.topic || normSubject != q.subject) {
@@ -261,12 +272,34 @@ class JuktiRepository(
     
     fun observeUserProfile(email: String, uid: String?): Flow<UserProfileEntity?> =
         firebaseRepository.observeUserProfile(email, uid)
+
+    fun observeUserEntitlement(email: String, uid: String? = null): Flow<EntitlementEntity?> =
+        firebaseRepository.observeUserEntitlement(email, uid)
     
     fun getUserEntitlement(userId: String, altUserId1: String = "", altUserId2: String = ""): Flow<EntitlementEntity?> {
-        return if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
+        val email = if (userId.contains("@")) userId else if (altUserId1.contains("@")) altUserId1 else if (altUserId2.contains("@")) altUserId2 else ""
+        val uid = if (!userId.contains("@") && userId.isNotBlank()) userId else if (!altUserId1.contains("@") && altUserId1.isNotBlank()) altUserId1 else if (!altUserId2.contains("@") && altUserId2.isNotBlank()) altUserId2 else null
+        
+        val localFlow = if (altUserId1.isNotBlank() || altUserId2.isNotBlank()) {
             entitlementDao.getEntitlementMulti(userId, altUserId1, altUserId2)
         } else {
             entitlementDao.getEntitlement(userId)
+        }
+
+        return combine(
+            firebaseRepository.observeUserEntitlement(email, uid),
+            localFlow
+        ) { remoteEnt, localEnt ->
+            if (remoteEnt != null) {
+                try {
+                    entitlementDao.insertEntitlement(remoteEnt)
+                } catch (e: Throwable) {
+                    // Ignore transient local cache errors
+                }
+                remoteEnt
+            } else {
+                localEnt
+            }
         }
     }
 
@@ -453,6 +486,12 @@ class JuktiRepository(
                 if (!hasTransportRule) {
                     val transportChapters = SampleData.sampleSubjectsChapters.filter { it.subject == "Transport Rule" }
                     subjectChapterDao.insertAll(transportChapters)
+                }
+                // Ensure Basic Computer chapters exist in Room
+                val hasBasicComputer = updatedChapters.any { it.subject.equals("Basic Computer", ignoreCase = true) || it.subject.equals("Computer Knowledge", ignoreCase = true) }
+                if (!hasBasicComputer) {
+                    val computerChapters = SampleData.sampleSubjectsChapters.filter { it.subject == "Basic Computer" }
+                    subjectChapterDao.insertAll(computerChapters)
                 }
                 // Ensure General English One-Word & Idioms exists
                 val hasOneWordIdioms = updatedChapters.any { it.subject == "General English" && it.chapter == "One-Word & Idioms" }
@@ -909,7 +948,14 @@ class JuktiRepository(
             }
         }
 
+        val isOwner = email.trim().lowercase() == "juktieducation@gmail.com"
+        val hasActivePaidEntitlement = remoteEntitlement != null &&
+            remoteEntitlement.status == "ACTIVE" &&
+            !remoteEntitlement.planName.equals("Free Plan", ignoreCase = true) &&
+            (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)
+
         val resolvedProfile = if (remoteProfile != null) {
+            val role = if (isOwner) "OWNER" else if (remoteProfile.role == "OWNER") "USER" else remoteProfile.role
             remoteProfile.copy(
                 uid = uid,
                 email = email,
@@ -917,7 +963,8 @@ class JuktiRepository(
                 isLoggedIn = true,
                 currentDeviceId = deviceId,
                 activeDeviceId = deviceId,
-                role = if (defaultRole == "OWNER" || defaultRole == "ADMIN") defaultRole else remoteProfile.role
+                role = role,
+                isPremium = isOwner || hasActivePaidEntitlement
             )
         } else {
             val defaultDisplayName = if (googleName.isNotBlank()) {
@@ -942,8 +989,8 @@ class JuktiRepository(
                 totalSolved = 0,
                 correctCount = 0,
                 totalTimeMinutes = 0,
-                isPremium = (defaultRole == "OWNER" || defaultRole == "ADMIN"),
-                role = defaultRole,
+                isPremium = isOwner || hasActivePaidEntitlement,
+                role = if (isOwner) "OWNER" else "USER",
                 firebaseProjectId = "jukti-26035",
                 joinedDate = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.US).format(java.util.Date()),
                 isLoggedIn = true,

@@ -209,10 +209,12 @@ object SampleData {
         SubjectChapterEntity(id = 30L, subject = "General Science", chapter = "Chemistry: Elements, Compounds & Reactions"),
         SubjectChapterEntity(id = 31L, subject = "General Science", chapter = "Biology: Human Anatomy, Nutrition & Diseases"),
 
-        // 9. Computer Knowledge
-        SubjectChapterEntity(id = 32L, subject = "Computer Knowledge", chapter = "Computer Fundamentals & Architecture"),
-        SubjectChapterEntity(id = 33L, subject = "Computer Knowledge", chapter = "Operating Systems & MS Office (Word, Excel, PowerPoint)"),
-        SubjectChapterEntity(id = 34L, subject = "Computer Knowledge", chapter = "Internet, Networking & Cyber Security"),
+        // 9. Basic Computer
+        SubjectChapterEntity(id = 32L, subject = "Basic Computer", chapter = "Computer Fundamentals & Architecture"),
+        SubjectChapterEntity(id = 33L, subject = "Basic Computer", chapter = "Operating Systems & MS Office (Word, Excel, PowerPoint)"),
+        SubjectChapterEntity(id = 34L, subject = "Basic Computer", chapter = "Internet, Networking & Cyber Security"),
+        SubjectChapterEntity(id = 42L, subject = "Basic Computer", chapter = "Hardware, Software & Input/Output Devices"),
+        SubjectChapterEntity(id = 43L, subject = "Basic Computer", chapter = "Database, Shortcuts & Computer Abbreviations"),
 
         // 10. Current Affairs & General Awareness
         SubjectChapterEntity(id = 35L, subject = "Current Affairs & General Awareness", chapter = "National Current Affairs (2025-2026)"),

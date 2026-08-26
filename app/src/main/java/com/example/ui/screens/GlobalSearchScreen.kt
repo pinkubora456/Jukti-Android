@@ -26,10 +26,10 @@ import com.example.ui.viewmodel.Screen
 fun GlobalSearchScreen(viewModel: JuktiViewModel) {
     val language by viewModel.language.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val questions by viewModel.questions.collectAsState()
+    val questions by viewModel.accessibleQuestions.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
-    val notes by viewModel.studyNotes.collectAsState()
-    val mockTests by viewModel.mockTests.collectAsState()
+    val notes by viewModel.accessibleStudyNotes.collectAsState()
+    val mockTests by viewModel.accessibleMockTests.collectAsState()
     val examUpdates by viewModel.examUpdates.collectAsState()
 
     var query by remember { mutableStateOf("") }
