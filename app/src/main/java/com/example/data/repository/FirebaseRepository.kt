@@ -1081,6 +1081,53 @@ class FirebaseRepository {
         }
     }
 
+    suspend fun fetchAllQuestionsForAdmin(): List<QuestionEntity> {
+        return try {
+            val snapshot = firestore?.collection("questions")?.get()?.await()
+            snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    val rawTopic = doc.getString("topic") ?: ""
+                    val rawSubject = doc.getString("subject") ?: ""
+                    val normTopic = normalizeChapterName(rawTopic)
+                    val normSubject = normalizeSubjectName(rawSubject)
+                    QuestionEntity(
+                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        subject = normSubject,
+                        topic = normTopic,
+                        difficulty = doc.getString("difficulty") ?: "Medium",
+                        questionEn = doc.getString("questionEn") ?: "",
+                        questionAs = doc.getString("questionAs") ?: "",
+                        optionAEn = doc.getString("optionAEn") ?: "",
+                        optionBEn = doc.getString("optionBEn") ?: "",
+                        optionCEn = doc.getString("optionCEn") ?: "",
+                        optionDEn = doc.getString("optionDEn") ?: "",
+                        optionAAs = doc.getString("optionAAs") ?: "",
+                        optionBAs = doc.getString("optionBAs") ?: "",
+                        optionCAs = doc.getString("optionCAs") ?: "",
+                        optionDAs = doc.getString("optionDAs") ?: "",
+                        correctOptionIndex = doc.getLong("correctOptionIndex")?.toInt() ?: 0,
+                        explanationEn = doc.getString("explanationEn") ?: "",
+                        explanationAs = doc.getString("explanationAs") ?: "",
+                        examCategory = doc.getString("examCategory") ?: "ADRE",
+                        isPremium = doc.getBoolean("isPremium") ?: false,
+                        accessType = doc.getString("accessType") ?: (if (doc.getBoolean("isPremium") == true) "PREMIUM" else "FREE"),
+                        questionType = doc.getString("questionType") ?: "Expected",
+                        isReported = doc.getBoolean("isReported") ?: false,
+                        cachedAt = doc.getLong("cachedAt") ?: System.currentTimeMillis(),
+                        lastAccessedAt = doc.getLong("lastAccessedAt") ?: System.currentTimeMillis(),
+                        version = doc.getLong("version")?.toInt() ?: 1,
+                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                        firebaseId = doc.getString("firebaseId") ?: doc.id
+                    )
+                } catch (e: Exception) { null }
+            } ?: emptyList()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error fetching all admin questions", e)
+            emptyList()
+        }
+    }
+
     suspend fun fetchAllMockTests(): List<MockTestEntity> {
         return try {
             val snapshot = firestore?.collection("mock_tests")?.whereEqualTo("isPremium", false)?.get()?.await()
@@ -1180,11 +1227,11 @@ class FirebaseRepository {
 
 
     suspend fun fetchPremiumQuestions(): List<QuestionEntity> {
-        val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
-        return try {
+        val cloudResult = try {
+            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
             val result = functions.getHttpsCallable("getPremiumContent").call().await()
-            val data = result.data as? Map<String, Any> ?: return emptyList()
-            val qs = data["questions"] as? List<Map<String, Any>> ?: return emptyList()
+            val data = result.data as? Map<String, Any> ?: emptyMap()
+            val qs = data["questions"] as? List<Map<String, Any>> ?: emptyList()
             qs.mapNotNull { doc ->
                 try {
                     val rawTopic = doc["topic"] as? String ?: ""
@@ -1220,14 +1267,54 @@ class FirebaseRepository {
         } catch (e: Exception) {
             emptyList()
         }
+
+        if (cloudResult.isNotEmpty()) return cloudResult
+
+        return try {
+            val snapshot = firestore?.collection("questions")?.whereEqualTo("isPremium", true)?.get()?.await()
+            snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    val rawTopic = doc.getString("topic") ?: ""
+                    val rawSubject = doc.getString("subject") ?: ""
+                    QuestionEntity(
+                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        subject = normalizeSubjectName(rawSubject),
+                        topic = normalizeChapterName(rawTopic),
+                        difficulty = doc.getString("difficulty") ?: "Medium",
+                        questionEn = doc.getString("questionEn") ?: "",
+                        questionAs = doc.getString("questionAs") ?: "",
+                        optionAEn = doc.getString("optionAEn") ?: "",
+                        optionBEn = doc.getString("optionBEn") ?: "",
+                        optionCEn = doc.getString("optionCEn") ?: "",
+                        optionDEn = doc.getString("optionDEn") ?: "",
+                        optionAAs = doc.getString("optionAAs") ?: "",
+                        optionBAs = doc.getString("optionBAs") ?: "",
+                        optionCAs = doc.getString("optionCAs") ?: "",
+                        optionDAs = doc.getString("optionDAs") ?: "",
+                        correctOptionIndex = (doc.getLong("correctOptionIndex") ?: 0L).toInt(),
+                        explanationEn = doc.getString("explanationEn") ?: "",
+                        explanationAs = doc.getString("explanationAs") ?: "",
+                        examCategory = doc.getString("examCategory") ?: "ADRE",
+                        isPremium = doc.getBoolean("isPremium") ?: true,
+                        accessType = doc.getString("accessType") ?: "PREMIUM",
+                        questionType = doc.getString("questionType") ?: "Expected",
+                        isReported = doc.getBoolean("isReported") ?: false,
+                        status = doc.getString("status") ?: "ACTIVE",
+                        cachedAt = System.currentTimeMillis()
+                    )
+                } catch (e: Exception) { null }
+            } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun fetchPremiumMockTests(): List<MockTestEntity> {
-        val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
-        return try {
+        val cloudResult = try {
+            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
             val result = functions.getHttpsCallable("getPremiumContent").call().await()
-            val data = result.data as? Map<String, Any> ?: return emptyList()
-            val ms = data["mockTests"] as? List<Map<String, Any>> ?: return emptyList()
+            val data = result.data as? Map<String, Any> ?: emptyMap()
+            val ms = data["mockTests"] as? List<Map<String, Any>> ?: emptyList()
             ms.mapNotNull { doc ->
                 try {
                     MockTestEntity(
@@ -1246,22 +1333,57 @@ class FirebaseRepository {
                         negativeMarking = doc["negativeMarking"] as? String ?: "0.25 Marks",
                         difficulty = doc["difficulty"] as? String ?: "Medium",
                         isPremium = doc["isPremium"] as? Boolean ?: false,
-                        accessType = doc["accessType"] as? String ?: (if (doc["isPremium"] as? Boolean == true) "PREMIUM" else "FREE")
-                        
+                        accessType = doc["accessType"] as? String ?: (if (doc["isPremium"] as? Boolean == true) "PREMIUM" else "FREE"),
+                        questionIds = doc["questionIds"] as? String ?: "",
+                        markPerQuestion = (doc["markPerQuestion"] as? Number)?.toFloat() ?: 1f,
+                        questionMarksJson = doc["questionMarksJson"] as? String ?: "{}"
                     )
                 } catch (e: Exception) { null }
             }
         } catch (e: Exception) {
             emptyList()
         }
+
+        if (cloudResult.isNotEmpty()) return cloudResult
+
+        return try {
+            val snapshot = firestore?.collection("mock_tests")?.whereEqualTo("isPremium", true)?.get()?.await()
+            snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    MockTestEntity(
+                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        titleEn = doc.getString("titleEn") ?: "",
+                        titleAs = doc.getString("titleAs") ?: "",
+                        category = doc.getString("category") ?: "ADRE",
+                        durationMinutes = (doc.getLong("durationMinutes") ?: 0L).toInt(),
+                        totalQuestions = (doc.getLong("totalQuestions") ?: 0L).toInt(),
+                        totalMarks = (doc.getDouble("totalMarks") ?: 0.0).toFloat(),
+                        isScheduled = doc.getBoolean("isScheduled") ?: false,
+                        scheduledDate = doc.getString("scheduledDate") ?: "",
+                        isPublished = doc.getBoolean("isPublished") ?: true,
+                        testType = doc.getString("testType") ?: "Full-Length",
+                        subjectOrChapter = doc.getString("subjectOrChapter") ?: "General Studies & Assam GK",
+                        negativeMarking = doc.getString("negativeMarking") ?: "0.25 Marks",
+                        difficulty = doc.getString("difficulty") ?: "Medium",
+                        isPremium = doc.getBoolean("isPremium") ?: true,
+                        accessType = doc.getString("accessType") ?: "PREMIUM",
+                        questionIds = doc.getString("questionIds") ?: "",
+                        markPerQuestion = (doc.getDouble("markPerQuestion") ?: 1.0).toFloat(),
+                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}"
+                    )
+                } catch (e: Exception) { null }
+            } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun fetchPremiumStudyNotes(): List<StudyNoteEntity> {
-        val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
-        return try {
+        val cloudResult = try {
+            val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
             val result = functions.getHttpsCallable("getPremiumContent").call().await()
-            val data = result.data as? Map<String, Any> ?: return emptyList()
-            val sn = data["studyNotes"] as? List<Map<String, Any>> ?: return emptyList()
+            val data = result.data as? Map<String, Any> ?: emptyMap()
+            val sn = data["studyNotes"] as? List<Map<String, Any>> ?: emptyList()
             sn.mapNotNull { doc ->
                 try {
                     StudyNoteEntity(
@@ -1278,6 +1400,30 @@ class FirebaseRepository {
                     )
                 } catch (e: Exception) { null }
             }
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        if (cloudResult.isNotEmpty()) return cloudResult
+
+        return try {
+            val snapshot = firestore?.collection("study_notes")?.whereEqualTo("isPremium", true)?.get()?.await()
+            snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    StudyNoteEntity(
+                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        subject = doc.getString("subject") ?: "",
+                        topic = doc.getString("topic") ?: "",
+                        titleEn = doc.getString("titleEn") ?: "",
+                        titleAs = doc.getString("titleAs") ?: "",
+                        contentEn = doc.getString("contentEn") ?: "",
+                        contentAs = doc.getString("contentAs") ?: "",
+                        readTimeMinutes = (doc.getLong("readTimeMinutes") ?: 5L).toInt(),
+                        isPremium = doc.getBoolean("isPremium") ?: true,
+                        accessType = doc.getString("accessType") ?: "PREMIUM"
+                    )
+                } catch (e: Exception) { null }
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }

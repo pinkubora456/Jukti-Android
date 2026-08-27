@@ -1001,14 +1001,21 @@ class JuktiRepository(
             }
         }
 
-        val isOwner = email.trim().lowercase() == "juktieducation@gmail.com"
+        val emailClean = email.trim().lowercase()
+        val isOwner = emailClean == "juktieducation@gmail.com" || emailClean == "borapinku151@gmail.com"
         val hasActivePaidEntitlement = remoteEntitlement != null &&
             remoteEntitlement.status == "ACTIVE" &&
             !remoteEntitlement.planName.equals("Free Plan", ignoreCase = true) &&
             (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)
 
         val resolvedProfile = if (remoteProfile != null) {
-            val role = if (isOwner) "OWNER" else if (remoteProfile.role == "OWNER") "USER" else remoteProfile.role
+            val role = when {
+                isOwner -> "OWNER"
+                remoteProfile.role.equals("OWNER", ignoreCase = true) -> "OWNER"
+                remoteProfile.role.equals("ADMIN", ignoreCase = true) -> "ADMIN"
+                else -> defaultRole
+            }
+            val isUserAdminOrOwner = isOwner || role == "ADMIN" || role == "OWNER"
             remoteProfile.copy(
                 uid = uid,
                 email = email,
@@ -1017,7 +1024,7 @@ class JuktiRepository(
                 currentDeviceId = deviceId,
                 activeDeviceId = deviceId,
                 role = role,
-                isPremium = isOwner || hasActivePaidEntitlement
+                isPremium = isUserAdminOrOwner || hasActivePaidEntitlement
             )
         } else {
             val defaultDisplayName = if (googleName.isNotBlank()) {
@@ -1025,6 +1032,8 @@ class JuktiRepository(
             } else {
                 email.substringBefore("@").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
+            val role = if (isOwner) "OWNER" else defaultRole
+            val isUserAdminOrOwner = isOwner || role == "ADMIN" || role == "OWNER"
             UserProfileEntity(
                 id = 1,
                 uid = uid,
@@ -1042,8 +1051,8 @@ class JuktiRepository(
                 totalSolved = 0,
                 correctCount = 0,
                 totalTimeMinutes = 0,
-                isPremium = isOwner || hasActivePaidEntitlement,
-                role = if (isOwner) "OWNER" else "USER",
+                isPremium = isUserAdminOrOwner || hasActivePaidEntitlement,
+                role = role,
                 firebaseProjectId = "jukti-26035",
                 joinedDate = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.US).format(java.util.Date()),
                 isLoggedIn = true,
@@ -1100,11 +1109,22 @@ class JuktiRepository(
                 val isSameUser = localProfile != null && (localProfile.email.equals(email, ignoreCase = true) || (currentUid != null && localProfile.uid == currentUid))
                 val safeTotalSolved = if (isSameUser && localProfile != null) maxOf(localProfile.totalSolved, remoteProfile.totalSolved) else remoteProfile.totalSolved
                 val safeCorrectCount = if (isSameUser && localProfile != null) maxOf(localProfile.correctCount, remoteProfile.correctCount).coerceAtMost(safeTotalSolved) else remoteProfile.correctCount.coerceAtMost(safeTotalSolved)
-                val isOwner = email.trim().lowercase() == "juktieducation@gmail.com"
+                val emailClean = email.trim().lowercase()
+                val isOwner = emailClean == "juktieducation@gmail.com" || emailClean == "borapinku151@gmail.com"
                 val hasActivePaidEntitlement = remoteEntitlement != null &&
                     remoteEntitlement.status == "ACTIVE" &&
                     !remoteEntitlement.planName.equals("Free Plan", ignoreCase = true) &&
                     (remoteEntitlement.validUntil <= 0L || remoteEntitlement.validUntil > now)
+
+                val effectiveRole = when {
+                    isOwner -> "OWNER"
+                    remoteProfile.role.equals("OWNER", ignoreCase = true) -> "OWNER"
+                    remoteProfile.role.equals("ADMIN", ignoreCase = true) -> "ADMIN"
+                    localProfile != null && localProfile.role.equals("OWNER", ignoreCase = true) -> "OWNER"
+                    localProfile != null && localProfile.role.equals("ADMIN", ignoreCase = true) -> "ADMIN"
+                    else -> remoteProfile.role.ifBlank { "USER" }
+                }
+                val isUserAdminOrOwner = isOwner || effectiveRole == "ADMIN" || effectiveRole == "OWNER"
 
                 val merged = if (isSameUser && localProfile != null) {
                     localProfile.copy(
@@ -1116,8 +1136,8 @@ class JuktiRepository(
                         totalSolved = safeTotalSolved,
                         correctCount = safeCorrectCount,
                         totalTimeMinutes = maxOf(localProfile.totalTimeMinutes, remoteProfile.totalTimeMinutes),
-                        isPremium = isOwner || hasActivePaidEntitlement,
-                        role = if (isOwner) "OWNER" else "USER",
+                        isPremium = isUserAdminOrOwner || hasActivePaidEntitlement,
+                        role = effectiveRole,
                         isLoggedIn = true,
                         currentDeviceId = localProfile.currentDeviceId.ifBlank { remoteProfile.currentDeviceId },
                         activeDeviceId = localProfile.activeDeviceId.ifBlank { remoteProfile.activeDeviceId },
@@ -1135,8 +1155,8 @@ class JuktiRepository(
                         email = email,
                         totalSolved = safeTotalSolved,
                         correctCount = safeCorrectCount,
-                        isPremium = isOwner || hasActivePaidEntitlement,
-                        role = if (isOwner) "OWNER" else "USER",
+                        isPremium = isUserAdminOrOwner || hasActivePaidEntitlement,
+                        role = effectiveRole,
                         isLoggedIn = true
                     )
                 }
@@ -1640,5 +1660,14 @@ class JuktiRepository(
         } catch (e: Exception) {
             Pair(false, "❌ Firebase Update Failed: ${e.localizedMessage ?: e.javaClass.simpleName}\nYour changes are safely saved locally. Firebase upload will be retried automatically.")
         }
+    }
+
+    suspend fun getAllQuestionsForAdmin(): List<QuestionEntity> {
+        val cloudQs = firebaseRepository.fetchAllQuestionsForAdmin()
+        if (cloudQs.isNotEmpty()) return cloudQs
+        val localQs = questionDao.getAllQuestions().firstOrNull() ?: emptyList()
+        val allLocalAndPrem = localQs.toMutableList()
+        allLocalAndPrem.addAll(_premiumQuestions.value)
+        return allLocalAndPrem.distinctBy { it.id }
     }
 }

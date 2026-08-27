@@ -258,8 +258,36 @@ object PlanValidityEngine {
     fun resolveEffectiveEntitlement(
         entitlements: List<EntitlementEntity>?,
         plans: List<PlanEntity> = emptyList(),
-        currentTime: Long = System.currentTimeMillis()
+        currentTime: Long = System.currentTimeMillis(),
+        isAdminOrOwner: Boolean = false
     ): EffectiveUserEntitlement {
+        if (isAdminOrOwner) {
+            val ownerBenefits = setOf(
+                "All Premium MCQs & Question Bank",
+                "Full-Length Mock Tests & Instant Solutions",
+                "Chapter-wise Study Notes & Downloadable PDFs",
+                "Real-Time Leaderboard & Performance Analytics",
+                "Ad-Free Learning Experience",
+                "Exam Alerts & Syllabus Updates",
+                "Unlimited Practice & Custom Tests",
+                "All Exam Target Access (Grade 3, Grade 4, Driver, Police, TET, APSC)",
+                "Owner & Admin Full Privileges"
+            )
+            return EffectiveUserEntitlement(
+                userId = entitlements?.firstOrNull()?.userId ?: "",
+                activePlans = emptyList(),
+                activePlanEntities = plans.filter { it.isActive },
+                effectivePlanName = "Pass Pro (Owner/Admin)",
+                effectiveValidityLabel = "Lifetime Access",
+                isPremium = true,
+                isLifetime = true,
+                combinedBenefits = ownerBenefits,
+                combinedTargetExams = setOf("All Exams"),
+                hasAllExamsAccess = true,
+                maxExpiryTime = 0L
+            )
+        }
+
         val userEnts = entitlements ?: emptyList()
         val activePaidEntitlements = userEnts.filter { isEntitlementActive(it, currentTime) && !it.planName.equals("Free Plan", ignoreCase = true) && !it.planId.equals("free_plan", ignoreCase = true) }
 
@@ -375,15 +403,15 @@ object PlanValidityEngine {
         return entitlement.planName
     }
 
-    fun getEffectivePlanName(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
-        return resolveEffectiveEntitlement(entitlements, plans, currentTime).effectivePlanName
+    fun getEffectivePlanName(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis(), isAdminOrOwner: Boolean = false): String {
+        return resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner).effectivePlanName
     }
 
     /**
      * Resolves the effective validity string for a user.
      */
-    fun getEffectiveValidityLabel(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
-        return resolveEffectiveEntitlement(entitlements, plans, currentTime).effectiveValidityLabel
+    fun getEffectiveValidityLabel(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis(), isAdminOrOwner: Boolean = false): String {
+        return resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner).effectiveValidityLabel
     }
 
     fun getEffectiveValidityLabel(entitlement: EntitlementEntity?, currentTime: Long = System.currentTimeMillis()): String {
@@ -401,10 +429,11 @@ object PlanValidityEngine {
     /**
      * Formats remaining time or expiry date for UI display.
      */
-    fun formatValidityDisplay(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis()): String {
-        val resolved = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+    fun formatValidityDisplay(entitlements: List<EntitlementEntity>?, plans: List<PlanEntity> = emptyList(), currentTime: Long = System.currentTimeMillis(), isAdminOrOwner: Boolean = false): String {
+        val resolved = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
+        if (isAdminOrOwner) return "Lifetime Owner/Admin Access"
         if (!resolved.isPremium) return "Free Lifetime Access"
-        if (resolved.effectiveValidityLabel.equals("Lifetime", ignoreCase = true)) return "Lifetime Premium Access"
+        if (resolved.effectiveValidityLabel.equals("Lifetime", ignoreCase = true) || resolved.effectiveValidityLabel.contains("Lifetime", ignoreCase = true)) return "Lifetime Premium Access"
         return "Valid until ${resolved.effectiveValidityLabel}"
     }
 
@@ -452,15 +481,42 @@ object PlanValidityEngine {
      */
     fun matchesExamTarget(itemExamCategory: String?, itemTitleOrTopic: String?, allowedExams: List<String>): Boolean {
         if (allowedExams.isEmpty()) return true
-        if (allowedExams.any { it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) }) return true
+        if (allowedExams.any { it.isBlank() || it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) || it.equals("ALL_EXAMS", ignoreCase = true) }) return true
+
         val cat = itemExamCategory?.trim().orEmpty()
         val title = itemTitleOrTopic?.trim().orEmpty()
-        return allowedExams.any { allowed ->
-            cat.contains(allowed, ignoreCase = true) ||
-            title.contains(allowed, ignoreCase = true) ||
-            allowed.contains(cat, ignoreCase = true) ||
-            (allowed.contains("Grade 4", ignoreCase = true) && (cat.contains("Grade IV", ignoreCase = true) || title.contains("Grade IV", ignoreCase = true))) ||
-            (allowed.contains("Grade 3", ignoreCase = true) && (cat.contains("Grade III", ignoreCase = true) || title.contains("Grade III", ignoreCase = true)))
+        val combined = "$cat $title".trim().lowercase(Locale.ROOT)
+
+        return allowedExams.any { rawAllowed ->
+            val allowed = rawAllowed.trim().lowercase(Locale.ROOT)
+            if (allowed.isBlank() || allowed == "all" || allowed == "all exams" || allowed == "all_exams") return@any true
+
+            val isGrade4Plan = allowed.contains("grade 4") || allowed.contains("grade iv") || allowed.contains("class 4")
+            val isGrade3Plan = allowed.contains("grade 3") || allowed.contains("grade iii") || allowed.contains("class 3")
+            val isDriverPlan = allowed.contains("driver")
+            val isPolicePlan = allowed.contains("police") || allowed.contains("constable") || allowed.contains("si")
+            val isTetPlan = allowed.contains("tet")
+            val isApscPlan = allowed.contains("apsc")
+
+            val isGrade4Item = combined.contains("grade 4") || combined.contains("grade iv") || combined.contains("class 4")
+            val isGrade3Item = combined.contains("grade 3") || combined.contains("grade iii") || combined.contains("class 3")
+            val isDriverItem = combined.contains("driver")
+            val isPoliceItem = combined.contains("police") || combined.contains("constable") || combined.contains("si")
+            val isTetItem = combined.contains("tet")
+            val isApscItem = combined.contains("apsc")
+
+            if (isGrade4Plan) {
+                return@any isGrade4Item || (!isGrade3Item && combined.contains("adre"))
+            }
+            if (isGrade3Plan) {
+                return@any isGrade3Item || (!isGrade4Item && combined.contains("adre"))
+            }
+            if (isDriverPlan) return@any isDriverItem
+            if (isPolicePlan) return@any isPoliceItem
+            if (isTetPlan) return@any isTetItem
+            if (isApscPlan) return@any isApscItem
+
+            combined.contains(allowed) || cat.lowercase(Locale.ROOT).contains(allowed)
         }
     }
 
@@ -486,7 +542,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         return isMockTestAccessible(mock, effective, isAdminOrOwner)
     }
 
@@ -524,7 +580,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         return isStudyNoteAccessible(note, effective, isAdminOrOwner)
     }
 
@@ -562,7 +618,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): Boolean {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         return isQuestionAccessible(question, effective, isAdminOrOwner)
     }
 
@@ -589,7 +645,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<MockTestEntity> {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         return mockTests.filter { isMockTestAccessible(it, effective, isAdminOrOwner) }
     }
     
@@ -616,7 +672,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<StudyNoteEntity> {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         return studyNotes.filter { isStudyNoteAccessible(it, effective, isAdminOrOwner) }
     }
 
@@ -643,7 +699,7 @@ object PlanValidityEngine {
         isAdminOrOwner: Boolean,
         currentTime: Long = System.currentTimeMillis()
     ): List<QuestionEntity> {
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner)
         val validQuestions = questions.filter { !it.isReported }
         return validQuestions.filter { isQuestionAccessible(it, effective, isAdminOrOwner) }
     }
@@ -681,8 +737,8 @@ object PlanValidityEngine {
         val nonCaCount = accessibleNotes.count { !it.subject.contains("Current Affairs", ignoreCase = true) }
         val caCount = accessibleNotes.count { it.subject.contains("Current Affairs", ignoreCase = true) }
 
-        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com")
-        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime)
+        val isUserAdmin = isAdminOrOwner || (userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com") || (userProfile?.email?.trim()?.lowercase() == "borapinku151@gmail.com")
+        val effective = resolveEffectiveEntitlement(entitlements, plans, currentTime, isAdminOrOwner = isUserAdmin)
 
         val effectivePlanName = when {
             isUserAdmin -> "Admin Access"

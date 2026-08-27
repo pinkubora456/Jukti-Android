@@ -1,9 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Shield Emblem Backing -->
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M12,2L2,22h20L12,2z"/>
+        android:pathData="M54,10 C74,10 90,23 90,48 C90,73 70,89 54,98 C38,89 18,73 18,48 C18,23 34,10 54,10 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="10"
+                android:endX="90"
+                android:endY="98"
+                android:type="linear">
+                <item android:color="#FF1E1B4B" android:offset="0.0" />
+                <item android:color="#FF312E81" android:offset="0.5" />
+                <item android:color="#FF0F766E" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Gold & Teal Emblem Border -->
+    <path
+        android:pathData="M54,13 C72,13 87,25 87,48 C87,70 68,86 54,94 C40,86 21,70 21,48 C21,25 36,13 54,13 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FF38BDF8" />
+
+    <!-- Open Book Base (Knowledge & Exams) -->
+    <!-- Left Page -->
+    <path
+        android:pathData="M54,63 C44,57 32,57 27,59 L27,77 C32,75 44,75 54,81 Z"
+        android:fillColor="#FFE0E7FF" />
+
+    <!-- Right Page -->
+    <path
+        android:pathData="M54,63 C64,57 76,57 81,59 L81,77 C76,75 64,75 54,81 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Spine Accent -->
+    <path
+        android:pathData="M53,61 L55,61 L55,82 L53,82 Z"
+        android:fillColor="#FF6366F1" />
+
+    <!-- Graduation Cap / Academic Crest -->
+    <path
+        android:pathData="M54,33 L74,42 L54,51 L34,42 Z"
+        android:fillColor="#FFF59E0B" />
+
+    <!-- Cap Base -->
+    <path
+        android:pathData="M42,46 L42,53 C42,56 47,59 54,59 C61,59 66,56 66,53 L66,46 L54,51 Z"
+        android:fillColor="#FFD97706" />
+
+    <!-- Tassel -->
+    <path
+        android:pathData="M70,44 L70,54 L72,56 L68,56 L70,54 Z"
+        android:fillColor="#FFFFFBEB" />
+
+    <!-- Star of Reasoning & Excellence (Jukti) -->
+    <path
+        android:pathData="M54,18 L56.5,25 L63.5,27.5 L56.5,30 L54,37 L51.5,30 L44.5,27.5 L51.5,25 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="44.5"
+                android:startY="18"
+                android:endX="63.5"
+                android:endY="37"
+                android:type="linear">
+                <item android:color="#FFFEF08A" android:offset="0.0" />
+                <item android:color="#FFF59E0B" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Side Sparkles -->
+    <path
+        android:pathData="M30,26 L31.5,30 L35.5,31.5 L31.5,33 L30,37 L28.5,33 L24.5,31.5 L28.5,30 Z"
+        android:fillColor="#FF38BDF8" />
+
+    <path
+        android:pathData="M78,26 L79.5,30 L83.5,31.5 L79.5,33 L78,37 L76.5,33 L72.5,31.5 L76.5,30 Z"
+        android:fillColor="#FF38BDF8" />
+
 </vector>

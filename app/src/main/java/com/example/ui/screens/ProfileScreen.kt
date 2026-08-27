@@ -37,9 +37,9 @@ fun ProfileScreen(viewModel: JuktiViewModel) {
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val effectivePlanName = com.example.data.util.PlanValidityEngine.getEffectivePlanName(userEntitlements, plans)
-    val effectiveValidity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(userEntitlements, plans)
-    val validityDisplay = com.example.data.util.PlanValidityEngine.formatValidityDisplay(userEntitlements, plans)
+    val effectivePlanName = com.example.data.util.PlanValidityEngine.getEffectivePlanName(userEntitlements, plans, isAdminOrOwner = isAdminOrOwner)
+    val effectiveValidity = com.example.data.util.PlanValidityEngine.getEffectiveValidityLabel(userEntitlements, plans, isAdminOrOwner = isAdminOrOwner)
+    val validityDisplay = com.example.data.util.PlanValidityEngine.formatValidityDisplay(userEntitlements, plans, isAdminOrOwner = isAdminOrOwner)
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var quickNameInput by remember { mutableStateOf("") }

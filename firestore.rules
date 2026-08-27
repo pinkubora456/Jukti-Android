@@ -6,14 +6,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdminOrOwnerEmail() {
-      return request.auth != null && request.auth.token != null && 'email' in request.auth.token && request.auth.token.email != null &&
-             request.auth.token.email.matches('(?i)(juktieducation@gmail\\.com|borapinku151@gmail\\.com)');
-    }
-
     function isOwner() {
       return isSignedIn() && (
-        isAdminOrOwnerEmail() ||
         request.auth.token.owner == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER')
@@ -23,7 +17,6 @@ service cloud.firestore {
     function isAdminOrOwner() {
       return isSignedIn() && (
         isOwner() ||
-        isAdminOrOwnerEmail() ||
         request.auth.token.admin == true ||
         request.auth.token.owner == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -43,12 +36,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrOwner());
       allow update: if isSignedIn() && (
         (request.auth.uid == userId && 
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']) || isAdminOrOwnerEmail()))
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPremium']))
         || isAdminOrOwner()
       );
       allow create: if isSignedIn() && (
         (request.auth.uid == userId && request.resource.data.role == 'USER' && request.resource.data.isPremium == false) ||
-        isAdminOrOwnerEmail() || isAdminOrOwner()
+        isAdminOrOwner()
       );
       allow delete: if isAdminOrOwner();
     }
@@ -89,19 +82,19 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Content management collections: ADMIN or OWNER only
+    // Content management collections
     match /questions/{questionId} {
-      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data) || isAdminOrOwner();
       allow write: if isAdminOrOwner();
     }
 
     match /mock_tests/{testId} {
-      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data) || isAdminOrOwner();
       allow write: if isAdminOrOwner();
     }
 
     match /study_notes/{noteId} {
-      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data);
+      allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data) || isAdminOrOwner();
       allow write: if isAdminOrOwner();
     }
 
