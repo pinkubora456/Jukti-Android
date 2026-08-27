@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Jukti</string>
+    <string name="default_web_client_id">738578156874-ap14l3avofalrmvtgeic8ocuj8m3v5or.apps.googleusercontent.com</string>
 
     <!-- Authentication Messages -->
     <string name="auth_invalid_credentials">Invalid credentials. Please check and try again.</string>

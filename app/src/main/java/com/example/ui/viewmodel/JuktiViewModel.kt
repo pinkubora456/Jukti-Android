@@ -321,13 +321,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
-    private val _googleAccountsToSelect = MutableStateFlow<List<String>?>(null)
-    val googleAccountsToSelect: StateFlow<List<String>?> = _googleAccountsToSelect.asStateFlow()
-
-    fun dismissGoogleAccountChooser() {
-        _googleAccountsToSelect.value = null
-    }
-
     private val _isRefreshingFromFirebase = MutableStateFlow(false)
     val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
 
@@ -1960,9 +1953,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                if (result.needsAccountSelection) {
+                if (result.errorMessage != null && result.firebaseUser == null) {
+                    _sessionMessage.value = result.errorMessage
                     _isAuthLoading.value = false
-                    _googleAccountsToSelect.value = result.availableAccounts
                     return@launch
                 }
 
@@ -2006,47 +1999,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectGoogleAccount(email: String) {
-        _googleAccountsToSelect.value = null
-        val trimmedEmail = email.trim().lowercase()
-        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
-            _sessionMessage.value = "Please enter a valid Google email address"
-            return
-        }
-        viewModelScope.launch {
-            isLoggingOutDueToDevice = false
-            _isAuthLoading.value = true
-            _sessionMessage.value = null
-            try {
-                val displayName = trimmedEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
-                val finalUid = "google_" + java.util.UUID.nameUUIDFromBytes(trimmedEmail.toByteArray()).toString().replace("-", "").take(16)
-                val deviceId = java.util.UUID.randomUUID().toString()
-
-                val isOwnerEmail = trimmedEmail.equals("juktieducation@gmail.com", ignoreCase = true) || trimmedEmail.equals("borapinku151@gmail.com", ignoreCase = true)
-                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
-
-                withContext(Dispatchers.IO) {
-                    repository.loadUserProfileForAuth(
-                        uid = finalUid,
-                        email = trimmedEmail,
-                        googleName = displayName,
-                        deviceId = deviceId,
-                        defaultRole = defaultRole
-                    )
-                    UserSessionManager.registerSession(trimmedEmail, deviceId)
-                }
-
-                _isGuestMode.value = false
-                _sessionMessage.value = null
-                _currentScreen.value = Screen.HOME
-            } catch (e: Exception) {
-                Log.e("JuktiViewModel", "Google account selection error", e)
-                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
-            } finally {
-                _isAuthLoading.value = false
-            }
-        }
-    }
 
     fun loginAsGuest() {
         viewModelScope.launch {
