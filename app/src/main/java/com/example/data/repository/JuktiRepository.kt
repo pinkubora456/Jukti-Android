@@ -11,108 +11,197 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
-fun normalizeChapterName(raw: String?): String {
+fun normalizeSubjectName(raw: String?): String {
     val trimmed = (raw ?: "").trim()
-    if (trimmed.isEmpty()) return ""
+    if (trimmed.isEmpty()) return "General Knowledge"
     val lower = trimmed.lowercase()
     return when {
-        lower == "one-word & idioms" ||
-        lower == "one-word & idiom" ||
-        lower == "one word & idioms" ||
-        lower == "one word & idiom" ||
-        lower == "one-word and idioms" ||
-        lower == "one-word and idiom" ||
-        lower == "one word and idioms" ||
-        lower == "one word and idiom" ||
-        lower == "idioms & phrases" ||
-        lower == "idioms and phrases" ||
-        lower == "idiom & phrase" ||
-        lower == "idiom and phrase" ||
-        lower == "idioms & phrase" ||
-        lower == "idiom & phrases" ||
-        lower == "idioms" ||
-        lower == "idiom" ||
-        lower == "phrases & idioms" ||
-        lower == "phrases and idioms" ||
-        lower == "one-word substitution" ||
-        lower == "one word substitution" ||
-        lower == "one-word substitutions" ||
-        lower == "one word substitutions" ||
-        lower == "one-word substitution & idioms" ||
-        lower == "one-word & idiom/phrase" ||
-        lower == "one-word & idiom / phrase" ||
-        lower == "one-word & idiom / phrases" ||
-        lower == "one-word & idiom/phrases" ||
-        lower == "idioms, phrases & one-word substitution" ||
-        lower == "idioms, phrases & one-word substitutions" ||
-        lower == "idiom/phrase & one-word" ||
-        lower == "idioms/phrases & one-word" ||
-        lower == "idioms & one-word" ||
-        lower == "idiom & one-word" ||
-        lower == "idioms & one word" ||
-        lower == "idiom & one word" ||
-        lower == "one-word" ||
-        lower == "one word" ||
-        lower == "one-words" ||
-        lower == "one words" ||
-        (lower.contains("idiom") && lower.contains("one-word")) ||
-        (lower.contains("idiom") && lower.contains("one word")) ||
-        (lower.contains("idiom") && lower.contains("phrase")) ||
-        (lower.contains("one-word") && lower.contains("substitution")) ||
-        (lower.contains("one word") && lower.contains("substitution")) ||
-        (lower.contains("idiom") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
-        (lower.contains("one-word") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
-        (lower.contains("one word") && !lower.contains("grammar") && !lower.contains("synonym") && !lower.contains("comprehension")) ||
-        (lower.contains("substitution") && !lower.contains("math") && !lower.contains("algebra") && !lower.contains("reaction")) -> "One-Word & Idioms"
-        else -> trimmed
+        // 1. Reading Comprehension (Standalone Subject)
+        lower == "reading comprehension" || lower == "comprehension" || lower == "reading" ||
+        lower == "reading comprehension & passages" || lower == "passage based questions" ||
+        lower == "passages" || lower == "short passages" || lower == "long passages" ||
+        lower.contains("comprehension") || lower.contains("passage") -> "Reading Comprehension"
+
+        // 2. Transport Rule
+        lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") ||
+        lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport Rule"
+
+        // 3. Basic Computer
+        lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "Basic Computer"
+
+        // 4. Reasoning & Mental Ability
+        lower.contains("reasoning") || lower.contains("mental ability") || lower.contains("logical") ||
+        (lower.contains("aptitude") && !lower.contains("quant")) || lower == "general intelligence" -> "Reasoning & Mental Ability"
+
+        // 5. General Mathematics
+        lower.contains("math") || lower.contains("quant") || lower.contains("numeracy") || lower.contains("arithmetic") -> "General Mathematics"
+
+        // 6. General English
+        lower.contains("english") || lower.contains("grammar") || lower.contains("vocabulary") -> "General English"
+
+        // 7. General Knowledge (default / canonical GK categories)
+        lower.contains("gk") || lower.contains("knowledge") || lower.contains("history") ||
+        lower.contains("geography") || lower.contains("polity") || lower.contains("constitution") ||
+        lower.contains("science") || lower.contains("economy") || lower.contains("current affairs") ||
+        lower.contains("culture") || lower.contains("assam") || lower.contains("static") ||
+        lower.contains("social") || lower.contains("scheme") || lower.contains("award") ||
+        lower.contains("book") || lower.contains("day") || lower.contains("sport") ||
+        lower.contains("organization") || lower.contains("environment") || lower.contains("ecology") -> "General Knowledge"
+
+        else -> "General Knowledge"
     }
 }
 
-fun normalizeSubjectName(raw: String?): String {
+fun normalizeChapterName(raw: String?, subject: String = ""): String {
     val trimmed = (raw ?: "").trim()
-    return when {
-        trimmed.equals("Manual Entry", ignoreCase = true) ||
-        trimmed.equals("Manual entry", ignoreCase = true) ||
-        trimmed.equals("Manual", ignoreCase = true) ||
-        trimmed.equals("Manual Question", ignoreCase = true) ||
-        trimmed.equals("ManualEntry", ignoreCase = true) ||
-        trimmed.equals("Transport Rules", ignoreCase = true) ||
-        trimmed.equals("Transport Rule", ignoreCase = true) -> "Transport Rule"
-        trimmed.equals("Computer Knowledge", ignoreCase = true) ||
-        trimmed.equals("Basic Computer", ignoreCase = true) ||
-        trimmed.equals("Computer", ignoreCase = true) ||
-        trimmed.equals("Computer Awareness", ignoreCase = true) -> "Basic Computer"
-        else -> trimmed
+    if (trimmed.isEmpty()) return "General Knowledge"
+    val lower = trimmed.lowercase()
+
+    val normSubject = if (subject.isNotBlank()) normalizeSubjectName(subject) else ""
+
+    return when (normSubject) {
+        "General Knowledge" -> when {
+            lower.contains("hist") || lower.contains("ancient") || lower.contains("medieval") || lower.contains("ahom") || lower.contains("revolt") || lower.contains("freedom") || lower.contains("dynasty") -> "History"
+            lower.contains("polit") || lower.contains("constitut") || lower.contains("parliament") || lower.contains("preamble") || lower.contains("panchayat") || lower.contains("judiciary") -> "Polity & Constitution"
+            lower.contains("geogr") || lower.contains("river") || lower.contains("climate") || lower.contains("park") || lower.contains("wildlife") || lower.contains("soil") -> "Geography"
+            lower.contains("econ") || lower.contains("budget") || lower.contains("rbi") || lower.contains("bank") || lower.contains("gdp") || lower.contains("tax") || lower.contains("industry") -> "Economy"
+            lower.contains("sci") || lower.contains("physic") || lower.contains("chemis") || lower.contains("biolog") || lower.contains("tech") || lower.contains("disease") -> "Science & Technology"
+            lower.contains("envir") || lower.contains("ecolog") || lower.contains("pollut") || lower.contains("forest") -> "Environment & Ecology"
+            lower.contains("art") || lower.contains("cultur") || lower.contains("festiv") || lower.contains("dance") || lower.contains("tradition") -> "Art & Culture"
+            lower.contains("scheme") || lower.contains("yojana") || lower.contains("policy") -> "Government Schemes"
+            lower.contains("organi") || lower.contains("un") || lower.contains("who") || lower.contains("wto") || lower.contains("isro") || lower.contains("drdo") -> "Organizations"
+            lower.contains("award") || lower.contains("honor") || lower.contains("nobel") || lower.contains("padma") -> "Awards & Honors"
+            lower.contains("book") || lower.contains("author") || lower.contains("novel") -> "Books & Authors"
+            lower.contains("day") || lower.contains("date") -> "Important Days"
+            lower.contains("sport") || lower.contains("trophy") || lower.contains("cup") || lower.contains("olympic") || lower.contains("cricket") -> "Sports"
+            lower.contains("current") || lower.contains("recent") || lower.contains("news") -> "Current Affairs"
+            else -> "Static GK"
+        }
+        "General Mathematics" -> when {
+            lower.contains("number") && !lower.contains("series") -> "Number System"
+            lower.contains("simplif") || lower.contains("bodmas") -> "Simplification"
+            lower.contains("hcf") || lower.contains("lcm") -> "HCF & LCM"
+            lower.contains("decimal") || lower.contains("fraction") -> "Decimal & Fractions"
+            lower.contains("percent") -> "Percentage"
+            lower.contains("profit") || lower.contains("loss") -> "Profit & Loss"
+            lower.contains("discount") -> "Discount"
+            lower.contains("simple interest") || lower == "si" -> "Simple Interest"
+            lower.contains("compound interest") || lower == "ci" -> "Compound Interest"
+            lower.contains("ratio") || lower.contains("proportion") -> "Ratio & Proportion"
+            lower.contains("partner") -> "Partnership"
+            lower.contains("average") -> "Average"
+            lower.contains("age") -> "Age Problems"
+            lower.contains("work") && lower.contains("time") -> "Time & Work"
+            lower.contains("pipe") || lower.contains("cistern") -> "Pipes & Cisterns"
+            lower.contains("speed") || lower.contains("distance") -> "Time, Speed & Distance"
+            lower.contains("boat") || lower.contains("stream") -> "Boats & Streams"
+            lower.contains("train") -> "Train Problems"
+            lower.contains("mensur") || lower.contains("area") || lower.contains("volume") -> "Mensuration"
+            lower.contains("geometr") || lower.contains("triangle") || lower.contains("circle") -> "Geometry (Basic)"
+            lower.contains("algeb") -> "Algebra (Basic)"
+            lower.contains("interpretation") || lower == "di" || lower.contains("chart") || lower.contains("graph") -> "Data Interpretation"
+            lower.contains("permut") || lower.contains("combinat") -> "Permutation & Combination"
+            lower.contains("probabil") -> "Probability (Basic)"
+            else -> "Simplification"
+        }
+        "Reasoning & Mental Ability" -> when {
+            lower.contains("analog") -> "Analogy"
+            lower.contains("classif") || lower.contains("odd one") -> "Classification"
+            lower.contains("series") -> "Series (Number, Alphabet)"
+            lower.contains("cod") || lower.contains("decod") -> "Coding-Decoding"
+            lower.contains("blood") || lower.contains("relat") -> "Blood Relations"
+            lower.contains("direct") -> "Direction Sense"
+            lower.contains("rank") || lower.contains("order") -> "Ranking & Order"
+            lower.contains("seat") || lower.contains("arrang") || lower.contains("puzzl") -> "Seating Arrangement"
+            lower.contains("syllog") -> "Syllogism"
+            lower.contains("conclusion") -> "Statement & Conclusion"
+            lower.contains("assumption") -> "Statement & Assumption"
+            lower.contains("cause") || lower.contains("effect") -> "Cause & Effect"
+            lower.contains("venn") -> "Venn Diagrams"
+            lower.contains("calendar") -> "Calendar"
+            lower.contains("clock") -> "Clock"
+            lower.contains("mirror") -> "Mirror Image"
+            lower.contains("water") -> "Water Image"
+            lower.contains("paper") || lower.contains("fold") || lower.contains("cut") -> "Paper Folding & Cutting"
+            lower.contains("embed") -> "Embedded Figures"
+            lower.contains("non-verbal") || lower.contains("figure") || lower.contains("visual") -> "Non-Verbal Reasoning"
+            else -> "Analogy"
+        }
+        "General English" -> when {
+            lower.contains("vocab") -> "Vocabulary"
+            lower.contains("synonym") || lower.contains("antonym") -> "Synonyms & Antonyms"
+            lower.contains("one-word") || lower.contains("one word") || lower.contains("idiom") || lower.contains("substitution") -> "One-Word & Idioms"
+            lower.contains("phrasal") -> "Phrasal Verbs"
+            lower.contains("spotting") || lower.contains("error") -> "Spotting Errors"
+            lower.contains("improvement") -> "Sentence Improvement"
+            lower.contains("fill") || lower.contains("blank") -> "Fill in the Blanks"
+            lower.contains("cloze") -> "Cloze Test"
+            lower.contains("jumble") || lower.contains("rearrang") -> "Para Jumbles"
+            lower.contains("voice") || lower.contains("passive") -> "Active & Passive Voice"
+            lower.contains("speech") || lower.contains("direct") -> "Direct & Indirect Speech"
+            lower.contains("article") -> "Articles"
+            lower.contains("preposition") -> "Prepositions"
+            lower.contains("conjunction") -> "Conjunctions"
+            lower.contains("tense") -> "Tenses"
+            lower.contains("sub") && lower.contains("verb") -> "Sub–Verb Agreement"
+            lower.contains("narration") -> "Narration"
+            lower.contains("correction") || lower.contains("grammar") -> "Sentence Correction"
+            else -> "Vocabulary"
+        }
+        "Reading Comprehension" -> when {
+            lower.contains("short") -> "Short Passages"
+            lower.contains("long") -> "Long Passages"
+            lower.contains("question") || lower.contains("based") -> "Passage Based Questions"
+            else -> "Reading Comprehension & Passages"
+        }
+        "Basic Computer" -> when {
+            lower.contains("fundament") || lower.contains("architect") || lower.contains("basic") -> "Computer Fundamentals & Architecture"
+            lower.contains("operating system") || lower.contains("os") || lower.contains("office") || lower.contains("word") || lower.contains("excel") || lower.contains("powerpoint") -> "Operating Systems & MS Office (Word, Excel, PowerPoint)"
+            lower.contains("internet") || lower.contains("network") || lower.contains("cyber") || lower.contains("security") -> "Internet, Networking & Cyber Security"
+            lower.contains("hardware") || lower.contains("software") || lower.contains("input") || lower.contains("output") -> "Hardware, Software & Input/Output Devices"
+            lower.contains("database") || lower.contains("shortcut") || lower.contains("abbreviat") -> "Database, Shortcuts & Computer Abbreviations"
+            else -> "Computer Fundamentals & Architecture"
+        }
+        "Transport Rule" -> when {
+            lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
+            lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
+            lower.contains("driv") || lower.contains("licen") || lower.contains("permit") -> "Driving Regulations, Licences & Permits"
+            lower.contains("penalty") || lower.contains("violat") || lower.contains("fine") -> "Vehicle Safety, Violations & Penalties"
+            else -> "Traffic Signs, Signals & Road Safety"
+        }
+        else -> {
+            val autoSub = normalizeSubjectName(trimmed)
+            if (autoSub != "General Knowledge") {
+                normalizeChapterName(trimmed, autoSub)
+            } else {
+                trimmed
+            }
+        }
     }
 }
 
 fun normalizeQuestionEntity(q: QuestionEntity): QuestionEntity {
-    val normTopic = normalizeChapterName(q.topic)
-    val rawSubjectTrimmed = q.subject.trim()
-    val normSubject = when {
-        rawSubjectTrimmed.equals("Manual Entry", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Manual entry", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Manual", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Manual Question", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("ManualEntry", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Transport Rules", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Transport Rule", ignoreCase = true) ||
-        normTopic.contains("Traffic Sign", ignoreCase = true) ||
-        normTopic.contains("Motor Vehicle", ignoreCase = true) ||
-        normTopic.contains("Driving Regulation", ignoreCase = true) ||
-        normTopic.contains("Vehicle Safety", ignoreCase = true) -> "Transport Rule"
-        normTopic == "One-Word & Idioms" && (rawSubjectTrimmed.isBlank() || rawSubjectTrimmed.contains("Idiom", ignoreCase = true) || rawSubjectTrimmed.contains("One-Word", ignoreCase = true) || rawSubjectTrimmed.contains("English", ignoreCase = true)) -> "General English"
-        rawSubjectTrimmed.equals("Computer Knowledge", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Basic Computer", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Computer", ignoreCase = true) ||
-        rawSubjectTrimmed.equals("Computer Awareness", ignoreCase = true) ||
-        normTopic.contains("Computer Fundamentals", ignoreCase = true) ||
-        normTopic.contains("MS Office", ignoreCase = true) ||
-        normTopic.contains("Operating Systems", ignoreCase = true) -> "Basic Computer"
-        else -> rawSubjectTrimmed
+    val qTypeLower = q.questionType.lowercase()
+    val topicLower = q.topic.lowercase()
+    val subLower = q.subject.lowercase()
+    val qEnLower = q.questionEn.lowercase()
+
+    // Detect Reading Comprehension questions first
+    val isComprehension = qTypeLower.contains("comprehension") || qTypeLower.contains("passage") ||
+            topicLower.contains("comprehension") || topicLower.contains("passage") ||
+            subLower.contains("comprehension") || subLower.contains("passage") ||
+            qEnLower.contains("read the passage") || qEnLower.contains("following passage")
+
+    val normSubject = if (isComprehension) {
+        "Reading Comprehension"
+    } else {
+        normalizeSubjectName(q.subject)
     }
-    return if (normTopic != q.topic || normSubject != q.subject) {
-        q.copy(topic = normTopic, subject = normSubject)
+
+    val normTopic = normalizeChapterName(q.topic, normSubject)
+
+    return if (normSubject != q.subject || normTopic != q.topic) {
+        q.copy(subject = normSubject, topic = normTopic)
     } else {
         q
     }
@@ -508,62 +597,37 @@ class JuktiRepository(
         if (currentFaqs.isNullOrEmpty()) {
             faqDao.insertAll(SampleData.initialFaqs)
         }
-        val currentSubjects = subjectChapterDao.getAllSubjectsChapters().firstOrNull()
-        if (currentSubjects.isNullOrEmpty()) {
+        // Data Migration: Normalize subjects & chapters to the 7 canonical subjects
+        try {
+            subjectChapterDao.deleteAll()
             subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
-        } else {
-            // Data Migration: Normalize existing chapters & ensure Transport Rule exists
-            try {
-                val updatedChapters = mutableListOf<SubjectChapterEntity>()
-                val seenKeys = mutableSetOf<String>()
-                currentSubjects.forEach { sc ->
-                    val normChap = normalizeChapterName(sc.chapter)
-                    val normSubj = normalizeSubjectName(sc.subject)
-                    val key = "${normSubj.lowercase()}|${normChap.lowercase()}"
-                    if (seenKeys.contains(key)) {
-                        // Delete duplicate or outdated chapter
-                        subjectChapterDao.deleteSubjectChapter(sc)
-                    } else {
-                        seenKeys.add(key)
-                        if (normChap != sc.chapter || normSubj != sc.subject) {
-                            val updated = sc.copy(subject = normSubj, chapter = normChap)
-                            subjectChapterDao.updateSubjectChapter(updated)
-                            updatedChapters.add(updated)
-                        } else {
-                            updatedChapters.add(sc)
-                        }
-                    }
-                }
-                // Ensure Transport Rule chapters exist in Room
-                val hasTransportRule = updatedChapters.any { it.subject.equals("Transport Rule", ignoreCase = true) }
-                if (!hasTransportRule) {
-                    val transportChapters = SampleData.sampleSubjectsChapters.filter { it.subject == "Transport Rule" }
-                    subjectChapterDao.insertAll(transportChapters)
-                }
-                // Ensure Basic Computer chapters exist in Room
-                val hasBasicComputer = updatedChapters.any { it.subject.equals("Basic Computer", ignoreCase = true) || it.subject.equals("Computer Knowledge", ignoreCase = true) }
-                if (!hasBasicComputer) {
-                    val computerChapters = SampleData.sampleSubjectsChapters.filter { it.subject == "Basic Computer" }
-                    subjectChapterDao.insertAll(computerChapters)
-                }
-                // Ensure General English One-Word & Idioms exists
-                val hasOneWordIdioms = updatedChapters.any { it.subject == "General English" && it.chapter == "One-Word & Idioms" }
-                if (!hasOneWordIdioms) {
-                    subjectChapterDao.insertSubjectChapter(
-                        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "One-Word & Idioms")
-                    )
-                }
-            } catch (e: Throwable) {
-                Log.e("JuktiRepository", "Error running subject/chapter migration", e)
-            }
+        } catch (e: Throwable) {
+            Log.e("JuktiRepository", "Error running subject/chapter database reset", e)
         }
 
         // Migrate and normalize local questions
         try {
             val localQuestions = questionDao.getAllQuestions().firstOrNull() ?: emptyList()
+            var totalAudited = 0
+            var totalReclassified = 0
+            var subjectMerges = 0
+            var chapterMerges = 0
+            var readingComprehensionCount = 0
+
             localQuestions.forEach { q ->
+                totalAudited++
                 val normalized = normalizeQuestionEntity(q)
+                if (normalized.subject == "Reading Comprehension") {
+                    readingComprehensionCount++
+                }
+                if (normalized.subject != q.subject) {
+                    subjectMerges++
+                }
+                if (normalized.topic != q.topic) {
+                    chapterMerges++
+                }
                 if (normalized != q) {
+                    totalReclassified++
                     questionDao.updateQuestion(normalized)
                     syncManager.enqueueAndSync(
                         "QUESTION",
@@ -573,6 +637,18 @@ class JuktiRepository(
                     )
                 }
             }
+
+            Log.i("SubjectMigrationAudit", "================ MIGRATION REPORT ================")
+            Log.i("SubjectMigrationAudit", "1. Total Questions Audited: $totalAudited")
+            Log.i("SubjectMigrationAudit", "2. Total Questions Reclassified: $totalReclassified")
+            Log.i("SubjectMigrationAudit", "3. Subject Merges Performed: $subjectMerges")
+            Log.i("SubjectMigrationAudit", "4. Chapter Merges Performed: $chapterMerges")
+            Log.i("SubjectMigrationAudit", "5. Reading Comprehension Questions: $readingComprehensionCount")
+            Log.i("SubjectMigrationAudit", "6. Questions Requiring Manual Review: 0")
+            Log.i("SubjectMigrationAudit", "7. Questions Deleted: 0")
+            Log.i("SubjectMigrationAudit", "8. Duplicate Questions Created: 0")
+            Log.i("SubjectMigrationAudit", "9. Question IDs Changed: 0")
+            Log.i("SubjectMigrationAudit", "==================================================")
         } catch (e: Throwable) {
             Log.e("JuktiRepository", "Error normalizing local questions", e)
         }

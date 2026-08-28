@@ -29,7 +29,8 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
     var subject by remember { mutableStateOf("") }
     var chapter by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-    val subjects = subjectsChapters.map { it.subject }.distinct()
+    val canonicalOrder = com.example.data.repository.SampleData.CANONICAL_SUBJECTS
+    val subjects = (canonicalOrder + subjectsChapters.map { it.subject }).distinct()
 
     Scaffold(
         topBar = {
@@ -95,14 +96,19 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
             
             val groupedSubjects = subjectsChapters.groupBy { it.subject }
+                .entries
+                .sortedBy { entry ->
+                    val idx = canonicalOrder.indexOf(entry.key)
+                    if (idx >= 0) idx else 999
+                }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                groupedSubjects.forEach { (subject, chapters) ->
+                groupedSubjects.forEach { (subjectKey, chapters) ->
                     item {
                         Text(
-                            text = subject,
+                            text = subjectKey,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)

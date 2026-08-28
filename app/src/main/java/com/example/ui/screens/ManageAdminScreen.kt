@@ -26,7 +26,7 @@ import com.example.ui.viewmodel.Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageAdminScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val isAssamese = language == AppLanguage.ASSAMESE
     val aboutConfig by viewModel.aboutConfig.collectAsState()
     val isOwner by viewModel.isOwner.collectAsState()

@@ -222,7 +222,8 @@ class FirebaseSyncManager(
         "questionsAnswered" to m.questionsAnswered,
         "timeRemainingSeconds" to m.timeRemainingSeconds,
         "questionIds" to m.questionIds,
-        "markPerQuestion" to m.markPerQuestion
+        "markPerQuestion" to m.markPerQuestion,
+        "subjectMarksJson" to m.subjectMarksJson
     )
 
     fun studyNoteToMap(n: StudyNoteEntity): Map<String, Any?> = mapOf(

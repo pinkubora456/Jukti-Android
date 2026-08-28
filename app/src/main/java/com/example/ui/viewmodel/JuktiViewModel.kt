@@ -268,8 +268,20 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Language & Theme State
-    private val _language = MutableStateFlow(AppLanguage.ENGLISH)
-    val language: StateFlow<AppLanguage> = _language.asStateFlow()
+    private fun getSavedLanguagePref(key: String, default: AppLanguage): AppLanguage {
+        val str = prefs.getString(key, default.name) ?: default.name
+        return try {
+            AppLanguage.valueOf(str)
+        } catch (e: Exception) {
+            default
+        }
+    }
+
+    private val _studyNotesLanguage = MutableStateFlow(getSavedLanguagePref("study_notes_language", AppLanguage.ENGLISH))
+    val studyNotesLanguage: StateFlow<AppLanguage> = _studyNotesLanguage.asStateFlow()
+
+    private val _currentAffairsLanguage = MutableStateFlow(getSavedLanguagePref("current_affairs_language", AppLanguage.ENGLISH))
+    val currentAffairsLanguage: StateFlow<AppLanguage> = _currentAffairsLanguage.asStateFlow()
 
     private val _questionLanguage = MutableStateFlow(AppLanguage.BOTH)
     val questionLanguage: StateFlow<AppLanguage> = _questionLanguage.asStateFlow()
@@ -1179,12 +1191,24 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleLanguage() {
-        _language.value = if (_language.value == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH
+    fun setStudyNotesLanguage(lang: AppLanguage) {
+        _studyNotesLanguage.value = lang
+        prefs.edit().putString("study_notes_language", lang.name).apply()
     }
 
-    fun setLanguage(lang: AppLanguage) {
-        _language.value = lang
+    fun toggleStudyNotesLanguage() {
+        val newLang = if (_studyNotesLanguage.value == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH
+        setStudyNotesLanguage(newLang)
+    }
+
+    fun setCurrentAffairsLanguage(lang: AppLanguage) {
+        _currentAffairsLanguage.value = lang
+        prefs.edit().putString("current_affairs_language", lang.name).apply()
+    }
+
+    fun toggleCurrentAffairsLanguage() {
+        val newLang = if (_currentAffairsLanguage.value == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH
+        setCurrentAffairsLanguage(newLang)
     }
 
     fun setQuestionLanguage(lang: AppLanguage) {
@@ -1636,12 +1660,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
         currentQuestionsList.forEachIndexed { index, q ->
             val userChoice = answers[index]
-            var actualMarkForQ = markPerQuestion
-            try {
-                if (qMarksMap != null && qMarksMap.has(q.id.toString())) {
-                    actualMarkForQ = qMarksMap.getDouble(q.id.toString()).toFloat()
-                }
-            } catch (e: Exception) {}
+            val actualMarkForQ = com.example.ui.screens.getQuestionEffectiveMark(
+                q = q,
+                subjectMarksJsonStr = test.subjectMarksJson,
+                questionMarksJsonStr = test.questionMarksJson,
+                defaultMark = markPerQuestion
+            )
             
             when {
                 userChoice == q.correctOptionIndex -> {

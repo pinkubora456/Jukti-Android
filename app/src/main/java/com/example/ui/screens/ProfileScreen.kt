@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(viewModel: JuktiViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val userProfile by viewModel.userProfile.collectAsState()
     val userEntitlements by viewModel.userEntitlements.collectAsState()
     val plans by viewModel.plans.collectAsState()

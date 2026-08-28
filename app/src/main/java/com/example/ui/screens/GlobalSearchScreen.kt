@@ -24,7 +24,7 @@ import com.example.ui.viewmodel.Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GlobalSearchScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current

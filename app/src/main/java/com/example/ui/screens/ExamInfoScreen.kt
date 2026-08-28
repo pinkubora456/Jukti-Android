@@ -42,7 +42,7 @@ enum class HeroTab(val id: String, val titleEn: String, val titleAs: String, val
 
 @Composable
 fun ExamInfoScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val updates by viewModel.examUpdates.collectAsState()
     val examsList by viewModel.examsList.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()

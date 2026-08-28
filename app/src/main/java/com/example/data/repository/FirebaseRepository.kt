@@ -644,7 +644,8 @@ class FirebaseRepository {
         "questionsAnswered" to m.questionsAnswered,
         "timeRemainingSeconds" to m.timeRemainingSeconds,
         "questionIds" to m.questionIds,
-        "markPerQuestion" to m.markPerQuestion
+        "markPerQuestion" to m.markPerQuestion,
+        "subjectMarksJson" to m.subjectMarksJson
     )
 
     private fun studyNoteToMap(n: StudyNoteEntity): Map<String, Any?> = mapOf(
@@ -1160,7 +1161,8 @@ class FirebaseRepository {
                         questionsAnswered = doc.getLong("questionsAnswered")?.toInt() ?: 0,
                         timeRemainingSeconds = doc.getLong("timeRemainingSeconds")?.toInt() ?: 0,
                         questionIds = doc.getString("questionIds") ?: "",
-                        markPerQuestion = doc.getDouble("markPerQuestion")?.toFloat() ?: 1f
+                        markPerQuestion = doc.getDouble("markPerQuestion")?.toFloat() ?: 1f,
+                        subjectMarksJson = doc.getString("subjectMarksJson") ?: "{}"
                     )
                 } catch (e: Exception) { null }
             } ?: emptyList()
@@ -1336,7 +1338,8 @@ class FirebaseRepository {
                         accessType = doc["accessType"] as? String ?: (if (doc["isPremium"] as? Boolean == true) "PREMIUM" else "FREE"),
                         questionIds = doc["questionIds"] as? String ?: "",
                         markPerQuestion = (doc["markPerQuestion"] as? Number)?.toFloat() ?: 1f,
-                        questionMarksJson = doc["questionMarksJson"] as? String ?: "{}"
+                        questionMarksJson = doc["questionMarksJson"] as? String ?: "{}",
+                        subjectMarksJson = doc["subjectMarksJson"] as? String ?: "{}"
                     )
                 } catch (e: Exception) { null }
             }
@@ -1369,7 +1372,8 @@ class FirebaseRepository {
                         accessType = doc.getString("accessType") ?: "PREMIUM",
                         questionIds = doc.getString("questionIds") ?: "",
                         markPerQuestion = (doc.getDouble("markPerQuestion") ?: 1.0).toFloat(),
-                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}"
+                        questionMarksJson = doc.getString("questionMarksJson") ?: "{}",
+                        subjectMarksJson = doc.getString("subjectMarksJson") ?: "{}"
                     )
                 } catch (e: Exception) { null }
             } ?: emptyList()
@@ -1539,7 +1543,8 @@ class FirebaseRepository {
                                         questionsAnswered = doc.getLong("questionsAnswered")?.toInt() ?: 0,
                                         timeRemainingSeconds = doc.getLong("timeRemainingSeconds")?.toInt() ?: 0,
                                         questionIds = doc.getString("questionIds") ?: "",
-                                        markPerQuestion = doc.getDouble("markPerQuestion")?.toFloat() ?: 1f
+                                        markPerQuestion = doc.getDouble("markPerQuestion")?.toFloat() ?: 1f,
+                                        subjectMarksJson = doc.getString("subjectMarksJson") ?: "{}"
                                     )
                                 } catch (e: Throwable) {
                                     null

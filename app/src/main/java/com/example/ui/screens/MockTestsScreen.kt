@@ -41,7 +41,7 @@ import com.example.ui.viewmodel.JuktiViewModel
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MockTestsScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val mockTests by viewModel.mockTests.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
 

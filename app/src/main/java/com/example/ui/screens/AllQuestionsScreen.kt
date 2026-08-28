@@ -27,13 +27,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     var selectedSubject by remember { mutableStateOf("All Subjects") }
     var subjectExpanded by remember { mutableStateOf(false) }
 
-    val subjectsList = remember(questions) {
-        val mapped = questions.map { com.example.data.repository.normalizeSubjectName(it.subject) }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-        listOf("All Subjects") + mapped
-    }
+    val subjectsList = listOf("All Subjects") + com.example.data.repository.SampleData.CANONICAL_SUBJECTS
 
     val filteredQuestions = remember(questions, searchQuery, selectedSubject) {
         questions.filter { q ->

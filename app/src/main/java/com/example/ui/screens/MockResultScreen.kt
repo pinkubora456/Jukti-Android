@@ -47,7 +47,7 @@ enum class AnalysisFilter {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MockResultScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val mockTest by viewModel.selectedMockTest.collectAsState()
     val activeQuestions by viewModel.activeMockQuestions.collectAsState()
     val currentMockAttempt by viewModel.currentMockAttempt.collectAsState()
@@ -658,7 +658,12 @@ fun MockResultScreen(viewModel: JuktiViewModel) {
                                 questionIndex = origIdx,
                                 question = question,
                                 userChoice = userChoice,
-                                markPerQuestion = qMarksMap[question.id] ?: defaultMarkPerQuestion,
+                                markPerQuestion = getQuestionEffectiveMark(
+                                    q = question,
+                                    subjectMarksJsonStr = mockTest?.subjectMarksJson ?: "{}",
+                                    questionMarksJsonStr = currentMockAttempt?.questionMarksJson?.takeIf { it.isNotBlank() && it != "{}" } ?: mockTest?.questionMarksJson ?: "{}",
+                                    defaultMark = defaultMarkPerQuestion
+                                ),
                                 negPerQuestion = negPerQuestion,
                                 analysisLanguage = analysisLanguage,
                                 appLanguage = language,

@@ -63,7 +63,8 @@ data class MockTestEntity(
     val timeRemainingSeconds: Int = 0,
     val questionIds: String = "",
     val markPerQuestion: Float = 1f,
-    val questionMarksJson: String = "{}"
+    val questionMarksJson: String = "{}",
+    val subjectMarksJson: String = "{}"
 )
 
 @Entity(tableName = "mock_attempts")

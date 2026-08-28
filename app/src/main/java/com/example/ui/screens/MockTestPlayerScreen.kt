@@ -75,7 +75,7 @@ fun mapQuestionSubjectToDisplaySubject(rawSubject: String?): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val mockTest by viewModel.selectedMockTest.collectAsState()

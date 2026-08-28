@@ -70,8 +70,8 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
     var subjectFilterExpanded by remember { mutableStateOf(false) }
     var questionSearchQuery by remember { mutableStateOf("") }
     val selectedQuestionIds = remember { mutableStateListOf<Long>() }
-    val groupMarks = remember { mutableStateMapOf<String, String>() }
-    val groupCustomMarks = remember { mutableStateMapOf<String, String>() }
+    val subjectMarks = remember { mutableStateMapOf<String, String>() }
+    val individualQuestionMarks = remember { mutableStateMapOf<Long, String>() }
 
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val subjectsList = listOf("All Subjects") + allSubjectsChapters.map { it.subject }.distinct()
@@ -103,33 +103,39 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 selectedQuestionIds.addAll(mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() })
             }
             
-            try {
-                val qMarks = org.json.JSONObject(mock.questionMarksJson)
-                val selectedQs = allQuestions.filter { selectedQuestionIds.contains(it.id) }
-                
-                val groups = if (testType == "Subject-wise" && mock.subjectOrChapter.isNotBlank()) {
-                    listOf(mock.subjectOrChapter to allQuestions.filter { it.subject.equals(mock.subjectOrChapter, ignoreCase = true) })
-                } else if (testType == "Chapter-wise" && mock.subjectOrChapter.contains("||")) {
-                    listOf(mock.subjectOrChapter to allQuestions.filter { "${it.subject}||${it.topic}".equals(mock.subjectOrChapter, ignoreCase = true) })
-                } else {
-                    selectedQs.groupBy { "${it.subject}||${it.topic}" }.toList()
-                }
+            subjectMarks.clear()
+            if (mock.subjectMarksJson.isNotBlank() && mock.subjectMarksJson != "{}") {
+                try {
+                    val sObj = org.json.JSONObject(mock.subjectMarksJson)
+                    sObj.keys().forEach { k ->
+                        val mVal = sObj.getDouble(k).toFloat()
+                        val mStr = if (mVal % 1f == 0f) mVal.toInt().toString() else mVal.toString()
+                        subjectMarks[k] = mStr
+                    }
+                } catch (e: Exception) {}
+            }
 
-                groups.forEach { (key, list) ->
-                    if (list.isNotEmpty()) {
-                        val firstId = list.first().id.toString()
-                        val markFloat = if (qMarks.has(firstId)) qMarks.getDouble(firstId).toFloat() else mock.markPerQuestion
-                        val markStr = if (markFloat % 1f == 0f) markFloat.toInt().toString() + ".0" else markFloat.toString()
-                        val options = listOf("0.5", "1.0", "1.5", "2.0")
-                        if (options.contains(markStr)) {
-                            groupMarks[key] = markStr
-                        } else {
-                            groupMarks[key] = "Custom"
-                            groupCustomMarks[key] = markStr
+            individualQuestionMarks.clear()
+            if (mock.questionMarksJson.isNotBlank() && mock.questionMarksJson != "{}") {
+                try {
+                    val qMarks = org.json.JSONObject(mock.questionMarksJson)
+                    val selectedQs = allQuestions.filter { selectedQuestionIds.contains(it.id) }
+                    
+                    selectedQs.forEach { q ->
+                        val qIdStr = q.id.toString()
+                        if (qMarks.has(qIdStr)) {
+                            val markVal = qMarks.getDouble(qIdStr).toFloat()
+                            val subjKey = getQuestionSubject(q)
+                            val subjMarkStr = subjectMarks[subjKey] ?: "1"
+                            val expectedDef = subjMarkStr.toFloatOrNull() ?: 1.0f
+                            if (markVal > 0f && markVal != expectedDef) {
+                                val markStr = if (markVal % 1f == 0f) markVal.toInt().toString() else markVal.toString()
+                                individualQuestionMarks[q.id] = markStr
+                            }
                         }
                     }
-                }
-            } catch (e: Exception) {}
+                } catch (e: Exception) {}
+            }
         }
     }
 
@@ -553,14 +559,24 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 }
 
                 item {
+                    val activeSelectedQuestions = remember(testType, selectedMock?.subjectOrChapter, selectedQuestionIds.toList(), allQuestions) {
+                        if (testType == "Subject-wise" && !(selectedMock?.subjectOrChapter.isNullOrBlank())) {
+                            allQuestions.filter { it.subject.equals(selectedMock!!.subjectOrChapter, ignoreCase = true) }
+                        } else if (testType == "Chapter-wise" && (selectedMock?.subjectOrChapter?.contains("||") == true)) {
+                            val parts = selectedMock!!.subjectOrChapter.split("||")
+                            allQuestions.filter { it.subject.equals(parts[0], ignoreCase = true) && it.topic.equals(parts.getOrElse(1) { "" }, ignoreCase = true) }
+                        } else {
+                            allQuestions.filter { selectedQuestionIds.contains(it.id) }
+                        }
+                    }
+
                     MarksConfigurationSection(
-                        testType = testType,
-                        selectedMockSubject = selectedMock!!.subjectOrChapter,
-                        selectedMockChapter = "", // Not used easily in Edit mode directly if it's concatenated, but we can pass it if we parse it. For simplicity, we just pass the mock's subject.
-                        selectedQuestionIds = selectedQuestionIds,
-                        allQuestions = allQuestions,
-                        groupMarks = groupMarks,
-                        groupCustomMarks = groupCustomMarks
+                        subjectMarks = subjectMarks,
+                        onSubjectMarkChange = { subj, markStr -> subjectMarks[subj] = markStr },
+                        selectedQuestions = activeSelectedQuestions,
+                        individualMarks = individualQuestionMarks,
+                        onIndividualMarkChange = { id, markStr -> individualQuestionMarks[id] = markStr },
+                        onResetIndividualMark = { id -> individualQuestionMarks.remove(id) }
                     )
                 }
 
@@ -570,23 +586,23 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             if (mockTitleEn.isNotBlank() && selectedExams.isNotEmpty()) {
                                 val duration = durationMinutes.toIntOrNull() ?: 90
                                 
-                                val totalQ = selectedQuestionIds.size.coerceAtLeast(1)
-                                
-                                // Parse subject and chapter for Chapter-wise mock
-                                val subj = if (testType == "Subject-wise") selectedMock!!.subjectOrChapter else ""
-                                val subjChap = if (testType == "Chapter-wise" && selectedMock!!.subjectOrChapter.contains("||")) {
+                                val activeSelectedQuestions = if (testType == "Subject-wise") {
+                                    allQuestions.filter { it.subject.equals(selectedMock!!.subjectOrChapter, ignoreCase = true) }
+                                } else if (testType == "Chapter-wise" && selectedMock!!.subjectOrChapter.contains("||")) {
                                     val parts = selectedMock!!.subjectOrChapter.split("||")
-                                    parts[0] to parts.getOrElse(1) { "" }
-                                } else ("" to "")
-                                
-                                val selectedMockSubject = if (testType == "Chapter-wise") subjChap.first else subj
-                                val selectedMockChapter = if (testType == "Chapter-wise") subjChap.second else ""
+                                    allQuestions.filter { it.subject.equals(parts[0], ignoreCase = true) && it.topic.equals(parts.getOrElse(1) { "" }, ignoreCase = true) }
+                                } else {
+                                    allQuestions.filter { selectedQuestionIds.contains(it.id) }
+                                }
 
-                                val calculatedTotalMarks = calculateTotalMarksFromConfig(
-                                    testType, selectedMockSubject, selectedMockChapter, selectedQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                                val calculatedTotalMarks = calculateTotalMarksFromSubjectConfig(
+                                    activeSelectedQuestions, subjectMarks, individualQuestionMarks
+                                )
+                                val subjMarksJson = calculateSubjectMarksJson(
+                                    activeSelectedQuestions, subjectMarks
                                 )
                                 val qMarksJson = calculateMockQuestionMarksJson(
-                                    testType, selectedMockSubject, selectedMockChapter, selectedQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                                    activeSelectedQuestions, subjectMarks, individualQuestionMarks
                                 )
 
                                 val updatedMock = selectedMock!!.copy(
@@ -594,7 +610,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                                     titleAs = mockTitleAs.trim().ifBlank { mockTitleEn.trim() },
                                     category = selectedExams.joinToString(", "),
                                     durationMinutes = duration,
-                                    totalQuestions = totalQ,
+                                    totalQuestions = activeSelectedQuestions.size.coerceAtLeast(1),
                                     totalMarks = calculatedTotalMarks,
                                     testType = testType,
                                     subjectOrChapter = selectedMock!!.subjectOrChapter,
@@ -602,8 +618,9 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                                     difficulty = difficulty,
                                     isPremium = planType.equals("Premium", ignoreCase = true),
                                     questionIds = selectedQuestionIds.joinToString(","),
-                                    markPerQuestion = 1f,
-                                    questionMarksJson = qMarksJson
+                                    markPerQuestion = 1.0f,
+                                    questionMarksJson = qMarksJson,
+                                    subjectMarksJson = subjMarksJson
                                 )
 
                                 viewModel.updateMockTest(updatedMock) {

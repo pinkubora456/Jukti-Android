@@ -46,7 +46,7 @@ import com.example.ui.components.getLogoIcon
 @Composable
 fun AboutScreen(viewModel: JuktiViewModel) {
     val localContext = androidx.compose.ui.platform.LocalContext.current
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val isAssamese = language == AppLanguage.ASSAMESE
     val isOwner by viewModel.isOwner.collectAsState()
     val aboutConfig by viewModel.aboutConfig.collectAsState()

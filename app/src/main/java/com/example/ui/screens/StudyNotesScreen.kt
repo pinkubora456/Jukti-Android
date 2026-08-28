@@ -32,8 +32,8 @@ import com.example.ui.viewmodel.Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudyNotesScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
-    val isAssamese = language == AppLanguage.ASSAMESE
+    val studyNotesLanguage by viewModel.studyNotesLanguage.collectAsState()
+    val isAssameseNoteContent = studyNotesLanguage == AppLanguage.ASSAMESE
     val notes by viewModel.studyNotes.collectAsState()
     val selectedNote by viewModel.selectedStudyNote.collectAsState()
 
@@ -67,7 +67,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                     BilingualText(
                         textEn = selectedNote!!.titleEn,
                         textAs = selectedNote!!.titleAs,
-                        language = language,
+                        language = studyNotesLanguage,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -75,11 +75,11 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 onBackClick = { viewModel.selectStudyNote(null) },
                 actions = {
                     TextButton(onClick = { 
-                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                        viewModel.toggleStudyNotesLanguage() 
                     }) {
                         Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                        Text(if (studyNotesLanguage == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
                     }
                     IconButton(onClick = { viewModel.toggleBookmarkNote(selectedNote!!) }) {
                         Icon(
@@ -114,7 +114,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 val contentEn = selectedNote!!.contentEn
                 val contentAs = selectedNote!!.contentAs
                 
-                if (contentAs.isNotBlank() && isAssamese) {
+                if (contentAs.isNotBlank() && isAssameseNoteContent) {
                     Text(
                         text = contentAs,
                         style = MaterialTheme.typography.bodyMedium,
@@ -141,11 +141,11 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                 onBackClick = { viewModel.navigateTo(Screen.HOME) },
                 actions = {
                     TextButton(onClick = { 
-                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                        viewModel.toggleStudyNotesLanguage() 
                     }) {
                         Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                        Text(if (studyNotesLanguage == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -189,7 +189,7 @@ fun StudyNotesScreen(viewModel: JuktiViewModel) {
                     items(filteredNotes, key = { it.id }) { note ->
                         StudyNoteListItem(
                             note = note,
-                            language = language,
+                            language = studyNotesLanguage,
                             onClick = { viewModel.selectStudyNote(note) },
                             onBookmarkToggle = { viewModel.toggleBookmarkNote(note) },
                             onDownloadToggle = { viewModel.toggleDownloadNote(note) }

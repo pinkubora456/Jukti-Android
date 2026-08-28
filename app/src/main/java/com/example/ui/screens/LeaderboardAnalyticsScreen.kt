@@ -98,7 +98,7 @@ data class MockHistoryItem(
 
 @Composable
 fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val userProfile by viewModel.userProfile.collectAsState()
     val examsList by viewModel.examsList.collectAsState()
     val plans by viewModel.plans.collectAsState()

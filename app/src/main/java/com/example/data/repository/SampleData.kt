@@ -161,71 +161,120 @@ object SampleData {
     val initialFaqs = emptyList<FaqEntity>()
     val samplePlans = emptyList<PlanEntity>()
     val sampleExams = emptyList<ExamEntity>()
+    val CANONICAL_SUBJECTS = listOf(
+        "General Knowledge",
+        "General Mathematics",
+        "Reasoning & Mental Ability",
+        "General English",
+        "Reading Comprehension",
+        "Basic Computer",
+        "Transport Rule"
+    )
+
     val sampleSubjectsChapters = listOf(
-        // 1. Assam History & Culture
-        SubjectChapterEntity(id = 1L, subject = "Assam History & Culture", chapter = "Ancient and Medieval Assam"),
-        SubjectChapterEntity(id = 2L, subject = "Assam History & Culture", chapter = "Ahom Kingdom and Administration"),
-        SubjectChapterEntity(id = 3L, subject = "Assam History & Culture", chapter = "British Rule and Freedom Struggle in Assam"),
-        SubjectChapterEntity(id = 4L, subject = "Assam History & Culture", chapter = "Art, Culture, Festivals and Traditions of Assam"),
+        // 1. General Knowledge (15 chapters)
+        SubjectChapterEntity(id = 1L, subject = "General Knowledge", chapter = "History"),
+        SubjectChapterEntity(id = 2L, subject = "General Knowledge", chapter = "Polity & Constitution"),
+        SubjectChapterEntity(id = 3L, subject = "General Knowledge", chapter = "Geography"),
+        SubjectChapterEntity(id = 4L, subject = "General Knowledge", chapter = "Economy"),
+        SubjectChapterEntity(id = 5L, subject = "General Knowledge", chapter = "Science & Technology"),
+        SubjectChapterEntity(id = 6L, subject = "General Knowledge", chapter = "Environment & Ecology"),
+        SubjectChapterEntity(id = 7L, subject = "General Knowledge", chapter = "Art & Culture"),
+        SubjectChapterEntity(id = 8L, subject = "General Knowledge", chapter = "Government Schemes"),
+        SubjectChapterEntity(id = 9L, subject = "General Knowledge", chapter = "Organizations"),
+        SubjectChapterEntity(id = 10L, subject = "General Knowledge", chapter = "Awards & Honors"),
+        SubjectChapterEntity(id = 11L, subject = "General Knowledge", chapter = "Books & Authors"),
+        SubjectChapterEntity(id = 12L, subject = "General Knowledge", chapter = "Important Days"),
+        SubjectChapterEntity(id = 13L, subject = "General Knowledge", chapter = "Sports"),
+        SubjectChapterEntity(id = 14L, subject = "General Knowledge", chapter = "Current Affairs"),
+        SubjectChapterEntity(id = 15L, subject = "General Knowledge", chapter = "Static GK"),
 
-        // 2. Assam Geography & Economy
-        SubjectChapterEntity(id = 5L, subject = "Assam Geography & Economy", chapter = "Physiography, Climate and River Systems of Assam"),
-        SubjectChapterEntity(id = 6L, subject = "Assam Geography & Economy", chapter = "National Parks, Wildlife Sanctuaries and Biodiversity"),
-        SubjectChapterEntity(id = 7L, subject = "Assam Geography & Economy", chapter = "Minerals, Industries and Natural Resources"),
-        SubjectChapterEntity(id = 8L, subject = "Assam Geography & Economy", chapter = "Demography, Agriculture and Economy of Assam"),
+        // 2. General Mathematics (24 chapters)
+        SubjectChapterEntity(id = 16L, subject = "General Mathematics", chapter = "Number System"),
+        SubjectChapterEntity(id = 17L, subject = "General Mathematics", chapter = "Simplification"),
+        SubjectChapterEntity(id = 18L, subject = "General Mathematics", chapter = "HCF & LCM"),
+        SubjectChapterEntity(id = 19L, subject = "General Mathematics", chapter = "Decimal & Fractions"),
+        SubjectChapterEntity(id = 20L, subject = "General Mathematics", chapter = "Percentage"),
+        SubjectChapterEntity(id = 21L, subject = "General Mathematics", chapter = "Profit & Loss"),
+        SubjectChapterEntity(id = 22L, subject = "General Mathematics", chapter = "Discount"),
+        SubjectChapterEntity(id = 23L, subject = "General Mathematics", chapter = "Simple Interest"),
+        SubjectChapterEntity(id = 24L, subject = "General Mathematics", chapter = "Compound Interest"),
+        SubjectChapterEntity(id = 25L, subject = "General Mathematics", chapter = "Ratio & Proportion"),
+        SubjectChapterEntity(id = 26L, subject = "General Mathematics", chapter = "Partnership"),
+        SubjectChapterEntity(id = 27L, subject = "General Mathematics", chapter = "Average"),
+        SubjectChapterEntity(id = 28L, subject = "General Mathematics", chapter = "Age Problems"),
+        SubjectChapterEntity(id = 29L, subject = "General Mathematics", chapter = "Time & Work"),
+        SubjectChapterEntity(id = 30L, subject = "General Mathematics", chapter = "Pipes & Cisterns"),
+        SubjectChapterEntity(id = 31L, subject = "General Mathematics", chapter = "Time, Speed & Distance"),
+        SubjectChapterEntity(id = 32L, subject = "General Mathematics", chapter = "Boats & Streams"),
+        SubjectChapterEntity(id = 33L, subject = "General Mathematics", chapter = "Train Problems"),
+        SubjectChapterEntity(id = 34L, subject = "General Mathematics", chapter = "Mensuration"),
+        SubjectChapterEntity(id = 35L, subject = "General Mathematics", chapter = "Geometry (Basic)"),
+        SubjectChapterEntity(id = 36L, subject = "General Mathematics", chapter = "Algebra (Basic)"),
+        SubjectChapterEntity(id = 37L, subject = "General Mathematics", chapter = "Data Interpretation"),
+        SubjectChapterEntity(id = 38L, subject = "General Mathematics", chapter = "Permutation & Combination"),
+        SubjectChapterEntity(id = 39L, subject = "General Mathematics", chapter = "Probability (Basic)"),
 
-        // 3. Indian Polity & Constitution
-        SubjectChapterEntity(id = 9L, subject = "Indian Polity & Constitution", chapter = "Preamble, Fundamental Rights and DPSP"),
-        SubjectChapterEntity(id = 10L, subject = "Indian Polity & Constitution", chapter = "Union Executive and Parliament"),
-        SubjectChapterEntity(id = 11L, subject = "Indian Polity & Constitution", chapter = "Judiciary and Constitutional Bodies"),
-        SubjectChapterEntity(id = 12L, subject = "Indian Polity & Constitution", chapter = "Panchayati Raj and Local Government"),
+        // 3. Reasoning & Mental Ability (20 chapters)
+        SubjectChapterEntity(id = 40L, subject = "Reasoning & Mental Ability", chapter = "Analogy"),
+        SubjectChapterEntity(id = 41L, subject = "Reasoning & Mental Ability", chapter = "Classification"),
+        SubjectChapterEntity(id = 42L, subject = "Reasoning & Mental Ability", chapter = "Series (Number, Alphabet)"),
+        SubjectChapterEntity(id = 43L, subject = "Reasoning & Mental Ability", chapter = "Coding-Decoding"),
+        SubjectChapterEntity(id = 44L, subject = "Reasoning & Mental Ability", chapter = "Blood Relations"),
+        SubjectChapterEntity(id = 45L, subject = "Reasoning & Mental Ability", chapter = "Direction Sense"),
+        SubjectChapterEntity(id = 46L, subject = "Reasoning & Mental Ability", chapter = "Ranking & Order"),
+        SubjectChapterEntity(id = 47L, subject = "Reasoning & Mental Ability", chapter = "Seating Arrangement"),
+        SubjectChapterEntity(id = 48L, subject = "Reasoning & Mental Ability", chapter = "Syllogism"),
+        SubjectChapterEntity(id = 49L, subject = "Reasoning & Mental Ability", chapter = "Statement & Conclusion"),
+        SubjectChapterEntity(id = 50L, subject = "Reasoning & Mental Ability", chapter = "Statement & Assumption"),
+        SubjectChapterEntity(id = 51L, subject = "Reasoning & Mental Ability", chapter = "Cause & Effect"),
+        SubjectChapterEntity(id = 52L, subject = "Reasoning & Mental Ability", chapter = "Venn Diagrams"),
+        SubjectChapterEntity(id = 53L, subject = "Reasoning & Mental Ability", chapter = "Calendar"),
+        SubjectChapterEntity(id = 54L, subject = "Reasoning & Mental Ability", chapter = "Clock"),
+        SubjectChapterEntity(id = 55L, subject = "Reasoning & Mental Ability", chapter = "Mirror Image"),
+        SubjectChapterEntity(id = 56L, subject = "Reasoning & Mental Ability", chapter = "Water Image"),
+        SubjectChapterEntity(id = 57L, subject = "Reasoning & Mental Ability", chapter = "Paper Folding & Cutting"),
+        SubjectChapterEntity(id = 58L, subject = "Reasoning & Mental Ability", chapter = "Embedded Figures"),
+        SubjectChapterEntity(id = 59L, subject = "Reasoning & Mental Ability", chapter = "Non-Verbal Reasoning"),
 
-        // 4. Indian History & National Movement
-        SubjectChapterEntity(id = 13L, subject = "Indian History & National Movement", chapter = "Indus Valley Civilization & Vedic Period"),
-        SubjectChapterEntity(id = 14L, subject = "Indian History & National Movement", chapter = "Maurya, Gupta and Mughal Empires"),
-        SubjectChapterEntity(id = 15L, subject = "Indian History & National Movement", chapter = "Revolt of 1857 and Social Reform Movements"),
-        SubjectChapterEntity(id = 16L, subject = "Indian History & National Movement", chapter = "Indian National Movement (1885-1947)"),
+        // 4. General English (18 chapters)
+        SubjectChapterEntity(id = 60L, subject = "General English", chapter = "Vocabulary"),
+        SubjectChapterEntity(id = 61L, subject = "General English", chapter = "Synonyms & Antonyms"),
+        SubjectChapterEntity(id = 62L, subject = "General English", chapter = "One-Word & Idioms"),
+        SubjectChapterEntity(id = 63L, subject = "General English", chapter = "Phrasal Verbs"),
+        SubjectChapterEntity(id = 64L, subject = "General English", chapter = "Spotting Errors"),
+        SubjectChapterEntity(id = 65L, subject = "General English", chapter = "Sentence Improvement"),
+        SubjectChapterEntity(id = 66L, subject = "General English", chapter = "Fill in the Blanks"),
+        SubjectChapterEntity(id = 67L, subject = "General English", chapter = "Cloze Test"),
+        SubjectChapterEntity(id = 68L, subject = "General English", chapter = "Para Jumbles"),
+        SubjectChapterEntity(id = 69L, subject = "General English", chapter = "Active & Passive Voice"),
+        SubjectChapterEntity(id = 70L, subject = "General English", chapter = "Direct & Indirect Speech"),
+        SubjectChapterEntity(id = 71L, subject = "General English", chapter = "Articles"),
+        SubjectChapterEntity(id = 72L, subject = "General English", chapter = "Prepositions"),
+        SubjectChapterEntity(id = 73L, subject = "General English", chapter = "Conjunctions"),
+        SubjectChapterEntity(id = 74L, subject = "General English", chapter = "Tenses"),
+        SubjectChapterEntity(id = 75L, subject = "General English", chapter = "Sub–Verb Agreement"),
+        SubjectChapterEntity(id = 76L, subject = "General English", chapter = "Narration"),
+        SubjectChapterEntity(id = 77L, subject = "General English", chapter = "Sentence Correction"),
 
-        // 5. General English
-        SubjectChapterEntity(id = 17L, subject = "General English", chapter = "Grammar & Sentence Correction"),
-        SubjectChapterEntity(id = 18L, subject = "General English", chapter = "Synonyms, Antonyms & Vocabulary"),
-        SubjectChapterEntity(id = 19L, subject = "General English", chapter = "One-Word & Idioms"),
-        SubjectChapterEntity(id = 20L, subject = "General English", chapter = "Reading Comprehension & Para Jumbles"),
+        // 5. Reading Comprehension (4 chapters)
+        SubjectChapterEntity(id = 78L, subject = "Reading Comprehension", chapter = "Reading Comprehension & Passages"),
+        SubjectChapterEntity(id = 79L, subject = "Reading Comprehension", chapter = "Passage Based Questions"),
+        SubjectChapterEntity(id = 80L, subject = "Reading Comprehension", chapter = "Short Passages"),
+        SubjectChapterEntity(id = 81L, subject = "Reading Comprehension", chapter = "Long Passages"),
 
-        // 6. General Mathematics
-        SubjectChapterEntity(id = 21L, subject = "General Mathematics", chapter = "Number System, LCM & HCF"),
-        SubjectChapterEntity(id = 22L, subject = "General Mathematics", chapter = "Percentage, Ratio & Proportion"),
-        SubjectChapterEntity(id = 23L, subject = "General Mathematics", chapter = "Profit, Loss, Discount & Simple/Compound Interest"),
-        SubjectChapterEntity(id = 24L, subject = "General Mathematics", chapter = "Time, Work, Speed, Distance & Mensuration"),
+        // 6. Basic Computer (5 chapters)
+        SubjectChapterEntity(id = 82L, subject = "Basic Computer", chapter = "Computer Fundamentals & Architecture"),
+        SubjectChapterEntity(id = 83L, subject = "Basic Computer", chapter = "Operating Systems & MS Office (Word, Excel, PowerPoint)"),
+        SubjectChapterEntity(id = 84L, subject = "Basic Computer", chapter = "Internet, Networking & Cyber Security"),
+        SubjectChapterEntity(id = 85L, subject = "Basic Computer", chapter = "Hardware, Software & Input/Output Devices"),
+        SubjectChapterEntity(id = 86L, subject = "Basic Computer", chapter = "Database, Shortcuts & Computer Abbreviations"),
 
-        // 7. Logical Reasoning & Mental Ability
-        SubjectChapterEntity(id = 25L, subject = "Logical Reasoning & Mental Ability", chapter = "Coding-Decoding, Series & Analogy"),
-        SubjectChapterEntity(id = 26L, subject = "Logical Reasoning & Mental Ability", chapter = "Blood Relations & Direction Sense Test"),
-        SubjectChapterEntity(id = 27L, subject = "Logical Reasoning & Mental Ability", chapter = "Seating Arrangement, Puzzles & Venn Diagrams"),
-        SubjectChapterEntity(id = 28L, subject = "Logical Reasoning & Mental Ability", chapter = "Syllogism, Statements & Assumptions"),
-
-        // 8. General Science
-        SubjectChapterEntity(id = 29L, subject = "General Science", chapter = "Physics: Mechanics, Light & Electricity"),
-        SubjectChapterEntity(id = 30L, subject = "General Science", chapter = "Chemistry: Elements, Compounds & Reactions"),
-        SubjectChapterEntity(id = 31L, subject = "General Science", chapter = "Biology: Human Anatomy, Nutrition & Diseases"),
-
-        // 9. Basic Computer
-        SubjectChapterEntity(id = 32L, subject = "Basic Computer", chapter = "Computer Fundamentals & Architecture"),
-        SubjectChapterEntity(id = 33L, subject = "Basic Computer", chapter = "Operating Systems & MS Office (Word, Excel, PowerPoint)"),
-        SubjectChapterEntity(id = 34L, subject = "Basic Computer", chapter = "Internet, Networking & Cyber Security"),
-        SubjectChapterEntity(id = 42L, subject = "Basic Computer", chapter = "Hardware, Software & Input/Output Devices"),
-        SubjectChapterEntity(id = 43L, subject = "Basic Computer", chapter = "Database, Shortcuts & Computer Abbreviations"),
-
-        // 10. Current Affairs & General Awareness
-        SubjectChapterEntity(id = 35L, subject = "Current Affairs & General Awareness", chapter = "National Current Affairs (2025-2026)"),
-        SubjectChapterEntity(id = 36L, subject = "Current Affairs & General Awareness", chapter = "State (Assam) Current Affairs & Government Schemes"),
-        SubjectChapterEntity(id = 37L, subject = "Current Affairs & General Awareness", chapter = "Sports, Awards and Important Personalities"),
-
-        // 11. Transport Rule
-        SubjectChapterEntity(id = 38L, subject = "Transport Rule", chapter = "Traffic Signs, Signals & Road Safety"),
-        SubjectChapterEntity(id = 39L, subject = "Transport Rule", chapter = "Motor Vehicles Act & Traffic Rules"),
-        SubjectChapterEntity(id = 40L, subject = "Transport Rule", chapter = "Driving Regulations, Licences & Permits"),
-        SubjectChapterEntity(id = 41L, subject = "Transport Rule", chapter = "Vehicle Safety, Violations & Penalties")
+        // 7. Transport Rule (4 chapters)
+        SubjectChapterEntity(id = 87L, subject = "Transport Rule", chapter = "Traffic Signs, Signals & Road Safety"),
+        SubjectChapterEntity(id = 88L, subject = "Transport Rule", chapter = "Motor Vehicles Act & Traffic Rules"),
+        SubjectChapterEntity(id = 89L, subject = "Transport Rule", chapter = "Driving Regulations, Licences & Permits"),
+        SubjectChapterEntity(id = 90L, subject = "Transport Rule", chapter = "Vehicle Safety, Violations & Penalties")
     )
 
     val initialUserProfile = UserProfileEntity(

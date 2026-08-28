@@ -72,8 +72,8 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     var subjectFilterExpanded by remember { mutableStateOf(false) }
     var questionSearchQuery by remember { mutableStateOf("") }
     val selectedQuestionIds = remember { mutableStateListOf<Long>() }
-    val groupMarks = remember { mutableStateMapOf<String, String>() }
-    val groupCustomMarks = remember { mutableStateMapOf<String, String>() }
+    val subjectMarks = remember { mutableStateMapOf<String, String>() }
+    val individualQuestionMarks = remember { mutableStateMapOf<Long, String>() }
 
     // Add Question Dialog state
     var showAddQuestionDialog by remember { mutableStateOf(false) }
@@ -120,7 +120,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     var addToQBank by remember { mutableStateOf(true) }
     var isUploadingQ by remember { mutableStateOf(false) }
 
-        val subjectsList = listOf("All Subjects") + allSubjectsChapters.map { it.subject }.distinct()
+        val subjectsList = listOf("All Subjects") + com.example.data.repository.SampleData.CANONICAL_SUBJECTS
 
     val filteredQuestions = allQuestions.filter { q ->
         val matchesSubject = selectedSubjectFilter == "All Subjects" || q.subject.equals(selectedSubjectFilter, ignoreCase = true)
@@ -599,14 +599,23 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             }
 
             item {
+                val activeSelectedQuestions = remember(testType, selectedMockSubject, selectedMockChapter, selectedQuestionIds.toList(), allQuestions) {
+                    if (testType == "Subject-wise" && selectedMockSubject.isNotBlank()) {
+                        allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
+                    } else if (testType == "Chapter-wise" && selectedMockChapter.isNotBlank()) {
+                        allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
+                    } else {
+                        allQuestions.filter { selectedQuestionIds.contains(it.id) }
+                    }
+                }
+
                 MarksConfigurationSection(
-                    testType = testType,
-                    selectedMockSubject = selectedMockSubject,
-                    selectedMockChapter = selectedMockChapter,
-                    selectedQuestionIds = selectedQuestionIds,
-                    allQuestions = allQuestions,
-                    groupMarks = groupMarks,
-                    groupCustomMarks = groupCustomMarks
+                    subjectMarks = subjectMarks,
+                    onSubjectMarkChange = { subj, markStr -> subjectMarks[subj] = markStr },
+                    selectedQuestions = activeSelectedQuestions,
+                    individualMarks = individualQuestionMarks,
+                    onIndividualMarkChange = { id, markStr -> individualQuestionMarks[id] = markStr },
+                    onResetIndividualMark = { id -> individualQuestionMarks.remove(id) }
                 )
             }
             
@@ -655,21 +664,25 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             }
                         }
 
-                        val duration = durationMinutes.toIntOrNull() ?: 90
-                        
-                        val totalQ = if (testType == "Subject-wise") {
-                            allQuestions.count { it.subject.equals(selectedMockSubject, ignoreCase = true) }
+                        val activeSelectedQuestions = if (testType == "Subject-wise") {
+                            allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
                         } else if (testType == "Chapter-wise") {
-                            allQuestions.count { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
+                            allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
                         } else {
-                            finalQuestionIds.size.coerceAtLeast(1)
+                            allQuestions.filter { finalQuestionIds.contains(it.id) }
                         }
 
-                        val calculatedTotalMarks = calculateTotalMarksFromConfig(
-                            testType, selectedMockSubject, selectedMockChapter, finalQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                        val duration = durationMinutes.toIntOrNull() ?: 90
+                        val totalQ = activeSelectedQuestions.size.coerceAtLeast(1)
+
+                        val calculatedTotalMarks = calculateTotalMarksFromSubjectConfig(
+                            activeSelectedQuestions, subjectMarks, individualQuestionMarks
+                        )
+                        val subjMarksJson = calculateSubjectMarksJson(
+                            activeSelectedQuestions, subjectMarks
                         )
                         val qMarksJson = calculateMockQuestionMarksJson(
-                            testType, selectedMockSubject, selectedMockChapter, finalQuestionIds, allQuestions, groupMarks, groupCustomMarks
+                            activeSelectedQuestions, subjectMarks, individualQuestionMarks
                         )
 
                         val newMock = MockTestEntity(
@@ -685,8 +698,9 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             difficulty = difficulty,
                             isPremium = planType.equals("Premium", ignoreCase = true),
                             questionIds = finalQuestionIds.joinToString(","),
-                            markPerQuestion = 1f,
-                            questionMarksJson = qMarksJson
+                            markPerQuestion = 1.0f,
+                            questionMarksJson = qMarksJson,
+                            subjectMarksJson = subjMarksJson
                         )
 
                         viewModel.addMockTest(newMock) {

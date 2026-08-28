@@ -31,7 +31,7 @@ import com.example.ui.components.SafeOutlinedTextField
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val userProfile by viewModel.userProfile.collectAsState()
     val sessionMessage by viewModel.sessionMessage.collectAsState()
     val aboutConfig by viewModel.aboutConfig.collectAsState()

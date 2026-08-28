@@ -40,7 +40,7 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
@@ -370,17 +370,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         iconColor = MaterialTheme.colorScheme.secondary
                     ),
                     BannerConfig(
-                        titleEn = "General English",
-                        titleAs = "সাধাৰণ ইংৰাজী",
-                        subtitleEn = "Grammar, Vocabulary, Synonyms, Antonyms & Comprehension",
-                        subtitleAs = "ইংৰাজী ব্যাকৰণ, শব্দকোষ, বিপৰীত শব্দ আৰু সমাৰ্থক শব্দ",
-                        subjectKey = "General English",
-                        icon = Icons.Default.Translate,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.tertiary
-                    ),
-                    BannerConfig(
-                        titleEn = "Mathematics",
+                        titleEn = "General Mathematics",
                         titleAs = "গণিত (Mathematics)",
                         subtitleEn = "Arithmetic, Quantitative Aptitude, Algebra & Geometry",
                         subtitleAs = "পাটিগণিত, বীজগণিত, জ্যামিতি আৰু সংখ্যা সংক্ৰান্তীয়",
@@ -390,13 +380,33 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         iconColor = MaterialTheme.colorScheme.primary
                     ),
                     BannerConfig(
-                        titleEn = "Reasoning",
+                        titleEn = "Reasoning & Mental Ability",
                         titleAs = "যুক্তিবিদ্যা (Reasoning)",
                         subtitleEn = "Logical Aptitude, Verbal & Non-Verbal Reasoning",
                         subtitleAs = "মানসিক দক্ষতা আৰু যুক্তিনিৰ্ভৰ প্ৰশ্নৱালী",
-                        subjectKey = "Reasoning",
+                        subjectKey = "Reasoning & Mental Ability",
                         icon = Icons.Default.Psychology,
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        iconColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    BannerConfig(
+                        titleEn = "General English",
+                        titleAs = "সাধাৰণ ইংৰাজী",
+                        subtitleEn = "Grammar, Vocabulary, Synonyms, Antonyms, Voice & Tenses",
+                        subtitleAs = "ইংৰাজী ব্যাকৰণ, শব্দকোষ, বিপৰীত শব্দ আৰু সমাৰ্থক শব্দ",
+                        subjectKey = "General English",
+                        icon = Icons.Default.Translate,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                        iconColor = MaterialTheme.colorScheme.tertiary
+                    ),
+                    BannerConfig(
+                        titleEn = "Reading Comprehension",
+                        titleAs = "পঠন বোধগম্যতা (Comprehension)",
+                        subtitleEn = "Reading Passages, Short & Long Passages, Passage Based MCQs",
+                        subtitleAs = "পঠন বোধগম্যতা আৰু প্ৰশ্নোত্তৰ",
+                        subjectKey = "Reading Comprehension",
+                        icon = Icons.Default.MenuBook,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
                         iconColor = MaterialTheme.colorScheme.secondary
                     ),
                     BannerConfig(

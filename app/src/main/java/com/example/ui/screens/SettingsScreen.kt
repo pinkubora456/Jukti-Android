@@ -40,7 +40,7 @@ import com.example.ui.viewmodel.Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()

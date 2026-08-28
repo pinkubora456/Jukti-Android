@@ -272,7 +272,7 @@ fun StudySubjectBannerCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun McqStudyScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
@@ -325,12 +325,13 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
             },
             actions = {
                 if (activeStudySubView == "CURRENT_AFFAIRS") {
+                    val currentAffairsLanguage by viewModel.currentAffairsLanguage.collectAsState()
                     TextButton(onClick = { 
-                        viewModel.setLanguage(if (language == AppLanguage.ENGLISH) AppLanguage.ASSAMESE else AppLanguage.ENGLISH) 
+                        viewModel.toggleCurrentAffairsLanguage() 
                     }) {
                         Icon(Icons.Default.Translate, contentDescription = "Change Language", modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(if (language == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
+                        Text(if (currentAffairsLanguage == AppLanguage.ENGLISH) "EN" else "অসমীয়া", fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -702,7 +703,7 @@ fun StudyFeatureCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
@@ -1609,7 +1610,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
    ===================================================================== */
 @Composable
 fun PracticeMcqTab(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
@@ -1914,7 +1915,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
    ===================================================================== */
 @Composable
 fun PomodoroClockTab(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -2081,7 +2082,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
    ===================================================================== */
 @Composable
 fun ExamPatternAndCutoffTab(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -2410,10 +2411,10 @@ fun TetExamPatternCard(isAssamese: Boolean) {
    ===================================================================== */
 @Composable
 fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val currentAffairsLanguage by viewModel.currentAffairsLanguage.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val allNotes by viewModel.accessibleStudyNotes.collectAsState()
-    val isAssamese = language == AppLanguage.ASSAMESE
+    val isAssamese = currentAffairsLanguage == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var selectedNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
@@ -2504,7 +2505,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             BilingualText(
                 textEn = note.titleEn,
                 textAs = note.titleAs,
-                language = language,
+                language = currentAffairsLanguage,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -2669,8 +2670,10 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            Text(
-                                text = note.titleEn,
+                            BilingualText(
+                                textEn = note.titleEn,
+                                textAs = note.titleAs,
+                                language = currentAffairsLanguage,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -2678,8 +2681,10 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
 
                             Spacer(modifier = Modifier.height(6.dp))
 
+                            val snippetEn = note.contentEn.take(120) + "..."
+                            val snippetAs = if (note.contentAs.isNotBlank()) note.contentAs.take(120) + "..." else snippetEn
                             Text(
-                                text = note.contentEn.take(120) + "...",
+                                text = if (isAssamese && note.contentAs.isNotBlank()) snippetAs else snippetEn,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

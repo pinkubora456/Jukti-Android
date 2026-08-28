@@ -42,7 +42,7 @@ import com.example.ui.components.getLogoIcon
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: JuktiViewModel) {
-    val language by viewModel.language.collectAsState()
+    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val aboutConfig by viewModel.aboutConfig.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val plans by viewModel.plans.collectAsState()

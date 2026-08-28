@@ -53,7 +53,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
-            val language by viewModel.language.collectAsState()
             val showPremiumPaywall by viewModel.showPremiumPaywall.collectAsState()
             val syncToastMessage by viewModel.syncToastMessage.collectAsState()
             val context = androidx.compose.ui.platform.LocalContext.current
@@ -125,7 +124,6 @@ class MainActivity : ComponentActivity() {
                         if (showBottomBar) {
                             JuktiBottomNavigation(
                                 currentScreen = currentScreen,
-                                language = language,
                                 onNavigate = { screen ->
                                     if (screen == Screen.MCQ_STUDY) {
                                         viewModel.openStudyHub()
@@ -225,7 +223,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JuktiBottomNavigation(
     currentScreen: Screen,
-    language: AppLanguage,
     onNavigate: (Screen) -> Unit
 ) {
     val items = listOf(
