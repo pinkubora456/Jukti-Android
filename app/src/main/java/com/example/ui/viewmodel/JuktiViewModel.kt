@@ -1977,12 +1977,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                if (result.errorMessage != null && result.firebaseUser == null) {
-                    _sessionMessage.value = result.errorMessage
-                    _isAuthLoading.value = false
-                    return@launch
-                }
-
                 val fbUser = result.firebaseUser
                 val uid = fbUser?.uid
                 val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""

@@ -56,20 +56,17 @@ class GoogleAuthManager(private val context: Context) {
             val serverClientId = getWebClientId(activity)
             Log.d(TAG, "Initiating Google Sign-In with serverClientId: $serverClientId")
 
-            val rawNonce = UUID.randomUUID().toString()
-            val bytes = rawNonce.toByteArray()
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(bytes)
-            val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId)
+                .build()
 
             val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false) // Allows selecting any Google account on device
+                .setFilterByAuthorizedAccounts(false)
                 .setServerClientId(serverClientId)
-                .setAutoSelectEnabled(false) // Ensures native prompt is shown so user can choose account
-                .setNonce(hashedNonce)
+                .setAutoSelectEnabled(false)
                 .build()
 
             val request = GetCredentialRequest.Builder()
+                .addCredentialOption(signInWithGoogleOption)
                 .addCredentialOption(googleIdOption)
                 .build()
 
