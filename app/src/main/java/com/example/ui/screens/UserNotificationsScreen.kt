@@ -23,8 +23,6 @@ import com.example.ui.viewmodel.Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserNotificationsScreen(viewModel: JuktiViewModel) {
-    val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
-    val isAssamese = language == AppLanguage.ASSAMESE
     val notifications by viewModel.notifications.collectAsState()
 
     Scaffold(
