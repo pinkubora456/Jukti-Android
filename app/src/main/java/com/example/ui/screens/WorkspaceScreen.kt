@@ -319,6 +319,7 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
         }
 
         if (isOwner) {
+
             WorkspaceBannerCard(
                 title = "Owner Dashboard",
                 icon = Icons.Default.Dashboard,
@@ -326,11 +327,18 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             )
         }
 
+
+        WorkspaceBannerCard(
+            title = "Content Overview",
+            icon = Icons.Default.Assessment,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.CONTENT_OVERVIEW) }
+        )
         WorkspaceBannerCard(
             title = "Manage Q-Bank",
             icon = Icons.Default.LibraryBooks,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) }
         )
+
 
         WorkspaceBannerCard(
             title = "Manage Mocks",
@@ -338,11 +346,13 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK) }
         )
 
+
         WorkspaceBannerCard(
             title = "Manage Plans",
             icon = Icons.Default.CardMembership,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN) }
         )
+
 
         WorkspaceBannerCard(
             title = "Manage Exams",
@@ -350,11 +360,13 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_EXAMS) }
         )
 
+
         WorkspaceBannerCard(
             title = "Manage User Log",
             icon = Icons.Default.People,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_USER_LOG) }
         )
+
 
         WorkspaceBannerCard(
             title = "Reported Questions",
@@ -363,11 +375,13 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             badgeCount = reportedQuestions.size
         )
 
+
         WorkspaceBannerCard(
             title = "Manage Current Affairs",
             icon = Icons.Default.Newspaper,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_CURRENT_AFFAIRS) }
         )
+
 
         WorkspaceBannerCard(
             title = "Manage Study Notes",
@@ -375,11 +389,13 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_STUDY_NOTES) }
         )
 
+
         WorkspaceBannerCard(
             title = "Manage Subjects & Chapters",
             icon = Icons.Default.Category,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }
         )
+
 
         WorkspaceBannerCard(
             title = "Information Banners",
@@ -388,6 +404,7 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
         )
 
         var showExamPatternChoiceDialog by remember { mutableStateOf(false) }
+
 
         WorkspaceBannerCard(
             title = "Exam Patern & Cutoff",
@@ -419,6 +436,7 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             )
         }
 
+
         WorkspaceBannerCard(
             title = "Notification",
             icon = Icons.Default.Notifications,
@@ -428,6 +446,7 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
 }
 
 @Composable
+
 fun WorkspaceBannerCard(
     title: String,
     icon: ImageVector,
