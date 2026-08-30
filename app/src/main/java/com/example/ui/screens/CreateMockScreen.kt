@@ -918,7 +918,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             SafeOutlinedTextField(
                                 value = qPyqExamName,
                                 onValueChange = { qPyqExamName = it },
-                                label = { Text("Exam Name (e.g., APSC CCE)") },
+                                label = { Text("Exam Name") },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -1066,7 +1066,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                                 correctOptionIndex = correctOptionIndex,
                                 explanationEn = qExplanationEnglish.trim(),
                                 explanationAs = qExplanationAssamese.trim(),
-                                examCategory = if (qSelectedExams.isNotEmpty()) qSelectedExams.joinToString(", ") else "ADRE",
+                                examCategory = if (qSelectedExams.isNotEmpty()) qSelectedExams.joinToString(", ") else "",
                                 isPremium = qQuestionFor.equals("Premium", ignoreCase = true),
                                 questionType = finalQuestionTag
                             )
@@ -1162,7 +1162,7 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
     if (showBatchImportDialog) {
         val targetSubject = if (testType == "Subject-wise" && selectedMockSubject.isNotBlank()) selectedMockSubject else "General Studies"
         val targetChapter = if (testType == "Chapter-wise" && selectedMockChapter.isNotBlank()) selectedMockChapter else "General"
-        val targetExam = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "ADRE"
+        val targetExam = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else ""
 
         BatchImportMockQuestionsDialog(
             viewModel = viewModel,

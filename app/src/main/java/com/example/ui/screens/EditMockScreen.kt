@@ -687,7 +687,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
             viewModel = viewModel,
             defaultSubject = "General Studies",
             defaultChapter = "General",
-            defaultExamCategory = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "ADRE",
+            defaultExamCategory = if (selectedExams.isNotEmpty()) selectedExams.joinToString(", ") else "",
             isMockPremium = planType == "Premium",
             onDismiss = { showBatchImportDialog = false },
             onQuestionsImported = { assignedIds, _ ->

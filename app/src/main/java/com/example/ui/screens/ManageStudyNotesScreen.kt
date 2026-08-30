@@ -35,7 +35,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     // Form fields
     var titleEn by remember { mutableStateOf("") }
     var titleAs by remember { mutableStateOf("") }
-    var selectedExam by remember { mutableStateOf("ADRE 2.0") }
+    var selectedExam by remember { mutableStateOf("") }
     var examDropdownExpanded by remember { mutableStateOf(false) }
     
     var noteType by remember { mutableStateOf("Free") }

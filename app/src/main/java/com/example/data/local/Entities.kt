@@ -22,7 +22,7 @@ data class QuestionEntity(
     val correctOptionIndex: Int,  // 0, 1, 2, 3
     val explanationEn: String,
     val explanationAs: String,
-    val examCategory: String = "ADRE", // e.g. "ADRE", "APSC", "Assam Police", "TET"
+    val examCategory: String = "", // e.g. "ADRE", "APSC", "Assam Police", "TET"
     val isPremium: Boolean = false,
     val accessType: String = "FREE",
     val questionType: String = "Expected", // "PYQ", "Expected"
@@ -149,7 +149,7 @@ data class UserProfileEntity(
     val email: String = "scholar@jukti.in",
     val mobile: String = "+91 98765 43210",
     val district: String = "Kamrup Metropolitan",
-    val examGoal: String = "ADRE Grade 3 & APSC CCE",
+    val examGoal: String = "",
     val xp: Int = 0,
     val level: Int = 1,
     val dailyStreak: Int = 0,
@@ -237,7 +237,7 @@ data class AboutConfigEntity(
     val appSubtitleAs: String = "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
     val versionText: String = "Version 2026.1.0",
     val missionEn: String = "Jukti is engineered to democratize competitive exam preparation for aspirants across Assam. We provide comprehensive practice modules, high-yield Assam history and current affairs notes, full-length timed mock tests, and real-time state ranking analytics.",
-    val missionAs: String = "যুক্তি এপ্পৰ প্ৰধান উদ্দেশ্য হৈছে অসমৰ সকলো প্ৰতিযোগীতামূলক পৰীক্ষাৰ (APSC, ADRE 2.0, Assam Police, SLRC, TET) প্ৰাৰ্থীসকলক উচ্চমানদণ্ডৰ মক টেষ্ট, বিগত বৰ্ষৰ প্ৰশ্ন আৰু অধ্যয়ন সমল সম্পূৰ্ণ বিনামূলীয়াকৈ তথা সহজ ভাষাত যোগান ধৰা।",
+    val missionAs: String = "যুক্তি এপ্পৰ প্ৰধান উদ্দেশ্য হৈছে অসমৰ সকলো প্ৰতিযোগীতামূলক পৰীক্ষাৰ প্ৰাৰ্থীসকলক উচ্চমানদণ্ডৰ মক টেষ্ট, বিগত বৰ্ষৰ প্ৰশ্ন আৰু অধ্যয়ন সমল সম্পূৰ্ণ বিনামূলীয়াকৈ তথা সহজ ভাষাত যোগান ধৰা।",
     val logoIconName: String = "School", // "School", "Book", "Library", "Star", "Sparkles", "Psychology", "Award", "Trophy", "Balance", "Gavel"
     val logoUrl: String = "",
     val logoUpdatedAt: Long = 0L,
@@ -252,7 +252,7 @@ data class AboutConfigEntity(
     val refundPolicyAs: String = "আমাৰ ৰিফাণ্ড পলিচি ক্ৰয় কৰাৰ ৭ দিনৰ বাবে প্ৰযোজ্য। ক্ৰয় কৰাৰ ৭ দিন অতিক্ৰম কৰিলে কোনো ৰিফাণ্ড প্ৰদান কৰা নহ'ব। কেৱল কাৰিকৰী অসুবিধা বা ভুলতে দুবাৰ পইচা কটা গ’লেহে আপুনি ৰিফাণ্ডৰ বাবে আবেদন কৰিব পাৰিব। সহায়ৰ বাবে juktieducation@gmail.com ত যোগাযোগ কৰক.",
     val founderName: String = "Pinku Bora",
     val founderTitle: String = "Founder & Creator of Jukti",
-    val founderCredential: String = "ADRE 2022 Qualifier",
+    val founderCredential: String = "",
     val founderDescription: String = "Jukti was created with a simple vision — to make competitive exam preparation smarter, more accessible, and more effective for aspirants.\n\nHaving experienced the competitive exam preparation journey myself, I understand the importance of consistent practice, quality questions, performance analysis, and identifying areas that need improvement.\n\nThrough Jukti, my goal is to provide aspirants with a focused platform where they can practice, test their knowledge, track their progress, and prepare with greater confidence.",
     val founderPhotoUrl: String = "",
     val founderTagline: String = "Jukti — Test Your Knowledge.",

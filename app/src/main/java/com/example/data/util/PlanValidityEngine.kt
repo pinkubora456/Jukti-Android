@@ -212,20 +212,15 @@ object PlanValidityEngine {
                 targets.add("All Exams")
             }
             nameLower.contains("grade 4") || nameLower.contains("grade iv") || nameLower.contains("class 4") -> {
-                targets.add("ADRE Grade 4")
-                targets.add("ADRE Grade IV")
                 targets.add("Grade 4")
                 targets.add("Grade IV")
             }
             nameLower.contains("grade 3") || nameLower.contains("grade iii") || nameLower.contains("class 3") -> {
-                targets.add("ADRE Grade 3")
-                targets.add("ADRE Grade III")
                 targets.add("Grade 3")
                 targets.add("Grade III")
             }
             nameLower.contains("driver") -> {
                 targets.add("Driver")
-                targets.add("ADRE Driver")
             }
             nameLower.contains("police") -> {
                 targets.add("Assam Police")
@@ -270,7 +265,7 @@ object PlanValidityEngine {
                 "Ad-Free Learning Experience",
                 "Exam Alerts & Syllabus Updates",
                 "Unlimited Practice & Custom Tests",
-                "All Exam Target Access (Grade 3, Grade 4, Driver, Police, TET, APSC)",
+                "All Exam Target Access",
                 "Owner & Admin Full Privileges"
             )
             return EffectiveUserEntitlement(

@@ -352,7 +352,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     SafeOutlinedTextField(
                         value = pyqExamName,
                         onValueChange = { pyqExamName = it },
-                        label = { Text("Exam Name (e.g., APSC CCE)") },
+                        label = { Text("Exam Name") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

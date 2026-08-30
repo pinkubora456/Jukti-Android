@@ -32,7 +32,7 @@ object CsvQuestionParser {
     const val SAMPLE_CSV_HEADER = "Question in English,Question in Assamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty"
 
     const val SAMPLE_CSV_ROW_1 = "\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in 1228.\",\"চ্যুকাফাই ১২২৮ চনত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\",\"Assam History\",\"Ahom Dynasty\",\"Expected\",\"Medium\""
-    const val SAMPLE_CSV_ROW_2 = "\"Kaziranga National Park is famous for which animal?\",\"কাজিৰঙা ৰাষ্ট্ৰীয় উদ্যান কোনটো প্ৰাণীৰ বাবে বিখ্যাত?\",\"One-horned Rhinoceros\",\"এশিঙীয়া গঁড়\",\"Royal Bengal Tiger\",\"ৰয়েল বেংগল টাইগাৰ\",\"Asian Elephant\",\"এছিয়ান হাতী\",\"Snow Leopard\",\"স্ন' লিপাৰ্ড\",\"A\",\"Kaziranga hosts two-thirds of the world's great one-horned rhinoceroses.\",\"কাজিৰঙাত বিশ্বৰ দুই-তৃতীয়াংশ এশিঙীয়া গঁড় আছে।\",\"Assam Geography\",\"National Parks & Wildlife\",\"ADRE 2024\",\"Easy\""
+    const val SAMPLE_CSV_ROW_2 = "\"Kaziranga National Park is famous for which animal?\",\"কাজিৰঙা ৰাষ্ট্ৰীয় উদ্যান কোনটো প্ৰাণীৰ বাবে বিখ্যাত?\",\"One-horned Rhinoceros\",\"এশিঙীয়া গঁড়\",\"Royal Bengal Tiger\",\"ৰয়েল বেংগল টাইগাৰ\",\"Asian Elephant\",\"এছিয়ান হাতী\",\"Snow Leopard\",\"স্ন' লিপাৰ্ড\",\"A\",\"Kaziranga hosts two-thirds of the world's great one-horned rhinoceroses.\",\"কাজিৰঙাত বিশ্বৰ দুই-তৃতীয়াংশ এশিঙীয়া গঁড় আছে।\",\"Assam Geography\",\"National Parks & Wildlife\",\"General Exam\",\"Easy\""
 
     fun getSampleCsvTemplate(): String {
         return "$SAMPLE_CSV_HEADER\n$SAMPLE_CSV_ROW_1\n$SAMPLE_CSV_ROW_2"
@@ -112,7 +112,7 @@ object CsvQuestionParser {
         csvText: String,
         defaultSubject: String = "General Studies",
         defaultChapter: String = "General",
-        defaultExamCategory: String = "ADRE",
+        defaultExamCategory: String = "",
         isPremium: Boolean = false,
         existingQuestions: List<QuestionEntity> = emptyList()
     ): BatchValidationResult {

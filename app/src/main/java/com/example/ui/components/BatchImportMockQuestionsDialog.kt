@@ -44,7 +44,7 @@ fun BatchImportMockQuestionsDialog(
     viewModel: JuktiViewModel,
     defaultSubject: String = "General Studies",
     defaultChapter: String = "General",
-    defaultExamCategory: String = "ADRE",
+    defaultExamCategory: String = "",
     isMockPremium: Boolean = false,
     onDismiss: () -> Unit,
     onQuestionsImported: (List<Long>, Int) -> Unit

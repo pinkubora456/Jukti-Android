@@ -61,7 +61,7 @@ fun ShareSupportScreen(viewModel: JuktiViewModel) {
             action = Intent.ACTION_SEND
             putExtra(
                 Intent.EXTRA_TEXT,
-                "Prepare for APSC, ADRE, and Assam Competitive Exams with Jukti! Download now: $appShareLink"
+                "Prepare for Assam Competitive Exams with Jukti! Download now: $appShareLink"
             )
             type = "text/plain"
         }

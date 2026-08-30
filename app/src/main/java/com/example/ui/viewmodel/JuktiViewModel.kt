@@ -827,7 +827,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val reportedQuestions = questions.map { list -> list.filter { it.isReported } }.stateIn(
+    val reportedQuestions = kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }.map { list -> list.filter { it.isReported } }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 

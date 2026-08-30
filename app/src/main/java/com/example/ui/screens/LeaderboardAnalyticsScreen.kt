@@ -1756,7 +1756,7 @@ fun LeaderboardTabContent(
     userProfile: com.example.data.local.UserProfileEntity? = null
 ) {
     var leaderboardMode by remember { mutableStateOf(0) } // 0 = Overall, 1 = Same Exam, 2 = Mock Test Avg
-    var selectedExamIndex by remember { mutableStateOf(0) } // Default: ADRE Grade III & IV
+    var selectedExamIndex by remember { mutableStateOf(0) } 
     var isDropdownExpanded by remember { mutableStateOf(false) }
  
     var realUsers by remember { mutableStateOf<List<UserProfileEntity>>(emptyList()) }
