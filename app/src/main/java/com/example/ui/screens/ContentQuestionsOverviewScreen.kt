@@ -23,13 +23,19 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
-    val allQuestions by viewModel.questions.collectAsState()
+    val examsList by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    
+    val examOptions = remember(examsList) {
+        val exams = examsList.map { it.title }.distinct().sorted()
+        listOf("All Exams") + exams
+    }
+    var selectedTargetExam by remember { mutableStateOf("All Exams") }
+    var examExpanded by remember { mutableStateOf(false) }
 
     val subjectsList = remember(allSubjectsChapters) {
         allSubjectsChapters.map { it.subject }.distinct().sorted()
     }
-
     var selectedSubject by remember { mutableStateOf(subjectsList.firstOrNull() ?: "") }
     var expanded by remember { mutableStateOf(false) }
 
@@ -37,23 +43,28 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
         selectedSubject = subjectsList.firstOrNull() ?: ""
     }
 
-    val chapterStats = remember(selectedSubject, allQuestions, allSubjectsChapters) {
+    val chapterStatsResults by remember(selectedSubject, selectedTargetExam) {
+        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam)
+    }.collectAsState(initial = emptyList())
+
+    val chapterStats = remember(chapterStatsResults, allSubjectsChapters, selectedSubject) {
         val statsMap = mutableMapOf<String, ChapterStat>()
         allSubjectsChapters.filter { it.subject == selectedSubject }.forEach { sc ->
             statsMap[sc.chapter] = ChapterStat(sc.chapter)
         }
-        val subjQuestions = allQuestions.filter { it.subject == selectedSubject }
-        subjQuestions.forEach { q ->
-            val stat = statsMap[q.topic] ?: ChapterStat(q.topic)
-            stat.total++
-            when (q.difficulty) {
-                "Easy" -> stat.easy++
-                "Medium" -> stat.medium++
-                "Hard" -> stat.hard++
-            }
-            statsMap[q.topic] = stat
+        chapterStatsResults.forEach { result ->
+            val stat = statsMap[result.chapter] ?: ChapterStat(result.chapter)
+            stat.total += result.total
+            stat.easy += result.easy
+            stat.medium += result.medium
+            stat.hard += result.hard
+            statsMap[result.chapter] = stat
         }
         statsMap.values.toList().sortedByDescending { it.total }
+    }
+
+    val hasQuestions = remember(chapterStats) {
+        chapterStats.sumOf { it.total } > 0
     }
 
     var selectedChapterStat by remember { mutableStateOf<ChapterStat?>(null) }
@@ -74,6 +85,36 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
+            ExposedDropdownMenuBox(
+                expanded = examExpanded,
+                onExpandedChange = { examExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedTargetExam,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Target Exam") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = examExpanded,
+                    onDismissRequest = { examExpanded = false }
+                ) {
+                    examOptions.forEach { exam ->
+                        DropdownMenuItem(
+                            text = { Text(exam) },
+                            onClick = {
+                                selectedTargetExam = exam
+                                examExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
@@ -126,32 +167,38 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                     }
                     HorizontalDivider()
                     
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(chapterStats) { stat ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { 
-                                        selectedChapterStat = stat 
-                                        scope.launch { sheetState.show() }
-                                    }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    stat.chapter, 
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 2,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text("${stat.total}", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(48.dp), style = MaterialTheme.typography.bodyMedium)
-                                Text("${stat.easy}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
-                                Text("${stat.medium}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
-                                Text("${stat.hard}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
+                    if (!hasQuestions) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No questions available for this exam.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(chapterStats) { stat ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { 
+                                            selectedChapterStat = stat 
+                                            scope.launch { sheetState.show() }
+                                        }
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        stat.chapter, 
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 2,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text("${stat.total}", fontWeight = FontWeight.SemiBold, modifier = Modifier.width(48.dp), style = MaterialTheme.typography.bodyMedium)
+                                    Text("${stat.easy}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
+                                    Text("${stat.medium}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
+                                    Text("${stat.hard}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         }
                     }
                 }

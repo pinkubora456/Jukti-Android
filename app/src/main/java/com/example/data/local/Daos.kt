@@ -45,6 +45,21 @@ abstract class QuestionDao {
 
     @Query("DELETE FROM questions WHERE id = :id")
     abstract suspend fun deleteQuestionById(id: Long)
+    
+    @Query("""
+        SELECT topic as chapter, 
+               COUNT(*) as total, 
+               SUM(CASE WHEN difficulty = 'Easy' THEN 1 ELSE 0 END) as easy,
+               SUM(CASE WHEN difficulty = 'Medium' THEN 1 ELSE 0 END) as medium,
+               SUM(CASE WHEN difficulty = 'Hard' THEN 1 ELSE 0 END) as hard
+        FROM questions
+        WHERE subject = :subject 
+          AND isReported = 0 
+          AND (examCategory LIKE '%' || :exam || '%' OR :exam = 'All Exams')
+        GROUP BY topic
+        ORDER BY total DESC
+    """)
+    abstract fun getChapterStatsByExam(subject: String, exam: String): Flow<List<ChapterStatResult>>
 }
 
 @Dao

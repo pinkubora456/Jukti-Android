@@ -238,7 +238,7 @@ object CsvQuestionParser {
 
             // Fallbacks for Subject and Topic
             val finalSubject = if (subj.isNotBlank()) normalizeSubjectName(subj) else normalizeSubjectName(defaultSubject.ifBlank { "General Studies" })
-            val finalTopic = if (topic.isNotBlank()) normalizeChapterName(topic) else normalizeChapterName(defaultChapter.ifBlank { "General" })
+            val finalTopic = if (topic.isNotBlank()) normalizeChapterName(topic, finalSubject) else normalizeChapterName(defaultChapter.ifBlank { "General" }, finalSubject)
             val finalDifficulty = when (diff.lowercase()) {
                 "easy" -> "Easy"
                 "hard" -> "Hard"

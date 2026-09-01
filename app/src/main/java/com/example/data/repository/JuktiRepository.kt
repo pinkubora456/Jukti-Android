@@ -549,12 +549,12 @@ class JuktiRepository(
         val combined = if (remote.isEmpty()) {
             if (local.isEmpty()) SampleData.sampleSubjectsChapters else local
         } else {
-            val remoteKeys = remote.map { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter).lowercase()}" }.toSet()
-            val extraLocal = local.filter { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter).lowercase()}" !in remoteKeys }
+            val remoteKeys = remote.map { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter, it.subject).lowercase()}" }.toSet()
+            val extraLocal = local.filter { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter, it.subject).lowercase()}" !in remoteKeys }
             remote + extraLocal
         }
         val normalized = combined.map { sc ->
-            val normChap = normalizeChapterName(sc.chapter)
+            val normChap = normalizeChapterName(sc.chapter, sc.subject)
             val normSubj = normalizeSubjectName(sc.subject)
             sc.copy(subject = normSubj, chapter = normChap)
         }
@@ -739,6 +739,10 @@ class JuktiRepository(
         val norm = normalizeQuestionEntity(question.copy(id = newId))
         questionDao.insertQuestion(norm)
         return syncManager.enqueueAndSync("QUESTION", newId.toString(), "CREATE", syncManager.questionToMap(norm))
+    }
+
+    fun getChapterStatsByExam(subject: String, exam: String): Flow<List<ChapterStatResult>> {
+        return questionDao.getChapterStatsByExam(subject, exam)
     }
 
     suspend fun updateQuestion(question: QuestionEntity): Pair<Boolean, String> {
@@ -1341,7 +1345,7 @@ class JuktiRepository(
     }
 
     suspend fun addSubjectChapter(subjectChapter: SubjectChapterEntity): Pair<Boolean, String> {
-        val normChap = normalizeChapterName(subjectChapter.chapter)
+        val normChap = normalizeChapterName(subjectChapter.chapter, subjectChapter.subject)
         val normSubj = normalizeSubjectName(subjectChapter.subject)
         val id = if (subjectChapter.id == 0L) System.currentTimeMillis() else subjectChapter.id
         val updated = subjectChapter.copy(id = id, subject = normSubj, chapter = normChap)

@@ -55,7 +55,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             val normCurrentSubject = com.example.data.repository.normalizeSubjectName(subject)
             val fromList = allSubjectsChapters
                 .filter { com.example.data.repository.normalizeSubjectName(it.subject).equals(normCurrentSubject, ignoreCase = true) }
-                .map { com.example.data.repository.normalizeChapterName(it.chapter) }
+                .map { com.example.data.repository.normalizeChapterName(it.chapter, it.subject) }
                 .filter { it.isNotBlank() && !it.equals("One-Word & Idiom/Phrase", ignoreCase = true) }
                 .distinct()
                 .sorted()
@@ -491,7 +491,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                             }
                             
                             val normSubject = com.example.data.repository.normalizeSubjectName(subject)
-                            val normChapter = com.example.data.repository.normalizeChapterName(chapter)
+                            val normChapter = com.example.data.repository.normalizeChapterName(chapter, normSubject)
                             
                             val newQuestion = QuestionEntity(
                                 subject = normSubject,

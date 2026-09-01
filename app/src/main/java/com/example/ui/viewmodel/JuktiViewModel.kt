@@ -1314,10 +1314,29 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
+    fun getChapterStatsByExam(subject: String, exam: String): Flow<List<com.example.data.local.ChapterStatResult>> {
+        return combine(
+            repository.getChapterStatsByExam(subject, exam),
+            repository.premiumQuestions
+        ) { dbStats, premiumQs ->
+            val statsMap = dbStats.associateBy { it.chapter }.toMutableMap()
+            premiumQs.filter { it.subject == subject && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
+                .forEach { q ->
+                    val stat = statsMap[q.topic] ?: com.example.data.local.ChapterStatResult(q.topic, 0, 0, 0, 0)
+                    statsMap[q.topic] = stat.copy(
+                        total = stat.total + 1,
+                        easy = stat.easy + if (q.difficulty == "Easy") 1 else 0,
+                        medium = stat.medium + if (q.difficulty == "Medium") 1 else 0,
+                        hard = stat.hard + if (q.difficulty == "Hard") 1 else 0
+                    )
+                }
+            statsMap.values.toList().sortedByDescending { it.total }
+        }
+    }
+
     fun setSubjectFilter(subject: String) {
         _selectedSubject.value = subject
     }
-
     fun setDifficultyFilter(difficulty: String) {
         _selectedDifficulty.value = difficulty
     }

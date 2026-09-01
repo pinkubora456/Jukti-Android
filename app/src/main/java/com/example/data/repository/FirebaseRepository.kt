@@ -1042,8 +1042,8 @@ class FirebaseRepository {
                 try {
                     val rawTopic = doc.getString("topic") ?: ""
                     val rawSubject = doc.getString("subject") ?: ""
-                    val normTopic = normalizeChapterName(rawTopic)
                     val normSubject = normalizeSubjectName(rawSubject)
+                    val normTopic = normalizeChapterName(rawTopic, normSubject)
                     QuestionEntity(
                         id = doc.getLong("id") ?: 0L,
                         subject = normSubject,
@@ -1089,8 +1089,8 @@ class FirebaseRepository {
                 try {
                     val rawTopic = doc.getString("topic") ?: ""
                     val rawSubject = doc.getString("subject") ?: ""
-                    val normTopic = normalizeChapterName(rawTopic)
                     val normSubject = normalizeSubjectName(rawSubject)
+                    val normTopic = normalizeChapterName(rawTopic, normSubject)
                     QuestionEntity(
                         id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
                         subject = normSubject,
@@ -1281,7 +1281,7 @@ class FirebaseRepository {
                     QuestionEntity(
                         id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
                         subject = normalizeSubjectName(rawSubject),
-                        topic = normalizeChapterName(rawTopic),
+                        topic = normalizeChapterName(rawTopic, normalizeSubjectName(doc.getString("subject"))),
                         difficulty = doc.getString("difficulty") ?: "Medium",
                         questionEn = doc.getString("questionEn") ?: "",
                         questionAs = doc.getString("questionAs") ?: "",
@@ -1454,8 +1454,8 @@ class FirebaseRepository {
                                 try {
                                     val rawTopic = doc.getString("topic") ?: ""
                                     val rawSubject = doc.getString("subject") ?: ""
-                                    val normTopic = normalizeChapterName(rawTopic)
                                     val normSubject = normalizeSubjectName(rawSubject)
+                                    val normTopic = normalizeChapterName(rawTopic, normSubject)
                                     QuestionEntity(
                                         id = doc.getLong("id") ?: 0L,
                                         subject = normSubject,
@@ -1814,7 +1814,7 @@ class FirebaseRepository {
                                 try {
                                     val rawChap = doc.getString("chapter") ?: ""
                                     val rawSubj = doc.getString("subject") ?: ""
-                                    val normChap = normalizeChapterName(rawChap)
+                                    val normChap = normalizeChapterName(rawChap, rawSubj)
                                     val normSubj = normalizeSubjectName(rawSubj)
                                     if (normChap.isBlank() || normSubj.isBlank()) {
                                         null
