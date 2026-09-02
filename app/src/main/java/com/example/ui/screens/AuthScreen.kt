@@ -36,6 +36,7 @@ fun AuthScreen(viewModel: JuktiViewModel) {
     val sessionMessage by viewModel.sessionMessage.collectAsState()
     val aboutConfig by viewModel.aboutConfig.collectAsState()
     val isAuthLoading by viewModel.isAuthLoading.collectAsState()
+    val showGoogleSimulationDialog by viewModel.showGoogleSimulationDialog.collectAsState()
 
     var isLoginTab by remember { mutableStateOf(true) }
     var nameInput by remember { mutableStateOf("") }
@@ -126,6 +127,101 @@ fun AuthScreen(viewModel: JuktiViewModel) {
                     ) {
                         Text("Cancel")
                     }
+                }
+            }
+        )
+    }
+
+    if (showGoogleSimulationDialog) {
+        var customEmail by remember { mutableStateOf("borapinku151@gmail.com") }
+        var customName by remember { mutableStateOf("Pinku Bora") }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.setGoogleSimulationDialogVisible(false) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Google Sign-In Simulator", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "We detected that this device/emulator does not have any configured Google accounts, or Google Play Services is currently unavailable.\n\nTo test the 'Continue with Google' flow properly, you can simulate a successful Google auth callback with custom parameters:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    SafeOutlinedTextField(
+                        value = customEmail,
+                        onValueChange = { customEmail = it },
+                        label = { Text("Simulated Google Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    SafeOutlinedTextField(
+                        value = customName,
+                        onValueChange = { customName = it },
+                        label = { Text("Simulated Google Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            customEmail = "borapinku151@gmail.com"
+                            customName = "Pinku Bora"
+                        }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (customEmail == "borapinku151@gmail.com"),
+                            onClick = {
+                                customEmail = "borapinku151@gmail.com"
+                                customName = "Pinku Bora"
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Preset: Owner Account (borapinku151@gmail.com)", style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            customEmail = "testuser@gmail.com"
+                            customName = "Test User"
+                        }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (customEmail == "testuser@gmail.com"),
+                            onClick = {
+                                customEmail = "testuser@gmail.com"
+                                customName = "Test User"
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Preset: General User Account (testuser@gmail.com)", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.loginWithGoogleSimulated(customEmail.trim(), customName.trim())
+                    }
+                ) {
+                    Text("Simulate Success")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.setGoogleSimulationDialogVisible(false) }) {
+                    Text("Cancel")
                 }
             }
         )

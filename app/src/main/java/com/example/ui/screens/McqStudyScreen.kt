@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -77,11 +78,15 @@ fun StudySubjectBannerCard(
     chapterCounts: Map<String, Int> = emptyMap()
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val isDark = isSystemInDarkTheme()
+    val actualContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else banner.containerColor
+    val actualTitleColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1C1B1F)
+    val actualSubtitleColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF49454F)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = banner.containerColor),
+        colors = CardDefaults.cardColors(containerColor = actualContainerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -118,10 +123,10 @@ fun StudySubjectBannerCard(
                             text = banner.titleEn,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = actualTitleColor
                         )
                         Surface(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            color = banner.iconColor.copy(alpha = if (isDark) 0.25f else 0.15f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
@@ -129,14 +134,14 @@ fun StudySubjectBannerCard(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                color = if (isDark) banner.iconColor.copy(alpha = 0.9f) else banner.iconColor
                             )
                         }
                     }
                     Text(
                         text = banner.subtitleEn,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = actualSubtitleColor
                     )
                 }
             }
@@ -156,17 +161,23 @@ fun StudySubjectBannerCard(
                     value = labelText,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Select Chapters (Single/Multiple)", fontSize = 12.sp) },
+                    label = { Text("Select Chapters (Single/Multiple)", fontSize = 12.sp, color = actualSubtitleColor) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .menuAnchor()
                         .fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        focusedBorderColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                        unfocusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                        focusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
+                        unfocusedBorderColor = if (isDark) MaterialTheme.colorScheme.outline.copy(alpha = 0.5f) else Color(0xFFC4C6D0),
+                        focusedBorderColor = banner.iconColor,
+                        unfocusedLabelColor = actualSubtitleColor,
+                        focusedLabelColor = banner.iconColor,
+                        unfocusedTextColor = actualTitleColor,
+                        focusedTextColor = actualTitleColor,
+                        unfocusedTrailingIconColor = actualSubtitleColor,
+                        focusedTrailingIconColor = banner.iconColor
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
@@ -236,9 +247,14 @@ fun StudySubjectBannerCard(
                         InputChip(
                             selected = true,
                             onClick = { onChaptersChanged(selectedChapters - ch) },
-                            label = { Text(ch, style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(ch, style = MaterialTheme.typography.labelSmall, color = Color.White) },
+                            colors = InputChipDefaults.inputChipColors(
+                                selectedContainerColor = banner.iconColor,
+                                selectedLabelColor = Color.White,
+                                selectedTrailingIconColor = Color.White
+                            ),
                             trailingIcon = {
-                                Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(12.dp))
+                                Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(12.dp), tint = Color.White)
                             }
                         )
                     }

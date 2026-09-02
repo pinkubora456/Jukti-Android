@@ -362,6 +362,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
+    private val _showGoogleSimulationDialog = MutableStateFlow(false)
+    val showGoogleSimulationDialog: StateFlow<Boolean> = _showGoogleSimulationDialog.asStateFlow()
+
+    fun setGoogleSimulationDialogVisible(visible: Boolean) {
+        _showGoogleSimulationDialog.value = visible
+    }
+
     private val _isRefreshingFromFirebase = MutableStateFlow(false)
     val isRefreshingFromFirebase: StateFlow<Boolean> = _isRefreshingFromFirebase.asStateFlow()
 
@@ -2053,7 +2060,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val displayName = fbUser?.displayName?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackName?.trim() ?: ""
 
                 if (email.isBlank() || !email.contains("@")) {
-                    _sessionMessage.value = result.errorMessage ?: "Google Sign-In failed. Please try again."
+                    val errMsg = result.errorMessage ?: ""
+                    if (errMsg.contains("No Google accounts", ignoreCase = true)) {
+                        _showGoogleSimulationDialog.value = true
+                    } else {
+                        _sessionMessage.value = errMsg.ifBlank { "Google Sign-In failed. Please try again." }
+                    }
                     _isAuthLoading.value = false
                     return@launch
                 }
@@ -2081,6 +2093,42 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("JuktiViewModel", "Google Sign-In flow error", e)
                 _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun loginWithGoogleSimulated(email: String = "borapinku151@gmail.com", displayName: String = "Pinku Bora") {
+        viewModelScope.launch {
+            isLoggingOutDueToDevice = false
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
+            _showGoogleSimulationDialog.value = false
+            try {
+                val finalUid = "google_simulated_" + java.util.UUID.nameUUIDFromBytes(email.toByteArray()).toString().replace("-", "").take(16)
+                val deviceId = java.util.UUID.randomUUID().toString()
+
+                val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true) || email.equals("borapinku151@gmail.com", ignoreCase = true)
+                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
+
+                withContext(Dispatchers.IO) {
+                    repository.loadUserProfileForAuth(
+                        uid = finalUid,
+                        email = email,
+                        googleName = displayName,
+                        deviceId = deviceId,
+                        defaultRole = defaultRole
+                    )
+                    UserSessionManager.registerSession(email, deviceId)
+                }
+
+                _isGuestMode.value = false
+                _sessionMessage.value = null
+                _currentScreen.value = Screen.HOME
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Google Simulated Sign-In error", e)
+                _sessionMessage.value = "Simulation Error: ${e.localizedMessage ?: "Unexpected error"}"
             } finally {
                 _isAuthLoading.value = false
             }
