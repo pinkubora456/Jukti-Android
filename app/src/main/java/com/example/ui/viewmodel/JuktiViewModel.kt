@@ -2602,7 +2602,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun reportQuestion(question: QuestionEntity) {
         viewModelScope.launch {
-            val res = repository.updateQuestion(question.copy(isReported = true))
+            val res = repository.reportQuestion(question)
             _syncToastMessage.value = res.second
         }
     }

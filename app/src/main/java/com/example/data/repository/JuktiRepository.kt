@@ -248,9 +248,15 @@ class JuktiRepository(
         val combined = if (remoteQuestions.isEmpty()) {
             localQuestions
         } else {
+            val localMap = localQuestions.associateBy { it.id }
             val remoteIds = remoteQuestions.map { it.id }.toSet()
+            val merged = remoteQuestions.map { remote ->
+                val local = localMap[remote.id]
+                // Prefer local if its isReported state differs from remote (optimistic update)
+                if (local != null && (local.isReported != remote.isReported || local.updatedAt > remote.updatedAt)) local else remote
+            }
             val localOnly = localQuestions.filter { it.id !in remoteIds }
-            remoteQuestions + localOnly
+            merged + localOnly
         }
         combined.map { normalizeQuestionEntity(it) }
     }
@@ -745,15 +751,43 @@ class JuktiRepository(
         return questionDao.getChapterStatsByExam(subject, exam)
     }
 
+    suspend fun reportQuestion(question: QuestionEntity): Pair<Boolean, String> {
+        val updated = question.copy(isReported = true, updatedAt = System.currentTimeMillis())
+        if (question.isPremium) {
+            val current = _premiumQuestions.value.toMutableList()
+            val index = current.indexOfFirst { it.id == question.id }
+            if (index != -1) {
+                current[index] = updated
+                _premiumQuestions.value = current
+            }
+        } else {
+            questionDao.updateQuestion(updated)
+        }
+        val fbId = updated.firebaseId.ifEmpty { updated.id.toString() }
+        val payload = mapOf("isReported" to true, "updatedAt" to System.currentTimeMillis())
+        return syncManager.enqueueAndSync("REPORT_QUESTION", fbId, "UPDATE", payload)
+    }
+
     suspend fun updateQuestion(question: QuestionEntity): Pair<Boolean, String> {
-        val norm = normalizeQuestionEntity(question)
-        questionDao.updateQuestion(norm)
-        return syncManager.enqueueAndSync("QUESTION", norm.id.toString(), "UPDATE", syncManager.questionToMap(norm))
+        val norm = normalizeQuestionEntity(question.copy(updatedAt = System.currentTimeMillis()))
+        if (norm.isPremium) {
+            val current = _premiumQuestions.value.toMutableList()
+            val index = current.indexOfFirst { it.id == norm.id }
+            if (index != -1) {
+                current[index] = norm
+                _premiumQuestions.value = current
+            }
+        } else {
+            questionDao.updateQuestion(norm)
+        }
+        val fbId = norm.firebaseId.ifEmpty { norm.id.toString() }
+        return syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(norm))
     }
 
     suspend fun deleteQuestion(question: QuestionEntity): Pair<Boolean, String> {
         questionDao.deleteQuestion(question)
-        return syncManager.enqueueAndSync("QUESTION", question.id.toString(), "DELETE")
+        val fbId = question.firebaseId.ifEmpty { question.id.toString() }
+        return syncManager.enqueueAndSync("QUESTION", fbId, "DELETE")
     }
 
     suspend fun bulkInsertQuestions(questions: List<QuestionEntity>): Pair<Boolean, String> = withContext(Dispatchers.IO) {
@@ -1650,30 +1684,27 @@ class JuktiRepository(
             
             val questions = firebaseRepository.fetchAllQuestions()
             questionDao.deletePremiumQuestions()
-            val freeQuestions = questions.filter { !it.isPremium }
-            val premiumQs = questions.filter { it.isPremium }
-            if (freeQuestions.isNotEmpty()) {
-                questionDao.insertAll(freeQuestions)
+            if (questions.isNotEmpty()) {
+                questionDao.insertAll(questions)
             }
-            _premiumQuestions.value = premiumQs
 
             val mocks = firebaseRepository.fetchAllMockTests()
             mockTestDao.deletePremiumMockTests()
-            val freeMocks = mocks.filter { !it.isPremium }
-            val premiumMs = mocks.filter { it.isPremium }
-            if (freeMocks.isNotEmpty()) {
-                mockTestDao.insertAll(freeMocks)
+            if (mocks.isNotEmpty()) {
+                mockTestDao.insertAll(mocks)
             }
-            _premiumMockTests.value = premiumMs
 
             val notes = firebaseRepository.fetchAllStudyNotes()
             studyNoteDao.deletePremiumStudyNotes()
-            val freeNotes = notes.filter { !it.isPremium }
-            val premiumNs = notes.filter { it.isPremium }
-            if (freeNotes.isNotEmpty()) {
-                studyNoteDao.insertAll(freeNotes)
+            if (notes.isNotEmpty()) {
+                studyNoteDao.insertAll(notes)
             }
-            _premiumStudyNotes.value = premiumNs
+
+            if (isAdminOrOwner || effectiveEntitlement != null) {
+                refreshPremiumContent()
+            } else {
+                clearPremiumCache()
+            }
 
             val updates = firebaseRepository.fetchAllExamUpdates()
             if (updates.isNotEmpty()) {

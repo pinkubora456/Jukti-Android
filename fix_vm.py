@@ -1,26 +1,16 @@
 import re
 
-with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "r") as f:
-    content = f.read()
+def fix_file(filepath):
+    with open(filepath, "r") as f:
+        content = f.read()
 
-# Replace allQuestions
-content = content.replace(
-    "combine(repository.allQuestions, effectiveEntitlement, isAdminOrOwner)", 
-    "combine(kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner)"
-)
+    old = "val res = repository.updateQuestion(question.copy(isReported = true))"
+    new = "val res = repository.reportQuestion(question)"
+    
+    if old in content:
+        content = content.replace(old, new)
+        with open(filepath, "w") as f:
+            f.write(content)
+        print("Fixed JuktiViewModel")
 
-# Replace allMockTests
-content = content.replace(
-    "combine(repository.allMockTests, effectiveEntitlement, isAdminOrOwner)", 
-    "combine(kotlinx.coroutines.flow.combine(repository.allMockTests, repository.premiumMockTests) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner)"
-)
-
-# Replace allNotes
-content = content.replace(
-    "combine(repository.allNotes, effectiveEntitlement, isAdminOrOwner)", 
-    "combine(kotlinx.coroutines.flow.combine(repository.allNotes, repository.premiumStudyNotes) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner)"
-)
-
-with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "w") as f:
-    f.write(content)
-print("Updated ViewModel")
+fix_file("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt")

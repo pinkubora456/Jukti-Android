@@ -86,6 +86,7 @@ service cloud.firestore {
     match /questions/{questionId} {
       allow read: if resource == null || resource.data.isPremium == false || !('isPremium' in resource.data) || isAdminOrOwner();
       allow write: if isAdminOrOwner();
+      allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isReported', 'updatedAt']) && request.resource.data.isReported == true;
     }
 
     match /mock_tests/{testId} {

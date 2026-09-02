@@ -175,6 +175,9 @@ class FirebaseSyncManager(
         "examCategory" to q.examCategory,
         "isPremium" to q.isPremium,
         "questionType" to q.questionType,
+        "accessType" to q.accessType,
+        "isReported" to q.isReported,
+        "status" to q.status,
         "cachedAt" to q.cachedAt,
         "lastAccessedAt" to q.lastAccessedAt,
         "version" to q.version,
@@ -395,7 +398,7 @@ class FirebaseSyncManager(
 
     private fun getCollectionName(dataType: String): String {
         return when (dataType.uppercase()) {
-            "QUESTION" -> "questions"
+            "QUESTION", "REPORT_QUESTION" -> "questions"
             "MOCK_TEST" -> "mock_tests"
             "MOCK_ATTEMPT" -> "mock_attempts"
             "STUDY_NOTE" -> "study_notes"
