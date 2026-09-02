@@ -46,6 +46,7 @@ fun BatchImportMockQuestionsDialog(
     defaultChapter: String = "General",
     defaultExamCategory: String = "",
     isMockPremium: Boolean = false,
+    isGeneralQBankImport: Boolean = false,
     onDismiss: () -> Unit,
     onQuestionsImported: (List<Long>, Int) -> Unit
 ) {
@@ -59,6 +60,11 @@ fun BatchImportMockQuestionsDialog(
     var selectedPreviewTab by remember { mutableIntStateOf(0) } // 0 = Valid, 1 = Invalid
 
     var addToQuestionBank by remember { mutableStateOf(true) }
+    
+    // Force addToQuestionBank to true if this is a general Q-Bank import
+    if (isGeneralQBankImport) {
+        addToQuestionBank = true
+    }
     var isProcessing by remember { mutableStateOf(false) }
     var validationResult by remember { mutableStateOf<BatchValidationResult?>(null) }
     var showTemplateDialog by remember { mutableStateOf(false) }
@@ -444,44 +450,46 @@ fun BatchImportMockQuestionsDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Question Bank Option Card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { addToQuestionBank = !addToQuestionBank },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Row(
+                if (!isGeneralQBankImport) {
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .clickable { addToQuestionBank = !addToQuestionBank },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Checkbox(
-                            checked = addToQuestionBank,
-                            onCheckedChange = { addToQuestionBank = it }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Add these questions to Question Bank",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = addToQuestionBank,
+                                onCheckedChange = { addToQuestionBank = it }
                             )
-                            Text(
-                                text = if (addToQuestionBank)
-                                    "Questions will be added to this Mock Test AND saved in Question Bank."
-                                else
-                                    "Questions will be used ONLY for this Mock Test (not saved to Question Bank).",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Add these questions to Question Bank",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = if (addToQuestionBank)
+                                        "Questions will be added to this Mock Test AND saved in Question Bank."
+                                    else
+                                        "Questions will be used ONLY for this Mock Test (not saved to Question Bank).",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
 
                 // Bottom Action Buttons
                 Row(

@@ -1,4 +1,6 @@
 package com.example.ui.screens
+import kotlinx.coroutines.launch
+
 
 import com.example.ui.components.SafeOutlinedTextField
 
@@ -113,7 +115,30 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     var explanationAssamese by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var isDeploying by remember { mutableStateOf(false) }
+    var duplicateError by remember { mutableStateOf<com.example.data.local.QuestionEntity?>(null) }
+
+    if (duplicateError != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { duplicateError = null },
+            title = { androidx.compose.material3.Text("Duplicate Question Detected") },
+            text = {
+                androidx.compose.material3.Text(
+                    "A similar question already exists in the database:\n\n" +
+                    "Subject: ${duplicateError?.subject}\n" +
+                    "Topic: ${duplicateError?.topic}\n" +
+                    "Text: ${duplicateError?.questionEn}\n\n" +
+                    "Import skipped to prevent duplicates."
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { duplicateError = null }) {
+                    androidx.compose.material3.Text("OK")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -474,68 +499,80 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                         if (subject.isNotBlank() && chapter.isNotBlank() && selectedExams.isNotEmpty() && questionEnglish.isNotBlank() && correctOption.isNotBlank()) {
                             isDeploying = true
                             
-                            val correctOptionIndex = when(correctOption) {
-                                "A" -> 0
-                                "B" -> 1
-                                "C" -> 2
-                                "D" -> 3
-                                else -> 0
-                            }
+                            val duplicateKey = com.example.util.generateDuplicateKey(questionEnglish)
                             
-                            val finalQuestionTag = if (questionTag == "PYQ") {
-                                val examNameStr = pyqExamName.trim()
-                                val yearStr = pyqYear.trim()
-                                if (examNameStr.isNotBlank() || yearStr.isNotBlank()) "$examNameStr $yearStr".trim() else "PYQ"
-                            } else {
-                                "Expected"
-                            }
-                            
-                            val normSubject = com.example.data.repository.normalizeSubjectName(subject)
-                            val normChapter = com.example.data.repository.normalizeChapterName(chapter, normSubject)
-                            
-                            val newQuestion = QuestionEntity(
-                                subject = normSubject,
-                                topic = normChapter,
-                                difficulty = difficulty,
-                                questionEn = questionEnglish.trim(),
-                                questionAs = questionAssamese.trim(),
-                                optionAEn = optionAEnglish.trim(),
-                                optionBEn = optionBEnglish.trim(),
-                                optionCEn = optionCEnglish.trim(),
-                                optionDEn = optionDEnglish.trim(),
-                                optionAAs = optionAAssamese.trim(),
-                                optionBAs = optionBAssamese.trim(),
-                                optionCAs = optionCAssamese.trim(),
-                                optionDAs = optionDAssamese.trim(),
-                                correctOptionIndex = correctOptionIndex,
-                                explanationEn = explanationEnglish.trim(),
-                                explanationAs = explanationAssamese.trim(),
-                                examCategory = selectedExams.joinToString(", "),
-                                isPremium = questionFor.equals("Premium", ignoreCase = true),
-                                questionType = finalQuestionTag
-                            )
-                            
-                            viewModel.addQuestion(newQuestion) {
-                                isDeploying = false
-                                Toast.makeText(context, "Question deployed successfully!", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                val duplicate = viewModel.getQuestionByDuplicateKey(duplicateKey)
+                                if (duplicate != null) {
+                                    duplicateError = duplicate
+                                    isDeploying = false
+                                    return@launch
+                                }
+
+                                val correctOptionIndex = when(correctOption) {
+                                    "A" -> 0
+                                    "B" -> 1
+                                    "C" -> 2
+                                    "D" -> 3
+                                    else -> 0
+                                }
                                 
-                                // Reset fields
-                                questionEnglish = ""
-                                questionAssamese = ""
-                                optionAEnglish = ""
-                                optionBEnglish = ""
-                                optionCEnglish = ""
-                                optionDEnglish = ""
-                                optionAAssamese = ""
-                                optionBAssamese = ""
-                                optionCAssamese = ""
-                                optionDAssamese = ""
-                                explanationEnglish = ""
-                                explanationAssamese = ""
-                                // Keep context like subject, chapter, exam intact for fast subsequent inserts
+                                val finalQuestionTag = if (questionTag == "PYQ") {
+                                    val examNameStr = pyqExamName.trim()
+                                    val yearStr = pyqYear.trim()
+                                    if (examNameStr.isNotBlank() || yearStr.isNotBlank()) "$examNameStr $yearStr".trim() else "PYQ"
+                                } else {
+                                    "Expected"
+                                }
+                                
+                                val normSubject = com.example.data.repository.normalizeSubjectName(subject)
+                                val normChapter = com.example.data.repository.normalizeChapterName(chapter, normSubject)
+                                
+                                val newQuestion = QuestionEntity(
+                                    subject = normSubject,
+                                    topic = normChapter,
+                                    difficulty = difficulty,
+                                    questionEn = questionEnglish.trim(),
+                                    questionAs = questionAssamese.trim(),
+                                    optionAEn = optionAEnglish.trim(),
+                                    optionBEn = optionBEnglish.trim(),
+                                    optionCEn = optionCEnglish.trim(),
+                                    optionDEn = optionDEnglish.trim(),
+                                    optionAAs = optionAAssamese.trim(),
+                                    optionBAs = optionBAssamese.trim(),
+                                    optionCAs = optionCAssamese.trim(),
+                                    optionDAs = optionDAssamese.trim(),
+                                    correctOptionIndex = correctOptionIndex,
+                                    explanationEn = explanationEnglish.trim(),
+                                    explanationAs = explanationAssamese.trim(),
+                                    examCategory = selectedExams.joinToString(", "),
+                                    isPremium = questionFor.equals("Premium", ignoreCase = true),
+                                    questionType = finalQuestionTag,
+                                    duplicateKey = duplicateKey
+                                )
+                                
+                                viewModel.addQuestion(newQuestion) {
+                                    isDeploying = false
+                                    android.widget.Toast.makeText(context, "Question deployed successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                                    
+                                    // Reset fields
+                                    questionEnglish = ""
+                                    questionAssamese = ""
+                                    optionAEnglish = ""
+                                    optionBEnglish = ""
+                                    optionCEnglish = ""
+                                    optionDEnglish = ""
+                                    optionAAssamese = ""
+                                    optionBAssamese = ""
+                                    optionCAssamese = ""
+                                    optionDAssamese = ""
+                                    explanationEnglish = ""
+                                    explanationAssamese = ""
+                                    // Keep context like subject, chapter, exam intact for fast subsequent inserts
+                                }
                             }
                         } else {
-                            Toast.makeText(context, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, "Please fill in all required fields", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),

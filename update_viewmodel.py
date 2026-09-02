@@ -1,123 +1,50 @@
 import re
 
-with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "r") as f:
-    content = f.read()
+def fix_file(filepath):
+    with open(filepath, "r") as f:
+        content = f.read()
 
-# Replace _userEntitlement definition
-content = re.sub(
-    r'private val _userEntitlement = MutableStateFlow<EntitlementEntity\?\(null\)>',
-    r'private val _userEntitlements = MutableStateFlow<List<EntitlementEntity>>(emptyList())',
-    content
-)
-content = content.replace(
-    "private val _userEntitlement = MutableStateFlow<EntitlementEntity?>(null)",
-    "private val _userEntitlements = MutableStateFlow<List<EntitlementEntity>>(emptyList())"
-)
+    # Find the filter block
+    old_block = """    private val _selectedSubject = MutableStateFlow("All Subjects")
+    val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
 
-content = content.replace(
-    "val userEntitlement: StateFlow<EntitlementEntity?> = _userEntitlement.asStateFlow()",
-    "val userEntitlements: StateFlow<List<EntitlementEntity>> = _userEntitlements.asStateFlow()"
-)
+    private val _selectedDifficulty = MutableStateFlow("All")"""
 
-# Replace validateEntitlement
-old_validate = """    fun validateEntitlement(entitlement: EntitlementEntity?, currentTime: Long = getTrustedTime()): Boolean {
-        return com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, currentTime)
-    }"""
-new_validate = """    fun validateEntitlements(entitlements: List<EntitlementEntity>?, currentTime: Long = getTrustedTime()): Boolean {
-        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, currentTime)
-        return effective.isPremium
-    }"""
-content = content.replace(old_validate, new_validate)
+    new_block = """    private val _selectedSubject = MutableStateFlow("All Subjects")
+    val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
 
-# Replace isSpecificPlanActive
-old_specific = """    fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
-        val entitlement = userEntitlement.value
-        val now = getTrustedTime()
-        if (entitlement != null && com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, now)) {
-            val matchesId = entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true)
-            val matchesName = entitlement.planName.equals(plan.planName, ignoreCase = true)
-            return matchesId || matchesName
-        }
-        return false
-    }"""
-new_specific = """    fun isSpecificPlanActive(plan: com.example.data.local.PlanEntity): Boolean {
-        val entitlements = userEntitlements.value
-        val now = getTrustedTime()
-        val effective = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, plans.value, now)
-        return effective.activePlans.any { entitlement ->
-            entitlement.planId == plan.id.toString() || entitlement.planId.equals(plan.planName, ignoreCase = true) || entitlement.planName.equals(plan.planName, ignoreCase = true)
-        }
-    }"""
-content = content.replace(old_specific, new_specific)
+    private val _selectedExam = MutableStateFlow("All Exams")
+    val selectedExam: StateFlow<String> = _selectedExam.asStateFlow()
 
-# Replace isUserPremium
-old_is_premium = """    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlement) { profile, admin, entitlement ->
-        val email = profile?.email?.trim()?.lowercase() ?: ""
-        val isOwner = email == "juktieducation@gmail.com"
-        if (isOwner || admin) {
-            true
-        } else {
-            com.example.data.util.PlanValidityEngine.isEntitlementActive(entitlement, getTrustedTime())
-        }
-    }.stateIn(
-        viewModelScope, SharingStarted.Eagerly, false
-    )"""
-new_is_premium = """    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlements, plans) { profile, admin, entitlements, allPlans ->
-        val email = profile?.email?.trim()?.lowercase() ?: ""
-        val isOwner = email == "juktieducation@gmail.com"
-        if (isOwner || admin) {
-            true
-        } else {
-            com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime()).isPremium
-        }
-    }.stateIn(
-        viewModelScope, SharingStarted.Eagerly, false
-    )"""
-content = content.replace(old_is_premium, new_is_premium)
+    private val _selectedChapter = MutableStateFlow("All Chapters")
+    val selectedChapter: StateFlow<String> = _selectedChapter.asStateFlow()
 
-# Replace combine flows for accessible stuff
-content = content.replace(
-    "combine(userProfile, mocks, plans, userEntitlement, isAdminOrOwner)",
-    "combine(userProfile, mocks, plans, userEntitlements, isAdminOrOwner)"
-)
-content = content.replace(
-    "{ profile, mocks, allPlans, entitlement, args ->",
-    "{ profile, mocks, allPlans, entitlements, args ->"
-)
-content = content.replace(
-    "entitlement = entitlement,",
-    "entitlements = entitlements,"
-)
+    private val _selectedDifficulty = MutableStateFlow("All")"""
 
-content = content.replace(
-    "combine(userProfile, notes, plans, userEntitlement, isAdminOrOwner)",
-    "combine(userProfile, notes, plans, userEntitlements, isAdminOrOwner)"
-)
-content = content.replace(
-    "{ profile, notes, allPlans, entitlement, args ->",
-    "{ profile, notes, allPlans, entitlements, args ->"
-)
+    if old_block in content:
+        content = content.replace(old_block, new_block)
+        
+    old_funcs = """    fun setSubjectFilter(subject: String) {
+        _selectedSubject.value = subject
+    }
+    fun setDifficultyFilter(difficulty: String) {"""
 
-content = content.replace(
-    "combine(userProfile, questions, plans, userEntitlement, isAdminOrOwner)",
-    "combine(userProfile, questions, plans, userEntitlements, isAdminOrOwner)"
-)
-content = content.replace(
-    "{ profile, qs, allPlans, entitlement, args ->",
-    "{ profile, qs, allPlans, entitlements, args ->"
-)
+    new_funcs = """    fun setSubjectFilter(subject: String) {
+        _selectedSubject.value = subject
+    }
+    fun setExamFilter(exam: String) {
+        _selectedExam.value = exam
+    }
+    fun setChapterFilter(chapter: String) {
+        _selectedChapter.value = chapter
+    }
+    fun setDifficultyFilter(difficulty: String) {"""
+    
+    if old_funcs in content:
+        content = content.replace(old_funcs, new_funcs)
+        
+    with open(filepath, "w") as f:
+        f.write(content)
+    print("Fixed ViewModel")
 
-# Update getUserEntitlement in observeUserData
-old_observe = """                    repository.getUserEntitlement(sanitizedDocId, uid, email).collectLatest { ent ->
-                        _userEntitlement.value = ent
-                    }"""
-new_observe = """                    repository.getUserEntitlements(sanitizedDocId, uid, email).collectLatest { ents ->
-                        _userEntitlements.value = ents
-                    }"""
-content = content.replace(old_observe, new_observe)
-
-content = content.replace("_userEntitlement.value = null", "_userEntitlements.value = emptyList()")
-content = content.replace("_userEntitlement.value = newEntitlement", "_userEntitlements.value = _userEntitlements.value + newEntitlement")
-
-with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "w") as f:
-    f.write(content)
+fix_file("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt")

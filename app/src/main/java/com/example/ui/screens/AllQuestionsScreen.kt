@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,65 +17,52 @@ import androidx.compose.ui.unit.dp
 import com.example.data.local.QuestionEntity
 import com.example.ui.components.EditQuestionDialog
 import com.example.ui.viewmodel.JuktiViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     val context = LocalContext.current
     val questions by viewModel.questions.collectAsState()
+    
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
+    val selectedSubject by viewModel.selectedSubject.collectAsState()
+    val selectedChapter by viewModel.selectedChapter.collectAsState()
+    
     var searchQuery by remember { mutableStateOf("") }
     var editingQuestion by remember { mutableStateOf<QuestionEntity?>(null) }
-    var selectedSubject by remember { mutableStateOf("All Subjects") }
-    var subjectExpanded by remember { mutableStateOf(false) }
     
-    var selectedChapter by remember { mutableStateOf("All Chapters") }
-    var chapterExpanded by remember { mutableStateOf(false) }
+    var selectedQuestionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var showMoveDialog by remember { mutableStateOf(false) }
 
-    val subjectsList = listOf("All Subjects") + com.example.data.repository.SampleData.CANONICAL_SUBJECTS
-    
-    val chaptersList = remember(questions, selectedSubject) {
-        val chapters = if (selectedSubject == "All Subjects") {
-            questions.map { it.topic }.filter { it.isNotBlank() }.distinct().sorted()
-        } else {
-            questions.filter { q ->
-                val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
-                normSubj.equals(selectedSubject, ignoreCase = true) || q.subject.equals(selectedSubject, ignoreCase = true)
-            }.map { it.topic }.filter { it.isNotBlank() }.distinct().sorted()
-        }
-        listOf("All Chapters") + chapters
-    }
-
-    LaunchedEffect(selectedSubject) {
-        selectedChapter = "All Chapters"
-    }
-
-    val filteredQuestions = remember(questions, searchQuery, selectedSubject, selectedChapter) {
+    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter) {
         questions.filter { q ->
+            val matchesExam = selectedTargetExam == "All Exams" || q.examCategory.contains(selectedTargetExam, ignoreCase = true)
+            
             val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
             val matchesSubject = selectedSubject == "All Subjects" || 
-                 normSubj.equals(selectedSubject, ignoreCase = true) ||
-                q.subject.equals(selectedSubject, ignoreCase = true)
-
+                  normSubj.equals(selectedSubject, ignoreCase = true) ||
+                  q.subject.equals(selectedSubject, ignoreCase = true)
+                  
             val normChapter = com.example.data.repository.normalizeChapterName(q.topic, q.subject)
-            val matchesChapter = selectedChapter == "All Chapters" ||
+            val matchesChapter = selectedChapter == "All Chapters" || 
                  normChapter.equals(selectedChapter, ignoreCase = true) ||
-                q.topic.equals(selectedChapter, ignoreCase = true)
-
+                 q.topic.equals(selectedChapter, ignoreCase = true)
+                 
             val matchesSearch = searchQuery.isBlank() ||
                     q.questionEn.contains(searchQuery, ignoreCase = true) ||
                     q.questionAs.contains(searchQuery, ignoreCase = true) ||
                     q.subject.contains(searchQuery, ignoreCase = true) ||
                     normSubj.contains(searchQuery, ignoreCase = true) ||
                     q.topic.contains(searchQuery, ignoreCase = true)
-
-            matchesSubject && matchesChapter && matchesSearch
+            matchesExam && matchesSubject && matchesChapter && matchesSearch
         }
     }
 
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
-                title = "Question Bank (${questions.size})",
+                title = "Question Bank (${filteredQuestions.size})",
                 onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
                 actions = {
                     IconButton(onClick = { viewModel.exportQuestionsCsv(context) }) {
@@ -91,6 +79,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(12.dp))
+            
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
@@ -98,143 +87,129 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                 placeholder = { Text("Search questions, subject, topic...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
+                    if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(Icons.Default.Close, contentDescription = "Clear")
                         }
                     }
                 },
+                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(12.dp)
             )
-
+            
             Spacer(modifier = Modifier.height(12.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Subject Filter Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = subjectExpanded,
-                    onExpandedChange = { subjectExpanded = !subjectExpanded },
-                    modifier = Modifier.weight(1f)
+            
+            // Filter Info (since the filters were set from Overview)
+            if (selectedTargetExam != "All Exams" || selectedSubject != "All Subjects" || selectedChapter != "All Chapters") {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = selectedSubject,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Subject") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = subjectExpanded,
-                        onDismissRequest = { subjectExpanded = false }
-                    ) {
-                        subjectsList.forEach { subj ->
-                            DropdownMenuItem(
-                                text = { Text(subj) },
-                                onClick = {
-                                    selectedSubject = subj
-                                    subjectExpanded = false
-                                }
-                            )
-                        }
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Active Filters:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        if (selectedTargetExam != "All Exams") Text("Exam: $selectedTargetExam", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        if (selectedSubject != "All Subjects") Text("Subject: $selectedSubject", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        if (selectedChapter != "All Chapters") Text("Chapter: $selectedChapter", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Clear Filters", 
+                            color = MaterialTheme.colorScheme.primary, 
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.clickable {
+                                viewModel.setExamFilter("All Exams")
+                                viewModel.setSubjectFilter("All Subjects")
+                                viewModel.setChapterFilter("All Chapters")
+                            }
+                        )
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
-                // Chapter Filter Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = chapterExpanded,
-                    onExpandedChange = { chapterExpanded = !chapterExpanded },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    OutlinedTextField(
-                        value = selectedChapter,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Chapter") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterExpanded) },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = chapterExpanded,
-                        onDismissRequest = { chapterExpanded = false }
-                    ) {
-                        chaptersList.forEach { chap ->
-                            DropdownMenuItem(
-                                text = { Text(chap) },
-                                onClick = {
-                                    selectedChapter = chap
-                                    chapterExpanded = false
-                                }
-                            )
+            // Bulk Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = selectedQuestionIds.isNotEmpty() && selectedQuestionIds.size == filteredQuestions.size,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                selectedQuestionIds = filteredQuestions.map { it.id }.toSet()
+                            } else {
+                                selectedQuestionIds = emptySet()
+                            }
                         }
+                    )
+                    Text(if (selectedQuestionIds.isEmpty()) "Select All" else "${selectedQuestionIds.size} Selected")
+                }
+                
+                if (selectedQuestionIds.isNotEmpty()) {
+                    Button(onClick = { showMoveDialog = true }) {
+                        Text("Move Questions")
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (filteredQuestions.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.HelpOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (questions.isEmpty()) "No questions in Question Bank yet.\nUpload single question or batch import." else "No matching questions found.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No questions found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(filteredQuestions, key = { it.id }) { question ->
+                        val isSelected = selectedQuestionIds.contains(question.id)
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                if (isSelected) selectedQuestionIds = selectedQuestionIds - question.id
+                                else selectedQuestionIds = selectedQuestionIds + question.id
+                            },
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+                            ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer
-                                    ) {
-                                        Text(
-                                            text = question.subject.ifBlank { "General" },
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            if (checked) selectedQuestionIds = selectedQuestionIds + question.id
+                                            else selectedQuestionIds = selectedQuestionIds - question.id
+                                        }
+                                    )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (question.isPremium) {
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = "Premium",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                        }
+                                        Text(
+                                            text = question.subject,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -270,7 +245,6 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                         }
                                     }
                                 }
-
                                 if (question.topic.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
@@ -279,9 +253,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-
                                 Spacer(modifier = Modifier.height(8.dp))
-
                                 com.example.ui.components.QuestionTypeBadge(
                                     questionType = question.questionType,
                                     modifier = Modifier.padding(bottom = 6.dp)
@@ -292,7 +264,6 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-
                                 if (question.questionAs.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
@@ -301,12 +272,9 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-
                                 Spacer(modifier = Modifier.height(12.dp))
-
                                 val optionsEn = listOf(question.optionAEn, question.optionBEn, question.optionCEn, question.optionDEn)
                                 val optionsAs = listOf(question.optionAAs, question.optionBAs, question.optionCAs, question.optionDAs)
-
                                 optionsEn.forEachIndexed { index, opt ->
                                     if (opt.isNotBlank()) {
                                         val isCorrect = question.correctOptionIndex == index
@@ -361,6 +329,28 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
         }
     }
 
+    if (showMoveDialog) {
+        BulkMoveQuestionsDialog(
+            viewModel = viewModel,
+            selectedCount = selectedQuestionIds.size,
+            onDismiss = { showMoveDialog = false },
+            onConfirm = { destExam, destSubj, destChap ->
+                val selectedQs = questions.filter { it.id in selectedQuestionIds }
+                viewModel.bulkMoveQuestions(
+                    questionsToUpdate = selectedQs,
+                    targetExam = destExam,
+                    targetSubject = destSubj,
+                    targetChapter = destChap
+                ) { success, _ ->
+                    if (success) {
+                        selectedQuestionIds = emptySet()
+                        showMoveDialog = false
+                    }
+                }
+            }
+        )
+    }
+
     editingQuestion?.let { question ->
         EditQuestionDialog(
             question = question,
@@ -368,6 +358,167 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             onSave = { updated ->
                 viewModel.updateQuestion(updated)
                 editingQuestion = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BulkMoveQuestionsDialog(
+    viewModel: JuktiViewModel,
+    selectedCount: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit
+) {
+    val examsList by viewModel.examsList.collectAsState()
+    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val questions by viewModel.questions.collectAsState()
+    
+    val examOptions = remember(examsList) {
+        examsList.map { it.title }.distinct().sorted()
+    }
+    
+    var destExam by remember { mutableStateOf(examOptions.firstOrNull() ?: "") }
+    var examExpanded by remember { mutableStateOf(false) }
+
+    val subjOptions = remember(allSubjectsChapters, questions, destExam) {
+        val targetExams = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val filtered = if (targetExams.isEmpty()) questions else questions.filter { q -> 
+            targetExams.any { q.examCategory.contains(it, ignoreCase = true) } 
+        }
+        filtered.map { com.example.data.repository.normalizeSubjectName(it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
+    }
+    
+    var destSubj by remember { mutableStateOf("") }
+    var subjExpanded by remember { mutableStateOf(false) }
+
+    val chapOptions = remember(questions, destExam, destSubj) {
+        val targetExams = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val filtered = questions.filter { q -> 
+            (targetExams.isEmpty() || targetExams.any { q.examCategory.contains(it, ignoreCase = true) }) && 
+            (com.example.data.repository.normalizeSubjectName(q.subject).equals(destSubj, ignoreCase = true) || q.subject.equals(destSubj, ignoreCase = true)) 
+        }
+        filtered.map { com.example.data.repository.normalizeChapterName(it.topic, it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
+    }
+    
+    var destChap by remember { mutableStateOf("") }
+    var chapExpanded by remember { mutableStateOf(false) }
+
+    var showConfirm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(subjOptions) {
+        if (destSubj !in subjOptions) destSubj = subjOptions.firstOrNull() ?: ""
+    }
+    
+    LaunchedEffect(chapOptions) {
+        if (destChap !in chapOptions) destChap = chapOptions.firstOrNull() ?: ""
+    }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Confirm Question Transfer") },
+            text = {
+                Text("You are about to move $selectedCount questions to:\n\nExam: $destExam\nSubject: $destSubj\nChapter/Topic: $destChap\n\nAre you sure?")
+            },
+            confirmButton = {
+                Button(onClick = { 
+                    showConfirm = false
+                    onConfirm(destExam, destSubj, destChap)
+                }) {
+                    Text("Confirm Move")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Move Questions") },
+            text = {
+                Column {
+                    Text("Selected Questions: $selectedCount", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Destination Exam
+                    ExposedDropdownMenuBox(expanded = examExpanded, onExpandedChange = { examExpanded = it }) {
+                        OutlinedTextField(
+                            value = destExam, onValueChange = { destExam = it },
+                            label = { Text("Destination Exam") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(expanded = examExpanded, onDismissRequest = { examExpanded = false }) {
+                            val currentSelected = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+                            examOptions.forEach { e ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                            androidx.compose.material3.Checkbox(
+                                                checked = currentSelected.contains(e),
+                                                onCheckedChange = null
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(e)
+                                        }
+                                    },
+                                    onClick = {
+                                        val newSelected = if (currentSelected.contains(e)) currentSelected - e else currentSelected + e
+                                        destExam = newSelected.joinToString(", ")
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Destination Subject
+                    ExposedDropdownMenuBox(expanded = subjExpanded, onExpandedChange = { subjExpanded = it }) {
+                        OutlinedTextField(
+                            value = destSubj, onValueChange = { destSubj = it },
+                            label = { Text("Destination Subject") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(expanded = subjExpanded, onDismissRequest = { subjExpanded = false }) {
+                            subjOptions.forEach { s ->
+                                DropdownMenuItem(text = { Text(s) }, onClick = { destSubj = s; subjExpanded = false })
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Destination Chapter
+                    ExposedDropdownMenuBox(expanded = chapExpanded, onExpandedChange = { chapExpanded = it }) {
+                        OutlinedTextField(
+                            value = destChap, onValueChange = { destChap = it },
+                            label = { Text("Destination Chapter/Topic") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(expanded = chapExpanded, onDismissRequest = { chapExpanded = false }) {
+                            chapOptions.forEach { c ->
+                                DropdownMenuItem(text = { Text(c) }, onClick = { destChap = c; chapExpanded = false })
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showConfirm = true },
+                    enabled = destExam.isNotBlank() && destSubj.isNotBlank() && destChap.isNotBlank()
+                ) {
+                    Text("Move Questions")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         )
     }

@@ -1,21 +1,26 @@
 import re
 
-def fix_file(filepath):
+def fix(filepath):
     with open(filepath, "r") as f:
         content = f.read()
 
-    # updateQuestion
-    old_update = 'return syncManager.enqueueAndSync("QUESTION", norm.id.toString(), "UPDATE", syncManager.questionToMap(norm))'
-    new_update = 'val fbId = norm.firebaseId.ifEmpty { norm.id.toString() }\n        return syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(norm))'
-    content = content.replace(old_update, new_update)
+    # Find the first duplicate normalizeSubjectName and remove it.
+    idx1 = content.find("fun normalizeSubjectName")
+    idx2 = content.find("fun normalizeSubjectName", idx1 + 10)
     
-    # deleteQuestion
-    old_delete = 'return syncManager.enqueueAndSync("QUESTION", question.id.toString(), "DELETE")'
-    new_delete = 'val fbId = question.firebaseId.ifEmpty { question.id.toString() }\n        return syncManager.enqueueAndSync("QUESTION", fbId, "DELETE")'
-    content = content.replace(old_delete, new_delete)
+    if idx2 != -1:
+        # It's a duplicate, delete from idx1 to idx2
+        content = content[:idx1] + content[idx2:]
 
+    # Replace `else -> "General Knowledge"` with `else -> trimmed`
+    # BUT only inside normalizeSubjectName and normalizeChapterName
+    # Wait, in normalizeChapterName there are multiple `else -> "General Knowledge"`?
+    # Let's just globally replace it, wait, what if there's one that shouldn't be?
+    # If the default branch is just `trimmed`, it's safe for everything because if it falls through,
+    # it just returns what the user typed.
+    content = content.replace('else -> "General Knowledge"', 'else -> trimmed')
+    
     with open(filepath, "w") as f:
         f.write(content)
-    print("Fixed repository")
 
-fix_file("app/src/main/java/com/example/data/repository/JuktiRepository.kt")
+fix("app/src/main/java/com/example/data/repository/JuktiRepository.kt")

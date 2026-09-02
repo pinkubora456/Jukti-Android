@@ -73,7 +73,8 @@ fun StudySubjectBannerCard(
     actionButtonTextEn: String,
     actionButtonTextAs: String,
     onStartClick: () -> Unit,
-    isAssamese: Boolean
+    isAssamese: Boolean,
+    chapterCounts: Map<String, Int> = emptyMap()
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -128,7 +129,7 @@ fun StudySubjectBannerCard(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -165,7 +166,7 @@ fun StudySubjectBannerCard(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                        focusedBorderColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
@@ -199,6 +200,7 @@ fun StudySubjectBannerCard(
                         HorizontalDivider()
                         availableChapters.forEach { chapter ->
                             val isChecked = selectedChapters.contains(chapter)
+                            val count = chapterCounts[chapter] ?: 0
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -207,12 +209,14 @@ fun StudySubjectBannerCard(
                                             onCheckedChange = null
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = chapter)
+                                        Text(text = "$chapter ($count Qs)")
                                     }
-                                },
+                                }
+    ,
                                 onClick = {
                                     val updated = if (isChecked) selectedChapters - chapter else selectedChapters + chapter
                                     onChaptersChanged(updated)
+    
                                 }
                             )
                         }
@@ -337,7 +341,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
 
                 if (activeStudySubView != "CURRENT_AFFAIRS") {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
@@ -349,7 +353,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                                 Icons.Default.MenuBook,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -393,7 +397,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             modifier = Modifier.height(30.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
@@ -452,8 +456,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Master chapter-wise questions.",
                             actionText = "Start Learning",
                             icon = Icons.Default.AutoStories,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             onClick = { viewModel.setStudySubView("STUDY_MCQS", fromHome = false) },
                             progressText = "$solvedQuestions/$availableQuestions completed",
                             badgeText = "🔥 Popular"
@@ -467,8 +471,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Test yourself with instant explanations.",
                             actionText = "Practice Now",
                             icon = Icons.Default.Quiz,
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.secondary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
                             onClick = { viewModel.navigateTo(Screen.PRACTICE) },
                             progressText = "$solvedQuestions/$availableQuestions completed",
                             badgeText = "⭐ Recommended"
@@ -482,8 +486,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Practice saved and frequently incorrect questions.",
                             actionText = "Start Smart Practice",
                             icon = Icons.Default.Psychology,
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.tertiary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
                             onClick = { viewModel.navigateTo(Screen.SMART_PRACTICE) },
                             badgeText = "🧠 Smart"
                         )
@@ -496,8 +500,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Review and manage your bookmarked MCQs.",
                             actionText = "Review Saved",
                             icon = Icons.Default.Bookmark,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             onClick = { showSavedQuestionsDialog = true },
                             progressText = "${bookmarkedIds.size} questions saved",
                             badgeText = "📌 Saved"
@@ -511,8 +515,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Read chapter-wise notes.",
                             actionText = "Read Notes",
                             icon = Icons.Default.Description,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.primary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             onClick = { viewModel.navigateTo(Screen.STUDY_NOTES) },
                             progressText = "$availableNotes study notes available",
                             badgeText = "🆕 New"
@@ -526,8 +530,8 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             description = "Stay updated with daily current affairs notes & news capsules.",
                             actionText = "Read Notes",
                             icon = Icons.Default.Newspaper,
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTintColor = MaterialTheme.colorScheme.tertiary,
+                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
                             onClick = { viewModel.setStudySubView("CURRENT_AFFAIRS", fromHome = false) },
                             progressText = "$availableCurrentAffairs updates available",
                             badgeText = "🆕 New"
@@ -741,6 +745,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     var sessionTotalSeconds by remember { mutableStateOf(0) }
 
     var showReportDialog by remember { mutableStateOf(false) }
+    var showHideNotice by remember { mutableStateOf(false) }
     var showSummaryDialog by remember { mutableStateOf(false) }
     var finalSessionQuestions by remember { mutableStateOf(0) }
     var finalSessionTime by remember { mutableStateOf(0) }
@@ -766,364 +771,112 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
 
     val filteredStudyQuestions = remember(questions, selectedSubjectTab, selectedChapters, hiddenIds) {
         questions.filter { q ->
-                try {
-                    if (q.id in hiddenIds) return@filter false
-                    val matchSubject = when (selectedSubjectTab) {
-                        "All Subject", "All Subjects" -> true
-                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                        "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                        "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                        "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                        "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
-                        else -> q.subject.equals(selectedSubjectTab, ignoreCase = true)
-                    }
-                    val matchChapter = if (selectedChapters.isEmpty()) {
-                        true
-                    } else {
-                        val topicStr = q.topic ?: ""
-                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                        if (selectedSubjectTab == "Reasoning") {
-                            selectedChapters.any { ch ->
-                                topicStr.contains(ch, ignoreCase = true) || 
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                q.subject.contains(ch, ignoreCase = true) ||
-                                (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
-                                (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
-                                (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
-                                (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
-                            }
-                        } else if (selectedSubjectTab == "General English") {
-                            selectedChapters.any { ch ->
-                                if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                    normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                                } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                    normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                                } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                    normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                                } else if (ch == "Grammar & Sentence Correction") {
-                                    normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                                } else if (ch == "Cloze Test") {
-                                    normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                                } else if (ch == "Active & Passive Voice") {
-                                    normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                                } else {
-                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                    normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                }
-                            }
-                        } else {
-                            selectedChapters.any { ch ->
-                                normTopic.equals(ch, ignoreCase = true) || 
-                                topicStr.equals(ch, ignoreCase = true) ||
-                                topicStr.contains(ch, ignoreCase = true) ||
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                q.subject.contains(ch, ignoreCase = true)
-                            }
-                        }
-                    }
-                    matchSubject && matchChapter
-                } catch (e: Exception) {
-                    false
+            if (q.id in hiddenIds) return@filter false
+            val matchSubject = when (selectedSubjectTab) {
+                "All Subject", "All Subjects" -> true
+                "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
+                "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
+                "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                else -> q.subject.equals(selectedSubjectTab, ignoreCase = true)
+            }
+            val matchChapter = if (selectedChapters.isEmpty()) {
+                true
+            } else {
+                val topicStr = q.topic ?: ""
+                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
+                selectedChapters.any { ch ->
+                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
+                    normTopic.equals(nCh, ignoreCase = true) || 
+                    topicStr.equals(ch, ignoreCase = true) || 
+                    topicStr.contains(ch, ignoreCase = true) || 
+                    ch.contains(topicStr, ignoreCase = true) || 
+                    normTopic.contains(ch, ignoreCase = true) || 
+                    ch.contains(normTopic, ignoreCase = true)
                 }
+            }
+            matchSubject && matchChapter
         }
     }
 
-    LaunchedEffect(isStudySessionStarted, filteredStudyQuestions) {
-        if (isStudySessionStarted) {
-            val eligible = filteredStudyQuestions.shuffled().toMutableList()
+    val studyBanners = listOf(
+        StudyBannerConfig("General Knowledge", "সাধাৰণ জ্ঞান", "Assam history, geography, and more", "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য", "General Knowledge", androidx.compose.material.icons.Icons.Default.Public, androidx.compose.ui.graphics.Color(0xFFE8F5E9), androidx.compose.ui.graphics.Color(0xFF2E7D32)),
+        StudyBannerConfig("General English", "সাধাৰণ ইংৰাজী", "Grammar, vocabulary, and comprehension", "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা", "General English", androidx.compose.material.icons.Icons.Default.MenuBook, androidx.compose.ui.graphics.Color(0xFFE3F2FD), androidx.compose.ui.graphics.Color(0xFF1565C0)),
+        StudyBannerConfig("General Mathematics", "সাধাৰণ গণিত", "Arithmetic, algebra, and geometry", "পাটিগণিত, বীজগণিত আৰু জ্যামিতি", "General Mathematics", androidx.compose.material.icons.Icons.Default.Calculate, androidx.compose.ui.graphics.Color(0xFFFFF3E0), androidx.compose.ui.graphics.Color(0xFFEF6C00)),
+        StudyBannerConfig("Reasoning", "যুক্তি", "Logical and analytical reasoning", "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি", "Reasoning", androidx.compose.material.icons.Icons.Default.Psychology, androidx.compose.ui.graphics.Color(0xFFF3E5F5), androidx.compose.ui.graphics.Color(0xFF6A1B9A)),
+        StudyBannerConfig("Basic Computer", "কম্পিউটাৰৰ সাধাৰণ জ্ঞান", "Computer fundamentals and internet", "কম্পিউটাৰৰ মূল কথা আৰু ইণ্টাৰনেট", "Basic Computer", androidx.compose.material.icons.Icons.Default.Computer, androidx.compose.ui.graphics.Color(0xFFE0F7FA), androidx.compose.ui.graphics.Color(0xFF00838F)),
+        StudyBannerConfig("Transport Rule", "পৰিবহন নিয়ম", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport Rule", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315)),
+        StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFF5F5F5), androidx.compose.ui.graphics.Color(0xFF424242))
+    )
 
-            if (eligible.size > 1 && eligible[0].id == lastStudyStartingQuestionId) {
-                val temp = eligible[0]
-                eligible[0] = eligible[1]
-                eligible[1] = temp
-            }
-            if (eligible.isNotEmpty()) {
-                lastStudyStartingQuestionId = eligible[0].id
-            }
-            activeStudySessionQuestions = eligible
-            currentQuestionIndex = 0
-            selectedOptionIndex = null
-        } else {
-            activeStudySessionQuestions = emptyList()
-        }
-    }
-
-    val studyQuestionsList = if (isStudySessionStarted) {
-        if (activeStudySessionQuestions.isNotEmpty()) activeStudySessionQuestions else filteredStudyQuestions
-    } else emptyList()
-
-    var showHideNotice by remember { mutableStateOf(false) }
-
-    val currentQuestion = studyQuestionsList.getOrNull(currentQuestionIndex)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        if (!isStudySessionStarted) {
-            // STEP 1: 5 SUBJECT BANNERS FOR STUDY MCQS
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Choose Subject to Study:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                val studyBanners = listOf(
-                    StudyBannerConfig(
-                        titleEn = "All Subject",
-                        titleAs = "সকলো বিষয় (Mixed)",
-                        subtitleEn = "Study chapter-wise mixed MCQs across all subjects",
-                        subtitleAs = "সকলো বিষয়ৰ মিশ্ৰিত অধ্যায়ভিত্তিক প্ৰশ্ন পৰীক্ষা কৰক",
-                        subjectKey = "All Subject",
-                        icon = Icons.Default.Apps,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.primary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "General Knowledge",
-                        titleAs = "সাধাৰণ জ্ঞান (GK)",
-                        subtitleEn = "History, Geography, Polity, Assam GK, Science & Current Affairs",
-                        subtitleAs = "ইতিহাস, ভূগোল, ৰাজনীতি, অসম বিৱৰণ আৰু বিজ্ঞান",
-                        subjectKey = "General Knowledge",
-                        icon = Icons.Default.Public,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.secondary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "General English",
-                        titleAs = "সাধাৰণ ইংৰাজী",
-                        subtitleEn = "Grammar, Vocabulary, Synonyms, Antonyms & Comprehension",
-                        subtitleAs = "ইংৰাজী ব্যাকৰণ, শব্দকোষ, বিপৰীত শব্দ আৰু সমাৰ্থক শব্দ",
-                        subjectKey = "General English",
-                        icon = Icons.Default.Translate,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.tertiary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "Mathematics",
-                        titleAs = "গণিত (Mathematics)",
-                        subtitleEn = "Arithmetic, Quantitative Aptitude, Algebra & Geometry",
-                        subtitleAs = "পাটিগণিত, বীজগণিত, জ্যামিতি আৰু সংখ্যা সংক্ৰান্তীয়",
-                        subjectKey = "General Mathematics",
-                        icon = Icons.Default.Calculate,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        iconColor = MaterialTheme.colorScheme.primary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "Reasoning",
-                        titleAs = "যুক্তিবিদ্যা (Reasoning)",
-                        subtitleEn = "Logical Aptitude, Verbal & Non-Verbal Reasoning",
-                        subtitleAs = "মানসিক দক্ষতা আৰু যুক্তিনিৰ্ভৰ প্ৰশ্নৱালী",
-                        subjectKey = "Reasoning",
-                        icon = Icons.Default.Psychology,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        iconColor = MaterialTheme.colorScheme.secondary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "Basic Computer",
-                        titleAs = "মৌলিক কম্পিউটাৰ (Computer)",
-                        subtitleEn = "Computer Fundamentals, MS Office, Hardware, Networking & Cyber Security",
-                        subtitleAs = "কম্পিউটাৰ পৰিচয়, এম.এছ. অফিচ, হাৰ্ডৱেৰ, নেটৱৰ্কিং আৰু চাইবাৰ সুৰক্ষা",
-                        subjectKey = "Basic Computer",
-                        icon = Icons.Default.Computer,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                        iconColor = MaterialTheme.colorScheme.tertiary
-                    ),
-                    StudyBannerConfig(
-                        titleEn = "Transport Rule",
-                        titleAs = "পৰিবহন নিয়ম (Transport Rule)",
-                        subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
-                        subtitleAs = "যান-বাহন নিয়ম, মটৰ বাহন আইন, পথ সুৰক্ষা আৰু সংকেত",
-                        subjectKey = "Transport Rule",
-                        icon = Icons.Default.DirectionsCar,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                        iconColor = MaterialTheme.colorScheme.secondary
-                    )
-                )
-
-                studyBanners.forEach { banner ->
-                    val availableChapters = remember(questions, allSubjectsChapters, banner.subjectKey) {
-                        val set = mutableSetOf<String>()
-                        when (banner.subjectKey) {
-                            "All Subject", "All Subjects" -> {
-                                questions.forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General Knowledge" -> {
-                                questions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography & Economy", "Assam Geography", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General English" -> {
-                                set.add("Grammar & Sentence Correction")
-                                set.add("Synonyms, Antonyms & Vocabulary")
-                                set.add("One-Word & Idioms")
-                                set.add("Reading Comprehension & Para Jumbles")
-                                set.add("Cloze Test")
-                                set.add("Active & Passive Voice")
-                                set.add("Tenses")
-                                
-                                
-                                questions.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General Mathematics" -> {
-                                set.add("Number System, LCM & HCF")
-                                set.add("Percentage, Ratio & Proportion")
-                                set.add("Profit, Loss, Discount & Simple/Compound Interest")
-                                set.add("Time, Work, Speed, Distance & Mensuration")
-                                questions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Reasoning" -> {
-                                set.add("Coding-Decoding, Series & Analogy")
-                                set.add("Blood Relations & Direction Sense Test")
-                                set.add("Seating Arrangement, Puzzles & Venn Diagrams")
-                                set.add("Syllogism, Statements & Assumptions")
-                                questions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Basic Computer", "Computer Knowledge", "Computer" -> {
-                                set.add("Computer Fundamentals & Architecture")
-                                set.add("Operating Systems & MS Office (Word, Excel, PowerPoint)")
-                                set.add("Internet, Networking & Cyber Security")
-                                set.add("Hardware, Software & Input/Output Devices")
-                                set.add("Database, Shortcuts & Computer Abbreviations")
-                                questions.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Transport Rule" -> {
-                                set.add("Traffic Signs, Signals & Road Safety")
-                                set.add("Motor Vehicles Act & Traffic Rules")
-                                set.add("Driving Regulations, Licences & Permits")
-                                set.add("Vehicle Safety, Violations & Penalties")
-                                questions.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            else -> {
-                                questions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                        }
-                        set.remove("One-Word & Idiom")
-                        set.remove("One-Word & Idiom/Phrase")
-                        set.remove("Idioms, Phrases & One-Word Substitution")
-                        set.remove("Idioms & Phrases")
-                        set.remove("One-Word Substitution")
-                        set.remove("One Word Substitution")
-                        set.toList().sorted()
-                    }
-
-                    val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
-                    
-                    val totalCount = remember(questions, banner.subjectKey, currentSelectedChapters, hiddenIds) {
-                        questions.count { q ->
-                            if (q.id in hiddenIds) return@count false
-                            val matchSubject = when (banner.subjectKey) {
-                                "All Subject", "All Subjects" -> true
+    if (!isStudySessionStarted) {
+        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            items(studyBanners) { banner ->
+                val bannerQuestions = remember(questions, banner.subjectKey, hiddenIds) {
+                    questions.filter { q ->
+                        if (q.id in hiddenIds) return@filter false
+                        if (banner.subjectKey == "All Subjects") true
+                        else {
+                            when (banner.subjectKey) {
                                 "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                                "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                                "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                                "General English" -> q.subject.contains("English", ignoreCase = true)
+                                "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                                 "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                                "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                                "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                                "Basic Computer" -> q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
+                                "Transport Rule" -> q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                                 else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
                             }
-                            val matchChapter = if (currentSelectedChapters.isEmpty()) {
-                                true
-                            } else {
-                                val topicStr = q.topic ?: ""
-                                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                                if (banner.subjectKey == "Reasoning") {
-                                    currentSelectedChapters.any { ch ->
-                                        topicStr.contains(ch, ignoreCase = true) ||
-                                                (ch == "Coding & Decoding" && (normTopic == "Coding-Decoding" || topicStr.contains("Coding", ignoreCase = true))) ||
-                                                (ch == "Blood Relations" && (normTopic == "Blood Relation" || topicStr.contains("Blood", ignoreCase = true))) ||
-                                                (ch == "Number & Alphabet Series" && (normTopic.contains("Series") || topicStr.contains("Series", ignoreCase = true))) ||
-                                                (ch == "Analogy & Classification" && (normTopic.contains("Analogy") || normTopic.contains("Classification") || topicStr.contains("Analogy", ignoreCase = true))) ||
-                                                (ch == "Syllogism" && (normTopic == "Syllogism" || topicStr.contains("Syllogism", ignoreCase = true))) ||
-                                                (ch == "Venn Diagrams" && (normTopic == "Venn Diagram" || topicStr.contains("Venn", ignoreCase = true))) ||
-                                                (ch == "Direction Sense" && (normTopic == "Direction Sense Test" || topicStr.contains("Direction", ignoreCase = true)))
-                                    }
-                                } else if (banner.subjectKey == "General English") {
-                                    currentSelectedChapters.any { ch ->
-                                        if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                            normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                                        } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                            normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                                        } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                            normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                                        } else if (ch == "Grammar & Sentence Correction") {
-                                            normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                                        } else if (ch == "Cloze Test") {
-                                            normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                                        } else if (ch == "Active & Passive Voice") {
-                                            normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                                        } else {
-                                            val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                            normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                        }
-                                    }
-                                } else if (banner.subjectKey == "General Knowledge") {
-                                    currentSelectedChapters.any { ch ->
-                                        val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                        normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                    }
-                                } else {
-                                    currentSelectedChapters.any { ch ->
-                                        val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                        normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                    }
-                                }
-                            }
-                            matchSubject && matchChapter
                         }
                     }
-
-                    StudySubjectBannerCard(
-                        banner = banner,
-                        availableChapters = availableChapters,
-                        selectedChapters = currentSelectedChapters,
-                        onChaptersChanged = { newSet ->
-                            chaptersMap = chaptersMap + (banner.subjectKey to newSet)
-                        },
-                        totalQuestionsCount = totalCount,
-                        actionButtonTextEn = "Start Study",
-                        actionButtonTextAs = "অধ্যয়ন আৰম্ভ কৰক",
-                        onStartClick = {
-                            selectedSubjectTab = banner.subjectKey
-                            selectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
-                            currentQuestionIndex = 0
-                            selectedOptionIndex = null
-                            isStudySessionStarted = true
-                        },
-                        isAssamese = isAssamese
-                    )
                 }
+                val totalCount = bannerQuestions.size
+                
+                val availableChapters = allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }.map { it.chapter }
+                val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
+
+                val chapterCounts = remember(bannerQuestions, availableChapters) {
+                    availableChapters.associateWith { chapter ->
+                        bannerQuestions.count { q ->
+                            val topicStr = q.topic ?: ""
+                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
+                            val normCh = com.example.data.repository.normalizeChapterName(chapter, q.subject)
+                            normTopic.equals(normCh, ignoreCase = true) || 
+                            topicStr.equals(chapter, ignoreCase = true) || 
+                            topicStr.contains(chapter, ignoreCase = true) || 
+                            chapter.contains(topicStr, ignoreCase = true) || 
+                            normTopic.contains(chapter, ignoreCase = true) || 
+                            chapter.contains(normTopic, ignoreCase = true)
+                        }
+                    }
+                }
+                
+                StudySubjectBannerCard(
+                    banner = banner,
+                    availableChapters = availableChapters,
+                    selectedChapters = currentSelectedChapters,
+                    onChaptersChanged = { newSet ->
+                        chaptersMap = chaptersMap + (banner.subjectKey to newSet)
+                    },
+                    totalQuestionsCount = totalCount,
+                    actionButtonTextEn = "Start Study",
+                    actionButtonTextAs = "অধ্যয়ন আৰম্ভ কৰক",
+                    onStartClick = {
+                        selectedSubjectTab = banner.subjectKey
+                        selectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
+                        currentQuestionIndex = 0
+                        selectedOptionIndex = null
+                        isStudySessionStarted = true
+                    },
+                    isAssamese = isAssamese,
+                    chapterCounts = chapterCounts
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
-        } else {
-            // STEP 2: ACTIVE STUDY QUESTION PAGE (Bigger View, NO Subject/Chapter Dropdowns!)
+        }
+    } else {
+val currentQuestion = filteredStudyQuestions.getOrNull(currentQuestionIndex)
             // Header summary
             Row(
                 modifier = Modifier
@@ -1144,13 +897,13 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = if (selectedChapters.isEmpty()) {
-                            "All Chapters • ${studyQuestionsList.size} Questions"
+                            "All Chapters • ${filteredStudyQuestions.size} Questions"
                         } else {
-                            "${selectedChapters.size} Chapters • ${studyQuestionsList.size} Questions"
+                            "${selectedChapters.size} Chapters • ${filteredStudyQuestions.size} Questions"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1162,7 +915,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
+                colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
             ) {
                 Row(
                     modifier = Modifier
@@ -1173,7 +926,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 ) {
                     // Live Timer
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Timer, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         val mins = sessionTotalSeconds / 60
                         val secs = sessionTotalSeconds % 60
@@ -1182,19 +935,19 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                             text = timeStr,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                         )
                     }
 
                     // Question Counter
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (studyQuestionsList.isNotEmpty()) "Q ${currentQuestionIndex + 1} / ${studyQuestionsList.size}" else "0 Qs",
+                            text = if (filteredStudyQuestions.isNotEmpty()) "Q ${currentQuestionIndex + 1} / ${filteredStudyQuestions.size}" else "0 Qs",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -1259,7 +1012,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
@@ -1271,7 +1024,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 )
                             }
                             Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
@@ -1296,20 +1049,21 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 Icon(
                                     imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                     contentDescription = "Bookmark",
-                                    tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             IconButton(onClick = {
                                 viewModel.toggleHideQuestion(currentQuestion)
                                 activeStudySessionQuestions = activeStudySessionQuestions.filter { it.id != currentQuestion.id }
                                 showHideNotice = true
-                            }) {
+                            }
+) {
                                 Icon(
                                     imageVector = Icons.Outlined.VisibilityOff,
                                     contentDescription = "Hide Question",
                                     tint = MaterialTheme.colorScheme.error
                                 )
-                            }
+
                         }
                     }
 
@@ -1335,6 +1089,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(onClick = { viewModel.showPaywall() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
                                     Text("Unlock Premium")
+    
                                 }
                             }
                         }
@@ -1372,7 +1127,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         val backgroundColor = when {
                             isCorrect -> MaterialTheme.colorScheme.successContainer
                             isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            else -> androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                         }
 
                         val borderColor = when {
@@ -1388,8 +1143,10 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 .clickable {
                                     if (selectedOptionIndex == null) {
                                         selectedOptionIndex = optIndex
+        
                                     }
-                                },
+                                }
+    ,
                             shape = RoundedCornerShape(12.dp),
                             color = backgroundColor,
                             border = borderColor?.let { BorderStroke(1.5.dp, it) }
@@ -1403,7 +1160,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                     color = when {
                                         isCorrect -> MaterialTheme.colorScheme.success
                                         isSelected && !isCorrect -> MaterialTheme.colorScheme.error
-                                        else -> MaterialTheme.colorScheme.primaryContainer
+                                        else -> androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
                                     },
                                     modifier = Modifier.size(30.dp)
                                 ) {
@@ -1421,7 +1178,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                             )
                                         }
                                     }
-                                }
+        
+    
 
                                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -1435,9 +1193,10 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                         isCorrect -> MaterialTheme.colorScheme.onSuccessContainer
                                         isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
                                         else -> Color.Unspecified
+        
                                     }
                                 )
-                            }
+
                         }
                     }
 
@@ -1445,10 +1204,10 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
 
                     // DIRECT EXPLANATION & ANSWER BREAKDOWN (Directly visible without needing to tap)
                     Surface(
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                        border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -1457,7 +1216,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Correct Answer & Explanation:",
@@ -1465,8 +1224,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
+    
                                 }
-
                                 Surface(
                                     color = MaterialTheme.colorScheme.success,
                                     shape = RoundedCornerShape(6.dp)
@@ -1478,6 +1237,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
+    
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1491,7 +1251,6 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         }
                     }
 
-                    } // Closing the premium check for options/explanation
                     
                     Spacer(modifier = Modifier.height(18.dp))
 
@@ -1507,8 +1266,10 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 if (currentQuestionIndex > 0) {
                                     currentQuestionIndex--
                                     selectedOptionIndex = null
+    
                                 }
-                            },
+                            }
+,
                             enabled = currentQuestionIndex > 0,
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -1519,7 +1280,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
 
                         // Status Badge
                         Text(
-                            text = "${currentQuestionIndex + 1} / ${studyQuestionsList.size}",
+                            text = "${currentQuestionIndex + 1} / ${filteredStudyQuestions.size}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.outline
@@ -1529,12 +1290,14 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                         Button(
                             onClick = {
                                 markQuestionLearned(currentQuestion.id)
-                                if (currentQuestionIndex < studyQuestionsList.size - 1) {
+                                if (currentQuestionIndex < filteredStudyQuestions.size - 1) {
                                     currentQuestionIndex++
                                     selectedOptionIndex = null
+    
                                 }
-                            },
-                            enabled = currentQuestionIndex < studyQuestionsList.size - 1,
+                            }
+,
+                            enabled = currentQuestionIndex < filteredStudyQuestions.size - 1,
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Next")
@@ -1577,7 +1340,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             },
@@ -1592,7 +1355,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1601,14 +1364,14 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Questions Studied:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text("$finalSessionQuestions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("$finalSessionQuestions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("XP Earned:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text("+${finalSessionQuestions * 5} XP", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("+${finalSessionQuestions * 5} XP", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1627,6 +1390,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                                 ) {
                                     Text("Avg Time / Question:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                     Text("${(finalSessionTime.toFloat() / finalSessionQuestions).toInt()}s", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    
                                 }
                             }
                         }
@@ -1649,7 +1413,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         if (showHideNotice) {
             AlertDialog(
                 onDismissRequest = { showHideNotice = false },
-                icon = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                icon = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary) },
                 title = { Text("Question Hidden") },
                 text = {
                     Text(
@@ -1678,6 +1442,9 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     }
 }
 
+    }
+}
+}
 /* =====================================================================
    TAB 2: PRACTICE MCQ MODULE
    ===================================================================== */
@@ -1698,6 +1465,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     var isSubmitted by remember { mutableStateOf(false) }
     var scoreCount by remember { mutableStateOf(0) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showHideNotice by remember { mutableStateOf(false) }
 
     val activeQuestions = remember(questions, activePracticeMode) {
         val nonHidden = questions.filter { !hiddenIds.contains(it.id) }
@@ -1723,12 +1491,12 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                 text = "Timed Practice Quiz",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primary
             )
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     val count = userProfile?.totalSolved ?: 0
@@ -1742,7 +1510,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                 }
 
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Text(
@@ -1797,7 +1565,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                     label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.height(30.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 )
@@ -1827,7 +1595,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
@@ -1851,18 +1619,19 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                 Icon(
                                     imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                     contentDescription = "Bookmark",
-                                    tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             IconButton(onClick = {
                                 viewModel.toggleHideQuestion(currentQuestion)
-                            }) {
+                            }
+) {
                                 Icon(
                                     imageVector = Icons.Outlined.VisibilityOff,
                                     contentDescription = "Hide Question",
                                     tint = MaterialTheme.colorScheme.error
                                 )
-                            }
+
                         }
                     }
 
@@ -1903,44 +1672,35 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                     }
                                 },
                             shape = RoundedCornerShape(12.dp),
-                            color = when {
-                                isSubmitted && isCorrect -> MaterialTheme.colorScheme.successContainer
-                                isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
-                                isSelected -> MaterialTheme.colorScheme.primaryContainer
-                                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            }
+                            color = if (isSubmitted) {
+                                if (isCorrect) MaterialTheme.colorScheme.primaryContainer else if (isSelected) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+                            } else {
+                                if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                            },
+                            border = BorderStroke(1.dp, if (isSelected || (isSubmitted && isCorrect)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${('A' + optIndex)}. ",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                BilingualText(
-                                    textEn = pair.first,
-                                    textAs = pair.second,
-                                    language = questionLanguage,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                val letter = ('A' + optIndex).toString()
+                                Text(letter, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 12.dp))
+                                BilingualText(textEn = pair.first, textAs = pair.second, language = language)
                             }
                         }
                     }
-
+                    
                     Spacer(modifier = Modifier.height(24.dp))
-
+                    
                     if (!isSubmitted) {
                         Button(
                             onClick = {
                                 if (selectedOptionIndex != null) {
                                     isSubmitted = true
-                                    val isAnsCorrect = (selectedOptionIndex == currentQuestion.correctOptionIndex)
+                                    val isAnsCorrect = (selectedOptionIndex == currentQuestion?.correctOptionIndex)
                                     if (isAnsCorrect) {
                                         scoreCount += 10
                                     }
-                                    viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)
+                                    if (currentQuestion != null) {
+                                        viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)
+                                    }
                                 }
                             },
                             enabled = selectedOptionIndex != null,
@@ -1962,7 +1722,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (currentQuestionIndex == activeQuestions.size - 1) ("Finish Practice") else ("Next Question"))
+                            Text(if (currentQuestionIndex == activeQuestions.size - 1) "Finish Practice" else "Next Question")
                         }
                     }
                 }
@@ -1981,6 +1741,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
             )
         }
     }
+}
 }
 
 /* =====================================================================
@@ -2069,8 +1830,8 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                 progress = progressRatio,
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 12.dp,
-                color = if (timerMode == "Study") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.success,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                color = if (timerMode == "Study") androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.success,
+                trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
             )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2078,7 +1839,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     text = formattedTime,
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = if (timerMode == "Study") ("FOCUSING") else ("REST TIME"),
@@ -2123,7 +1884,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+            colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
         ) {
             Row(
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -2131,7 +1892,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Completed Focus Sessions Today:",
@@ -2143,7 +1904,7 @@ fun PomodoroClockTab(viewModel: JuktiViewModel) {
                     text = "$completedSessions",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondary
                 )
             }
         }
@@ -2181,7 +1942,7 @@ fun QuestionStudyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
@@ -2205,7 +1966,7 @@ fun QuestionStudyCard(
                         Icon(
                             imageVector = if (question.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = "Bookmark",
-                            tint = if (question.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (question.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     if (onHideClick != null) {
@@ -2242,7 +2003,7 @@ fun QuestionStudyCard(
 
             if (expanded) {
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -2250,7 +2011,7 @@ fun QuestionStudyCard(
                         Text(
                             text = "Correct Option: ${('A' + question.correctOptionIndex)}",
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         BilingualText(
@@ -2333,7 +2094,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                         Icon(
                             imageVector = if (note.id in bookmarkedIds) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Bookmark",
-                            tint = if (note.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (note.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -2342,14 +2103,14 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = androidx.compose.material3.MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "${note.readTimeMinutes} min read • ${note.topic}",
@@ -2482,7 +2243,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Surface(
-                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.tertiaryContainer,
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
                                         Text(
@@ -2492,6 +2253,7 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onTertiaryContainer
                                         )
+        
                                     }
                                     if (note.isPremium) {
                                         Surface(
@@ -2516,18 +2278,21 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.error
                                                 )
+                
+            
+        
+    
                                             }
                                         }
                                     }
                                 }
-
                                 Text(
                                     text = "${note.readTimeMinutes} min read",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
 
+                            }
                             Spacer(modifier = Modifier.height(10.dp))
 
                             BilingualText(
@@ -2558,14 +2323,15 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
                             ) {
                                 TextButton(onClick = { viewModel.selectStudyNote(note) }) {
                                     Text("Read Full Notes →", fontWeight = FontWeight.Bold)
+    
                                 }
-
                                 IconButton(onClick = { viewModel.toggleBookmarkNote(note) }) {
                                     Icon(
                                         imageVector = if (note.id in bookmarkedIds) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                         contentDescription = "Bookmark",
-                                        tint = if (note.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = if (note.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+    
                                 }
                             }
                         }
@@ -2575,4 +2341,3 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
         }
     }
 }
-

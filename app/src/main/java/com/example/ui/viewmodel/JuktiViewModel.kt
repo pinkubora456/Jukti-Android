@@ -232,6 +232,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
+    val activeSubjectChapterStats = repository.activeSubjectChapterStats.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     val allSubjectsChapters = repository.allSubjectsChapters.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -240,6 +246,24 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = chapter))
             _syncToastMessage.value = res.second
+        }
+    }
+
+    fun mergeChapter(subject: String, sourceChapter: String, targetChapter: String) {
+        viewModelScope.launch {
+            repository.mergeChapter(subject, sourceChapter, targetChapter)
+        }
+    }
+
+    fun renameSubject(oldSubject: String, newSubject: String) {
+        viewModelScope.launch {
+            repository.renameSubject(oldSubject, newSubject)
+        }
+    }
+
+    fun renameChapter(subject: String, oldChapter: String, newChapter: String) {
+        viewModelScope.launch {
+            repository.renameChapter(subject, oldChapter, newChapter)
         }
     }
 
@@ -754,8 +778,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
 
     // Selection & Filter States
-    private val _selectedSubject = MutableStateFlow("All")
+    private val _selectedSubject = MutableStateFlow("All Subjects")
     val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
+
+    private val _selectedExam = MutableStateFlow("All Exams")
+    val selectedExam: StateFlow<String> = _selectedExam.asStateFlow()
+
+    private val _selectedChapter = MutableStateFlow("All Chapters")
+    val selectedChapter: StateFlow<String> = _selectedChapter.asStateFlow()
 
     private val _selectedDifficulty = MutableStateFlow("All")
     val selectedDifficulty: StateFlow<String> = _selectedDifficulty.asStateFlow()
@@ -994,6 +1024,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     init {
         com.example.JuktiApplication.ensureFirebaseInitialized(application)
         syncTrustedTime()
+
+        viewModelScope.launch {
+            repository.backfillDuplicateKeys()
+        }
 
         viewModelScope.launch {
             networkMonitor.isConnected.collect { online ->
@@ -1320,7 +1354,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             repository.premiumQuestions
         ) { dbStats, premiumQs ->
             val statsMap = dbStats.associateBy { it.chapter }.toMutableMap()
-            premiumQs.filter { it.subject == subject && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
+            premiumQs.filter { (it.subject == subject || subject == "All Subjects") && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
                 .forEach { q ->
                     val stat = statsMap[q.topic] ?: com.example.data.local.ChapterStatResult(q.topic, 0, 0, 0, 0)
                     statsMap[q.topic] = stat.copy(
@@ -1336,6 +1370,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSubjectFilter(subject: String) {
         _selectedSubject.value = subject
+    }
+    fun setExamFilter(exam: String) {
+        _selectedExam.value = exam
+    }
+    fun setChapterFilter(chapter: String) {
+        _selectedChapter.value = chapter
     }
     fun setDifficultyFilter(difficulty: String) {
         _selectedDifficulty.value = difficulty
@@ -1919,6 +1959,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch { repository.toggleDownloadNote(n) }
+    }
+
+    fun awardCorrectAnswerXp() {
+        viewModelScope.launch {
+            repository.awardXp(10, 0)
+        }
     }
 
     fun awardChapterCompletionXp() {
@@ -2525,6 +2571,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun getQuestionByDuplicateKey(key: String): QuestionEntity? {
+        return repository.getQuestionByDuplicateKey(key)
+    }
+
     fun addQuestion(question: QuestionEntity, onComplete: (Long) -> Unit) {
         viewModelScope.launch {
             var assignedId = question.id.takeIf { it != 0L } ?: getTrustedTime()
@@ -2611,6 +2661,22 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = repository.updateQuestion(question.copy(isReported = false))
             _syncToastMessage.value = res.second
+        }
+    }
+
+    fun bulkMoveQuestions(
+        questionsToUpdate: List<QuestionEntity>,
+        targetExam: String,
+        targetSubject: String,
+        targetChapter: String,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val (success, msg) = repository.bulkMoveQuestions(questionsToUpdate, targetExam, targetSubject, targetChapter)
+            onComplete(success, msg)
+            if (success) {
+                _syncToastMessage.value = msg
+            }
         }
     }
     

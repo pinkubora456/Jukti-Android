@@ -20,11 +20,12 @@ import com.example.ui.viewmodel.Screen
 fun ContentMocksOverviewScreen(viewModel: JuktiViewModel) {
     val allMocks by viewModel.mockTests.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val examsList by viewModel.examsList.collectAsState()
 
     // Filters Options
     val mockTypeOptions = listOf("All", "Full Length", "Subject", "Chapter")
-    val examOptions = remember(allMocks) {
-        val exams = allMocks.flatMap { it.category.split(",") }.map { it.trim() }.filter { it.isNotBlank() }.distinct().sorted()
+    val examOptions = remember(examsList) {
+        val exams = examsList.map { it.title }.distinct().sorted()
         listOf("All Exams") + exams
     }
     val subjectOptions = remember(allSubjectsChapters) {

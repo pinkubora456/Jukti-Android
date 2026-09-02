@@ -48,7 +48,7 @@ fun normalizeSubjectName(raw: String?): String {
         lower.contains("book") || lower.contains("day") || lower.contains("sport") ||
         lower.contains("organization") || lower.contains("environment") || lower.contains("ecology") -> "General Knowledge"
 
-        else -> "General Knowledge"
+        else -> trimmed
     }
 }
 
@@ -75,7 +75,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("day") || lower.contains("date") -> "Important Days"
             lower.contains("sport") || lower.contains("trophy") || lower.contains("cup") || lower.contains("olympic") || lower.contains("cricket") -> "Sports"
             lower.contains("current") || lower.contains("recent") || lower.contains("news") -> "Current Affairs"
-            else -> "Static GK"
+            else -> trimmed
         }
         "General Mathematics" -> when {
             lower.contains("number") && !lower.contains("series") -> "Number System"
@@ -102,7 +102,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("interpretation") || lower == "di" || lower.contains("chart") || lower.contains("graph") -> "Data Interpretation"
             lower.contains("permut") || lower.contains("combinat") -> "Permutation & Combination"
             lower.contains("probabil") -> "Probability (Basic)"
-            else -> "Simplification"
+            else -> trimmed
         }
         "Reasoning & Mental Ability" -> when {
             lower.contains("analog") -> "Analogy"
@@ -125,7 +125,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("paper") || lower.contains("fold") || lower.contains("cut") -> "Paper Folding & Cutting"
             lower.contains("embed") -> "Embedded Figures"
             lower.contains("non-verbal") || lower.contains("figure") || lower.contains("visual") -> "Non-Verbal Reasoning"
-            else -> "Analogy"
+            else -> trimmed
         }
         "General English" -> when {
             lower.contains("vocab") -> "Vocabulary"
@@ -146,13 +146,13 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("sub") && lower.contains("verb") -> "Sub–Verb Agreement"
             lower.contains("narration") -> "Narration"
             lower.contains("correction") || lower.contains("grammar") -> "Sentence Correction"
-            else -> "Vocabulary"
+            else -> trimmed
         }
         "Reading Comprehension" -> when {
             lower.contains("short") -> "Short Passages"
             lower.contains("long") -> "Long Passages"
             lower.contains("question") || lower.contains("based") -> "Passage Based Questions"
-            else -> "Reading Comprehension & Passages"
+            else -> trimmed
         }
         "Basic Computer" -> when {
             lower.contains("fundament") || lower.contains("architect") || lower.contains("basic") -> "Computer Fundamentals & Architecture"
@@ -160,14 +160,14 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("internet") || lower.contains("network") || lower.contains("cyber") || lower.contains("security") -> "Internet, Networking & Cyber Security"
             lower.contains("hardware") || lower.contains("software") || lower.contains("input") || lower.contains("output") -> "Hardware, Software & Input/Output Devices"
             lower.contains("database") || lower.contains("shortcut") || lower.contains("abbreviat") -> "Database, Shortcuts & Computer Abbreviations"
-            else -> "Computer Fundamentals & Architecture"
+            else -> trimmed
         }
         "Transport Rule" -> when {
             lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
             lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
             lower.contains("driv") || lower.contains("licen") || lower.contains("permit") -> "Driving Regulations, Licences & Permits"
             lower.contains("penalty") || lower.contains("violat") || lower.contains("fine") -> "Vehicle Safety, Violations & Penalties"
-            else -> "Traffic Signs, Signals & Road Safety"
+            else -> trimmed
         }
         else -> {
             val autoSub = normalizeSubjectName(trimmed)
@@ -548,6 +548,8 @@ class JuktiRepository(
 
 
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
+    val activeSubjectChapterStats: Flow<List<SubjectChapterStat>> = questionDao.getSubjectChapterStats()
+
     val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
         firebaseRepository.observeSubjectsChapters(),
         subjectChapterDao.getAllSubjectsChapters()
@@ -740,11 +742,23 @@ class JuktiRepository(
         }
     }
 
+    suspend fun getQuestionByDuplicateKey(key: String): QuestionEntity? {
+        return questionDao.getQuestionByDuplicateKey(key)
+    }
+
     suspend fun addQuestion(question: QuestionEntity): Pair<Boolean, String> {
         val newId = if (question.id == 0L) System.currentTimeMillis() else question.id
         val norm = normalizeQuestionEntity(question.copy(id = newId))
         questionDao.insertQuestion(norm)
         return syncManager.enqueueAndSync("QUESTION", newId.toString(), "CREATE", syncManager.questionToMap(norm))
+    }
+
+    suspend fun backfillDuplicateKeys() {
+        val questions = questionDao.getQuestionsMissingDuplicateKey()
+        if (questions.isNotEmpty()) {
+            val updated = questions.map { it.copy(duplicateKey = com.example.util.generateDuplicateKey(it.questionEn)) }
+            questionDao.insertAllInternal(updated)
+        }
     }
 
     fun getChapterStatsByExam(subject: String, exam: String): Flow<List<ChapterStatResult>> {
@@ -782,6 +796,50 @@ class JuktiRepository(
         }
         val fbId = norm.firebaseId.ifEmpty { norm.id.toString() }
         return syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(norm))
+    }
+
+    suspend fun bulkMoveQuestions(
+        questionsToUpdate: List<com.example.data.local.QuestionEntity>,
+        targetExam: String,
+        targetSubject: String,
+        targetChapter: String
+    ): Pair<Boolean, String> {
+        if (questionsToUpdate.isEmpty()) return false to "No questions found to move"
+
+        val normSubject = normalizeSubjectName(targetSubject)
+        val normTopic = normalizeChapterName(targetChapter, normSubject)
+
+        val updatedQs = questionsToUpdate.map { 
+            normalizeQuestionEntity(it.copy(
+                examCategory = targetExam,
+                subject = normSubject,
+                topic = normTopic,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+
+        val localToUpdate = updatedQs.filter { !it.isPremium }
+        val premToUpdate = updatedQs.filter { it.isPremium }
+
+        if (localToUpdate.isNotEmpty()) {
+            questionDao.updateQuestions(localToUpdate)
+        }
+        
+        if (premToUpdate.isNotEmpty()) {
+            val current = _premiumQuestions.value.toMutableList()
+            premToUpdate.forEach { upd ->
+                val index = current.indexOfFirst { it.id == upd.id }
+                if (index != -1) current[index] = upd
+            }
+            _premiumQuestions.value = current
+        }
+
+        updatedQs.forEach { q ->
+            val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+            syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(q))
+        }
+        
+        return true to "Successfully moved ${updatedQs.size} questions."
     }
 
     suspend fun deleteQuestion(question: QuestionEntity): Pair<Boolean, String> {
@@ -1385,6 +1443,28 @@ class JuktiRepository(
         val updated = subjectChapter.copy(id = id, subject = normSubj, chapter = normChap)
         subjectChapterDao.insertSubjectChapter(updated)
         return syncManager.enqueueAndSync("SUBJECT_CHAPTER", id.toString(), "CREATE", syncManager.subjectChapterToMap(updated))
+    }
+
+    suspend fun mergeChapter(subject: String, sourceChapter: String, targetChapter: String) {
+        withContext(Dispatchers.IO) {
+            questionDao.mergeChapter(subject, sourceChapter, targetChapter)
+        }
+    }
+
+    suspend fun renameSubject(oldSubject: String, newSubject: String) {
+        withContext(Dispatchers.IO) {
+            questionDao.renameSubject(oldSubject, newSubject)
+            subjectChapterDao.renameSubject(oldSubject, newSubject)
+
+        }
+    }
+
+    suspend fun renameChapter(subject: String, oldChapter: String, newChapter: String) {
+        withContext(Dispatchers.IO) {
+            questionDao.renameChapter(subject, oldChapter, newChapter)
+            subjectChapterDao.renameChapter(subject, oldChapter, newChapter)
+
+        }
     }
 
     suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity): Pair<Boolean, String> {

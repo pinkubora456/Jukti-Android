@@ -24,52 +24,54 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     val examsList by viewModel.examsList.collectAsState()
-    val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    
+    val questions by viewModel.questions.collectAsState()
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
+    val selectedSubject by viewModel.selectedSubject.collectAsState()
+
     val examOptions = remember(examsList) {
-        val exams = examsList.map { it.title }.distinct().sorted()
-        listOf("All Exams") + exams
+        val examsFromDb = examsList.map { it.title }.distinct().sorted()
+        listOf("All Exams") + examsFromDb
     }
-    var selectedTargetExam by remember { mutableStateOf("All Exams") }
+    
     var examExpanded by remember { mutableStateOf(false) }
 
-    val subjectsList = remember(allSubjectsChapters) {
-        allSubjectsChapters.map { it.subject }.distinct().sorted()
+    val subjectsList = remember(questions, selectedTargetExam) {
+        val filtered = if (selectedTargetExam == "All Exams") {
+            questions
+        } else {
+            questions.filter { it.examCategory.contains(selectedTargetExam, ignoreCase = true) }
+        }
+        val subjs = filtered.map { com.example.data.repository.normalizeSubjectName(it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
+        if (subjs.isEmpty()) listOf("All Subjects") else subjs
     }
-    var selectedSubject by remember { mutableStateOf(subjectsList.firstOrNull() ?: "") }
+    
     var expanded by remember { mutableStateOf(false) }
 
-    if (selectedSubject.isNotEmpty() && !subjectsList.contains(selectedSubject)) {
-        selectedSubject = subjectsList.firstOrNull() ?: ""
+    LaunchedEffect(subjectsList) {
+        if (selectedSubject !in subjectsList && subjectsList.isNotEmpty()) {
+            viewModel.setSubjectFilter(subjectsList.first())
+        }
     }
 
     val chapterStatsResults by remember(selectedSubject, selectedTargetExam) {
         viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam)
     }.collectAsState(initial = emptyList())
 
-    val chapterStats = remember(chapterStatsResults, allSubjectsChapters, selectedSubject) {
-        val statsMap = mutableMapOf<String, ChapterStat>()
-        allSubjectsChapters.filter { it.subject == selectedSubject }.forEach { sc ->
-            statsMap[sc.chapter] = ChapterStat(sc.chapter)
-        }
-        chapterStatsResults.forEach { result ->
-            val stat = statsMap[result.chapter] ?: ChapterStat(result.chapter)
-            stat.total += result.total
-            stat.easy += result.easy
-            stat.medium += result.medium
-            stat.hard += result.hard
-            statsMap[result.chapter] = stat
-        }
-        statsMap.values.toList().sortedByDescending { it.total }
+    val chapterStats = remember(chapterStatsResults) {
+        chapterStatsResults.map { 
+            ChapterStat(it.chapter, it.total, it.easy, it.medium, it.hard)
+        }.sortedByDescending { it.total }
     }
 
-    val hasQuestions = remember(chapterStats) {
-        chapterStats.sumOf { it.total } > 0
-    }
-
+    val hasQuestions = chapterStats.isNotEmpty()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedChapterStat by remember { mutableStateOf<ChapterStat?>(null) }
-    val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
+
+    val totalCount = chapterStats.sumOf { it.total }
+    val totalEasy = chapterStats.sumOf { it.easy }
+    val totalMedium = chapterStats.sumOf { it.medium }
+    val totalHard = chapterStats.sumOf { it.hard }
 
     Scaffold(
         topBar = {
@@ -93,7 +95,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                     value = selectedTargetExam,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Target Exam") },
+                    label = { Text("Select Exam") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -106,7 +108,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                         DropdownMenuItem(
                             text = { Text(exam) },
                             onClick = {
-                                selectedTargetExam = exam
+                                viewModel.setExamFilter(exam)
                                 examExpanded = false
                             }
                         )
@@ -114,7 +116,6 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
@@ -136,14 +137,33 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                         DropdownMenuItem(
                             text = { Text(subj) },
                             onClick = {
-                                selectedSubject = subj
+                                viewModel.setSubjectFilter(subj)
                                 expanded = false
                             }
                         )
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // Summary Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Total Questions: $totalCount", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Easy: $totalEasy", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+                        Text("Medium: $totalMedium", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+                        Text("Hard: $totalHard", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            
             Spacer(modifier = Modifier.height(16.dp))
 
             Card(
@@ -164,12 +184,13 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                         Text("E", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
                         Text("M", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
                         Text("H", fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
+                        Spacer(modifier = Modifier.width(32.dp))
                     }
                     HorizontalDivider()
                     
                     if (!hasQuestions) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No questions available for this exam.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("No questions found for this selection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(
@@ -180,8 +201,11 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { 
-                                            selectedChapterStat = stat 
-                                            scope.launch { sheetState.show() }
+                                            viewModel.setExamFilter(selectedTargetExam)
+                                            viewModel.setSubjectFilter(selectedSubject)
+                                            viewModel.setChapterFilter(stat.chapter)
+                                            viewModel.setSearchQuery("")
+                                            viewModel.navigateTo(Screen.ALL_QUESTIONS)
                                         }
                                         .padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -196,56 +220,13 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                     Text("${stat.easy}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
                                     Text("${stat.medium}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
                                     Text("${stat.hard}", modifier = Modifier.width(32.dp), style = MaterialTheme.typography.bodySmall)
+                                    Text("View →", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(32.dp))
                                 }
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             }
                         }
                     }
                 }
-            }
-        }
-    }
-
-    if (selectedChapterStat != null) {
-        ModalBottomSheet(
-            onDismissRequest = { selectedChapterStat = null },
-            sheetState = sheetState
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                Text(
-                    text = selectedChapterStat!!.chapter,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("Total Questions: ${selectedChapterStat!!.total}", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text("Easy: ${selectedChapterStat!!.easy}", color = MaterialTheme.colorScheme.primary)
-                Text("Medium: ${selectedChapterStat!!.medium}", color = MaterialTheme.colorScheme.secondary)
-                Text("Hard: ${selectedChapterStat!!.hard}", color = MaterialTheme.colorScheme.error)
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Button(
-                    onClick = {
-                        viewModel.setSubjectFilter(selectedSubject)
-                        viewModel.setSearchQuery(selectedChapterStat!!.chapter)
-                        viewModel.navigateTo(Screen.ALL_QUESTIONS)
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            selectedChapterStat = null
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("View Questions")
-                }
-                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }

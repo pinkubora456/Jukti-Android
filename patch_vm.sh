@@ -1,0 +1,1 @@
+sed -i '/fun addQuestion/i \    suspend fun getQuestionByDuplicateKey(key: String): QuestionEntity? {\n        return repository.getQuestionByDuplicateKey(key)\n    }\n' app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt

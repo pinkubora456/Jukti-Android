@@ -1,69 +1,47 @@
 import re
 
-def fix_file(filepath):
-    with open(filepath, "r") as f:
-        content = f.read()
+# Fix JuktiViewModel.kt
+with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "r") as f:
+    vm_content = f.read()
 
-    # Find the LaunchedEffect
-    pattern = r'(    LaunchedEffect\(isStudySessionStarted[^\n]*\n        if \(isStudySessionStarted\) \{\n            val filtered = questions\.filter \{ q ->\n(?:.*?\n)+?                \}\n            \}\.shuffled\(\)\.toMutableList\(\)\n(?:.*?\n)+?        \} else \{\n            activeStudySessionQuestions = emptyList\(\)\n        \}\n    \}\n\n    val studyQuestionsList = if \(isStudySessionStarted && activeStudySessionQuestions\.isNotEmpty\(\)\) activeStudySessionQuestions else questions\.filter \{ !hiddenIds\.contains\(it\.id\) \})'
-    
-    match = re.search(pattern, content, re.MULTILINE)
-    if not match:
-        print("Could not find LaunchedEffect pattern in", filepath)
-    else:
-        old_block = match.group(1)
-        
-        # Extract the inside of questions.filter { q -> ... }
-        filter_pattern = r'            val filtered = questions\.filter \{ q ->\n((?:.*?\n)+?)            \}\.shuffled\(\)\.toMutableList\(\)'
-        filter_match = re.search(filter_pattern, old_block)
-        filter_body = filter_match.group(1)
-        
-        new_block = """    val filteredStudyQuestions = remember(questions, selectedSubjectTab, selectedChapters, hiddenIds) {
-        questions.filter { q ->
-""" + filter_body + """        }
-    }
+old_vm = """    private val _selectedSubject = MutableStateFlow("All")
+    val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
 
-    LaunchedEffect(isStudySessionStarted, filteredStudyQuestions) {
-        if (isStudySessionStarted) {
-            val eligible = filteredStudyQuestions.shuffled().toMutableList()
+    private val _selectedDifficulty = MutableStateFlow("All")"""
+new_vm = """    private val _selectedSubject = MutableStateFlow("All Subjects")
+    val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
 
-            if (eligible.size > 1 && eligible[0].id == lastStudyStartingQuestionId) {
-                val temp = eligible[0]
-                eligible[0] = eligible[1]
-                eligible[1] = temp
-            }
-            if (eligible.isNotEmpty()) {
-                lastStudyStartingQuestionId = eligible[0].id
-            }
-            activeStudySessionQuestions = eligible
-            currentQuestionIndex = 0
-            selectedOptionIndex = null
-        } else {
-            activeStudySessionQuestions = emptyList()
-        }
-    }
+    private val _selectedExam = MutableStateFlow("All Exams")
+    val selectedExam: StateFlow<String> = _selectedExam.asStateFlow()
 
-    val studyQuestionsList = if (isStudySessionStarted) {
-        if (activeStudySessionQuestions.isNotEmpty()) activeStudySessionQuestions else filteredStudyQuestions
-    } else emptyList()"""
+    private val _selectedChapter = MutableStateFlow("All Chapters")
+    val selectedChapter: StateFlow<String> = _selectedChapter.asStateFlow()
 
-        content = content.replace(old_block, new_block)
-        
-    # Also fix totalCount
-    total_count_pattern = r'                    val totalCount = remember\(questions, banner\.subjectKey\) \{\n(?:.*?\n)+?                    \}\n\n                    val currentSelectedChapters = chaptersMap\[banner\.subjectKey\] \?: emptySet\(\)'
-    match = re.search(total_count_pattern, content)
-    if not match:
-        print("Could not find totalCount pattern in", filepath)
-    else:
-        old_total = match.group(0)
-        # We know filter_body has the filtering logic. But for totalCount, `q.subject` is checked against `banner.subjectKey` and `selectedChapters` is `currentSelectedChapters`.
-        # Instead of replacing totalCount logic entirely with filter_body, we can just replace the whole `totalCount` block with one that uses `filter_body` but adapts it.
-        # However, it's easier to just use `filteredStudyQuestions.size`? No, totalCount is for BANNERS! Each banner has its own subjectKey!
-        # So totalCount must be calculated per banner.
-        pass
-        
-    with open(filepath, "w") as f:
-        f.write(content)
-    print("Fixed", filepath)
+    private val _selectedDifficulty = MutableStateFlow("All")"""
 
-fix_file("app/src/main/java/com/example/ui/screens/McqStudyScreen.kt")
+if old_vm in vm_content:
+    vm_content = vm_content.replace(old_vm, new_vm)
+    with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "w") as f:
+        f.write(vm_content)
+    print("Fixed JuktiViewModel.kt")
+else:
+    print("Could not find old_vm in JuktiViewModel.kt")
+
+# Fix AllQuestionsScreen.kt
+with open("app/src/main/java/com/example/ui/screens/AllQuestionsScreen.kt", "r") as f:
+    allq_content = f.read()
+
+old_text = 'Text("You are about to move $selectedCount questions to:\n\nExam: $destExam\nSubject: $destSubj\nChapter/Topic: $destChap\n\nAre you sure?")'
+old_text_broken = 'Text("You are about to move $selectedCount questions to:\nExam: $destExam\nSubject: $destSubj\nChapter/Topic: $destChap\nAre you sure?")'
+old_text_broken2 = 'Text("You are about to move $selectedCount questions to:\n\nExam: $destExam\nSubject: $destSubj\nChapter/Topic: $destChap\n\nAre you sure?")'.replace('\\n', '\n')
+
+new_text = 'Text("You are about to move $selectedCount questions to:\\n\\nExam: $destExam\\nSubject: $destSubj\\nChapter/Topic: $destChap\\n\\nAre you sure?")'
+
+allq_content = allq_content.replace(old_text_broken2, new_text)
+with open("app/src/main/java/com/example/ui/screens/AllQuestionsScreen.kt", "w") as f:
+    f.write(allq_content)
+print("Fixed AllQuestionsScreen.kt string")
+
+# Fix ContentQuestionsOverviewScreen.kt line 100 which says:
+# @Composable invocations can only happen from the context of a @Composable function
+# Looking at ContentQuestionsOverviewScreen.kt, let's see what is on line 100.

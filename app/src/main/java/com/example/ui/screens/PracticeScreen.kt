@@ -84,6 +84,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 } else {
                     val topicStr = q.topic ?: ""
                     val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
+                    
                     if (selectedSubjectKey == "Reasoning") {
                         selectedChapters.any { ch ->
                             topicStr.contains(ch, ignoreCase = true) || 
@@ -95,34 +96,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
                         }
                     } else if (selectedSubjectKey == "General English") {
-                            selectedChapters.any { ch ->
-                                if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                    normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                                } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                    normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                                } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                    normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                                } else if (ch == "Grammar & Sentence Correction") {
-                                    normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                                } else if (ch == "Cloze Test") {
-                                    normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                                } else if (ch == "Active & Passive Voice") {
-                                    normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                                } else {
-                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                    normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                }
-                            }
-                        } else {
                         selectedChapters.any { ch ->
-                            normTopic.equals(ch, ignoreCase = true) ||
+                            if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
+                                normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
+                            } else if (ch == "Synonyms, Antonyms & Vocabulary") {
+                                normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
+                            } else if (ch == "Reading Comprehension & Para Jumbles") {
+                                normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
+                            } else if (ch == "Grammar & Sentence Correction") {
+                                normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
+                            } else if (ch == "Cloze Test") {
+                                normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
+                            } else if (ch == "Active & Passive Voice") {
+                                normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
+                            } else {
+                                val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
+                                normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                            }
+                        }
+                    } else {
+                        selectedChapters.any { ch ->
+                            val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
+                            normTopic.equals(nCh, ignoreCase = true) ||
                             topicStr.equals(ch, ignoreCase = true) ||
                             topicStr.contains(ch, ignoreCase = true) ||
                             ch.contains(topicStr, ignoreCase = true) ||
-                            q.subject.contains(ch, ignoreCase = true)
+                            normTopic.contains(ch, ignoreCase = true) ||
+                            ch.contains(normTopic, ignoreCase = true)
                         }
                     }
                 }
+                
                 matchSubject && matchChapter
             } catch (e: Exception) {
                 false
@@ -256,7 +260,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             actions = {
                 // Practiced Question Counter Badge
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
@@ -268,7 +272,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -302,14 +306,14 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         Icon(
                             imageVector = Icons.Default.Translate,
                             contentDescription = "Language",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Question Language:",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -332,7 +336,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                             modifier = Modifier.height(30.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
@@ -355,11 +359,25 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     text = "Choose Subject to Practice:",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                 )
 
                 // Define 5 Banners
-                val banners = listOf(
+                
+                
+                
+                val colorPrimaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+                val colorSecondaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer
+                val colorTertiaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.tertiaryContainer
+                val colorSurfaceVariant = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                val colorPrimary = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                val colorSecondary = androidx.compose.material3.MaterialTheme.colorScheme.secondary
+                val colorTertiary = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
+
+                val dynamicBanners = remember(allSubjectsChapters, visibleQuestions) {
+
+                    val predefined = listOf(
+
                     BannerConfig(
                         titleEn = "All Subjects",
                         titleAs = "সকলো বিষয় (Mixed)",
@@ -367,8 +385,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "সকলো বিষয়ৰ সংমিশ্ৰিত প্ৰশ্নৰ অনুশীলন কৰক",
                         subjectKey = "All Subjects",
                         icon = Icons.Default.Apps,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.primary
+                        containerColor = colorPrimaryContainer.copy(alpha = 0.5f),
+                        iconColor = colorPrimary
                     ),
                     BannerConfig(
                         titleEn = "General Knowledge",
@@ -377,8 +395,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "ইতিহাস, ভূগোল, ৰাজনীতি, অসম বিৱৰণ আৰু বিজ্ঞান",
                         subjectKey = "General Knowledge",
                         icon = Icons.Default.Public,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.secondary
+                        containerColor = colorSecondaryContainer.copy(alpha = 0.5f),
+                        iconColor = colorSecondary
                     ),
                     BannerConfig(
                         titleEn = "General Mathematics",
@@ -387,8 +405,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "পাটিগণিত, বীজগণিত, জ্যামিতি আৰু সংখ্যা সংক্ৰান্তীয়",
                         subjectKey = "General Mathematics",
                         icon = Icons.Default.Calculate,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        iconColor = MaterialTheme.colorScheme.primary
+                        containerColor = colorSurfaceVariant,
+                        iconColor = colorPrimary
                     ),
                     BannerConfig(
                         titleEn = "Reasoning & Mental Ability",
@@ -397,8 +415,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "মানসিক দক্ষতা আৰু যুক্তিনিৰ্ভৰ প্ৰশ্নৱালী",
                         subjectKey = "Reasoning & Mental Ability",
                         icon = Icons.Default.Psychology,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        iconColor = MaterialTheme.colorScheme.secondary
+                        containerColor = colorPrimaryContainer.copy(alpha = 0.3f),
+                        iconColor = colorSecondary
                     ),
                     BannerConfig(
                         titleEn = "General English",
@@ -407,8 +425,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "ইংৰাজী ব্যাকৰণ, শব্দকোষ, বিপৰীত শব্দ আৰু সমাৰ্থক শব্দ",
                         subjectKey = "General English",
                         icon = Icons.Default.Translate,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                        iconColor = MaterialTheme.colorScheme.tertiary
+                        containerColor = colorTertiaryContainer.copy(alpha = 0.5f),
+                        iconColor = colorTertiary
                     ),
                     BannerConfig(
                         titleEn = "Reading Comprehension",
@@ -417,8 +435,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "পঠন বোধগম্যতা আৰু প্ৰশ্নোত্তৰ",
                         subjectKey = "Reading Comprehension",
                         icon = Icons.Default.MenuBook,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
-                        iconColor = MaterialTheme.colorScheme.secondary
+                        containerColor = colorSecondaryContainer.copy(alpha = 0.3f),
+                        iconColor = colorSecondary
                     ),
                     BannerConfig(
                         titleEn = "Basic Computer",
@@ -427,8 +445,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "কম্পিউটাৰ পৰিচয়, এম.এছ. অফিচ, হাৰ্ডৱেৰ, নেটৱৰ্কিং আৰু চাইবাৰ সুৰক্ষা",
                         subjectKey = "Basic Computer",
                         icon = Icons.Default.Computer,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                        iconColor = MaterialTheme.colorScheme.tertiary
+                        containerColor = colorTertiaryContainer.copy(alpha = 0.4f),
+                        iconColor = colorTertiary
                     ),
                     BannerConfig(
                         titleEn = "Transport Rule",
@@ -437,12 +455,40 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         subtitleAs = "যান-বাহন নিয়ম, মটৰ বাহন আইন, পথ সুৰক্ষা আৰু সংকেত",
                         subjectKey = "Transport Rule",
                         icon = Icons.Default.DirectionsCar,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                        iconColor = MaterialTheme.colorScheme.secondary
+                        containerColor = colorSecondaryContainer.copy(alpha = 0.4f),
+                        iconColor = colorSecondary
                     )
-                )
+                    )
+                    
+                    val predefinedKeys = listOf(
+                        "General Knowledge", "Assam History", "Assam Geography", "Assam Geography & Economy", "Assamese Literature & Culture", "Current Affairs", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness",
+                        "General English", "English",
+                        "General Mathematics", "Mathematics", "Quantitative Aptitude",
+                        "Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude",
+                        "Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT",
+                        "Transport Rule", "Transport Rules", "Manual Entry",
+                        "Reading Comprehension"
+                    )
+                    
+                    val allSubjects = (allSubjectsChapters.map { it.subject } + visibleQuestions.map { it.subject }).distinct()
+                    val newBanners = allSubjects.filter { subj -> subj.isNotBlank() && !predefinedKeys.any { pk -> pk.equals(subj, ignoreCase = true) } && !subj.contains("Manual", ignoreCase = true) }
+                        .map { subject ->
+                            BannerConfig(
+                                titleEn = subject,
+                                titleAs = subject,
+                                subtitleEn = "Questions from $subject",
+                                subtitleAs = "$subject -ৰ প্ৰশ্ন",
+                                subjectKey = subject,
+                                icon = androidx.compose.material.icons.Icons.Default.MenuBook,
+                                containerColor = colorSurfaceVariant,
+                                iconColor = colorPrimary
+                            )
+                        }
+                    predefined + newBanners
+                }
 
-                banners.forEach { banner ->
+
+                dynamicBanners.forEach { banner ->
                     // Available chapters for this banner's subject
                     val availableChapters = remember(visibleQuestions, allSubjectsChapters, banner.subjectKey) {
                         val set = mutableSetOf<String>()
@@ -458,56 +504,30 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
                             }
                             "General English" -> {
-                                set.add("Grammar & Sentence Correction")
-                                set.add("Synonyms, Antonyms & Vocabulary")
-                                set.add("One-Word & Idioms")
-                                set.add("Reading Comprehension & Para Jumbles")
-                                set.add("Cloze Test")
-                                set.add("Active & Passive Voice")
-                                set.add("Tenses")
-                                
-                                
                                 visibleQuestions.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
                                     .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
                                 allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
                             }
                             "General Mathematics" -> {
-                                set.add("Number System, LCM & HCF")
-                                set.add("Percentage, Ratio & Proportion")
-                                set.add("Profit, Loss, Discount & Simple/Compound Interest")
-                                set.add("Time, Work, Speed, Distance & Mensuration")
                                 visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
                                     .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
                                 allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
                             }
                             "Reasoning" -> {
-                                set.add("Coding-Decoding, Series & Analogy")
-                                set.add("Blood Relations & Direction Sense Test")
-                                set.add("Seating Arrangement, Puzzles & Venn Diagrams")
-                                set.add("Syllogism, Statements & Assumptions")
                                 visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
                                     .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
                                 allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
                             }
                             "Basic Computer", "Computer Knowledge", "Computer" -> {
-                                set.add("Computer Fundamentals & Architecture")
-                                set.add("Operating Systems & MS Office (Word, Excel, PowerPoint)")
-                                set.add("Internet, Networking & Cyber Security")
-                                set.add("Hardware, Software & Input/Output Devices")
-                                set.add("Database, Shortcuts & Computer Abbreviations")
                                 visibleQuestions.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) }
                                     .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
                                 allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
                                     .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
                             }
                             "Transport Rule" -> {
-                                set.add("Traffic Signs, Signals & Road Safety")
-                                set.add("Motor Vehicles Act & Traffic Rules")
-                                set.add("Driving Regulations, Licences & Permits")
-                                set.add("Vehicle Safety, Violations & Penalties")
                                 visibleQuestions.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) }
                                     .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
                                 allSubjectsChapters.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) }
@@ -531,10 +551,10 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
 
                     val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
                     
-                    val questionCount = remember(visibleQuestions, banner.subjectKey, currentSelectedChapters, hiddenIds) {
-                        visibleQuestions.count { q ->
-                            if (q.id in hiddenIds) return@count false
-                            val matchSubject = when (banner.subjectKey) {
+                    val bannerQs = remember(visibleQuestions, banner.subjectKey, hiddenIds) {
+                        visibleQuestions.filter { q ->
+                            if (q.id in hiddenIds) return@filter false
+                            when (banner.subjectKey) {
                                 "All Subjects" -> true
                                 "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
                                 "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
@@ -544,54 +564,43 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                 "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                                 else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
                             }
+                        }
+                    }
+
+                    val questionCount = remember(bannerQs, currentSelectedChapters) {
+                        bannerQs.count { q ->
                             val matchChapter = if (currentSelectedChapters.isEmpty()) {
                                 true
                             } else {
                                 val topicStr = q.topic ?: ""
                                 val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                                if (banner.subjectKey == "Reasoning") {
-                                    currentSelectedChapters.any { ch ->
-                                        topicStr.contains(ch, ignoreCase = true) ||
-                                                (ch == "Coding & Decoding" && (normTopic == "Coding-Decoding" || topicStr.contains("Coding", ignoreCase = true))) ||
-                                                (ch == "Blood Relations" && (normTopic == "Blood Relation" || topicStr.contains("Blood", ignoreCase = true))) ||
-                                                (ch == "Number & Alphabet Series" && (normTopic.contains("Series") || topicStr.contains("Series", ignoreCase = true))) ||
-                                                (ch == "Analogy & Classification" && (normTopic.contains("Analogy") || normTopic.contains("Classification") || topicStr.contains("Analogy", ignoreCase = true))) ||
-                                                (ch == "Syllogism" && (normTopic == "Syllogism" || topicStr.contains("Syllogism", ignoreCase = true))) ||
-                                                (ch == "Venn Diagrams" && (normTopic == "Venn Diagram" || topicStr.contains("Venn", ignoreCase = true))) ||
-                                                (ch == "Direction Sense" && (normTopic == "Direction Sense Test" || topicStr.contains("Direction", ignoreCase = true)))
-                                    }
-                                } else if (banner.subjectKey == "General English") {
-                                    currentSelectedChapters.any { ch ->
-                                        if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                            normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                                        } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                            normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                                        } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                            normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                                        } else if (ch == "Grammar & Sentence Correction") {
-                                            normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                                        } else if (ch == "Cloze Test") {
-                                            normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                                        } else if (ch == "Active & Passive Voice") {
-                                            normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                                        } else {
-                                            val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                            normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                        }
-                                    }
-                                } else if (banner.subjectKey == "General Knowledge") {
-                                    currentSelectedChapters.any { ch ->
-                                        val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                        normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                    }
-                                } else {
-                                    currentSelectedChapters.any { ch ->
-                                        val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                        normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
-                                    }
+                                currentSelectedChapters.any { ch ->
+                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
+                                    normTopic.equals(nCh, ignoreCase = true) || 
+                                    topicStr.equals(ch, ignoreCase = true) || 
+                                    topicStr.contains(ch, ignoreCase = true) || 
+                                    ch.contains(topicStr, ignoreCase = true) || 
+                                    normTopic.contains(ch, ignoreCase = true) || 
+                                    ch.contains(normTopic, ignoreCase = true)
                                 }
                             }
-                            matchSubject && matchChapter
+                            matchChapter
+                        }
+                    }
+
+                    val chapterCounts = remember(bannerQs, availableChapters) {
+                        availableChapters.associateWith { chapter ->
+                            bannerQs.count { q ->
+                                val topicStr = q.topic ?: ""
+                                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
+                                val normCh = com.example.data.repository.normalizeChapterName(chapter, q.subject)
+                                normTopic.equals(normCh, ignoreCase = true) || 
+                                topicStr.equals(chapter, ignoreCase = true) || 
+                                topicStr.contains(chapter, ignoreCase = true) || 
+                                chapter.contains(topicStr, ignoreCase = true) || 
+                                normTopic.contains(chapter, ignoreCase = true) || 
+                                chapter.contains(normTopic, ignoreCase = true)
+                            }
                         }
                     }
 
@@ -613,7 +622,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             userAnswers.clear()
                             isSessionStarted = true
                         },
-                        isAssamese = isAssamese
+                        isAssamese = isAssamese,
+                        chapterCounts = chapterCounts
                     )
                 }
             }
@@ -663,7 +673,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
@@ -697,7 +707,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             ) {
                                 // Question Count Tag
                                 Surface(
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
@@ -707,11 +717,12 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
-                                }
+    
 
                                 // Per-question Timer
+                                }
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Row(
@@ -722,7 +733,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         Icon(
                                             Icons.Default.Timer,
                                             contentDescription = "Timer",
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(14.dp)
                                         )
                                         val minutes = secondsElapsed / 60
@@ -733,10 +744,12 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                    }
-                                }
+        
+    
 
                                 // Action Icons: Save & Hide
+                                    }
+                                }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     // Report Button
                                     IconButton(
@@ -749,7 +762,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                             tint = MaterialTheme.colorScheme.error
                                         )
                                     }
-
                                     // Save / Bookmark Button
                                     IconButton(
                                         onClick = { viewModel.toggleBookmarkQuestion(currentQuestion) },
@@ -758,10 +770,9 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         Icon(
                                             imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                             contentDescription = "Save Question",
-                                            tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-
                                     // Hide Question Button
                                     IconButton(
                                         onClick = {
@@ -781,7 +792,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     }
                                 }
                             }
-
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // Progress bar for question count
@@ -791,7 +801,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     .fillMaxWidth()
                                     .height(4.dp)
                                     .clip(RoundedCornerShape(2.dp)),
-                                color = MaterialTheme.colorScheme.primary,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                                 trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                             )
 
@@ -807,10 +817,10 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     text = "${currentQuestion.subject} • ${currentQuestion.topic}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                                 )
-                            }
 
+                            }
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // Question Text
@@ -848,7 +858,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
-                            }
+
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -868,34 +878,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                 val backgroundColor = when {
                                     isSubmitted && isCorrect -> MaterialTheme.colorScheme.successContainer
                                     isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
-                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
                                 }
 
                                 val borderColor = when {
                                     isSubmitted && isCorrect -> MaterialTheme.colorScheme.success
                                     isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
-                                    else -> null
+                                    isSelected -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                                 }
 
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .clickable(enabled = !isSubmitted) {
-                                            userAnswers[currentQuestion.id] = index
+                                Surface(
+                                    onClick = {
+                                        if (!isSubmitted) {
                                             val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
+                                            userAnswers[currentQuestion.id] = index
                                             if (isAnsCorrect) {
-                                                scoreCount += 10
+                                                viewModel.awardCorrectAnswerXp()
                                             }
-                                            viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)
-                                        },
+                                        }
+                                    },
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = backgroundColor),
-                                    border = borderColor?.let { BorderStroke(1.5.dp, it) }
+                                    color = backgroundColor,
+                                    border = BorderStroke(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = borderColor
+                                    ),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(16.dp)
                                     ) {
                                         Surface(
                                             shape = CircleShape,
@@ -921,7 +934,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                                 }
                                             }
                                         }
-
                                         Spacer(modifier = Modifier.width(10.dp))
 
                                         BilingualText(
@@ -933,7 +945,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                             color = when {
                                                 isSubmitted && isCorrect -> MaterialTheme.colorScheme.onSuccessContainer
                                                 isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
-                                                else -> Color.Unspecified
+                                                else -> MaterialTheme.colorScheme.onSurface
                                             }
                                         )
                                     }
@@ -945,13 +957,13 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                 Column {
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Surface(
-                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(modifier = Modifier.padding(14.dp)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
                                                     text = "Explanation & Analysis:",
@@ -959,6 +971,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                                 )
+                
                                             }
                                             Spacer(modifier = Modifier.height(6.dp))
                                             BilingualText(
@@ -968,11 +981,14 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
+            
+        
+    
+
                                         }
                                     }
                                 }
                             }
-
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Navigation Buttons
@@ -990,6 +1006,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     enabled = currentQuestionIndex > 0
                                 ) {
                                     Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text("Previous")
                                 }
 
@@ -997,7 +1014,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     onClick = {
                                         if (currentQuestionIndex < displayQuestions.size - 1) {
                                             currentQuestionIndex++
-                                        } else {
+                                        }
+                                        else {
                                             viewModel.awardChapterCompletionXp()
                                             showSummary = true
                                         }
@@ -1006,14 +1024,16 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     Text(
                                         if (currentQuestionIndex == displayQuestions.size - 1) {
                                             "Completed"
-                                        } else {
+                                        }
+                                        else {
                                             "Next"
                                         }
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Icon(Icons.Default.ChevronRight, contentDescription = null)
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.height(16.dp))
 
                             TextButton(
@@ -1021,6 +1041,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("End Practice", color = MaterialTheme.colorScheme.error)
+                            }
                             }
                         }
                     }
@@ -1041,6 +1062,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
         }
     }
 }
+
 
 private data class BannerConfig(
     val titleEn: String,
@@ -1064,7 +1086,8 @@ private fun PracticeSubjectBannerCard(
     actionButtonTextEn: String,
     actionButtonTextAs: String,
     onStartClick: () -> Unit,
-    isAssamese: Boolean
+    isAssamese: Boolean,
+    chapterCounts: Map<String, Int> = emptyMap()
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -1119,7 +1142,7 @@ private fun PracticeSubjectBannerCard(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -1156,7 +1179,7 @@ private fun PracticeSubjectBannerCard(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                        focusedBorderColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
@@ -1190,6 +1213,7 @@ private fun PracticeSubjectBannerCard(
                         HorizontalDivider()
                         availableChapters.forEach { chapter ->
                             val isChecked = selectedChapters.contains(chapter)
+                            val count = chapterCounts[chapter] ?: 0
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1198,12 +1222,13 @@ private fun PracticeSubjectBannerCard(
                                             onCheckedChange = null
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = chapter)
+                                        Text(text = "$chapter ($count Qs)")
                                     }
                                 },
                                 onClick = {
                                     val updated = if (isChecked) selectedChapters - chapter else selectedChapters + chapter
                                     onChaptersChanged(updated)
+    
                                 }
                             )
                         }
@@ -1302,7 +1327,7 @@ fun PracticeSummaryView(
             text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary 🎉",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
 
@@ -1318,7 +1343,7 @@ fun PracticeSummaryView(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Score", count = score, subtitle = "pts", color = MaterialTheme.colorScheme.primary)
+                SummaryStatCard(title = "Score", count = score, subtitle = "pts", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
             }
             Box(modifier = Modifier.weight(1f)) {
                 SummaryStatCard(title = "Accuracy", count = accuracy, subtitle = "%", color = if (accuracy >= 60) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error)
@@ -1344,7 +1369,7 @@ fun PracticeSummaryView(
         // Time & Solving Speed Row 3
         Card(
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(

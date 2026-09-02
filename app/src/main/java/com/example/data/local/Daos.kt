@@ -17,6 +17,12 @@ abstract class QuestionDao {
     @Query("SELECT * FROM questions WHERE id = :id")
     abstract suspend fun getQuestionById(id: Long): QuestionEntity?
 
+    @Query("SELECT * FROM questions WHERE duplicateKey = '' OR duplicateKey IS NULL")
+    abstract suspend fun getQuestionsMissingDuplicateKey(): List<QuestionEntity>
+
+    @Query("SELECT * FROM questions WHERE duplicateKey = :key LIMIT 1")
+    abstract suspend fun getQuestionByDuplicateKey(key: String): QuestionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertQuestionInternal(question: QuestionEntity): Long
 
@@ -39,12 +45,44 @@ abstract class QuestionDao {
 
     @Update
     abstract suspend fun updateQuestion(question: QuestionEntity)
+    
+    @Update
+    abstract suspend fun updateQuestions(questions: List<QuestionEntity>)
 
     @Delete
     abstract suspend fun deleteQuestion(question: QuestionEntity)
 
     @Query("DELETE FROM questions WHERE id = :id")
     abstract suspend fun deleteQuestionById(id: Long)
+
+    @Query("""
+        SELECT subject, topic as chapter, COUNT(*) as questionCount 
+        FROM questions 
+        GROUP BY subject, topic
+    """)
+    abstract fun getSubjectChapterStats(): Flow<List<SubjectChapterStat>>
+
+    @Query("""
+        UPDATE questions 
+        SET topic = :newChapter 
+        WHERE subject = :subject AND topic = :oldChapter
+    """)
+    abstract suspend fun mergeChapter(subject: String, oldChapter: String, newChapter: String)
+
+    @Query("""
+        UPDATE questions
+        SET subject = :newSubject
+        WHERE subject = :oldSubject
+    """)
+    abstract suspend fun renameSubject(oldSubject: String, newSubject: String)
+
+    @Query("""
+        UPDATE questions
+        SET topic = :newChapter
+        WHERE subject = :subject AND topic = :oldChapter
+    """)
+    abstract suspend fun renameChapter(subject: String, oldChapter: String, newChapter: String)
+
     
     @Query("""
         SELECT topic as chapter, 
@@ -53,7 +91,7 @@ abstract class QuestionDao {
                SUM(CASE WHEN difficulty = 'Medium' THEN 1 ELSE 0 END) as medium,
                SUM(CASE WHEN difficulty = 'Hard' THEN 1 ELSE 0 END) as hard
         FROM questions
-        WHERE subject = :subject 
+        WHERE (subject = :subject OR :subject = 'All Subjects')
           AND isReported = 0 
           AND (examCategory LIKE '%' || :exam || '%' OR :exam = 'All Exams')
         GROUP BY topic
@@ -308,6 +346,15 @@ interface SubjectChapterDao {
 
     @Update
     abstract suspend fun updateSubjectChapter(subjectChapter: SubjectChapterEntity)
+
+    @Query("UPDATE subjects_chapters SET subject = :newSubject WHERE subject = :oldSubject")
+    abstract suspend fun renameSubject(oldSubject: String, newSubject: String)
+
+    @Query("UPDATE subjects_chapters SET chapter = :newChapter WHERE subject = :subject AND chapter = :oldChapter")
+    abstract suspend fun renameChapter(subject: String, oldChapter: String, newChapter: String)
+
+    @Query("DELETE FROM subjects_chapters WHERE subject = :subject AND chapter = :chapter")
+    abstract suspend fun deleteSubjectChapterByNames(subject: String, chapter: String)
 
     @Delete
     abstract suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)

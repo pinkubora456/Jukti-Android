@@ -247,22 +247,22 @@ object CsvQuestionParser {
             val finalQuestionType = if (tags.isNotBlank()) tags else "Expected"
 
             // Duplicate detection
-            val normalizedQText = qEn.trim().lowercase()
+            val duplicateKey = generateDuplicateKey(qEn)
             var isDuplicateInBatch = false
             var isExistingInQBank = false
             var existingQBankId: Long? = null
 
-            if (normalizedQText.isNotEmpty()) {
-                if (seenQuestionsInBatch.containsKey(normalizedQText)) {
-                    val prevRow = seenQuestionsInBatch[normalizedQText]!!
+            if (duplicateKey.isNotEmpty()) {
+                if (seenQuestionsInBatch.containsKey(duplicateKey)) {
+                    val prevRow = seenQuestionsInBatch[duplicateKey]!!
                     isDuplicateInBatch = true
                     errors.add("Duplicate question in batch (matches Row $prevRow)")
                 } else {
-                    seenQuestionsInBatch[normalizedQText] = rowNum
+                    seenQuestionsInBatch[duplicateKey] = rowNum
                 }
 
                 val matchedQ = existingQuestions.firstOrNull { 
-                    it.questionEn.trim().equals(qEn.trim(), ignoreCase = true) 
+                    it.duplicateKey == duplicateKey
                 }
                 if (matchedQ != null) {
                     isExistingInQBank = true
@@ -306,7 +306,8 @@ object CsvQuestionParser {
                     explanationAs = expAs,
                     examCategory = defaultExamCategory,
                     isPremium = isPremium,
-                    questionType = finalQuestionType
+                    questionType = finalQuestionType,
+                    duplicateKey = duplicateKey
                 )
 
                 val validRow = ParsedQuestionRow(

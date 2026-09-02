@@ -1,8 +1,29 @@
-with open("app/src/main/java/com/example/data/repository/FirebaseRepository.kt", "r") as f:
-    content = f.read()
+import re
 
-if "import kotlinx.coroutines.flow.map" not in content:
-    content = content.replace("import kotlinx.coroutines.flow.Flow\n", "import kotlinx.coroutines.flow.Flow\nimport kotlinx.coroutines.flow.map\n")
-    
-with open("app/src/main/java/com/example/data/repository/FirebaseRepository.kt", "w") as f:
-    f.write(content)
+def fix():
+    with open("app/src/main/java/com/example/data/repository/JuktiRepository.kt", "r") as f:
+        content = f.read()
+        
+    old = """    suspend fun bulkMoveQuestions(
+        questionsToUpdate: List<QuestionEntity>,
+        targetExam: String,
+        targetSubject: String,
+        targetChapter: String
+    ): Pair<Boolean, String> {"""
+        
+    new = """    suspend fun bulkMoveQuestions(
+        questionsToUpdate: List<com.example.data.local.QuestionEntity>,
+        targetExam: String,
+        targetSubject: String,
+        targetChapter: String
+    ): Pair<Boolean, String> {"""
+        
+    if old in content:
+        content = content.replace(old, new)
+        with open("app/src/main/java/com/example/data/repository/JuktiRepository.kt", "w") as f:
+            f.write(content)
+        print("Fixed Repo import")
+    else:
+        print("Old not found in repo")
+
+fix()

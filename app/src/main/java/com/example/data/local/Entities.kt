@@ -32,7 +32,8 @@ data class QuestionEntity(
     val lastAccessedAt: Long = System.currentTimeMillis(),
     val version: Int = 1,
     val updatedAt: Long = 0L,
-    val firebaseId: String = ""
+    val firebaseId: String = "",
+    val duplicateKey: String = ""
 )
 
 @Entity(tableName = "mock_tests")
