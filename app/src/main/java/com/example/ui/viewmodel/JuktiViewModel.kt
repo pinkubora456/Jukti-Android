@@ -243,6 +243,26 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
+    fun addSubject(subject: String) {
+        viewModelScope.launch {
+            val res = repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = ""))
+            _syncToastMessage.value = res.second
+        }
+    }
+
+    fun deleteSubject(subject: String) {
+        viewModelScope.launch {
+            repository.deleteSubject(subject)
+            _syncToastMessage.value = "Subject deleted"
+        }
+    }
+
+    fun deleteChapter(subject: String, chapter: String) {
+        viewModelScope.launch {
+            repository.deleteChapter(subject, chapter)
+            _syncToastMessage.value = "Chapter deleted"
+        }
+    }
     fun addSubjectChapter(subject: String, chapter: String) {
         viewModelScope.launch {
             val res = repository.addSubjectChapter(SubjectChapterEntity(subject = subject, chapter = chapter))
@@ -362,6 +382,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
+
+    private val _launchGoogleSignInIntent = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
+    val launchGoogleSignInIntent: SharedFlow<Intent> = _launchGoogleSignInIntent.asSharedFlow()
 
 
 
@@ -2040,6 +2063,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
+                if (result.requiresLegacyIntent) {
+                    Log.d("JuktiViewModel", "Launching legacy Google Sign-In intent for account chooser")
+                    val intent = googleAuthManager.getLegacySignInIntent(activity)
+                    _launchGoogleSignInIntent.tryEmit(intent)
+                    // Keep _isAuthLoading = true while user interacts with device account picker
+                    return@launch
+                }
+
                 val fbUser = result.firebaseUser
                 val uid = fbUser?.uid
                 val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""
@@ -2052,33 +2083,76 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                val finalUid = uid ?: ("google_" + java.util.UUID.nameUUIDFromBytes(email.toByteArray()).toString().replace("-", "").take(16))
-                val deviceId = java.util.UUID.randomUUID().toString()
-
-                val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true) || email.equals("borapinku151@gmail.com", ignoreCase = true)
-                val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
-
-                withContext(Dispatchers.IO) {
-                    repository.loadUserProfileForAuth(
-                        uid = finalUid,
-                        email = email,
-                        googleName = displayName.ifBlank { email.substringBefore("@") },
-                        deviceId = deviceId,
-                        defaultRole = defaultRole
-                    )
-                    UserSessionManager.registerSession(email, deviceId)
-                }
-
-                _isGuestMode.value = false
-                _sessionMessage.value = null
-                _currentScreen.value = Screen.HOME
+                completeGoogleAuth(email, displayName, uid)
             } catch (e: Exception) {
                 Log.e("JuktiViewModel", "Google Sign-In flow error", e)
+                _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun handleGoogleSignInIntentResult(data: Intent?) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _sessionMessage.value = null
+            try {
+                if (data == null) {
+                    _isAuthLoading.value = false
+                    return@launch
+                }
+                val googleAuthManager = GoogleAuthManager(getApplication())
+                val result = googleAuthManager.handleLegacySignInResult(data)
+
+                if (result.isCancelled) {
+                    Log.d("JuktiViewModel", "Google account selection cancelled by user.")
+                    _isAuthLoading.value = false
+                    return@launch
+                }
+
+                val fbUser = result.firebaseUser
+                val uid = fbUser?.uid
+                val email = fbUser?.email?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackEmail?.trim() ?: ""
+                val displayName = fbUser?.displayName?.trim().takeIf { !it.isNullOrBlank() } ?: result.fallbackName?.trim() ?: ""
+
+                if (email.isBlank() || !email.contains("@")) {
+                    val errMsg = result.errorMessage ?: ""
+                    _sessionMessage.value = errMsg.ifBlank { "Google Sign-In failed or no Google account selected." }
+                    _isAuthLoading.value = false
+                    return@launch
+                }
+
+                completeGoogleAuth(email, displayName, uid)
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Google Sign-In Intent result error", e)
                 _sessionMessage.value = "Sign-In error: ${e.localizedMessage ?: "Unexpected error"}"
             } finally {
                 _isAuthLoading.value = false
             }
         }
+    }
+
+    private suspend fun completeGoogleAuth(email: String, displayName: String, uid: String?) {
+        val finalUid = uid ?: ("google_" + java.util.UUID.nameUUIDFromBytes(email.toByteArray()).toString().replace("-", "").take(16))
+        val deviceId = java.util.UUID.randomUUID().toString()
+
+        val isOwnerEmail = email.equals("juktieducation@gmail.com", ignoreCase = true) || email.equals("borapinku151@gmail.com", ignoreCase = true)
+        val defaultRole = if (isOwnerEmail) "OWNER" else "USER"
+
+        withContext(Dispatchers.IO) {
+            repository.loadUserProfileForAuth(
+                uid = finalUid,
+                email = email,
+                googleName = displayName.ifBlank { email.substringBefore("@") },
+                deviceId = deviceId,
+                defaultRole = defaultRole
+            )
+            UserSessionManager.registerSession(email, deviceId)
+        }
+
+        _isGuestMode.value = false
+        _sessionMessage.value = null
+        _currentScreen.value = Screen.HOME
     }
 
 

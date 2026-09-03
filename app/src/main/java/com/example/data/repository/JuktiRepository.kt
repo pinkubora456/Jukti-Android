@@ -1451,6 +1451,18 @@ class JuktiRepository(
         }
     }
 
+    suspend fun deleteSubject(subject: String) {
+        withContext(Dispatchers.IO) {
+            subjectChapterDao.deleteSubject(subject)
+        }
+    }
+
+    suspend fun deleteChapter(subject: String, chapter: String) {
+        withContext(Dispatchers.IO) {
+            subjectChapterDao.deleteSubjectChapterByNames(subject, chapter)
+        }
+    }
+
     suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity): Pair<Boolean, String> {
         try {
             subjectChapterDao.deleteSubjectChapter(subjectChapter)

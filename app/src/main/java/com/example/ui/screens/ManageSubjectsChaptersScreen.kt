@@ -34,6 +34,9 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
     var showRenameSubjectDialog by remember { mutableStateOf<String?>(null) }
     var showRenameChapterDialog by remember { mutableStateOf<String?>(null) }
     var showAddChapterDialog by remember { mutableStateOf<String?>(null) }
+    var showAddSubjectDialog by remember { mutableStateOf(false) }
+    var showDeleteSubjectDialog by remember { mutableStateOf<String?>(null) }
+    var showDeleteChapterDialog by remember { mutableStateOf<String?>(null) }
 
     // Combine static DB and active questions to get all subjects and chapters
     val combinedData = remember(allSubjectsChapters, activeStats) {
@@ -102,9 +105,13 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("Subjects", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("${subjects.size} total", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(onClick = { showAddSubjectDialog = true }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp), modifier = Modifier.height(36.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Add Subject")
+                            }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -126,9 +133,12 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
                                     Text(subject.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                     Text("${subject.chapterCount} Chapters • ${subject.totalQuestions} Questions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { showRenameSubjectDialog = subject.name }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Rename Subject")
+                                    }
+                                    IconButton(onClick = { showDeleteSubjectDialog = subject.name }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete Subject", tint = MaterialTheme.colorScheme.error)
                                     }
                                     Button(onClick = { 
                                         selectedSubjectForChapters = subject.name
@@ -196,8 +206,13 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
                                         }
                                     )
                                 }
-                                IconButton(onClick = { showRenameChapterDialog = chapter.name }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Rename Chapter")
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { showRenameChapterDialog = chapter.name }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Rename Chapter")
+                                    }
+                                    IconButton(onClick = { showDeleteChapterDialog = chapter.name }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete Chapter", tint = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
@@ -272,6 +287,75 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
                 }) { Text("Add") }
             },
             dismissButton = { TextButton(onClick = { showAddChapterDialog = null }) { Text("Cancel") } }
+        )
+    }
+
+    if (showAddSubjectDialog) {
+        var newSubjectName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddSubjectDialog = false },
+            title = { Text("Add Subject") },
+            text = {
+                SafeOutlinedTextField(value = newSubjectName, onValueChange = { newSubjectName = it }, label = { Text("Subject Name") }, modifier = Modifier.fillMaxWidth())
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newSubjectName.isNotBlank()) {
+                        viewModel.addSubject(newSubjectName)
+                        Toast.makeText(context, "Subject added", Toast.LENGTH_SHORT).show()
+                    }
+                    showAddSubjectDialog = false
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showAddSubjectDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showDeleteSubjectDialog != null) {
+        val subjectToDelete = showDeleteSubjectDialog!!
+        AlertDialog(
+            onDismissRequest = { showDeleteSubjectDialog = null },
+            title = { Text("Delete Subject") },
+            text = {
+                Text("Are you sure you want to delete subject \"$subjectToDelete\"? This will remove the subject and its chapters.")
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        viewModel.deleteSubject(subjectToDelete)
+                        if (selectedSubjectForChapters == subjectToDelete) {
+                            selectedSubjectForChapters = null
+                        }
+                        Toast.makeText(context, "Subject deleted", Toast.LENGTH_SHORT).show()
+                        showDeleteSubjectDialog = null
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.onError) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteSubjectDialog = null }) { Text("Cancel") } }
+        )
+    }
+
+    if (showDeleteChapterDialog != null) {
+        val chapterToDelete = showDeleteChapterDialog!!
+        val subjectName = selectedSubjectForChapters!!
+        AlertDialog(
+            onDismissRequest = { showDeleteChapterDialog = null },
+            title = { Text("Delete Chapter") },
+            text = {
+                Text("Are you sure you want to delete chapter \"$chapterToDelete\" from \"$subjectName\"?")
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        viewModel.deleteChapter(subjectName, chapterToDelete)
+                        Toast.makeText(context, "Chapter deleted", Toast.LENGTH_SHORT).show()
+                        showDeleteChapterDialog = null
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.onError) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteChapterDialog = null }) { Text("Cancel") } }
         )
     }
 

@@ -27,6 +27,9 @@ import com.example.ui.viewmodel.Screen
 import com.example.ui.viewmodel.LocalMessageTranslator
 import com.example.ui.components.getLogoIcon
 import com.example.ui.components.SafeOutlinedTextField
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.auth.findActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +51,19 @@ fun AuthScreen(viewModel: JuktiViewModel) {
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    val activity = context as? android.app.Activity
+    val activity = remember(context) { context.findActivity() }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleGoogleSignInIntentResult(result.data)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.launchGoogleSignInIntent.collect { intent ->
+            googleSignInLauncher.launch(intent)
+        }
+    }
 
     if (showForgotPasswordDialog) {
         var resetEmail by remember { mutableStateOf(emailInput) }
@@ -422,8 +437,11 @@ fun AuthScreen(viewModel: JuktiViewModel) {
             // Real Google Sign-In Button
             OutlinedButton(
                 onClick = {
-                    if (activity != null) {
-                        viewModel.loginWithGoogle(activity)
+                    val resolvedActivity = activity ?: context.findActivity()
+                    if (resolvedActivity != null) {
+                        viewModel.loginWithGoogle(resolvedActivity)
+                    } else {
+                        errorMessage = "Could not find active window for Google Sign-In."
                     }
                 },
                 enabled = !isAuthLoading,

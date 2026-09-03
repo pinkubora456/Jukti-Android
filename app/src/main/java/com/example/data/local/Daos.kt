@@ -356,6 +356,9 @@ interface SubjectChapterDao {
     @Query("DELETE FROM subjects_chapters WHERE subject = :subject AND chapter = :chapter")
     abstract suspend fun deleteSubjectChapterByNames(subject: String, chapter: String)
 
+    @Query("DELETE FROM subjects_chapters WHERE subject = :subject")
+    abstract suspend fun deleteSubject(subject: String)
+
     @Delete
     abstract suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)
 
