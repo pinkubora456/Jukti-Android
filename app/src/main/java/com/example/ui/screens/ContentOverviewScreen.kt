@@ -32,6 +32,25 @@ fun ContentOverviewScreen(viewModel: JuktiViewModel) {
         allNotes.filter { !it.subject.contains("Current Affairs", ignoreCase = true) }
     }
 
+    val questionsWithIssuesCount = remember(allQuestions) {
+        allQuestions.count { q ->
+            q.questionEn.isBlank() || q.subject.isBlank() || q.topic.isBlank() ||
+            q.optionAEn.isBlank() || q.optionBEn.isBlank() || q.optionCEn.isBlank() || q.optionDEn.isBlank() ||
+            q.correctOptionIndex !in 0..3
+        }
+    }
+    val mocksWithIssuesCount = remember(allMocks) {
+        allMocks.count { m ->
+            m.titleEn.isBlank() || m.totalQuestions <= 0 || m.totalMarks <= 0f || m.durationMinutes <= 0
+        }
+    }
+    val notesWithIssuesCount = remember(allNotes) {
+        allNotes.count { n ->
+            n.titleEn.isBlank() || n.subject.isBlank() || n.contentEn.isBlank()
+        }
+    }
+    val totalIssueCount = questionsWithIssuesCount + mocksWithIssuesCount + notesWithIssuesCount
+
     Scaffold(
         topBar = {
             JuktiTopAppBar(
@@ -47,6 +66,66 @@ fun ContentOverviewScreen(viewModel: JuktiViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (totalIssueCount > 0) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.navigateTo(Screen.CONTENT_WITH_ISSUES) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Content with Issues",
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onError
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Content with Issues ($totalIssueCount)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = "Issues Found: $totalIssueCount items",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Review and fix malformed or missing data content",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
             item {
                 ContentOverviewBannerCard(
                     title = "Questions",

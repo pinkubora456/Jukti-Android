@@ -705,6 +705,14 @@ class FirebaseSyncManager(
         enqueueAndSync("EXAM", firebaseId, "DELETE")
     }
 
+    suspend fun cancelAllPendingSyncs() = withContext(Dispatchers.IO) {
+        try {
+            syncQueueDao.clearAll()
+        } catch (e: Throwable) {
+            Log.e("FirebaseSyncManager", "Error clearing sync queue", e)
+        }
+    }
+
     suspend fun fetchAllExams() = withContext(Dispatchers.IO) {
         try {
             val db = firestore ?: return@withContext

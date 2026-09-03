@@ -51,7 +51,6 @@ fun HomeScreen(viewModel: JuktiViewModel) {
     val examUpdates by viewModel.examUpdates.collectAsState()
     val mockTests by viewModel.accessibleMockTests.collectAsState()
     val studyNotes by viewModel.accessibleStudyNotes.collectAsState()
-    val questions by viewModel.accessibleQuestions.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
 

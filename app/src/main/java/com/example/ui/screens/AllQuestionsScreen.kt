@@ -30,13 +30,27 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     val selectedChapter by viewModel.selectedChapter.collectAsState()
     
     var searchQuery by remember { mutableStateOf("") }
+    var showOnlyIssues by remember { mutableStateOf(false) }
     var editingQuestion by remember { mutableStateOf<QuestionEntity?>(null) }
-    
-    var selectedQuestionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var questionToDelete by remember { mutableStateOf<QuestionEntity?>(null) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
+    var selectedQuestionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
-    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter) {
+    val issueCount = remember(questions) {
+        questions.count { q ->
+            q.questionEn.isBlank() || q.subject.isBlank() || q.topic.isBlank() ||
+            q.optionAEn.isBlank() || q.optionBEn.isBlank() || q.optionCEn.isBlank() || q.optionDEn.isBlank() ||
+            q.correctOptionIndex !in 0..3
+        }
+    }
+
+    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter, showOnlyIssues) {
         questions.filter { q ->
+            val hasIssue = q.questionEn.isBlank() || q.subject.isBlank() || q.topic.isBlank() ||
+                           q.optionAEn.isBlank() || q.optionBEn.isBlank() || q.optionCEn.isBlank() || q.optionDEn.isBlank() ||
+                           q.correctOptionIndex !in 0..3
+            val matchesIssue = !showOnlyIssues || hasIssue
             val matchesExam = selectedTargetExam == "All Exams" || q.examCategory.contains(selectedTargetExam, ignoreCase = true)
             
             val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
@@ -55,7 +69,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                     q.subject.contains(searchQuery, ignoreCase = true) ||
                     normSubj.contains(searchQuery, ignoreCase = true) ||
                     q.topic.contains(searchQuery, ignoreCase = true)
-            matchesExam && matchesSubject && matchesChapter && matchesSearch
+            matchesIssue && matchesExam && matchesSubject && matchesChapter && matchesSearch
         }
     }
 
@@ -128,6 +142,19 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
+            if (issueCount > 0) {
+                FilterChip(
+                    selected = showOnlyIssues,
+                    onClick = { showOnlyIssues = !showOnlyIssues },
+                    label = { Text("⚠️ Questions With Issues ($issueCount)") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Bulk Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -149,8 +176,20 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                 }
                 
                 if (selectedQuestionIds.isNotEmpty()) {
-                    Button(onClick = { showMoveDialog = true }) {
-                        Text("Move Questions")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(
+                            onClick = {
+                                showBulkDeleteConfirm = true
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delete (${selectedQuestionIds.size})")
+                        }
+                        Button(onClick = { showMoveDialog = true }) {
+                            Text("Move")
+                        }
                     }
                 }
             }
@@ -181,6 +220,36 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
+                                val hasIssue = question.questionEn.isBlank() || question.subject.isBlank() || question.topic.isBlank() ||
+                                               question.optionAEn.isBlank() || question.optionBEn.isBlank() || question.optionCEn.isBlank() || question.optionDEn.isBlank() ||
+                                               question.correctOptionIndex !in 0..3
+                                if (hasIssue) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = buildString {
+                                                    append("Issue: ")
+                                                    if (question.questionEn.isBlank()) append("Missing Text; ")
+                                                    if (question.subject.isBlank()) append("Missing Subject; ")
+                                                    if (question.topic.isBlank()) append("Missing Topic; ")
+                                                    if (question.optionAEn.isBlank() || question.optionBEn.isBlank() || question.optionCEn.isBlank() || question.optionDEn.isBlank()) append("Missing Options; ")
+                                                    if (question.correctOptionIndex !in 0..3) append("Invalid Correct Option;")
+                                                },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                    }
+                                }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -358,6 +427,52 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             onSave = { updated ->
                 viewModel.updateQuestion(updated)
                 editingQuestion = null
+            }
+        )
+    }
+
+    if (questionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { questionToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this question?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.deleteQuestion(questionToDelete!!)
+                    questionToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { questionToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showBulkDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirm = false },
+            title = { Text("Confirm Bulk Delete") },
+            text = { Text("Are you sure you want to delete these ${selectedQuestionIds.size} questions?") },
+            confirmButton = {
+                Button(onClick = {
+                    val selectedQs = questions.filter { it.id in selectedQuestionIds }
+                    selectedQs.forEach { q ->
+                        viewModel.deleteQuestion(q)
+                    }
+                    selectedQuestionIds = emptySet()
+                    showBulkDeleteConfirm = false
+                }) {
+                    Text("Delete All")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }

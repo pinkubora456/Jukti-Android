@@ -390,11 +390,7 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
         )
 
 
-        WorkspaceBannerCard(
-            title = "Manage Subjects & Chapters",
-            icon = Icons.Default.Category,
-            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }
-        )
+
 
 
         WorkspaceBannerCard(

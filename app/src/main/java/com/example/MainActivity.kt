@@ -183,6 +183,7 @@ class MainActivity : ComponentActivity() {
                     Screen.CONTENT_MOCKS_OVERVIEW -> ContentMocksOverviewScreen(viewModel)
                     Screen.CONTENT_NOTES_OVERVIEW -> ContentNotesOverviewScreen(viewModel)
                     Screen.CONTENT_CURRENT_AFFAIRS_OVERVIEW -> ContentCurrentAffairsOverviewScreen(viewModel)
+                    Screen.CONTENT_WITH_ISSUES -> ContentWithIssuesScreen(viewModel)
                                 Screen.OWNER_DASHBOARD -> OwnerDashboardScreen(viewModel)
                                 Screen.MANAGE_QBANK -> ManageQBankScreen(viewModel)
                                 Screen.MANAGE_MOCK -> ManageMockScreen(viewModel)

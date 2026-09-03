@@ -927,7 +927,6 @@ class FirebaseRepository {
         mockTests: List<MockTestEntity>,
         studyNotes: List<StudyNoteEntity>,
         plans: List<PlanEntity>,
-        subjectChapters: List<SubjectChapterEntity>,
         banners: List<BannerEntity>,
         examUpdates: List<ExamUpdateEntity>,
         faqs: List<FaqEntity>
@@ -959,7 +958,6 @@ class FirebaseRepository {
         saveCollection("mock_tests", mockTests.map { db.collection("mock_tests").document(it.id.toString()) to mockTestToMap(it) })
         saveCollection("study_notes", studyNotes.map { db.collection("study_notes").document(it.id.toString()) to studyNoteToMap(it) })
         saveCollection("plans", plans.map { db.collection("plans").document(it.id.toString()) to planToMap(it) })
-        saveCollection("subjects_chapters", subjectChapters.map { db.collection("subjects_chapters").document(it.id.toString()) to subjectChapterToMap(it) })
         saveCollection("banners", banners.map { db.collection("banners").document(it.id.toString()) to bannerToMap(it) })
         saveCollection("exam_updates", examUpdates.map { db.collection("exam_updates").document(it.id.toString()) to examUpdateToMap(it) })
         saveCollection("faqs", faqs.map { db.collection("faqs").document(it.id.toString()) to faqToMap(it) })

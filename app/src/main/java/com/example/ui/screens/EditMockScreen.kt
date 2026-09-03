@@ -40,6 +40,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
     val allQuestions by viewModel.questions.collectAsState()
 
     var selectedMock by remember { mutableStateOf<MockTestEntity?>(null) }
+    var mockToDelete by remember { mutableStateOf<MockTestEntity?>(null) }
     var showBatchImportDialog by remember { mutableStateOf(false) }
 
     // Form fields for editing
@@ -188,9 +189,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                             }
                             IconButton(onClick = {
-                                viewModel.requestOrDeleteMock(mock) { _, message ->
-                                    Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
-                                }
+                                mockToDelete = mock
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                             }
@@ -695,6 +694,29 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                     if (!selectedQuestionIds.contains(id)) {
                         selectedQuestionIds.add(id)
                     }
+                }
+            }
+        )
+    }
+
+    if (mockToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { mockToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this mock test?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.requestOrDeleteMock(mockToDelete!!) { _, message ->
+                        Toast.makeText(context, LocalMessageTranslator.translateGeneralMessage(context, message), Toast.LENGTH_LONG).show()
+                    }
+                    mockToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mockToDelete = null }) {
+                    Text("Cancel")
                 }
             }
         )

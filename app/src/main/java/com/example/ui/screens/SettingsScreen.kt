@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -44,16 +45,22 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
-    val hiddenQuestions by viewModel.hiddenQuestions.collectAsState()
     val isRefreshingFromFirebase by viewModel.isRefreshingFromFirebase.collectAsState()
     val refreshStatusMessage by viewModel.refreshStatusMessage.collectAsState()
+    val returnToSavedQuestions by viewModel.returnToSavedQuestions.collectAsState()
     val context = LocalContext.current
 
     var showSavedQuestionsDialog by remember { mutableStateOf(false) }
-    var showHiddenQuestionsDialog by remember { mutableStateOf(false) }
     var showClearProgressDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(returnToSavedQuestions) {
+        if (returnToSavedQuestions) {
+            showSavedQuestionsDialog = true
+            viewModel.setReturnToSavedQuestions(false)
+        }
+    }
 
     var currentPasswordInput by remember { mutableStateOf("") }
     var newPasswordInput by remember { mutableStateOf("") }
@@ -276,56 +283,6 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                         Text(
                             "${bookmarkedQuestions.size}",
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            // Hidden Questions
-            OutlinedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showHiddenQuestionsDialog = true }
-                    .testTag("settings_hidden_questions_card"),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.VisibilityOff,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Hidden Questions", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(
-                            "${hiddenQuestions.size} hidden MCQs. Tap to view or unhide.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                        Text(
-                            "${hiddenQuestions.size}",
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
@@ -649,18 +606,12 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             questions = bookmarkedQuestions,
             language = language,
             onDismiss = { showSavedQuestionsDialog = false },
-            onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) }
-        )
-    }
-
-    // Dialog 5: Hidden Questions Viewer
-    if (showHiddenQuestionsDialog) {
-        HiddenQuestionsDialog(
-            questions = hiddenQuestions,
-            language = language,
-            onDismiss = { showHiddenQuestionsDialog = false },
-            onUnhideQuestion = { q -> viewModel.toggleHideQuestion(q) },
-            onUnhideAll = { viewModel.unhideAllQuestions() }
+            onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) },
+            onPracticeQuestion = { q ->
+                showSavedQuestionsDialog = false
+                viewModel.startPracticeForQuestion(q)
+                viewModel.setReturnToSavedQuestions(true)
+            }
         )
     }
 
@@ -823,8 +774,12 @@ fun SavedQuestionsDialog(
     isUserPremium: Boolean = false,
     isAdminOrOwner: Boolean = false,
     onDismiss: () -> Unit,
-    onToggleBookmark: (QuestionEntity) -> Unit
+    onToggleBookmark: (QuestionEntity) -> Unit,
+    onPracticeQuestion: (QuestionEntity) -> Unit
 ) {
+    var selectedQuestionForAction by remember { mutableStateOf<QuestionEntity?>(null) }
+    var viewingQuestion by remember { mutableStateOf<QuestionEntity?>(null) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -860,7 +815,9 @@ fun SavedQuestionsDialog(
                 ) {
                     items(questions, key = { it.id }) { q ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedQuestionForAction = q },
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
@@ -947,114 +904,276 @@ fun SavedQuestionsDialog(
             }
         }
     )
+
+    if (selectedQuestionForAction != null) {
+        val q = selectedQuestionForAction!!
+        SavedQuestionActionDialog(
+            question = q,
+            language = language,
+            onDismiss = { selectedQuestionForAction = null },
+            onViewQuestion = {
+                selectedQuestionForAction = null
+                viewingQuestion = q
+            },
+            onPracticeQuestion = {
+                selectedQuestionForAction = null
+                onDismiss()
+                onPracticeQuestion(q)
+            }
+        )
+    }
+
+    if (viewingQuestion != null) {
+        val q = viewingQuestion!!
+        ViewQuestionReadOnlyDialog(
+            question = q,
+            language = language,
+            onDismiss = { viewingQuestion = null }
+        )
+    }
 }
 
 @Composable
-fun HiddenQuestionsDialog(
-    questions: List<QuestionEntity>,
+fun SavedQuestionActionDialog(
+    question: QuestionEntity,
     language: AppLanguage,
     onDismiss: () -> Unit,
-    onUnhideQuestion: (QuestionEntity) -> Unit,
-    onUnhideAll: () -> Unit
+    onViewQuestion: () -> Unit,
+    onPracticeQuestion: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Hidden Questions (${questions.size})",
-                    fontWeight = FontWeight.Bold
-                )
+            Text(
+                "What would you like to do?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onViewQuestion)
+                        .testTag("action_view_question"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "View Question",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Review answer & explain.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onPracticeQuestion)
+                        .testTag("action_practice_question"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Practice Question",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Attempt this question.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ViewQuestionReadOnlyDialog(
+    question: QuestionEntity,
+    language: AppLanguage,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("View Question", fontWeight = FontWeight.Bold)
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = question.subject,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         },
         text = {
-            Column {
-                if (questions.isNotEmpty()) {
-                    Row(
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                BilingualText(
+                    textEn = question.questionEn,
+                    textAs = question.questionAs,
+                    language = language,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                val options = listOf(
+                    Triple("A", question.optionAEn, question.optionAAs),
+                    Triple("B", question.optionBEn, question.optionBAs),
+                    Triple("C", question.optionCEn, question.optionCAs),
+                    Triple("D", question.optionDEn, question.optionDAs)
+                )
+
+                options.forEachIndexed { idx, (label, optEn, optAs) ->
+                    val isCorrect = idx == question.correctOptionIndex
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Questions you mastered:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCorrect) 
+                                MaterialTheme.colorScheme.successContainer.copy(alpha = 0.5f) 
+                            else 
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         )
-                        TextButton(
-                            onClick = onUnhideAll,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Unhide All", fontSize = 12.sp)
+                            Text(
+                                text = "$label.",
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f)) {
+                                BilingualText(
+                                    textEn = optEn,
+                                    textAs = optAs,
+                                    language = language,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            if (isCorrect) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Correct Answer",
+                                    tint = MaterialTheme.colorScheme.success,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                if (questions.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
+                if (question.explanationEn.isNotBlank() || question.explanationAs.isNotBlank()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            "No hidden questions. When you hide questions you know well during study sessions, they will appear here.",
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 450.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(questions, key = { it.id }) { q ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            shape = RoundedCornerShape(4.dp)
-                                        ) {
-                                            Text(
-                                                text = q.subject,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                        OutlinedButton(
-                                            onClick = { onUnhideQuestion(q) },
-                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                            modifier = Modifier.height(32.dp)
-                                        ) {
-                                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Unhide", fontSize = 11.sp)
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    BilingualText(
-                                        textEn = q.questionEn,
-                                        textAs = q.questionAs,
-                                        language = language,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Explanation:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            BilingualText(
+                                textEn = question.explanationEn,
+                                textAs = question.explanationAs,
+                                language = language,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
@@ -1067,3 +1186,5 @@ fun HiddenQuestionsDialog(
         }
     )
 }
+
+

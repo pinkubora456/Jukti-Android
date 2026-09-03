@@ -22,9 +22,9 @@ fun normalizeSubjectName(raw: String?): String {
         lower == "passages" || lower == "short passages" || lower == "long passages" ||
         lower.contains("comprehension") || lower.contains("passage") -> "Reading Comprehension"
 
-        // 2. Transport Rule
+        // 2. Transport & Motor Vehicle
         lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") ||
-        lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport Rule"
+        lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport & Motor Vehicle"
 
         // 3. Basic Computer
         lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "Basic Computer"
@@ -162,7 +162,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("database") || lower.contains("shortcut") || lower.contains("abbreviat") -> "Database, Shortcuts & Computer Abbreviations"
             else -> trimmed
         }
-        "Transport Rule" -> when {
+        "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> when {
             lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
             lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
             lower.contains("driv") || lower.contains("licen") || lower.contains("permit") -> "Driving Regulations, Licences & Permits"
@@ -241,24 +241,8 @@ class JuktiRepository(
         map.values.sortedByDescending { it.timestamp }
     }
 
-    val allQuestions: Flow<List<QuestionEntity>> = combine(
-        firebaseRepository.observeQuestions(),
-        questionDao.getAllQuestions()
-    ) { remoteQuestions, localQuestions ->
-        val combined = if (remoteQuestions.isEmpty()) {
-            localQuestions
-        } else {
-            val localMap = localQuestions.associateBy { it.id }
-            val remoteIds = remoteQuestions.map { it.id }.toSet()
-            val merged = remoteQuestions.map { remote ->
-                val local = localMap[remote.id]
-                // Prefer local if its isReported state differs from remote (optimistic update)
-                if (local != null && (local.isReported != remote.isReported || local.updatedAt > remote.updatedAt)) local else remote
-            }
-            val localOnly = localQuestions.filter { it.id !in remoteIds }
-            merged + localOnly
-        }
-        combined.map { normalizeQuestionEntity(it) }
+    val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions().map { list ->
+        list.map { normalizeQuestionEntity(it) }
     }
 
     val allMockTests: Flow<List<MockTestEntity>> = combine(
@@ -512,11 +496,20 @@ class JuktiRepository(
 
     suspend fun refreshPremiumContent() {
         try {
-            _premiumQuestions.value = firebaseRepository.fetchPremiumQuestions()
-            _premiumMockTests.value = firebaseRepository.fetchPremiumMockTests()
-            _premiumStudyNotes.value = firebaseRepository.fetchPremiumStudyNotes()
+            val fetchedQs = firebaseRepository.fetchPremiumQuestions()
+            if (fetchedQs.isNotEmpty()) {
+                _premiumQuestions.value = fetchedQs
+            }
+            val fetchedMocks = firebaseRepository.fetchPremiumMockTests()
+            if (fetchedMocks.isNotEmpty()) {
+                _premiumMockTests.value = fetchedMocks
+            }
+            val fetchedNotes = firebaseRepository.fetchPremiumStudyNotes()
+            if (fetchedNotes.isNotEmpty()) {
+                _premiumStudyNotes.value = fetchedNotes
+            }
         } catch (e: Exception) {
-            clearPremiumCache()
+            // Keep existing cache if refresh fails
         }
     }
 
@@ -550,25 +543,13 @@ class JuktiRepository(
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
     val activeSubjectChapterStats: Flow<List<SubjectChapterStat>> = questionDao.getSubjectChapterStats()
 
-    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
-        firebaseRepository.observeSubjectsChapters(),
-        subjectChapterDao.getAllSubjectsChapters()
-    ) { remote, local ->
-        val combined = if (remote.isEmpty()) {
-            if (local.isEmpty()) SampleData.sampleSubjectsChapters else local
-        } else {
-            val remoteKeys = remote.map { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter, it.subject).lowercase()}" }.toSet()
-            val extraLocal = local.filter { "${it.subject.trim().lowercase()}|${normalizeChapterName(it.chapter, it.subject).lowercase()}" !in remoteKeys }
-            remote + extraLocal
-        }
-        val normalized = combined.map { sc ->
+    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = subjectChapterDao.getAllSubjectsChapters().map { local ->
+        val normalized = local.map { sc ->
             val normChap = normalizeChapterName(sc.chapter, sc.subject)
             val normSubj = normalizeSubjectName(sc.subject)
             sc.copy(subject = normSubj, chapter = normChap)
         }
-        val defaultItems = SampleData.sampleSubjectsChapters
-        val allWithDefaults = (normalized + defaultItems).distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }
-        allWithDefaults.filter { it.chapter.isNotBlank() }
+        normalized.distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }.filter { it.chapter.isNotBlank() }
     }
     val allPendingRequests: Flow<List<PendingRequestEntity>> = combine(
         firebaseRepository.observePendingRequests(),
@@ -605,12 +586,11 @@ class JuktiRepository(
         if (currentFaqs.isNullOrEmpty()) {
             faqDao.insertAll(SampleData.initialFaqs)
         }
-        // Data Migration: Normalize subjects & chapters to the 7 canonical subjects
+        // Clear all subjects & chapters
         try {
             subjectChapterDao.deleteAll()
-            subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
         } catch (e: Throwable) {
-            Log.e("JuktiRepository", "Error running subject/chapter database reset", e)
+            Log.e("JuktiRepository", "Error clearing subject/chapter database", e)
         }
 
         // Migrate and normalize local questions
@@ -1394,6 +1374,10 @@ class JuktiRepository(
         return syncManager.retrySingleItem(item)
     }
 
+    suspend fun cancelAllPendingSyncs() {
+        syncManager.cancelAllPendingSyncs()
+    }
+
     suspend fun runMinimalDiagnosticTest(): Pair<Boolean, String> {
         return syncManager.runMinimalDiagnosticTest()
     }
@@ -1763,19 +1747,16 @@ class JuktiRepository(
             syncManager.fetchAllExams()
             
             val questions = firebaseRepository.fetchAllQuestions()
-            questionDao.deletePremiumQuestions()
             if (questions.isNotEmpty()) {
                 questionDao.insertAll(questions)
             }
 
             val mocks = firebaseRepository.fetchAllMockTests()
-            mockTestDao.deletePremiumMockTests()
             if (mocks.isNotEmpty()) {
                 mockTestDao.insertAll(mocks)
             }
 
             val notes = firebaseRepository.fetchAllStudyNotes()
-            studyNoteDao.deletePremiumStudyNotes()
             if (notes.isNotEmpty()) {
                 studyNoteDao.insertAll(notes)
             }
@@ -1825,7 +1806,6 @@ class JuktiRepository(
             val mockTests = mockTestDao.getAllMockTests().firstOrNull() ?: emptyList()
             val studyNotes = studyNoteDao.getAllNotes().firstOrNull() ?: emptyList()
             val plans = planDao.getAllPlans().firstOrNull() ?: emptyList()
-            val subjectChapters = subjectChapterDao.getAllSubjectsChapters().firstOrNull() ?: emptyList()
             val banners = bannerDao.getAllBanners().firstOrNull() ?: emptyList()
             val examUpdates = examUpdateDao.getAllUpdates().firstOrNull() ?: emptyList()
             val faqs = faqDao.getAllFaqs().firstOrNull() ?: emptyList()
@@ -1835,7 +1815,6 @@ class JuktiRepository(
                 mockTests = mockTests,
                 studyNotes = studyNotes,
                 plans = plans,
-                subjectChapters = subjectChapters,
                 banners = banners,
                 examUpdates = examUpdates,
                 faqs = faqs

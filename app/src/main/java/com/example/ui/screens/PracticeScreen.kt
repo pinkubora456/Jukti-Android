@@ -37,6 +37,19 @@ import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+data class BannerConfig(
+    val titleEn: String,
+    val titleAs: String,
+    val subtitleEn: String,
+    val subtitleAs: String,
+    val subjectKey: String,
+    val icon: ImageVector,
+    val containerColor: Color,
+    val iconColor: Color
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,14 +61,18 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val allQuestions by viewModel.accessibleQuestions.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
-    val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val activePracticeQuestion by viewModel.activePracticeQuestion.collectAsState()
 
-    // Filter out hidden questions
-    val visibleQuestions = remember(allQuestions, hiddenIds, isSmartPractice, smartPracticeQuestions) {
-        val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
-        baseList.filter { it.id !in hiddenIds }.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
+    val visibleQuestions by produceState(
+        initialValue = emptyList<QuestionEntity>(),
+        allQuestions, isSmartPractice, smartPracticeQuestions
+    ) {
+        value = withContext(Dispatchers.Default) {
+            val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
+            baseList.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
+        }
     }
 
     var isSessionStarted by rememberSaveable { mutableStateOf(false) }
@@ -63,80 +80,285 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var selectedChapters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showReportDialog by remember { mutableStateOf(false) }
 
+    LaunchedEffect(activePracticeQuestion) {
+        if (activePracticeQuestion != null) {
+            selectedSubjectKey = activePracticeQuestion!!.subject
+            isSessionStarted = true
+        }
+    }
+
     // State map for selected chapters per banner before session starts
     var chaptersMap by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
 
-    // Filter questions by selected subject and chapters
-    val practiceQuestions = remember(visibleQuestions, selectedSubjectKey, selectedChapters) {
-        visibleQuestions.filter { q ->
-            try {
-                val matchSubject = when (selectedSubjectKey) {
-                    "All Subjects", "All Subject" -> true
-                    "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                    "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                    "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                    "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                    "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                    "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
-                    else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
-                }
-                val matchChapter = if (selectedChapters.isEmpty()) {
-                    true
-                } else {
-                    val topicStr = q.topic ?: ""
-                    val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                    
-                    if (selectedSubjectKey == "Reasoning") {
-                        selectedChapters.any { ch ->
-                            topicStr.contains(ch, ignoreCase = true) || 
-                            ch.contains(topicStr, ignoreCase = true) ||
-                            q.subject.contains(ch, ignoreCase = true) ||
-                            (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
-                            (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
-                            (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
-                            (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
-                        }
-                    } else if (selectedSubjectKey == "General English") {
-                        selectedChapters.any { ch ->
-                            if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                            } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                            } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                            } else if (ch == "Grammar & Sentence Correction") {
-                                normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                            } else if (ch == "Cloze Test") {
-                                normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                            } else if (ch == "Active & Passive Voice") {
-                                normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                            } else {
+    // Filter questions by selected subject and chapters asynchronously on Dispatchers.Default
+    val practiceQuestions by produceState(
+        initialValue = emptyList<QuestionEntity>(),
+        visibleQuestions, selectedSubjectKey, selectedChapters
+    ) {
+        value = withContext(Dispatchers.Default) {
+            visibleQuestions.filter { q ->
+                try {
+                    val matchSubject = when (selectedSubjectKey) {
+                        "All Subjects", "All Subject" -> true
+                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                        "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
+                        "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                        "Reasoning", "Reasoning & Mental Ability" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
+                        "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                        else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
+                    }
+                    val matchChapter = if (selectedChapters.isEmpty()) {
+                        true
+                    } else {
+                        val topicStr = q.topic ?: ""
+                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
+                        
+                        if (selectedSubjectKey == "Reasoning" || selectedSubjectKey == "Reasoning & Mental Ability") {
+                            selectedChapters.any { ch ->
+                                topicStr.contains(ch, ignoreCase = true) || 
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                q.subject.contains(ch, ignoreCase = true) ||
+                                (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
+                                (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
+                                (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
+                                (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
+                            }
+                        } else if (selectedSubjectKey == "General English") {
+                            selectedChapters.any { ch ->
+                                if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
+                                    normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
+                                } else if (ch == "Synonyms, Antonyms & Vocabulary") {
+                                    normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
+                                } else if (ch == "Reading Comprehension & Para Jumbles") {
+                                    normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
+                                } else if (ch == "Grammar & Sentence Correction") {
+                                    normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
+                                } else if (ch == "Cloze Test") {
+                                    normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
+                                } else if (ch == "Active & Passive Voice") {
+                                    normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
+                                } else {
+                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
+                                    normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                                }
+                            }
+                        } else {
+                            selectedChapters.any { ch ->
                                 val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                                normTopic.equals(nCh, ignoreCase = true) ||
+                                topicStr.equals(ch, ignoreCase = true) ||
+                                topicStr.contains(ch, ignoreCase = true) ||
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                normTopic.contains(ch, ignoreCase = true) ||
+                                ch.contains(normTopic, ignoreCase = true)
                             }
                         }
-                    } else {
-                        selectedChapters.any { ch ->
-                            val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                            normTopic.equals(nCh, ignoreCase = true) ||
-                            topicStr.equals(ch, ignoreCase = true) ||
-                            topicStr.contains(ch, ignoreCase = true) ||
-                            ch.contains(topicStr, ignoreCase = true) ||
-                            normTopic.contains(ch, ignoreCase = true) ||
-                            ch.contains(normTopic, ignoreCase = true)
-                        }
                     }
+                    
+                    matchSubject && matchChapter
+                } catch (e: Exception) {
+                    false
                 }
-                
-                matchSubject && matchChapter
-            } catch (e: Exception) {
-                false
             }
         }
     }
 
-    var currentQuestionIndex by remember { mutableIntStateOf(0) }
+    val colorSurfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val colorPrimary = MaterialTheme.colorScheme.primary
+
+    val bannersAndData = remember(visibleQuestions, allSubjectsChapters, colorSurfaceVariant, colorPrimary) {
+        try {
+            val predefined = listOf(
+                BannerConfig(
+                    titleEn = "General Knowledge",
+                    titleAs = "সাধাৰণ জ্ঞান",
+                    subtitleEn = "Assam history, geography, and more",
+                    subtitleAs = "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য",
+                    subjectKey = "General Knowledge",
+                    icon = Icons.Default.Public,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                ),
+                BannerConfig(
+                    titleEn = "General English",
+                    titleAs = "সাধাৰণ ইংৰাজী",
+                    subtitleEn = "Grammar, vocabulary, and comprehension",
+                    subtitleAs = "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা",
+                    subjectKey = "General English",
+                    icon = Icons.Default.MenuBook,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                ),
+                BannerConfig(
+                    titleEn = "General Mathematics",
+                    titleAs = "সাধাৰণ গণিত",
+                    subtitleEn = "Arithmetic, algebra, and geometry",
+                    subtitleAs = "পাটিগণিত, বীজগণিত আৰু জ্যামিতি",
+                    subjectKey = "General Mathematics",
+                    icon = Icons.Default.Calculate,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                ),
+                BannerConfig(
+                    titleEn = "Reasoning & Mental Ability",
+                    titleAs = "যুক্তিবিদ্যা (Reasoning)",
+                    subtitleEn = "Logical and analytical reasoning",
+                    subtitleAs = "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি",
+                    subjectKey = "Reasoning & Mental Ability",
+                    icon = Icons.Default.Psychology,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                ),
+                BannerConfig(
+                    titleEn = "Transport & Motor Vehicle",
+                    titleAs = "পৰিবহন আৰু মটৰ বাহন",
+                    subtitleEn = "Motor vehicle act and traffic signs",
+                    subtitleAs = "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত",
+                    subjectKey = "Transport & Motor Vehicle",
+                    icon = Icons.Default.Traffic,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                ),
+                BannerConfig(
+                    titleEn = "All Subjects",
+                    titleAs = "সকলো বিষয়",
+                    subtitleEn = "Mixed questions from all subjects",
+                    subtitleAs = "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন",
+                    subjectKey = "All Subjects",
+                    icon = Icons.Default.AllInclusive,
+                    containerColor = colorSurfaceVariant,
+                    iconColor = colorPrimary
+                )
+            )
+
+            val banners = predefined
+
+            val qIdToNormalizedTopic = visibleQuestions.associate { q ->
+                q.id to com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject)
+            }
+
+            val bannerQsMap = banners.associateWith { banner ->
+                visibleQuestions.filter { q ->
+                    when (banner.subjectKey) {
+                        "All Subjects" -> true
+                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                        "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
+                        "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                        "Reasoning", "Reasoning & Mental Ability" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
+                        "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                        else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
+                    }
+                }
+            }
+
+            val bannerDataMap = banners.associate { banner ->
+                val set = mutableSetOf<String>()
+                val bannerQs = bannerQsMap[banner] ?: emptyList()
+
+                when (banner.subjectKey) {
+                    "All Subjects" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "General Knowledge" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "General English" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "General Mathematics" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "Reasoning", "Reasoning & Mental Ability" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "Basic Computer", "Computer Knowledge", "Computer" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    "Transport & Motor Vehicle" -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.subject.contains("Transport", ignoreCase = true) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                    else -> {
+                        bannerQs.forEach { q ->
+                            val norm = qIdToNormalizedTopic[q.id]
+                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                        }
+                        allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                    }
+                }
+                set.remove("One-Word & Idiom")
+                set.remove("One-Word & Idiom/Phrase")
+                set.remove("Idioms, Phrases & One-Word Substitution")
+                set.remove("Idioms & Phrases")
+                set.remove("One-Word Substitution")
+                set.remove("One Word Substitution")
+                val availableChaptersList = set.toList().sorted()
+
+                val chapterCountsMap = availableChaptersList.associateWith { chapter ->
+                    val normCh = com.example.data.repository.normalizeChapterName(chapter, banner.subjectKey)
+                    bannerQs.count { q ->
+                        val topicStr = q.topic ?: ""
+                        val normTopic = qIdToNormalizedTopic[q.id] ?: ""
+                        normTopic.equals(normCh, ignoreCase = true) || 
+                        topicStr.equals(chapter, ignoreCase = true) || 
+                        topicStr.contains(chapter, ignoreCase = true) || 
+                        chapter.contains(topicStr, ignoreCase = true) || 
+                        normTopic.contains(chapter, ignoreCase = true) || 
+                        chapter.contains(normTopic, ignoreCase = true)
+                    }
+                }
+
+                banner.subjectKey to Triple(availableChaptersList, bannerQs, chapterCountsMap)
+            }
+
+            banners to bannerDataMap
+        } catch (e: Exception) {
+            emptyList<BannerConfig>() to emptyMap()
+        }
+    }
+    val dynamicBanners = bannersAndData.first
+    val precomputedBannerData = bannersAndData.second
+
+
+
     var scoreCount by remember { mutableIntStateOf(0) }
+    var currentQuestionIndex by rememberSaveable { mutableIntStateOf(0) }
     val totalPracticedCount = userProfile?.totalSolved ?: 0
 
     var showSummary by rememberSaveable { mutableStateOf(false) }
@@ -146,18 +368,25 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var activeSessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
     var lastStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
 
-    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice) {
+    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, activePracticeQuestion) {
         if (isSessionStarted) {
             userAnswers.clear()
             scoreCount = 0
             sessionTotalSeconds = 0
-            val eligible = practiceQuestions.shuffled().toMutableList()
-            if (eligible.size > 1 && eligible[0].id == lastStartingQuestionId) {
+            val eligible = mutableListOf<QuestionEntity>()
+            if (activePracticeQuestion != null) {
+                eligible.add(activePracticeQuestion!!)
+                val otherQs = practiceQuestions.filter { it.id != activePracticeQuestion!!.id }
+                eligible.addAll(otherQs)
+            } else {
+                eligible.addAll(practiceQuestions.shuffled())
+            }
+            if (eligible.size > 1 && activePracticeQuestion == null && eligible[0].id == lastStartingQuestionId) {
                 val temp = eligible[0]
                 eligible[0] = eligible[1]
                 eligible[1] = temp
             }
-            if (eligible.isNotEmpty()) {
+            if (eligible.isNotEmpty() && activePracticeQuestion == null) {
                 lastStartingQuestionId = eligible[0].id
             }
             activeSessionQuestions = eligible
@@ -225,7 +454,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     "General Knowledge" -> "General Knowledge"
                     "General English" -> "General English"
                     "Mathematics", "General Mathematics" -> "Mathematics"
-                    "Reasoning" -> "Reasoning"
+                    "Reasoning", "Reasoning & Mental Ability" -> "Reasoning"
                     "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
                     "Transport Rule" -> "Transport Rule"
                     else -> "All Subjects"
@@ -252,10 +481,15 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             title = practiceTitle,
             subtitle = practiceSubtitle,
             onBackClick = {
+                if (activePracticeQuestion != null) {
+                    viewModel.clearActivePracticeQuestion()
+                }
                 if (isSessionStarted && !isSmartPractice) {
                     isSessionStarted = false
                 } else {
-                    viewModel.navigateTo(Screen.HOME)
+                    if (!viewModel.goBack()) {
+                        viewModel.navigateTo(Screen.HOME)
+                    }
                 }
             },
             actions = {
@@ -347,6 +581,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
         }
 
         // BODY CONTENT
+        // BODY CONTENT
         if (!isSessionStarted) {
             // STEP 1: SHOW 5 SUBJECT BANNERS
             Column(
@@ -363,253 +598,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                 )
 
-                // Define 5 Banners
-                
-                
-                
-                val colorPrimaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
-                val colorSecondaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer
-                val colorTertiaryContainer = androidx.compose.material3.MaterialTheme.colorScheme.tertiaryContainer
-                val colorSurfaceVariant = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-                val colorPrimary = androidx.compose.material3.MaterialTheme.colorScheme.primary
-                val colorSecondary = androidx.compose.material3.MaterialTheme.colorScheme.secondary
-                val colorTertiary = androidx.compose.material3.MaterialTheme.colorScheme.tertiary
-
-                val dynamicBanners = remember(allSubjectsChapters, visibleQuestions) {
-
-                    val predefined = listOf(
-
-                    BannerConfig(
-                        titleEn = "All Subjects",
-                        titleAs = "সকলো বিষয় (Mixed)",
-                        subtitleEn = "Practice mixed MCQs from all subjects and chapters",
-                        subtitleAs = "সকলো বিষয়ৰ সংমিশ্ৰিত প্ৰশ্নৰ অনুশীলন কৰক",
-                        subjectKey = "All Subjects",
-                        icon = Icons.Default.Apps,
-                        containerColor = colorPrimaryContainer.copy(alpha = 0.5f),
-                        iconColor = colorPrimary
-                    ),
-                    BannerConfig(
-                        titleEn = "General Knowledge",
-                        titleAs = "সাধাৰণ জ্ঞান (GK)",
-                        subtitleEn = "History, Geography, Polity, Assam GK, Science & Static GK",
-                        subtitleAs = "ইতিহাস, ভূগোল, ৰাজনীতি, অসম বিৱৰণ আৰু বিজ্ঞান",
-                        subjectKey = "General Knowledge",
-                        icon = Icons.Default.Public,
-                        containerColor = colorSecondaryContainer.copy(alpha = 0.5f),
-                        iconColor = colorSecondary
-                    ),
-                    BannerConfig(
-                        titleEn = "General Mathematics",
-                        titleAs = "গণিত (Mathematics)",
-                        subtitleEn = "Arithmetic, Quantitative Aptitude, Algebra & Geometry",
-                        subtitleAs = "পাটিগণিত, বীজগণিত, জ্যামিতি আৰু সংখ্যা সংক্ৰান্তীয়",
-                        subjectKey = "General Mathematics",
-                        icon = Icons.Default.Calculate,
-                        containerColor = colorSurfaceVariant,
-                        iconColor = colorPrimary
-                    ),
-                    BannerConfig(
-                        titleEn = "Reasoning & Mental Ability",
-                        titleAs = "যুক্তিবিদ্যা (Reasoning)",
-                        subtitleEn = "Logical Aptitude, Verbal & Non-Verbal Reasoning",
-                        subtitleAs = "মানসিক দক্ষতা আৰু যুক্তিনিৰ্ভৰ প্ৰশ্নৱালী",
-                        subjectKey = "Reasoning & Mental Ability",
-                        icon = Icons.Default.Psychology,
-                        containerColor = colorPrimaryContainer.copy(alpha = 0.3f),
-                        iconColor = colorSecondary
-                    ),
-                    BannerConfig(
-                        titleEn = "General English",
-                        titleAs = "সাধাৰণ ইংৰাজী",
-                        subtitleEn = "Grammar, Vocabulary, Synonyms, Antonyms, Voice & Tenses",
-                        subtitleAs = "ইংৰাজী ব্যাকৰণ, শব্দকোষ, বিপৰীত শব্দ আৰু সমাৰ্থক শব্দ",
-                        subjectKey = "General English",
-                        icon = Icons.Default.Translate,
-                        containerColor = colorTertiaryContainer.copy(alpha = 0.5f),
-                        iconColor = colorTertiary
-                    ),
-                    BannerConfig(
-                        titleEn = "Reading Comprehension",
-                        titleAs = "পঠন বোধগম্যতা (Comprehension)",
-                        subtitleEn = "Reading Passages, Short & Long Passages, Passage Based MCQs",
-                        subtitleAs = "পঠন বোধগম্যতা আৰু প্ৰশ্নোত্তৰ",
-                        subjectKey = "Reading Comprehension",
-                        icon = Icons.Default.MenuBook,
-                        containerColor = colorSecondaryContainer.copy(alpha = 0.3f),
-                        iconColor = colorSecondary
-                    ),
-                    BannerConfig(
-                        titleEn = "Basic Computer",
-                        titleAs = "মৌলিক কম্পিউটাৰ (Computer)",
-                        subtitleEn = "Computer Fundamentals, MS Office, Hardware, Networking & Cyber Security",
-                        subtitleAs = "কম্পিউটাৰ পৰিচয়, এম.এছ. অফিচ, হাৰ্ডৱেৰ, নেটৱৰ্কিং আৰু চাইবাৰ সুৰক্ষা",
-                        subjectKey = "Basic Computer",
-                        icon = Icons.Default.Computer,
-                        containerColor = colorTertiaryContainer.copy(alpha = 0.4f),
-                        iconColor = colorTertiary
-                    ),
-                    BannerConfig(
-                        titleEn = "Transport Rule",
-                        titleAs = "পৰিবহন নিয়ম (Transport Rule)",
-                        subtitleEn = "Traffic Signs, Motor Vehicle Act, Road Safety & Driving Rules",
-                        subtitleAs = "যান-বাহন নিয়ম, মটৰ বাহন আইন, পথ সুৰক্ষা আৰু সংকেত",
-                        subjectKey = "Transport Rule",
-                        icon = Icons.Default.DirectionsCar,
-                        containerColor = colorSecondaryContainer.copy(alpha = 0.4f),
-                        iconColor = colorSecondary
-                    )
-                    )
-                    
-                    val predefinedKeys = listOf(
-                        "General Knowledge", "Assam History", "Assam Geography", "Assam Geography & Economy", "Assamese Literature & Culture", "Current Affairs", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness",
-                        "General English", "English",
-                        "General Mathematics", "Mathematics", "Quantitative Aptitude",
-                        "Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude",
-                        "Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT",
-                        "Transport Rule", "Transport Rules", "Manual Entry",
-                        "Reading Comprehension"
-                    )
-                    
-                    val allSubjects = (allSubjectsChapters.map { it.subject } + visibleQuestions.map { it.subject }).distinct()
-                    val newBanners = allSubjects.filter { subj -> subj.isNotBlank() && !predefinedKeys.any { pk -> pk.equals(subj, ignoreCase = true) } && !subj.contains("Manual", ignoreCase = true) }
-                        .map { subject ->
-                            BannerConfig(
-                                titleEn = subject,
-                                titleAs = subject,
-                                subtitleEn = "Questions from $subject",
-                                subtitleAs = "$subject -ৰ প্ৰশ্ন",
-                                subjectKey = subject,
-                                icon = androidx.compose.material.icons.Icons.Default.MenuBook,
-                                containerColor = colorSurfaceVariant,
-                                iconColor = colorPrimary
-                            )
-                        }
-                    predefined + newBanners
-                }
-
-
-                dynamicBanners.forEach { banner ->
-                    // Available chapters for this banner's subject
-                    val availableChapters = remember(visibleQuestions, allSubjectsChapters, banner.subjectKey) {
-                        val set = mutableSetOf<String>()
-                        when (banner.subjectKey) {
-                            "All Subjects" -> {
-                                visibleQuestions.forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General Knowledge" -> {
-                                visibleQuestions.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography & Economy", "Assam Geography", "Indian Polity & Constitution", "Indian History & National Movement", "General Science", "Current Affairs & General Awareness") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General English" -> {
-                                visibleQuestions.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "General Mathematics" -> {
-                                visibleQuestions.filter { it.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Reasoning" -> {
-                                visibleQuestions.filter { it.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability") }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Basic Computer", "Computer Knowledge", "Computer" -> {
-                                visibleQuestions.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || it.subject.contains("Computer", ignoreCase = true) || it.topic.contains("Computer", ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            "Transport Rule" -> {
-                                visibleQuestions.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.topic.contains("Transport Rule", ignoreCase = true) || it.topic.contains("Traffic Sign", ignoreCase = true) || it.topic.contains("Motor Vehicle", ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                            else -> {
-                                visibleQuestions.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
-                                    .forEach { if (it.topic.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.topic, it.subject)) }
-                                allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
-                                    .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
-                            }
-                        }
-                        set.remove("One-Word & Idiom")
-                        set.remove("One-Word & Idiom/Phrase")
-                        set.remove("Idioms, Phrases & One-Word Substitution")
-                        set.remove("Idioms & Phrases")
-                        set.remove("One-Word Substitution")
-                        set.remove("One Word Substitution")
-                        set.toList().sorted()
+                if (dynamicBanners.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
+                } else {
+                    dynamicBanners.forEach { banner ->
+                    val preData = precomputedBannerData[banner.subjectKey]
+                    val availableChapters = preData?.first ?: emptyList()
+                    val bannerQs = preData?.second ?: emptyList()
+                    val chapterCounts = preData?.third ?: emptyMap()
 
                     val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
-                    
-                    val bannerQs = remember(visibleQuestions, banner.subjectKey, hiddenIds) {
-                        visibleQuestions.filter { q ->
-                            if (q.id in hiddenIds) return@filter false
-                            when (banner.subjectKey) {
-                                "All Subjects" -> true
-                                "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                                "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                                "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                                "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                                "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                                "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
-                                else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
-                            }
-                        }
-                    }
 
-                    val questionCount = remember(bannerQs, currentSelectedChapters) {
-                        bannerQs.count { q ->
-                            val matchChapter = if (currentSelectedChapters.isEmpty()) {
-                                true
-                            } else {
-                                val topicStr = q.topic ?: ""
-                                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                                currentSelectedChapters.any { ch ->
-                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                    normTopic.equals(nCh, ignoreCase = true) || 
-                                    topicStr.equals(ch, ignoreCase = true) || 
-                                    topicStr.contains(ch, ignoreCase = true) || 
-                                    ch.contains(topicStr, ignoreCase = true) || 
-                                    normTopic.contains(ch, ignoreCase = true) || 
-                                    ch.contains(normTopic, ignoreCase = true)
-                                }
-                            }
-                            matchChapter
-                        }
-                    }
-
-                    val chapterCounts = remember(bannerQs, availableChapters) {
-                        availableChapters.associateWith { chapter ->
-                            bannerQs.count { q ->
-                                val topicStr = q.topic ?: ""
-                                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                                val normCh = com.example.data.repository.normalizeChapterName(chapter, q.subject)
-                                normTopic.equals(normCh, ignoreCase = true) || 
-                                topicStr.equals(chapter, ignoreCase = true) || 
-                                topicStr.contains(chapter, ignoreCase = true) || 
-                                chapter.contains(topicStr, ignoreCase = true) || 
-                                normTopic.contains(chapter, ignoreCase = true) || 
-                                chapter.contains(normTopic, ignoreCase = true)
-                            }
-                        }
+                    val questionCount = if (currentSelectedChapters.isEmpty()) {
+                        bannerQs.size
+                    } else {
+                        currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
                     }
 
                     PracticeSubjectBannerCard(
                         banner = banner,
                         availableChapters = availableChapters,
                         selectedChapters = currentSelectedChapters,
-                        onChaptersChanged = { newSet ->
+                        onChaptersChanged = { newSet: Set<String> ->
                             chaptersMap = chaptersMap + (banner.subjectKey to newSet)
                         },
                         totalQuestionsCount = questionCount,
@@ -628,7 +647,8 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     )
                 }
             }
-        } else if (showSummary) {
+        }
+    } else if (showSummary) {
             PracticeSummaryView(
                 questions = displayQuestions,
                 userAnswers = userAnswers,
@@ -775,22 +795,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                         )
                                     }
                                     // Hide Question Button
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.toggleHideQuestion(currentQuestion)
-                                            activeSessionQuestions = activeSessionQuestions.filter { it.id != currentQuestion.id }
-                                            if (currentQuestionIndex >= displayQuestions.size - 1 && currentQuestionIndex > 0) {
-                                                currentQuestionIndex--
-                                            }
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.VisibilityOff,
-                                            contentDescription = "Hide Question",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+
                                 }
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -1043,7 +1048,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             ) {
                                 Text("End Practice", color = MaterialTheme.colorScheme.error)
                             }
-                            }
                         }
                     }
                 }
@@ -1061,475 +1065,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 }
             )
         }
-    }
-}
-
-
-private data class BannerConfig(
-    val titleEn: String,
-    val titleAs: String,
-    val subtitleEn: String,
-    val subtitleAs: String,
-    val subjectKey: String,
-    val icon: ImageVector,
-    val containerColor: Color,
-    val iconColor: Color
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PracticeSubjectBannerCard(
-    banner: BannerConfig,
-    availableChapters: List<String>,
-    selectedChapters: Set<String>,
-    onChaptersChanged: (Set<String>) -> Unit,
-    totalQuestionsCount: Int,
-    actionButtonTextEn: String,
-    actionButtonTextAs: String,
-    onStartClick: () -> Unit,
-    isAssamese: Boolean,
-    chapterCounts: Map<String, Int> = emptyMap()
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val isDark = isSystemInDarkTheme()
-    val actualContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else banner.containerColor
-    val actualTitleColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1C1B1F)
-    val actualSubtitleColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF49454F)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = actualContainerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Header: Icon + Title + Subtitle + Total Count
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = banner.iconColor,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = banner.icon,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = banner.titleEn,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = actualTitleColor
-                        )
-                        Surface(
-                            color = banner.iconColor.copy(alpha = if (isDark) 0.25f else 0.15f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = "$totalQuestionsCount Qs",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) banner.iconColor.copy(alpha = 0.9f) else banner.iconColor
-                            )
-                        }
-                    }
-                    Text(
-                        text = banner.subtitleEn,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = actualSubtitleColor
-                    )
-                }
-            }
-
-            // Chapter Dropdown (Single / Multiple selection)
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                val labelText = when {
-                    selectedChapters.isEmpty() -> "All Chapters Selected (Mix All)"
-                    selectedChapters.size == 1 -> selectedChapters.first()
-                    else -> "${selectedChapters.size} Chapters Selected"
-                }
-
-                SafeOutlinedTextField(
-                    value = labelText,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Chapters (Single/Multiple)", fontSize = 12.sp, color = actualSubtitleColor) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                        focusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
-                        unfocusedBorderColor = if (isDark) MaterialTheme.colorScheme.outline.copy(alpha = 0.5f) else Color(0xFFC4C6D0),
-                        focusedBorderColor = banner.iconColor,
-                        unfocusedLabelColor = actualSubtitleColor,
-                        focusedLabelColor = banner.iconColor,
-                        unfocusedTextColor = actualTitleColor,
-                        focusedTextColor = actualTitleColor,
-                        unfocusedTrailingIconColor = actualSubtitleColor,
-                        focusedTrailingIconColor = banner.iconColor
-                    ),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.heightIn(max = 280.dp)
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = selectedChapters.isEmpty(),
-                                    onCheckedChange = null
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "All Chapters (Mix All)",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        },
-                        onClick = {
-                            onChaptersChanged(emptySet())
-                            expanded = false
-                        }
-                    )
-
-                    if (availableChapters.isNotEmpty()) {
-                        HorizontalDivider()
-                        availableChapters.forEach { chapter ->
-                            val isChecked = selectedChapters.contains(chapter)
-                            val count = chapterCounts[chapter] ?: 0
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(
-                                            checked = isChecked,
-                                            onCheckedChange = null
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "$chapter ($count Qs)")
-                                    }
-                                },
-                                onClick = {
-                                    val updated = if (isChecked) selectedChapters - chapter else selectedChapters + chapter
-                                    onChaptersChanged(updated)
-    
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Display Chips if chapters selected
-            if (selectedChapters.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    selectedChapters.forEach { ch ->
-                        InputChip(
-                            selected = true,
-                            onClick = { onChaptersChanged(selectedChapters - ch) },
-                            label = { Text(ch, style = MaterialTheme.typography.labelSmall, color = Color.White) },
-                            colors = InputChipDefaults.inputChipColors(
-                                selectedContainerColor = banner.iconColor,
-                                selectedLabelColor = Color.White,
-                                selectedTrailingIconColor = Color.White
-                            ),
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(12.dp), tint = Color.White)
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Start Option Button
-            Button(
-                onClick = onStartClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = banner.iconColor)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = actionButtonTextEn,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PracticeSummaryView(
-    questions: List<com.example.data.local.QuestionEntity>,
-    userAnswers: Map<Long, Int>,
-    totalTimeSeconds: Int,
-    onFinish: () -> Unit,
-    onPracticeAgain: () -> Unit,
-    questionLanguage: AppLanguage,
-    isSmartPractice: Boolean = false
-) {
-    var correctCount = 0
-    var incorrectCount = 0
-    val unattemptedCount = (questions.size - userAnswers.size).coerceAtLeast(0)
-
-    val answeredQuestions = mutableListOf<Pair<com.example.data.local.QuestionEntity, Boolean>>()
-
-    questions.forEach { q ->
-        val answerIndex = userAnswers[q.id]
-        if (answerIndex != null) {
-            val isCorrect = answerIndex == q.correctOptionIndex
-            if (isCorrect) correctCount++ else incorrectCount++
-            answeredQuestions.add(q to isCorrect)
-        }
-    }
-
-    val totalAttempted = correctCount + incorrectCount
-    val accuracy = if (totalAttempted > 0) (correctCount.toFloat() / totalAttempted * 100).toInt() else 0
-    val score = correctCount * 10
-    val avgSpeedPerMcq = if (totalAttempted > 0) (totalTimeSeconds.toFloat() / totalAttempted).toInt() else 0
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary 🎉",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center
-        )
-
-        Text(
-            text = "${questions.size} Questions in Session • $totalAttempted Attempted",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        // Key Performance Cards Row 1
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Score", count = score, subtitle = "pts", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Accuracy", count = accuracy, subtitle = "%", color = if (accuracy >= 60) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error)
-            }
-        }
-
-        // Breakdown Cards Row 2
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Correct", count = correctCount, subtitle = "", color = MaterialTheme.colorScheme.success)
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Incorrect", count = incorrectCount, subtitle = "", color = MaterialTheme.colorScheme.error)
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                SummaryStatCard(title = "Skipped", count = unattemptedCount, subtitle = "", color = MaterialTheme.colorScheme.outline)
-            }
-        }
-
-        // Time & Solving Speed Row 3
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val m = totalTimeSeconds / 60
-                    val s = totalTimeSeconds % 60
-                    Text(
-                        text = if (m > 0) "${m}m ${s}s" else "${s}s",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(text = "Time Spent", style = MaterialTheme.typography.labelSmall)
-                }
-                Divider(modifier = Modifier.height(30.dp).width(1.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = if (avgSpeedPerMcq > 0) "${avgSpeedPerMcq}s" else "-",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(text = "Speed / MCQ", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            OutlinedButton(
-                onClick = onPracticeAgain,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Practice Again")
-            }
-            Button(
-                onClick = onFinish,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Finish Practice")
-            }
-        }
-
-        if (answeredQuestions.isNotEmpty()) {
-            Text(
-                text = "Detailed Question Review",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(top = 16.dp, bottom = 8.dp)
-            )
-
-            answeredQuestions.forEachIndexed { index, (q, isCorrect) ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isCorrect) MaterialTheme.colorScheme.successContainer.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        com.example.ui.components.QuestionTypeBadge(
-                            questionType = q.questionType,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                                contentDescription = null,
-                                tint = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(24.dp).padding(end = 8.dp)
-                            )
-                            BilingualText(
-                                textEn = "${index + 1}. ${q.questionEn}",
-                                textAs = "${index + 1}. ${q.questionAs}",
-                                language = questionLanguage,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        val selectedAnsIndex = userAnswers[q.id] ?: -1
-                        val selectedAnsEn = when (selectedAnsIndex) {
-                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
-                        }
-                        val correctAnsEn = when (q.correctOptionIndex) {
-                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
-                        }
-
-                        Text(
-                            text = "Your Answer: $selectedAnsEn",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
-                        )
-                        if (!isCorrect) {
-                            Text(
-                                text = "Correct Answer: $correctAnsEn",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.success
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SummaryStatCard(title: String, count: Int, subtitle: String = "", color: Color) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        border = BorderStroke(1.dp, color),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = if (subtitle.isNotBlank()) "$count$subtitle" else count.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(text = title, style = MaterialTheme.typography.labelMedium, color = color)
-        }
+      }
     }
 }

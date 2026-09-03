@@ -466,6 +466,9 @@ interface SyncQueueDao {
     @Query("DELETE FROM sync_queue WHERE syncStatus = 'SYNCED'")
     abstract suspend fun clearSyncedItems()
 
+    @Query("DELETE FROM sync_queue")
+    abstract suspend fun clearAll()
+
     @Query("DELETE FROM sync_queue WHERE dataType = :dataType AND entityId = :entityId")
     abstract suspend fun deleteSyncByEntity(dataType: String, entityId: String)
 }

@@ -31,6 +31,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
+    var noteToDelete by remember { mutableStateOf<StudyNoteEntity?>(null) }
 
     // Form fields
     var titleEn by remember { mutableStateOf("") }
@@ -128,7 +129,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                                     }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Edit")
                                     }
-                                    IconButton(onClick = { viewModel.deleteStudyNote(note) }) {
+                                    IconButton(onClick = { noteToDelete = note }) {
                                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                                     }
                                 }
@@ -397,6 +398,27 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                     showAddDialog = false
                     editingNote = null
                 }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (noteToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { noteToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this study note?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.deleteStudyNote(noteToDelete!!)
+                    noteToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { noteToDelete = null }) {
                     Text("Cancel")
                 }
             }

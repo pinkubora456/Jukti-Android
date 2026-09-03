@@ -81,6 +81,7 @@ fun ManagePlanContent(
     onEditPlan: (PlanEntity) -> Unit
 ) {
     val plans by viewModel.plans.collectAsState()
+    var planToDelete by remember { mutableStateOf<PlanEntity?>(null) }
 
     val actionItems = listOf(
         ManagePlanItem("Create Plan", Icons.Default.AddCard) {
@@ -153,7 +154,7 @@ fun ManagePlanContent(
                 PlanManageCard(
                     plan = plan,
                     onEdit = { onEditPlan(plan) },
-                    onDelete = { viewModel.deletePlan(plan) },
+                    onDelete = { planToDelete = plan },
                     onToggleArchive = {
                         val updatedPlan = plan.copy(isActive = !plan.isActive)
                         viewModel.requestOrCreatePlan(updatedPlan) { _, _ -> }
@@ -161,6 +162,27 @@ fun ManagePlanContent(
                 )
             }
         }
+    }
+
+    if (planToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { planToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this plan?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.deletePlan(planToDelete!!)
+                    planToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { planToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

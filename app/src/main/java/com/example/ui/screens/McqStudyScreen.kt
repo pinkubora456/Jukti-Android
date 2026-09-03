@@ -79,9 +79,11 @@ fun StudySubjectBannerCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val isDark = isSystemInDarkTheme()
-    val actualContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else banner.containerColor
-    val actualTitleColor = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1C1B1F)
-    val actualSubtitleColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF49454F)
+    val uniformContainerColor = MaterialTheme.colorScheme.primaryContainer
+    val uniformPrimaryColor = MaterialTheme.colorScheme.primary
+    val actualContainerColor = uniformContainerColor
+    val actualTitleColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val actualSubtitleColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -100,7 +102,7 @@ fun StudySubjectBannerCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = banner.iconColor,
+                    color = uniformPrimaryColor,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -126,7 +128,7 @@ fun StudySubjectBannerCard(
                             color = actualTitleColor
                         )
                         Surface(
-                            color = banner.iconColor.copy(alpha = if (isDark) 0.25f else 0.15f),
+                            color = uniformPrimaryColor,
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
@@ -134,7 +136,7 @@ fun StudySubjectBannerCard(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) banner.iconColor.copy(alpha = 0.9f) else banner.iconColor
+                                color = Color.White
                             )
                         }
                     }
@@ -171,13 +173,13 @@ fun StudySubjectBannerCard(
                         unfocusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
                         focusedContainerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White,
                         unfocusedBorderColor = if (isDark) MaterialTheme.colorScheme.outline.copy(alpha = 0.5f) else Color(0xFFC4C6D0),
-                        focusedBorderColor = banner.iconColor,
+                        focusedBorderColor = uniformPrimaryColor,
                         unfocusedLabelColor = actualSubtitleColor,
-                        focusedLabelColor = banner.iconColor,
+                        focusedLabelColor = uniformPrimaryColor,
                         unfocusedTextColor = actualTitleColor,
                         focusedTextColor = actualTitleColor,
                         unfocusedTrailingIconColor = actualSubtitleColor,
-                        focusedTrailingIconColor = banner.iconColor
+                        focusedTrailingIconColor = uniformPrimaryColor
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
@@ -249,7 +251,7 @@ fun StudySubjectBannerCard(
                             onClick = { onChaptersChanged(selectedChapters - ch) },
                             label = { Text(ch, style = MaterialTheme.typography.labelSmall, color = Color.White) },
                             colors = InputChipDefaults.inputChipColors(
-                                selectedContainerColor = banner.iconColor,
+                                selectedContainerColor = uniformPrimaryColor,
                                 selectedLabelColor = Color.White,
                                 selectedTrailingIconColor = Color.White
                             ),
@@ -266,7 +268,7 @@ fun StudySubjectBannerCard(
                 onClick = onStartClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = banner.iconColor)
+                colors = ButtonDefaults.buttonColors(containerColor = uniformPrimaryColor)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -298,7 +300,6 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.accessibleQuestions.collectAsState()
     val mockTests by viewModel.accessibleMockTests.collectAsState()
     val studyNotes by viewModel.accessibleStudyNotes.collectAsState()
-    val hiddenIds by viewModel.hiddenIds.collectAsState()
     
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
@@ -566,7 +567,12 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                         isUserPremium = isPremium,
                         isAdminOrOwner = isAdmin,
                         onDismiss = { showSavedQuestionsDialog = false },
-                        onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) }
+                        onToggleBookmark = { q -> viewModel.toggleBookmarkQuestion(q) },
+                        onPracticeQuestion = { q ->
+                            showSavedQuestionsDialog = false
+                            viewModel.startPracticeForQuestion(q)
+                            viewModel.setReturnToSavedQuestions(true)
+                        }
                     )
                 }
             }
@@ -730,7 +736,6 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -761,7 +766,6 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     var sessionTotalSeconds by remember { mutableStateOf(0) }
 
     var showReportDialog by remember { mutableStateOf(false) }
-    var showHideNotice by remember { mutableStateOf(false) }
     var showSummaryDialog by remember { mutableStateOf(false) }
     var finalSessionQuestions by remember { mutableStateOf(0) }
     var finalSessionTime by remember { mutableStateOf(0) }
@@ -785,9 +789,8 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
     var activeStudySessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
     var lastStudyStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
 
-    val filteredStudyQuestions = remember(questions, selectedSubjectTab, selectedChapters, hiddenIds) {
+    val filteredStudyQuestions = remember(questions, selectedSubjectTab, selectedChapters) {
         questions.filter { q ->
-            if (q.id in hiddenIds) return@filter false
             val matchSubject = when (selectedSubjectTab) {
                 "All Subject", "All Subjects" -> true
                 "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
@@ -795,7 +798,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
                 "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
                 "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                "Transport Rule", "Transport Rules" -> q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                 else -> q.subject.equals(selectedSubjectTab, ignoreCase = true)
             }
             val matchChapter = if (selectedChapters.isEmpty()) {
@@ -821,27 +824,25 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         StudyBannerConfig("General Knowledge", "সাধাৰণ জ্ঞান", "Assam history, geography, and more", "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য", "General Knowledge", androidx.compose.material.icons.Icons.Default.Public, androidx.compose.ui.graphics.Color(0xFFE8F5E9), androidx.compose.ui.graphics.Color(0xFF2E7D32)),
         StudyBannerConfig("General English", "সাধাৰণ ইংৰাজী", "Grammar, vocabulary, and comprehension", "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা", "General English", androidx.compose.material.icons.Icons.Default.MenuBook, androidx.compose.ui.graphics.Color(0xFFE3F2FD), androidx.compose.ui.graphics.Color(0xFF1565C0)),
         StudyBannerConfig("General Mathematics", "সাধাৰণ গণিত", "Arithmetic, algebra, and geometry", "পাটিগণিত, বীজগণিত আৰু জ্যামিতি", "General Mathematics", androidx.compose.material.icons.Icons.Default.Calculate, androidx.compose.ui.graphics.Color(0xFFFFF3E0), androidx.compose.ui.graphics.Color(0xFFEF6C00)),
-        StudyBannerConfig("Reasoning", "যুক্তি", "Logical and analytical reasoning", "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি", "Reasoning", androidx.compose.material.icons.Icons.Default.Psychology, androidx.compose.ui.graphics.Color(0xFFF3E5F5), androidx.compose.ui.graphics.Color(0xFF6A1B9A)),
-        StudyBannerConfig("Basic Computer", "কম্পিউটাৰৰ সাধাৰণ জ্ঞান", "Computer fundamentals and internet", "কম্পিউটাৰৰ মূল কথা আৰু ইণ্টাৰনেট", "Basic Computer", androidx.compose.material.icons.Icons.Default.Computer, androidx.compose.ui.graphics.Color(0xFFE0F7FA), androidx.compose.ui.graphics.Color(0xFF00838F)),
-        StudyBannerConfig("Transport Rule", "পৰিবহন নিয়ম", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport Rule", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315)),
-        StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFF5F5F5), androidx.compose.ui.graphics.Color(0xFF424242))
+        StudyBannerConfig("Reasoning & Mental Ability", "যুক্তিবিদ্যা (Reasoning)", "Logical and analytical reasoning", "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি", "Reasoning & Mental Ability", androidx.compose.material.icons.Icons.Default.Psychology, androidx.compose.ui.graphics.Color(0xFFF3E5F5), androidx.compose.ui.graphics.Color(0xFF6A1B9A)),
+        StudyBannerConfig("Transport & Motor Vehicle", "পৰিবহন আৰু মটৰ বাহন", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport & Motor Vehicle", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315)),
+        StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFFFF8E1), androidx.compose.ui.graphics.Color(0xFFFF8F00))
     )
 
     if (!isStudySessionStarted) {
         androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             items(studyBanners) { banner ->
-                val bannerQuestions = remember(questions, banner.subjectKey, hiddenIds) {
+                val bannerQuestions = remember(questions, banner.subjectKey) {
                     questions.filter { q ->
-                        if (q.id in hiddenIds) return@filter false
                         if (banner.subjectKey == "All Subjects") true
                         else {
                             when (banner.subjectKey) {
                                 "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
                                 "General English" -> q.subject.contains("English", ignoreCase = true)
                                 "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                                "Reasoning" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                                "Reasoning", "Reasoning & Mental Ability" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
                                 "Basic Computer" -> q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                                "Transport Rule" -> q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
+                                "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
                                 else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
                             }
                         }
@@ -906,9 +907,10 @@ val currentQuestion = filteredStudyQuestions.getOrNull(currentQuestionIndex)
                             "General Knowledge" -> "General Knowledge"
                             "General English" -> "General English"
                             "General Mathematics" -> "Mathematics"
-                            "Reasoning" -> "Reasoning"
+                            "Reasoning", "Reasoning & Mental Ability" -> "Reasoning"
+                            "Reading Comprehension" -> "Reading Comprehension"
                             "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
-                            "Transport Rule" -> "Transport Rule"
+                            "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
                             else -> "All Subjects"
                         },
                         style = MaterialTheme.typography.titleMedium,
@@ -1068,19 +1070,7 @@ val currentQuestion = filteredStudyQuestions.getOrNull(currentQuestionIndex)
                                     tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = {
-                                viewModel.toggleHideQuestion(currentQuestion)
-                                activeStudySessionQuestions = activeStudySessionQuestions.filter { it.id != currentQuestion.id }
-                                showHideNotice = true
-                            }
-) {
-                                Icon(
-                                    imageVector = Icons.Outlined.VisibilityOff,
-                                    contentDescription = "Hide Question",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
 
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -1426,23 +1416,7 @@ val currentQuestion = filteredStudyQuestions.getOrNull(currentQuestionIndex)
 
 
 
-        if (showHideNotice) {
-            AlertDialog(
-                onDismissRequest = { showHideNotice = false },
-                icon = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary) },
-                title = { Text("Question Hidden") },
-                text = {
-                    Text(
-                        "This question has been hidden because you know it very well! It will no longer appear in your study or practice sessions. You can review or unhide it anytime under Settings."
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { showHideNotice = false }) {
-                        Text("Got It")
-                    }
-                }
-            )
-        }
+
         
         if (showReportDialog && currentQuestion != null) {
             ReportQuestionDialog(
@@ -1470,7 +1444,6 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
-    val hiddenIds by viewModel.hiddenIds.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -1481,11 +1454,9 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     var isSubmitted by remember { mutableStateOf(false) }
     var scoreCount by remember { mutableStateOf(0) }
     var showReportDialog by remember { mutableStateOf(false) }
-    var showHideNotice by remember { mutableStateOf(false) }
 
     val activeQuestions = remember(questions, activePracticeMode) {
-        val nonHidden = questions.filter { !hiddenIds.contains(it.id) }
-        if (activePracticeMode == "Shuffle") nonHidden.shuffled() else nonHidden
+        if (activePracticeMode == "Shuffle") questions.shuffled() else questions
     }
 
     val currentQuestion = activeQuestions.getOrNull(currentQuestionIndex)
@@ -1638,17 +1609,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                     tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = {
-                                viewModel.toggleHideQuestion(currentQuestion)
-                            }
-) {
-                                Icon(
-                                    imageVector = Icons.Outlined.VisibilityOff,
-                                    contentDescription = "Hide Question",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
 
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1938,8 +1899,7 @@ fun QuestionStudyCard(
     onUnlockClick: () -> Unit = {},
     onBookmarkToggle: () -> Unit,
     onLikeToggle: () -> Unit,
-    onReportClick: () -> Unit,
-    onHideClick: (() -> Unit)? = null
+    onReportClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -1984,15 +1944,6 @@ fun QuestionStudyCard(
                             contentDescription = "Bookmark",
                             tint = if (question.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                    if (onHideClick != null) {
-                        IconButton(onClick = onHideClick) {
-                            Icon(
-                                imageVector = Icons.Outlined.VisibilityOff,
-                                contentDescription = "Hide Question",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
             }

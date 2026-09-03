@@ -31,6 +31,7 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
+    var currentAffairsToDelete by remember { mutableStateOf<StudyNoteEntity?>(null) }
 
     // Form fields
     var titleEn by remember { mutableStateOf("") }
@@ -117,7 +118,7 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                                     }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Edit")
                                     }
-                                    IconButton(onClick = { viewModel.deleteStudyNote(note) }) {
+                                    IconButton(onClick = { currentAffairsToDelete = note }) {
                                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                                     }
                                 }
@@ -324,6 +325,27 @@ fun ManageCurrentAffairsScreen(viewModel: JuktiViewModel) {
                     showAddDialog = false
                     editingNote = null
                 }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (currentAffairsToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { currentAffairsToDelete = null },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this current affairs note?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.deleteStudyNote(currentAffairsToDelete!!)
+                    currentAffairsToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { currentAffairsToDelete = null }) {
                     Text("Cancel")
                 }
             }
