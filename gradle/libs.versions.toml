@@ -96,7 +96,7 @@ firebase-appcheck-recaptcha = { group = "com.google.firebase", name = "firebase-
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
-google-play-billing = { group = "com.android.billingclient", name = "billing-ktx", version = "6.2.1" }
+google-play-billing = { group = "com.android.billingclient", name = "billing-ktx", version = "8.0.0" }
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version = "21.1.1" }

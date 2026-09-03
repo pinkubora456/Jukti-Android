@@ -34,7 +34,11 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
-        .enablePendingPurchases()
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder()
+                .enableOneTimeProducts()
+                .build()
+        )
         .build()
 
     fun startConnection(onReady: (() -> Unit)? = null) {
@@ -119,7 +123,8 @@ class PlayBillingManager(private val context: Context) : PurchasesUpdatedListene
             .setProductList(productList)
             .build()
 
-        billingClient.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsList ->
+        billingClient.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsResult ->
+            val productDetailsList = productDetailsResult.productDetailsList
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && !productDetailsList.isNullOrEmpty()) {
                 val productDetails = productDetailsList[0]
 
