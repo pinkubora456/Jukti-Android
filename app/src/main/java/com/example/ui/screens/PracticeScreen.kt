@@ -112,47 +112,35 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         true
                     } else {
                         val topicStr = q.topic ?: ""
-                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                        
-                        if (selectedSubjectKey == "Reasoning" || selectedSubjectKey == "Reasoning & Mental Ability") {
-                            selectedChapters.any { ch ->
-                                topicStr.contains(ch, ignoreCase = true) || 
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                q.subject.contains(ch, ignoreCase = true) ||
-                                (ch.contains("Coding", ignoreCase = true) && (topicStr.isBlank() || topicStr.contains("Code", ignoreCase = true) || topicStr.contains("Series", ignoreCase = true) || topicStr.contains("Analogy", ignoreCase = true))) ||
-                                (ch.contains("Blood", ignoreCase = true) && (topicStr.contains("Blood", ignoreCase = true) || topicStr.contains("Direction", ignoreCase = true) || topicStr.contains("Relation", ignoreCase = true))) ||
-                                (ch.contains("Seating", ignoreCase = true) && (topicStr.contains("Seat", ignoreCase = true) || topicStr.contains("Puzzle", ignoreCase = true) || topicStr.contains("Venn", ignoreCase = true))) ||
-                                (ch.contains("Syllogism", ignoreCase = true) && (topicStr.contains("Syllogism", ignoreCase = true) || topicStr.contains("Statement", ignoreCase = true) || topicStr.contains("Assumption", ignoreCase = true)))
-                            }
-                        } else if (selectedSubjectKey == "General English") {
-                            selectedChapters.any { ch ->
-                                if (ch == "One-Word & Idioms" || ch == "One-Word & Idiom") {
-                                    normTopic == "One-Word & Idioms" || normTopic == "One-Word & Idiom" || topicStr.contains("Idiom", ignoreCase = true) || topicStr.contains("One-Word", ignoreCase = true) || topicStr.contains("One Word", ignoreCase = true) || topicStr.contains("Substitution", ignoreCase = true) || topicStr.contains("Phrase", ignoreCase = true)
-                                } else if (ch == "Synonyms, Antonyms & Vocabulary") {
-                                    normTopic == "Synonyms & Antonyms" || topicStr.contains("Synonym", ignoreCase = true) || topicStr.contains("Antonym", ignoreCase = true) || topicStr.contains("Vocabulary", ignoreCase = true) || topicStr.contains("Meaning", ignoreCase = true) || topicStr.contains("Word", ignoreCase = true)
-                                } else if (ch == "Reading Comprehension & Para Jumbles") {
-                                    normTopic == "Reading Comprehension" || topicStr.contains("Reading", ignoreCase = true) || topicStr.contains("Comprehension", ignoreCase = true) || topicStr.contains("Passage", ignoreCase = true) || topicStr.contains("Jumble", ignoreCase = true) || topicStr.contains("Para", ignoreCase = true)
-                                } else if (ch == "Grammar & Sentence Correction") {
-                                    normTopic == "Grammar" || topicStr.contains("Grammar", ignoreCase = true) || topicStr.contains("Sentence", ignoreCase = true) || topicStr.contains("Correction", ignoreCase = true) || topicStr.contains("Error", ignoreCase = true) || topicStr.contains("Fill in", ignoreCase = true) || topicStr.contains("Preposition", ignoreCase = true) || topicStr.contains("Article", ignoreCase = true) || topicStr.contains("Conjunction", ignoreCase = true) || topicStr.contains("Noun", ignoreCase = true) || topicStr.contains("Pronoun", ignoreCase = true) || topicStr.contains("Verb", ignoreCase = true) || topicStr.contains("Adverb", ignoreCase = true) || topicStr.contains("Adjective", ignoreCase = true)
-                                } else if (ch == "Cloze Test") {
-                                    normTopic == "Cloze Test" || topicStr.contains("Cloze", ignoreCase = true)
-                                } else if (ch == "Active & Passive Voice") {
-                                    normTopic == "Active & Passive Voice" || topicStr.contains("Voice", ignoreCase = true) || topicStr.contains("Active", ignoreCase = true) || topicStr.contains("Passive", ignoreCase = true)
-                                } else {
-                                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                    normTopic == nCh || topicStr.contains(ch, ignoreCase = true) || ch.contains(topicStr, ignoreCase = true)
+                        val qSubject = q.subject ?: ""
+                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
+
+                        selectedChapters.any { rawCh ->
+                            val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
+                            val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
+
+                            val subjectMatches = if (selSubj.isNotBlank()) {
+                                when (selSubj) {
+                                    "General Knowledge" -> qSubject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                                    "General English" -> qSubject.equals("General English", ignoreCase = true) || qSubject.equals("English", ignoreCase = true) || qSubject.contains("English", ignoreCase = true)
+                                    "General Mathematics", "Mathematics" -> qSubject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                                    "Reasoning", "Reasoning & Mental Ability" -> qSubject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                                    "Transport & Motor Vehicle" -> qSubject.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubject.contains("Transport", ignoreCase = true) || qSubject.contains("Motor Vehicle", ignoreCase = true)
+                                    else -> qSubject.equals(selSubj, ignoreCase = true) || qSubject.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubject, ignoreCase = true)
                                 }
+                            } else {
+                                true
                             }
-                        } else {
-                            selectedChapters.any { ch ->
-                                val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                                normTopic.equals(nCh, ignoreCase = true) ||
-                                topicStr.equals(ch, ignoreCase = true) ||
-                                topicStr.contains(ch, ignoreCase = true) ||
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                normTopic.contains(ch, ignoreCase = true) ||
-                                ch.contains(normTopic, ignoreCase = true)
-                            }
+
+                            if (!subjectMatches) return@any false
+
+                            val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                            normTopic.equals(nCh, ignoreCase = true) ||
+                            topicStr.equals(ch, ignoreCase = true) ||
+                            topicStr.contains(ch, ignoreCase = true) ||
+                            ch.contains(topicStr, ignoreCase = true) ||
+                            normTopic.contains(ch, ignoreCase = true) ||
+                            ch.contains(normTopic, ignoreCase = true)
                         }
                     }
                     
@@ -219,7 +207,44 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     icon = Icons.Default.Traffic,
                     containerColor = colorSurfaceVariant,
                     iconColor = colorPrimary
-                ),
+                )
+            )
+
+            val existingKeys = predefined.map { it.subjectKey.lowercase() }.toMutableSet()
+            existingKeys.add("all subjects")
+
+            val dynamicSubjects = mutableSetOf<String>()
+            allSubjectsChapters.forEach { if (it.subject.isNotBlank()) dynamicSubjects.add(it.subject) }
+            visibleQuestions.forEach { if (it.subject.isNotBlank()) dynamicSubjects.add(it.subject) }
+
+            val dynamicBanners = dynamicSubjects
+                .filter { subj ->
+                    val norm = subj.lowercase()
+                    !existingKeys.contains(norm) &&
+                    norm != "general knowledge" &&
+                    norm != "general english" &&
+                    norm != "english" &&
+                    norm != "general mathematics" &&
+                    norm != "mathematics" &&
+                    norm != "reasoning" &&
+                    norm != "reasoning & mental ability" &&
+                    norm != "transport & motor vehicle"
+                }
+                .sorted()
+                .map { subj ->
+                    BannerConfig(
+                        titleEn = subj,
+                        titleAs = subj,
+                        subtitleEn = "Practice questions for $subj",
+                        subtitleAs = "$subj ৰ প্ৰশ্নসমূহ",
+                        subjectKey = subj,
+                        icon = Icons.Default.Book,
+                        containerColor = colorSurfaceVariant,
+                        iconColor = colorPrimary
+                    )
+                }
+
+            val banners = predefined + dynamicBanners + listOf(
                 BannerConfig(
                     titleEn = "All Subjects",
                     titleAs = "সকলো বিষয়",
@@ -231,8 +256,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     iconColor = colorPrimary
                 )
             )
-
-            val banners = predefined
 
             val qIdToNormalizedTopic = visibleQuestions.associate { q ->
                 q.id to com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject)
@@ -258,12 +281,17 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 val bannerQs = bannerQsMap[banner] ?: emptyList()
 
                 when (banner.subjectKey) {
-                    "All Subjects" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                    "All Subjects", "All Subject" -> {
+                        allSubjectsChapters.forEach { sc ->
+                            if (sc.chapter.isNotBlank()) {
+                                set.add("${sc.subject}: ${sc.chapter}")
+                            }
                         }
-                        allSubjectsChapters.forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                        bannerQs.forEach { q ->
+                            if (!q.topic.isNullOrBlank() && !q.subject.isNullOrBlank()) {
+                                set.add("${q.subject}: ${q.topic}")
+                            }
+                        }
                     }
                     "General Knowledge" -> {
                         bannerQs.forEach { q ->
@@ -271,7 +299,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     "General English" -> {
                         bannerQs.forEach { q ->
@@ -279,7 +307,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     "General Mathematics" -> {
                         bannerQs.forEach { q ->
@@ -287,15 +315,15 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     "Reasoning", "Reasoning & Mental Ability" -> {
                         bannerQs.forEach { q ->
                             val norm = qIdToNormalizedTopic[q.id]
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
-                        allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                        allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability", "Reasoning & Mental Ability") }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     "Basic Computer", "Computer Knowledge", "Computer" -> {
                         bannerQs.forEach { q ->
@@ -303,7 +331,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     "Transport & Motor Vehicle" -> {
                         bannerQs.forEach { q ->
@@ -311,7 +339,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { it.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.subject.contains("Transport", ignoreCase = true) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                     else -> {
                         bannerQs.forEach { q ->
@@ -319,28 +347,41 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(com.example.data.repository.normalizeChapterName(it.chapter, it.subject)) }
+                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                 }
-                set.remove("One-Word & Idiom")
-                set.remove("One-Word & Idiom/Phrase")
-                set.remove("Idioms, Phrases & One-Word Substitution")
-                set.remove("Idioms & Phrases")
-                set.remove("One-Word Substitution")
-                set.remove("One Word Substitution")
                 val availableChaptersList = set.toList().sorted()
 
-                val chapterCountsMap = availableChaptersList.associateWith { chapter ->
-                    val normCh = com.example.data.repository.normalizeChapterName(chapter, banner.subjectKey)
+                val chapterCountsMap = availableChaptersList.associateWith { rawCh ->
+                    val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
+                    val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
+
                     bannerQs.count { q ->
+                        val qSubj = q.subject ?: ""
                         val topicStr = q.topic ?: ""
                         val normTopic = qIdToNormalizedTopic[q.id] ?: ""
-                        normTopic.equals(normCh, ignoreCase = true) || 
-                        topicStr.equals(chapter, ignoreCase = true) || 
-                        topicStr.contains(chapter, ignoreCase = true) || 
-                        chapter.contains(topicStr, ignoreCase = true) || 
-                        normTopic.contains(chapter, ignoreCase = true) || 
-                        chapter.contains(normTopic, ignoreCase = true)
+
+                        val subjectMatches = if (selSubj.isNotBlank()) {
+                            when (selSubj) {
+                                "General Knowledge" -> qSubj in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                                "General English" -> qSubj.equals("General English", ignoreCase = true) || qSubj.equals("English", ignoreCase = true) || qSubj.contains("English", ignoreCase = true)
+                                "General Mathematics", "Mathematics" -> qSubj in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                                "Reasoning", "Reasoning & Mental Ability" -> qSubj in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                                "Transport & Motor Vehicle" -> qSubj.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubj.contains("Transport", ignoreCase = true) || qSubj.contains("Motor Vehicle", ignoreCase = true)
+                                else -> qSubj.equals(selSubj, ignoreCase = true) || qSubj.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubj, ignoreCase = true)
+                            }
+                        } else true
+
+                        if (!subjectMatches) false
+                        else {
+                            val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj)
+                            normTopic.equals(normCh, ignoreCase = true) ||
+                            topicStr.equals(ch, ignoreCase = true) ||
+                            topicStr.contains(ch, ignoreCase = true) ||
+                            ch.contains(topicStr, ignoreCase = true) ||
+                            normTopic.contains(ch, ignoreCase = true) ||
+                            ch.contains(normTopic, ignoreCase = true)
+                        }
                     }
                 }
 

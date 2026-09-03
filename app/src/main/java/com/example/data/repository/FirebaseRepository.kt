@@ -929,7 +929,8 @@ class FirebaseRepository {
         plans: List<PlanEntity>,
         banners: List<BannerEntity>,
         examUpdates: List<ExamUpdateEntity>,
-        faqs: List<FaqEntity>
+        faqs: List<FaqEntity>,
+        subjectChapters: List<SubjectChapterEntity> = emptyList()
     ): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val db = firestore ?: return@withContext 0
         var totalUploaded = 0
@@ -961,6 +962,7 @@ class FirebaseRepository {
         saveCollection("banners", banners.map { db.collection("banners").document(it.id.toString()) to bannerToMap(it) })
         saveCollection("exam_updates", examUpdates.map { db.collection("exam_updates").document(it.id.toString()) to examUpdateToMap(it) })
         saveCollection("faqs", faqs.map { db.collection("faqs").document(it.id.toString()) to faqToMap(it) })
+        saveCollection("subjects_chapters", subjectChapters.map { db.collection("subjects_chapters").document(it.id.toString()) to subjectChapterToMap(it) })
 
         return@withContext totalUploaded
     }

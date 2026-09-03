@@ -805,14 +805,34 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 true
             } else {
                 val topicStr = q.topic ?: ""
-                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                selectedChapters.any { ch ->
-                    val nCh = com.example.data.repository.normalizeChapterName(ch, q.subject)
-                    normTopic.equals(nCh, ignoreCase = true) || 
-                    topicStr.equals(ch, ignoreCase = true) || 
-                    topicStr.contains(ch, ignoreCase = true) || 
-                    ch.contains(topicStr, ignoreCase = true) || 
-                    normTopic.contains(ch, ignoreCase = true) || 
+                val qSubject = q.subject ?: ""
+                val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
+
+                selectedChapters.any { rawCh ->
+                    val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
+                    val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
+
+                    val subjectMatches = if (selSubj.isNotBlank()) {
+                        when (selSubj) {
+                            "General Knowledge" -> qSubject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                            "General English" -> qSubject.equals("General English", ignoreCase = true) || qSubject.equals("English", ignoreCase = true) || qSubject.contains("English", ignoreCase = true)
+                            "General Mathematics", "Mathematics" -> qSubject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                            "Reasoning", "Reasoning & Mental Ability" -> qSubject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                            "Transport & Motor Vehicle" -> qSubject.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubject.contains("Transport", ignoreCase = true) || qSubject.contains("Motor Vehicle", ignoreCase = true)
+                            else -> qSubject.equals(selSubj, ignoreCase = true) || qSubject.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubject, ignoreCase = true)
+                        }
+                    } else {
+                        true
+                    }
+
+                    if (!subjectMatches) return@any false
+
+                    val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                    normTopic.equals(nCh, ignoreCase = true) ||
+                    topicStr.equals(ch, ignoreCase = true) ||
+                    topicStr.contains(ch, ignoreCase = true) ||
+                    ch.contains(topicStr, ignoreCase = true) ||
+                    normTopic.contains(ch, ignoreCase = true) ||
                     ch.contains(normTopic, ignoreCase = true)
                 }
             }
@@ -820,12 +840,49 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
         }
     }
 
-    val studyBanners = listOf(
+    val predefinedStudy = listOf(
         StudyBannerConfig("General Knowledge", "সাধাৰণ জ্ঞান", "Assam history, geography, and more", "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য", "General Knowledge", androidx.compose.material.icons.Icons.Default.Public, androidx.compose.ui.graphics.Color(0xFFE8F5E9), androidx.compose.ui.graphics.Color(0xFF2E7D32)),
         StudyBannerConfig("General English", "সাধাৰণ ইংৰাজী", "Grammar, vocabulary, and comprehension", "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা", "General English", androidx.compose.material.icons.Icons.Default.MenuBook, androidx.compose.ui.graphics.Color(0xFFE3F2FD), androidx.compose.ui.graphics.Color(0xFF1565C0)),
         StudyBannerConfig("General Mathematics", "সাধাৰণ গণিত", "Arithmetic, algebra, and geometry", "পাটিগণিত, বীজগণিত আৰু জ্যামিতি", "General Mathematics", androidx.compose.material.icons.Icons.Default.Calculate, androidx.compose.ui.graphics.Color(0xFFFFF3E0), androidx.compose.ui.graphics.Color(0xFFEF6C00)),
         StudyBannerConfig("Reasoning & Mental Ability", "যুক্তিবিদ্যা (Reasoning)", "Logical and analytical reasoning", "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি", "Reasoning & Mental Ability", androidx.compose.material.icons.Icons.Default.Psychology, androidx.compose.ui.graphics.Color(0xFFF3E5F5), androidx.compose.ui.graphics.Color(0xFF6A1B9A)),
-        StudyBannerConfig("Transport & Motor Vehicle", "পৰিবহন আৰু মটৰ বাহন", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport & Motor Vehicle", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315)),
+        StudyBannerConfig("Transport & Motor Vehicle", "পৰিবহন আৰু মটৰ বাহন", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport & Motor Vehicle", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315))
+    )
+
+    val existingStudyKeys = predefinedStudy.map { it.subjectKey.lowercase() }.toMutableSet()
+    existingStudyKeys.add("all subjects")
+
+    val dynamicStudySubjects = mutableSetOf<String>()
+    allSubjectsChapters.forEach { if (it.subject.isNotBlank()) dynamicStudySubjects.add(it.subject) }
+    questions.forEach { if (it.subject.isNotBlank()) dynamicStudySubjects.add(it.subject) }
+
+    val dynamicStudyBanners = dynamicStudySubjects
+        .filter { subj ->
+            val norm = subj.lowercase()
+            !existingStudyKeys.contains(norm) &&
+            norm != "general knowledge" &&
+            norm != "general english" &&
+            norm != "english" &&
+            norm != "general mathematics" &&
+            norm != "mathematics" &&
+            norm != "reasoning" &&
+            norm != "reasoning & mental ability" &&
+            norm != "transport & motor vehicle"
+        }
+        .sorted()
+        .map { subj ->
+            StudyBannerConfig(
+                titleEn = subj,
+                titleAs = subj,
+                subtitleEn = "Study notes and questions for $subj",
+                subtitleAs = "$subj ৰ অধ্যয়ন নোট আৰু প্ৰশ্ন",
+                subjectKey = subj,
+                icon = androidx.compose.material.icons.Icons.Default.Book,
+                containerColor = androidx.compose.ui.graphics.Color(0xFFEFEBE9),
+                iconColor = androidx.compose.ui.graphics.Color(0xFF4E342E)
+            )
+        }
+
+    val studyBanners = predefinedStudy + dynamicStudyBanners + listOf(
         StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFFFF8E1), androidx.compose.ui.graphics.Color(0xFFFF8F00))
     )
 
@@ -850,23 +907,79 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                 }
                 val totalCount = bannerQuestions.size
                 
-                val availableChapters = allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }.map { it.chapter }
+                val availableChapters = remember(banner.subjectKey, allSubjectsChapters, questions) {
+                    if (banner.subjectKey == "All Subjects" || banner.subjectKey == "All Subject") {
+                        val set = mutableSetOf<String>()
+                        allSubjectsChapters.forEach { sc ->
+                            if (sc.chapter.isNotBlank()) {
+                                set.add("${sc.subject}: ${sc.chapter}")
+                            }
+                        }
+                        bannerQuestions.forEach { q ->
+                            if (!q.topic.isNullOrBlank() && !q.subject.isNullOrBlank()) {
+                                set.add("${q.subject}: ${q.topic}")
+                            }
+                        }
+                        set.toList().sorted()
+                    } else {
+                        val set = mutableSetOf<String>()
+                        val filteredFromDb = when (banner.subjectKey) {
+                            "General Knowledge" -> allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
+                            "General English" -> allSubjectsChapters.filter { it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true) }
+                            "General Mathematics" -> allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
+                            "Reasoning", "Reasoning & Mental Ability" -> allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability", "Reasoning & Mental Ability") }
+                            "Transport & Motor Vehicle" -> allSubjectsChapters.filter { it.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || it.subject.contains("Transport", ignoreCase = true) }
+                            else -> allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                        }
+                        filteredFromDb.forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
+                        bannerQuestions.forEach { q ->
+                            if (!q.topic.isNullOrBlank()) set.add(q.topic)
+                        }
+                        set.toList().sorted()
+                    }
+                }
+                
                 val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
 
                 val chapterCounts = remember(bannerQuestions, availableChapters) {
-                    availableChapters.associateWith { chapter ->
+                    availableChapters.associateWith { rawCh ->
+                        val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
+                        val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
+
                         bannerQuestions.count { q ->
+                            val qSubj = q.subject ?: ""
                             val topicStr = q.topic ?: ""
-                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, q.subject)
-                            val normCh = com.example.data.repository.normalizeChapterName(chapter, q.subject)
-                            normTopic.equals(normCh, ignoreCase = true) || 
-                            topicStr.equals(chapter, ignoreCase = true) || 
-                            topicStr.contains(chapter, ignoreCase = true) || 
-                            chapter.contains(topicStr, ignoreCase = true) || 
-                            normTopic.contains(chapter, ignoreCase = true) || 
-                            chapter.contains(normTopic, ignoreCase = true)
+                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubj)
+
+                            val subjectMatches = if (selSubj.isNotBlank()) {
+                                when (selSubj) {
+                                    "General Knowledge" -> qSubj in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
+                                    "General English" -> qSubj.equals("General English", ignoreCase = true) || qSubj.equals("English", ignoreCase = true) || qSubj.contains("English", ignoreCase = true)
+                                    "General Mathematics", "Mathematics" -> qSubj in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
+                                    "Reasoning", "Reasoning & Mental Ability" -> qSubj in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
+                                    "Transport & Motor Vehicle" -> qSubj.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubj.contains("Transport", ignoreCase = true) || qSubj.contains("Motor Vehicle", ignoreCase = true)
+                                    else -> qSubj.equals(selSubj, ignoreCase = true) || qSubj.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubj, ignoreCase = true)
+                                }
+                            } else true
+
+                            if (!subjectMatches) false
+                            else {
+                                val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj)
+                                normTopic.equals(normCh, ignoreCase = true) ||
+                                topicStr.equals(ch, ignoreCase = true) ||
+                                topicStr.contains(ch, ignoreCase = true) ||
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                normTopic.contains(ch, ignoreCase = true) ||
+                                ch.contains(normTopic, ignoreCase = true)
+                            }
                         }
                     }
+                }
+
+                val displayedCount = if (currentSelectedChapters.isEmpty()) {
+                    bannerQuestions.size
+                } else {
+                    currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
                 }
                 
                 StudySubjectBannerCard(
@@ -876,7 +989,7 @@ fun StudyMcqInteractiveTab(viewModel: JuktiViewModel) {
                     onChaptersChanged = { newSet ->
                         chaptersMap = chaptersMap + (banner.subjectKey to newSet)
                     },
-                    totalQuestionsCount = totalCount,
+                    totalQuestionsCount = displayedCount,
                     actionButtonTextEn = "Start Study",
                     actionButtonTextAs = "অধ্যয়ন আৰম্ভ কৰক",
                     onStartClick = {

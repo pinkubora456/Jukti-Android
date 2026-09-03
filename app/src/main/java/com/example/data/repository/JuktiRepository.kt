@@ -589,8 +589,9 @@ class JuktiRepository(
         // Clear all subjects & chapters
         try {
             subjectChapterDao.deleteAll()
+            subjectChapterDao.insertAll(SampleData.sampleSubjectsChapters)
         } catch (e: Throwable) {
-            Log.e("JuktiRepository", "Error clearing subject/chapter database", e)
+            Log.e("JuktiRepository", "Error clearing/seeding subject/chapter database", e)
         }
 
         // Migrate and normalize local questions
@@ -1821,6 +1822,7 @@ class JuktiRepository(
             val banners = bannerDao.getAllBanners().firstOrNull() ?: emptyList()
             val examUpdates = examUpdateDao.getAllUpdates().firstOrNull() ?: emptyList()
             val faqs = faqDao.getAllFaqs().firstOrNull() ?: emptyList()
+            val subjectChapters = subjectChapterDao.getAllSubjectsChapters().firstOrNull() ?: emptyList()
 
             val itemCount = firebaseRepository.batchSaveAllData(
                 questions = questions,
@@ -1829,7 +1831,8 @@ class JuktiRepository(
                 plans = plans,
                 banners = banners,
                 examUpdates = examUpdates,
-                faqs = faqs
+                faqs = faqs,
+                subjectChapters = subjectChapters
             )
 
             val exams = examDao.getAllExams().firstOrNull() ?: emptyList()
