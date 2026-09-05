@@ -257,7 +257,8 @@ fun PracticeSummaryView(
     onFinish: () -> Unit,
     onPracticeAgain: () -> Unit,
     questionLanguage: AppLanguage,
-    isSmartPractice: Boolean = false
+    isSmartPractice: Boolean = false,
+    isSavedPractice: Boolean = false
 ) {
     var correctCount = 0
     var incorrectCount = 0
@@ -279,6 +280,14 @@ fun PracticeSummaryView(
     val score = correctCount * 10
     val avgSpeedPerMcq = if (totalAttempted > 0) (totalTimeSeconds.toFloat() / totalAttempted).toInt() else 0
 
+    var showOnlyMistakes by remember { mutableStateOf(false) }
+
+    val filteredReviewQuestions = if (showOnlyMistakes) {
+        answeredQuestions.filter { !it.second }
+    } else {
+        answeredQuestions
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -288,7 +297,7 @@ fun PracticeSummaryView(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Summary 🎉",
+            text = if (isSavedPractice) "Saved Practice Complete 📌" else if (isSmartPractice) "Smart Practice Complete 🎯" else "Practice Complete 🎉",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
@@ -388,69 +397,95 @@ fun PracticeSummaryView(
         }
 
         if (answeredQuestions.isNotEmpty()) {
-            Text(
-                text = "Detailed Question Review",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+            Row(
                 modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(top = 16.dp, bottom = 8.dp)
-            )
-
-            answeredQuestions.forEachIndexed { index, (q, isCorrect) ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isCorrect) MaterialTheme.colorScheme.successContainer.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Detailed Question Review",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (incorrectCount > 0) {
+                    FilterChip(
+                        selected = showOnlyMistakes,
+                        onClick = { showOnlyMistakes = !showOnlyMistakes },
+                        label = { Text(if (showOnlyMistakes) "Showing Mistakes ($incorrectCount)" else "Review Mistakes ($incorrectCount)") },
+                        leadingIcon = {
+                            if (showOnlyMistakes) {
+                                Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     )
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        com.example.ui.components.QuestionTypeBadge(
-                            questionType = q.questionType,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                                contentDescription = null,
-                                tint = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(24.dp).padding(end = 8.dp)
-                            )
-                            BilingualText(
-                                textEn = "${index + 1}. ${q.questionEn}",
-                                textAs = "${index + 1}. ${q.questionAs}",
-                                language = questionLanguage,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        val selectedAnsIndex = userAnswers[q.id] ?: -1
-                        val selectedAnsEn = when (selectedAnsIndex) {
-                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
-                        }
-                        val correctAnsEn = when (q.correctOptionIndex) {
-                            0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
-                        }
+                }
+            }
 
-                        Text(
-                            text = "Your Answer: $selectedAnsEn",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+            if (filteredReviewQuestions.isEmpty() && showOnlyMistakes) {
+                Text(
+                    text = "No mistakes to show! Great job! 🎉",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else {
+                filteredReviewQuestions.forEachIndexed { index, (q, isCorrect) ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCorrect) MaterialTheme.colorScheme.successContainer.copy(alpha = 0.2f)
+                            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
                         )
-                        if (!isCorrect) {
-                            Text(
-                                text = "Correct Answer: $correctAnsEn",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.success
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            com.example.ui.components.QuestionTypeBadge(
+                                questionType = q.questionType,
+                                modifier = Modifier.padding(bottom = 6.dp)
                             )
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                    contentDescription = null,
+                                    tint = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp).padding(end = 8.dp)
+                                )
+                                BilingualText(
+                                    textEn = "${index + 1}. ${q.questionEn}",
+                                    textAs = "${index + 1}. ${q.questionAs}",
+                                    language = questionLanguage,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            val selectedAnsIndex = userAnswers[q.id] ?: -1
+                            val selectedAnsEn = when (selectedAnsIndex) {
+                                0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
+                            }
+                            val correctAnsEn = when (q.correctOptionIndex) {
+                                0 -> q.optionAEn; 1 -> q.optionBEn; 2 -> q.optionCEn; 3 -> q.optionDEn; else -> ""
+                            }
+
+                            Text(
+                                text = "Your Answer: $selectedAnsEn",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+                            )
+                            if (!isCorrect) {
+                                Text(
+                                    text = "Correct Answer: $correctAnsEn",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.success
+                                )
+                            }
                         }
                     }
                 }

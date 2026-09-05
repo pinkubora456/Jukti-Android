@@ -8,6 +8,9 @@ abstract class QuestionDao {
     @Query("DELETE FROM questions WHERE isPremium = 1")
     abstract suspend fun deletePremiumQuestions()
 
+    @Query("SELECT COUNT(*) FROM questions WHERE isPremium = 1")
+    abstract suspend fun getPremiumQuestionsCount(): Int
+
     @Query("SELECT * FROM questions ORDER BY id DESC")
     abstract fun getAllQuestions(): Flow<List<QuestionEntity>>
 
@@ -105,6 +108,9 @@ abstract class MockTestDao {
     @Query("DELETE FROM mock_tests WHERE isPremium = 1")
     abstract suspend fun deletePremiumMockTests()
 
+    @Query("SELECT COUNT(*) FROM mock_tests WHERE isPremium = 1")
+    abstract suspend fun getPremiumMockTestsCount(): Int
+
     @Query("SELECT * FROM mock_tests ORDER BY id DESC")
     abstract fun getAllMockTests(): Flow<List<MockTestEntity>>
 
@@ -176,6 +182,9 @@ interface UserQuestionStateDao {
 abstract class StudyNoteDao {
     @Query("DELETE FROM study_notes WHERE isPremium = 1")
     abstract suspend fun deletePremiumStudyNotes()
+
+    @Query("SELECT COUNT(*) FROM study_notes WHERE isPremium = 1")
+    abstract suspend fun getPremiumStudyNotesCount(): Int
 
     @Query("SELECT * FROM study_notes ORDER BY id DESC")
     abstract fun getAllNotes(): Flow<List<StudyNoteEntity>>
@@ -356,8 +365,14 @@ interface SubjectChapterDao {
     @Query("DELETE FROM subjects_chapters WHERE subject = :subject AND chapter = :chapter")
     abstract suspend fun deleteSubjectChapterByNames(subject: String, chapter: String)
 
+    @Query("SELECT * FROM subjects_chapters WHERE subject = :subject AND chapter = :chapter")
+    abstract suspend fun getSubjectChapterByNames(subject: String, chapter: String): List<SubjectChapterEntity>
+
     @Query("DELETE FROM subjects_chapters WHERE subject = :subject")
     abstract suspend fun deleteSubject(subject: String)
+
+    @Query("SELECT * FROM subjects_chapters WHERE subject = :subject")
+    abstract suspend fun getSubjectChaptersBySubject(subject: String): List<SubjectChapterEntity>
 
     @Delete
     abstract suspend fun deleteSubjectChapter(subjectChapter: SubjectChapterEntity)

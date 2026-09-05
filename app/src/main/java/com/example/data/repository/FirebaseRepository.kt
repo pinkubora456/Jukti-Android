@@ -559,11 +559,11 @@ class FirebaseRepository {
         }
     }
 
-    suspend fun fetchUserQuestionStateList(email: String): List<UserQuestionStateEntity> {
+    suspend fun fetchUserQuestionStateList(uid: String): List<UserQuestionStateEntity> {
         return try {
-            val docId = getSanitizedUserDocId(email)
-            val snapshot = firestore?.collection("users")?.document(docId)
-                ?.collection("user_question_states")?.get()?.await()
+            val snapshot = firestore?.collection("user_question_states")
+                ?.whereEqualTo("userId", uid)
+                ?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     UserQuestionStateEntity(
@@ -1035,6 +1035,30 @@ class FirebaseRepository {
         }
     }
 
+    suspend fun fetchAllSubjectsChapters(): List<SubjectChapterEntity> {
+        return try {
+            val snapshot = firestore?.collection("subjects_chapters")?.get()?.await()
+            snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    val rawChap = doc.getString("chapter") ?: ""
+                    val rawSubj = doc.getString("subject") ?: ""
+                    val normChap = normalizeChapterName(rawChap, rawSubj)
+                    val normSubj = normalizeSubjectName(rawSubj)
+                    if (normChap.isBlank() || normSubj.isBlank()) null
+                    else SubjectChapterEntity(
+                        id = doc.getLong("id") ?: 0L,
+                        subject = normSubj,
+                        chapter = normChap
+                    )
+                } catch (e: Exception) { null }
+            }?.distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" } ?: emptyList()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error fetching subjects chapters", e)
+            emptyList()
+        }
+    }
+
     suspend fun fetchAllQuestions(): List<QuestionEntity> {
         return try {
             val snapshot = firestore?.collection("questions")?.whereEqualTo("isPremium", false)?.get()?.await()
@@ -1228,6 +1252,23 @@ class FirebaseRepository {
     }
 
 
+    suspend fun fetchServerContentVersion(): Int {
+        return try {
+            val doc = firestore?.collection("metadata")?.document("content_version")?.get()?.await()
+            if (doc != null && doc.exists()) {
+                doc.getLong("premium_version")?.toInt() ?: doc.getLong("version")?.toInt() ?: 1
+            } else {
+                val config = firestore?.collection("about_config")?.document("1")?.get()?.await()
+                if (config != null && config.exists()) {
+                    val updated = config.getLong("logoUpdatedAt") ?: 0L
+                    if (updated > 0L) (updated / 1000).toInt() else 1
+                } else 1
+            }
+        } catch (e: Exception) {
+            1
+        }
+    }
+
     suspend fun fetchPremiumQuestions(): List<QuestionEntity> {
         val cloudResult = try {
             val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
@@ -1262,7 +1303,8 @@ class FirebaseRepository {
                         questionType = doc["questionType"] as? String ?: "Expected",
                         isReported = doc["isReported"] as? Boolean ?: false,
                         status = doc["status"] as? String ?: "ACTIVE",
-                        cachedAt = System.currentTimeMillis()
+                        cachedAt = System.currentTimeMillis(),
+                        version = (doc["version"] as? Number)?.toInt() ?: 1
                     )
                 } catch (e: Exception) { null }
             }
@@ -1302,7 +1344,8 @@ class FirebaseRepository {
                         questionType = doc.getString("questionType") ?: "Expected",
                         isReported = doc.getBoolean("isReported") ?: false,
                         status = doc.getString("status") ?: "ACTIVE",
-                        cachedAt = System.currentTimeMillis()
+                        cachedAt = System.currentTimeMillis(),
+                        version = doc.getLong("version")?.toInt() ?: 1
                     )
                 } catch (e: Exception) { null }
             } ?: emptyList()

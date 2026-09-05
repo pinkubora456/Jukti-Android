@@ -154,4 +154,57 @@ class BatchImportUnitTest {
         assertEquals("Bal Gangadhar Tilak", q.optionAEn)
         assertEquals(0, q.correctOptionIndex)
     }
+
+    @Test
+    fun testExactStatementCsvFormatRequestedByUser() {
+        val userCsv = """
+statement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty
+"Who was the first King of the Ahom Kingdom?","আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?","Sukaphaa","চ্যুকাফা","Sutephaa","চ্যুটেফা","Subinphaa","চুবিনফা","Sudangphaa","চুডাংফা","A","Sukaphaa founded the Ahom Kingdom in medieval Assam.","চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।","Assam History","Ahom Kingdom","ADRE HS 2024","Medium"
+        """.trimIndent()
+
+        val result = CsvQuestionParser.validateAndParseQuestions(
+            csvText = userCsv
+        )
+
+        assertEquals(1, result.totalRows)
+        assertEquals(1, result.validCount)
+        assertEquals(0, result.invalidCount)
+
+        val q = result.validRows[0].question!!
+        assertEquals("Who was the first King of the Ahom Kingdom?", q.questionEn)
+        assertEquals("আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?", q.questionAs)
+        assertEquals("Sukaphaa", q.optionAEn)
+        assertEquals("চ্যুকাফা", q.optionAAs)
+        assertEquals("Sutephaa", q.optionBEn)
+        assertEquals("চ্যুটেফা", q.optionBAs)
+        assertEquals("Subinphaa", q.optionCEn)
+        assertEquals("চুবিনফা", q.optionCAs)
+        assertEquals("Sudangphaa", q.optionDEn)
+        assertEquals("চুডাংফা", q.optionDAs)
+        assertEquals(0, q.correctOptionIndex)
+        assertEquals("Sukaphaa founded the Ahom Kingdom in medieval Assam.", q.explanationEn)
+        assertEquals("চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।", q.explanationAs)
+        assertEquals("Assam History", q.subject)
+        assertEquals("Ahom Kingdom", q.topic)
+        assertEquals("ADRE HS 2024", q.questionType)
+        assertEquals("ADRE HS 2024", q.examCategory)
+        assertEquals("Medium", q.difficulty)
+    }
+
+    @Test
+    fun testCsvWithStrayLeadingQuoteOnHeader() {
+        val userCsv = """"statement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty
+"Who was the first King of the Ahom Kingdom?","আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?","Sukaphaa","চ্যুকাফা","Sutephaa","চ্যুটেফা","Subinphaa","চুবিনফা","Sudangphaa","চুডাংফা","A","Sukaphaa founded the Ahom Kingdom in medieval Assam.","চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।","Assam History","Ahom Kingdom","ADRE HS 2024","Medium"
+        """.trimIndent()
+
+        val result = CsvQuestionParser.validateAndParseQuestions(
+            csvText = userCsv
+        )
+
+        assertEquals(1, result.totalRows)
+        assertEquals(1, result.validCount)
+        val q = result.validRows[0].question!!
+        assertEquals("Who was the first King of the Ahom Kingdom?", q.questionEn)
+        assertEquals(0, q.correctOptionIndex)
+    }
 }

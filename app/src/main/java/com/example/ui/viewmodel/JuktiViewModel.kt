@@ -52,6 +52,7 @@ enum class Screen {
     MCQ_STUDY,
     PRACTICE,
     SMART_PRACTICE,
+    SAVED_PRACTICE,
     MOCK_TESTS,
     MOCK_PLAYER,
     MOCK_RESULT,
@@ -222,6 +223,28 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         com.example.data.repository.FirebaseSyncManager(database)
     )
 
+    val premiumSyncManager = com.example.data.repository.PremiumContentSyncManager(
+        application,
+        database,
+        com.example.data.repository.FirebaseRepository(),
+        networkMonitor
+    )
+    val premiumSyncState: StateFlow<com.example.data.repository.PremiumSyncState> = premiumSyncManager.syncState
+
+    fun retryPremiumSync() {
+        viewModelScope.launch {
+            premiumSyncManager.triggerBackgroundSync(
+                coroutineScope = viewModelScope,
+                repository = repository,
+                userProfile = userProfile.value,
+                userEntitlements = userEntitlements.value,
+                allPlans = plans.value,
+                isAdminOrOwner = isAdminOrOwner.value,
+                isManualRetry = true
+            )
+        }
+    }
+
     // Data Flows from Repository
     val plans = repository.allPlans.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -351,21 +374,43 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     private val _openedStudyDirectly = MutableStateFlow(false)
     val openedStudyDirectly: StateFlow<Boolean> = _openedStudyDirectly.asStateFlow()
 
+    private val _isStudySessionActive = MutableStateFlow(false)
+    val isStudySessionActive: StateFlow<Boolean> = _isStudySessionActive.asStateFlow()
+
+    fun setStudySessionActive(active: Boolean) {
+        _isStudySessionActive.value = active
+    }
+
     fun setStudySubView(subView: String?, fromHome: Boolean = false) {
         _studySubView.value = subView
         _openedStudyDirectly.value = fromHome
     }
 
+    private val _studySessionResetTrigger = MutableStateFlow(0)
+    val studySessionResetTrigger: StateFlow<Int> = _studySessionResetTrigger.asStateFlow()
+
+    private val _requestEndStudySessionTrigger = MutableStateFlow(0)
+    val requestEndStudySessionTrigger: StateFlow<Int> = _requestEndStudySessionTrigger.asStateFlow()
+
+    fun requestEndStudySession() {
+        _requestEndStudySessionTrigger.value++
+    }
+
     fun openStudyMcq(fromHome: Boolean = true) {
         _studySubView.value = "STUDY_MCQS"
         _openedStudyDirectly.value = fromHome
-        navigateTo(Screen.MCQ_STUDY)
+        _studySessionResetTrigger.value++
+        if (_currentScreen.value != Screen.MCQ_STUDY) {
+            navigateTo(Screen.MCQ_STUDY)
+        }
     }
 
     fun openStudyHub() {
         _studySubView.value = null
         _openedStudyDirectly.value = false
-        navigateTo(Screen.MCQ_STUDY)
+        if (_currentScreen.value != Screen.MCQ_STUDY) {
+            navigateTo(Screen.MCQ_STUDY)
+        }
     }
 
     fun finishSplash() {
@@ -783,7 +828,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     ) { questions, effective, isAdmin, isConnected ->
         val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
         questions.filter { q ->
-            !q.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin))
+            !q.isPremium || com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -823,7 +868,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     ) { list, effective, isAdmin, isConnected ->
         val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
         list.map { m ->
-            if (!m.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isMockTestAccessible(m, eff, isAdmin))) m
+            if (!m.isPremium || com.example.data.util.PlanValidityEngine.isMockTestAccessible(m, eff, isAdmin)) m
             else m.copy(
                 titleEn = "Premium Content 🔒", titleAs = "প্ৰিমিয়াম সমল 🔒"
             )
@@ -863,7 +908,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val questions: StateFlow<List<QuestionEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<QuestionEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
         val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
         list.filter { !it.isReported }.map { q ->
-            if (!q.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin))) q
+            if (!q.isPremium || com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)) q
             else q.copy(
                 questionEn = "Premium Content 🔒", questionAs = "প্ৰিমিয়াম সমল 🔒",
                 optionAEn = "Unlock to view", optionAAs = "Unlock to view",
@@ -887,7 +932,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val studyNotes: StateFlow<List<StudyNoteEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allNotes, repository.premiumStudyNotes) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<StudyNoteEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
         val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
         list.map { n ->
-            if (!n.isPremium || (isConnected && com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(n, eff, isAdmin))) n
+            if (!n.isPremium || com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(n, eff, isAdmin)) n
             else n.copy(contentEn = "Premium Content 🔒", contentAs = "Premium Content 🔒")
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -1028,6 +1073,59 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
+    fun getOrUpdateSessionDeck(
+        section: String,
+        scopeKey: String,
+        eligibleQuestions: List<QuestionEntity>
+    ): com.example.data.repository.SessionDeckResult {
+        val uid = userProfile.value?.uid?.ifBlank { "guest_user" }
+            ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: "guest_user"
+        return com.example.data.repository.SessionDeckManager.getOrUpdateDeck(
+            context = getApplication(),
+            userId = uid,
+            section = section,
+            scopeKey = scopeKey,
+            eligibleQuestions = eligibleQuestions
+        )
+    }
+
+    fun saveSessionIndex(
+        section: String,
+        scopeKey: String,
+        newIndex: Int,
+        totalSize: Int
+    ) {
+        val uid = userProfile.value?.uid?.ifBlank { "guest_user" }
+            ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: "guest_user"
+        com.example.data.repository.SessionDeckManager.saveCurrentIndex(
+            context = getApplication(),
+            userId = uid,
+            section = section,
+            scopeKey = scopeKey,
+            newIndex = newIndex,
+            totalSize = totalSize
+        )
+    }
+
+    fun resetAndReshuffleSessionDeck(
+        section: String,
+        scopeKey: String,
+        eligibleQuestions: List<QuestionEntity>
+    ): com.example.data.repository.SessionDeckResult {
+        val uid = userProfile.value?.uid?.ifBlank { "guest_user" }
+            ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: "guest_user"
+        return com.example.data.repository.SessionDeckManager.resetAndReshuffleDeck(
+            context = getApplication(),
+            userId = uid,
+            section = section,
+            scopeKey = scopeKey,
+            eligibleQuestions = eligibleQuestions
+        )
+    }
+
     private var isLoggingOutDueToDevice = false
 
 
@@ -1054,21 +1152,82 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                             navigateTo(Screen.HOME)
                         }
                     }
+                } else {
+                    kotlinx.coroutines.delay(1000)
+                    try {
+                        repository.refreshDataFromFirebase(getTrustedTime())
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(1500)
+            try {
+                repository.refreshDataFromFirebase(getTrustedTime())
+            } catch (_: Exception) {}
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                delay(15 * 60 * 1000L)
+                if (networkMonitor.isConnected.value) {
+                    try {
+                        repository.refreshDataFromFirebase(getTrustedTime())
+                    } catch (_: Exception) {}
                 }
             }
         }
         
+        // Restore local offline premium cache immediately so valid downloaded content is available on startup
+        viewModelScope.launch(Dispatchers.IO) {
+            val eff = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime(), isAdminOrOwner.value)
+            premiumSyncManager.initializeLocalCache(repository, eff, isAdminOrOwner.value)
+        }
+
+        data class SyncTriggerParams(
+            val profile: UserProfileEntity?,
+            val entitlements: List<EntitlementEntity>,
+            val plans: List<PlanEntity>,
+            val isAdmin: Boolean
+        )
+
         viewModelScope.launch {
-            combine(effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { eff, admin, online -> Triple(eff, admin, online) }
-                .collect { (eff, admin, online) ->
-                    if (online && (admin || (eff != null && eff.isPremium))) {
-                        repository.refreshPremiumContent()
-                    } else if (!online) {
-                        // Retain cached content offline
-                    } else {
-                        repository.clearPremiumCache()
-                    }
+            combine(
+                userProfile,
+                userEntitlements,
+                plans,
+                isAdminOrOwner
+            ) { profile, ents, plns, admin ->
+                SyncTriggerParams(profile, ents, plns, admin)
+            }.collectLatest { (profile, ents, plns, admin) ->
+                premiumSyncManager.triggerBackgroundSync(
+                    coroutineScope = viewModelScope,
+                    repository = repository,
+                    userProfile = profile,
+                    userEntitlements = ents,
+                    allPlans = plns,
+                    isAdminOrOwner = admin,
+                    isManualRetry = false
+                )
+            }
+        }
+
+        // Auto-retry background sync when network reconnects if sync is pending or failed
+        viewModelScope.launch {
+            networkMonitor.isConnected.collect { isConnected ->
+                if (isConnected && (premiumSyncState.value.status == com.example.data.repository.PremiumSyncStatus.RETRY_PENDING || premiumSyncState.value.status == com.example.data.repository.PremiumSyncStatus.FAILED)) {
+                    premiumSyncManager.triggerBackgroundSync(
+                        coroutineScope = viewModelScope,
+                        repository = repository,
+                        userProfile = userProfile.value,
+                        userEntitlements = userEntitlements.value,
+                        allPlans = plans.value,
+                        isAdminOrOwner = isAdminOrOwner.value,
+                        isManualRetry = false
+                    )
                 }
+            }
         }
 
         viewModelScope.launch {
@@ -1297,7 +1456,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun navigateTo(screen: Screen) {
         val currentTime = getTrustedTime()
-        if (currentTime - lastNavTime < 500) return
+        if (currentTime - lastNavTime < 150) return
         lastNavTime = currentTime
 
         val current = _currentScreen.value
@@ -2563,74 +2722,22 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             var count = 0
             try {
-                val lines = csvData.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                if (lines.size <= 1) {
-                    onComplete(0)
-                    return@launch // Only header or empty
-                }
-                
-                val questions = mutableListOf<QuestionEntity>()
-                val isPremium = questionFor.equals("Premium", ignoreCase = true)
-                
-                // Csv parsing logic taking care of quotes
-                for (i in 1 until lines.size) {
-                    val line = lines[i]
-                    val tokens = parseCsvLine(line)
-                    if (tokens.size >= 17) {
-                        val statement = tokens[0]
-                        val statementAssamese = tokens[1]
-                        val a = tokens[2]
-                        val a_as = tokens[3]
-                        val b = tokens[4]
-                        val b_as = tokens[5]
-                        val c = tokens[6]
-                        val c_as = tokens[7]
-                        val d = tokens[8]
-                        val d_as = tokens[9]
-                        val correctAnswer = tokens[10].uppercase()
-                        val explanation = tokens[11]
-                        val explanationAssamese = tokens[12]
-                        val subject = tokens[13]
-                        val topic = tokens[14]
-                        val tags = tokens[15]
-                        val difficulty = tokens[16]
-                        
-                        val correctOptionIndex = when(correctAnswer) {
-                            "A" -> 0
-                            "B" -> 1
-                            "C" -> 2
-                            "D" -> 3
-                            else -> 0
-                        }
-                        
-                        questions.add(
-                            QuestionEntity(
-                                subject = subject,
-                                topic = topic,
-                                difficulty = difficulty,
-                                questionEn = statement,
-                                questionAs = statementAssamese,
-                                optionAEn = a,
-                                optionBEn = b,
-                                optionCEn = c,
-                                optionDEn = d,
-                                optionAAs = a_as,
-                                optionBAs = b_as,
-                                optionCAs = c_as,
-                                optionDAs = d_as,
-                                correctOptionIndex = correctOptionIndex,
-                                explanationEn = explanation,
-                                explanationAs = explanationAssamese,
-                                examCategory = targetExam,
-                                isPremium = isPremium,
-                                questionType = if (tags.isNotBlank()) tags else questionType
-                            )
-                        )
-                    }
-                }
+                val validation = com.example.util.CsvQuestionParser.validateAndParseQuestions(
+                    csvText = csvData,
+                    defaultSubject = "General Studies",
+                    defaultChapter = "General",
+                    defaultExamCategory = targetExam,
+                    isPremium = questionFor.equals("Premium", ignoreCase = true)
+                )
+                val questions = validation.validRows.mapNotNull { it.question }
                 if (questions.isNotEmpty()) {
-                    repository.bulkInsertQuestions(questions)
-                    count = questions.size
+                    val finalQuestions = questions.map { q ->
+                        if (q.questionType.isBlank() || q.questionType == "Expected") {
+                            q.copy(questionType = if (questionType.isNotBlank()) questionType else q.questionType)
+                        } else q
+                    }
+                    repository.bulkInsertQuestions(finalQuestions)
+                    count = finalQuestions.size
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -2680,6 +2787,34 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 val errMsg = "Error: ${e.localizedMessage ?: "Unknown error"}"
                 _syncToastMessage.value = errMsg
                 onComplete(emptyList(), 0, errMsg)
+            }
+        }
+    }
+
+    fun batchImportQuestionsToQBank(
+        questionsToInsert: List<QuestionEntity>,
+        onComplete: (Int, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            if (!isAdminOrOwner.value) {
+                onComplete(0, "Unauthorized: Only Admin/Owner can batch import questions.")
+                return@launch
+            }
+            if (questionsToInsert.isEmpty()) {
+                onComplete(0, "No questions to import.")
+                return@launch
+            }
+            try {
+                val (success, msg) = repository.bulkInsertQuestions(questionsToInsert)
+                val count = if (success) questionsToInsert.size else 0
+                val displayMsg = if (success) "Successfully imported $count questions to Question Bank." else msg
+                _syncToastMessage.value = displayMsg
+                onComplete(count, displayMsg)
+            } catch (e: Exception) {
+                Log.e("JuktiViewModel", "Error batch importing questions to QBank", e)
+                val errMsg = "Error: ${e.localizedMessage ?: "Unknown error"}"
+                _syncToastMessage.value = errMsg
+                onComplete(0, errMsg)
             }
         }
     }

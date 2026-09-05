@@ -97,7 +97,6 @@ object SampleData {
         SubjectChapterEntity(subject = "General English", chapter = "Conjunctions"),
         SubjectChapterEntity(subject = "General English", chapter = "Parts of Speech"),
         SubjectChapterEntity(subject = "General English", chapter = "Subject-Verb Agreement"),
-        SubjectChapterEntity(subject = "General English", chapter = "Voice"),
         SubjectChapterEntity(subject = "General English", chapter = "Narration"),
         SubjectChapterEntity(subject = "General English", chapter = "Sentence Correction"),
         SubjectChapterEntity(subject = "General English", chapter = "Spotting Errors"),

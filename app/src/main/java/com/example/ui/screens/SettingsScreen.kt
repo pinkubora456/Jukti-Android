@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -21,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +54,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
     val returnToSavedQuestions by viewModel.returnToSavedQuestions.collectAsState()
     val context = LocalContext.current
 
+    var showSavedQuestionsOptionDialog by remember { mutableStateOf(false) }
     var showSavedQuestionsDialog by remember { mutableStateOf(false) }
     var showClearProgressDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -243,7 +248,7 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
             OutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showSavedQuestionsDialog = true }
+                    .clickable { showSavedQuestionsOptionDialog = true }
                     .testTag("settings_saved_questions_card"),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -600,7 +605,27 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    // Dialog 4: Saved Questions Viewer
+    // Dialog 4: Saved Questions Option Selector
+    if (showSavedQuestionsOptionDialog) {
+        SavedQuestionsOptionDialog(
+            savedCount = bookmarkedQuestions.size,
+            onDismiss = { showSavedQuestionsOptionDialog = false },
+            onViewQuestions = {
+                showSavedQuestionsOptionDialog = false
+                showSavedQuestionsDialog = true
+            },
+            onPracticeQuestions = {
+                showSavedQuestionsOptionDialog = false
+                if (bookmarkedQuestions.isEmpty()) {
+                    android.widget.Toast.makeText(context, "No saved questions to practice.", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.navigateTo(Screen.SAVED_PRACTICE)
+                }
+            }
+        )
+    }
+
+    // Dialog 4b: Saved Questions Viewer
     if (showSavedQuestionsDialog) {
         SavedQuestionsDialog(
             questions = bookmarkedQuestions,
@@ -611,6 +636,14 @@ fun SettingsScreen(viewModel: JuktiViewModel) {
                 showSavedQuestionsDialog = false
                 viewModel.startPracticeForQuestion(q)
                 viewModel.setReturnToSavedQuestions(true)
+            },
+            onPracticeAll = {
+                showSavedQuestionsDialog = false
+                if (bookmarkedQuestions.isEmpty()) {
+                    android.widget.Toast.makeText(context, "No saved questions to practice.", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.navigateTo(Screen.SAVED_PRACTICE)
+                }
             }
         )
     }
@@ -775,121 +808,353 @@ fun SavedQuestionsDialog(
     isAdminOrOwner: Boolean = false,
     onDismiss: () -> Unit,
     onToggleBookmark: (QuestionEntity) -> Unit,
-    onPracticeQuestion: (QuestionEntity) -> Unit
+    onPracticeQuestion: (QuestionEntity) -> Unit,
+    onPracticeAll: (() -> Unit)? = null
 ) {
     var selectedQuestionForAction by remember { mutableStateOf<QuestionEntity?>(null) }
     var viewingQuestion by remember { mutableStateOf<QuestionEntity?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedSubjectFilter by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
+    val subjects = remember(questions) {
+        listOf("All") + questions.map { it.subject.trim() }.filter { it.isNotBlank() }.distinct().sorted()
+    }
+
+    val filteredQuestions = remember(questions, searchQuery, selectedSubjectFilter) {
+        questions.filter { q ->
+            val matchesSubject = selectedSubjectFilter == null || selectedSubjectFilter == "All" || q.subject.trim().equals(selectedSubjectFilter, ignoreCase = true)
+            val matchesSearch = searchQuery.isBlank() ||
+                    q.questionEn.contains(searchQuery, ignoreCase = true) ||
+                    q.questionAs.contains(searchQuery, ignoreCase = true) ||
+                    q.subject.contains(searchQuery, ignoreCase = true) ||
+                    q.topic.contains(searchQuery, ignoreCase = true)
+            matchesSubject && matchesSearch
+        }
+    }
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Saved Questions (${questions.size})",
-                    fontWeight = FontWeight.Bold
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "Saved Questions",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${questions.size} question${if (questions.size == 1) "" else "s"} saved",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.testTag("saved_questions_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    actions = {
+                        if (onPracticeAll != null && questions.isNotEmpty()) {
+                            FilledTonalButton(
+                                onClick = onPracticeAll,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Quiz,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Practice All")
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
             }
-        },
-        text = {
-            if (questions.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "No saved questions yet. Bookmark MCQs during study or practice sessions to review them here.",
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 450.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(questions, key = { it.id }) { q ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedQuestionForAction = q },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) { innerPadding ->
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                if (questions.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = RoundedCornerShape(4.dp)
-                                    ) {
-                                        Text(
-                                            text = q.subject,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(72.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.BookmarkBorder,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "No Saved Questions",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Bookmark MCQs during study or practice sessions to review them here anytime.",
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Search bar & Subject Filter chips
+                        if (questions.size > 3) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("Search saved questions...", fontSize = 14.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotBlank()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Clear")
+                                        }
                                     }
-                                    IconButton(
-                                        onClick = { onToggleBookmark(q) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Bookmark,
-                                            contentDescription = "Unsave",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        if (subjects.size > 2) {
+                            androidx.compose.foundation.lazy.LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(subjects) { subj ->
+                                    val isSelected = (selectedSubjectFilter == null && subj == "All") || selectedSubjectFilter == subj
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            selectedSubjectFilter = if (subj == "All") null else subj
+                                        },
+                                        label = {
+                                            val count = if (subj == "All") questions.size else questions.count { it.subject.trim().equals(subj, ignoreCase = true) }
+                                            Text("$subj ($count)", fontSize = 12.sp)
+                                        }
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                BilingualText(
-                                    textEn = q.questionEn,
-                                    textAs = q.questionAs,
-                                    language = language,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val correctOptTextEn = when(q.correctOptionIndex) {
-                                    0 -> q.optionAEn
-                                    1 -> q.optionBEn
-                                    2 -> q.optionCEn
-                                    else -> q.optionDEn
-                                }
-                                val correctOptTextAs = when(q.correctOptionIndex) {
-                                    0 -> q.optionAAs
-                                    1 -> q.optionBAs
-                                    2 -> q.optionCAs
-                                    else -> q.optionDAs
-                                }
-                                Surface(
-                                    color = MaterialTheme.colorScheme.successContainer,
-                                    shape = RoundedCornerShape(6.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                            }
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredQuestions, key = { it.id }) { q ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedQuestionForAction = q },
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                                    )
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Text(
-                                            text = "Correct Answer:",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.success
-                                        )
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.weight(1f, fill = false)
+                                            ) {
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = q.subject,
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                }
+                                                if (q.topic.isNotBlank()) {
+                                                    Text(
+                                                        text = q.topic,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                            IconButton(
+                                                onClick = { onToggleBookmark(q) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Bookmark,
+                                                    contentDescription = "Unsave",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
                                         BilingualText(
-                                            textEn = correctOptTextEn,
-                                            textAs = correctOptTextAs,
+                                            textEn = q.questionEn,
+                                            textAs = q.questionAs,
                                             language = language,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold
                                         )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        val correctOptTextEn = when(q.correctOptionIndex) {
+                                            0 -> q.optionAEn
+                                            1 -> q.optionBEn
+                                            2 -> q.optionCEn
+                                            else -> q.optionDEn
+                                        }
+                                        val correctOptTextAs = when(q.correctOptionIndex) {
+                                            0 -> q.optionAAs
+                                            1 -> q.optionBAs
+                                            2 -> q.optionCAs
+                                            else -> q.optionDAs
+                                        }
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.successContainer.copy(alpha = 0.6f),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = "Correct",
+                                                    tint = MaterialTheme.colorScheme.success,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "Correct Answer:",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.success
+                                                    )
+                                                    BilingualText(
+                                                        textEn = correctOptTextEn,
+                                                        textAs = correctOptTextAs,
+                                                        language = language,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (q.explanationEn.isNotBlank() || q.explanationAs.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Column(modifier = Modifier.padding(10.dp)) {
+                                                    Text(
+                                                        text = "Explanation:",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    BilingualText(
+                                                        textEn = q.explanationEn,
+                                                        textAs = q.explanationAs,
+                                                        language = language,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    onDismiss()
+                                                    onPracticeQuestion(q)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.PlayArrow,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Practice This MCQ")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -897,13 +1162,8 @@ fun SavedQuestionsDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
         }
-    )
+    }
 
     if (selectedQuestionForAction != null) {
         val q = selectedQuestionForAction!!
@@ -931,6 +1191,180 @@ fun SavedQuestionsDialog(
             onDismiss = { viewingQuestion = null }
         )
     }
+}
+
+@Composable
+fun SavedQuestionsOptionDialog(
+    savedCount: Int,
+    onDismiss: () -> Unit,
+    onViewQuestions: () -> Unit,
+    onPracticeQuestions: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Bookmark,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = "Saved Questions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "$savedCount bookmarked MCQ${if (savedCount == 1) "" else "s"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Select how you want to access your saved questions:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Option 1: View Questions
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onViewQuestions)
+                        .testTag("saved_option_view"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = "View Saved Questions",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "View Saved Questions",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Browse list with correct answers and explanations.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Option 2: Practice Saved Questions
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onPracticeQuestions)
+                        .testTag("saved_option_practice"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Quiz,
+                                    contentDescription = "Practice Saved Questions",
+                                    tint = MaterialTheme.colorScheme.onSecondary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Practice Saved Questions",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Start an interactive practice session with saved MCQs.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
@@ -1056,135 +1490,191 @@ fun SavedQuestionActionDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewQuestionReadOnlyDialog(
     question: QuestionEntity,
     language: AppLanguage,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("View Question", fontWeight = FontWeight.Bold)
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = question.subject,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                BilingualText(
-                    textEn = question.questionEn,
-                    textAs = question.questionAs,
-                    language = language,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                val options = listOf(
-                    Triple("A", question.optionAEn, question.optionAAs),
-                    Triple("B", question.optionBEn, question.optionBAs),
-                    Triple("C", question.optionCEn, question.optionCAs),
-                    Triple("D", question.optionDEn, question.optionDAs)
-                )
-
-                options.forEachIndexed { idx, (label, optEn, optAs) ->
-                    val isCorrect = idx == question.correctOptionIndex
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isCorrect) 
-                                MaterialTheme.colorScheme.successContainer.copy(alpha = 0.5f) 
-                            else 
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text("Question Details", fontWeight = FontWeight.Bold)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    actions = {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.padding(end = 12.dp)
                         ) {
                             Text(
-                                text = "$label.",
+                                text = question.subject,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(modifier = Modifier.weight(1f)) {
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+            }
+        ) { innerPadding ->
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (question.topic.isNotBlank()) {
+                        Text(
+                            text = question.topic,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    BilingualText(
+                        textEn = question.questionEn,
+                        textAs = question.questionAs,
+                        language = language,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    val options = listOf(
+                        Triple("A", question.optionAEn, question.optionAAs),
+                        Triple("B", question.optionBEn, question.optionBAs),
+                        Triple("C", question.optionCEn, question.optionCAs),
+                        Triple("D", question.optionDEn, question.optionDAs)
+                    )
+
+                    options.forEachIndexed { idx, (label, optEn, optAs) ->
+                        val isCorrect = idx == question.correctOptionIndex
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isCorrect) 
+                                    MaterialTheme.colorScheme.successContainer.copy(alpha = 0.5f) 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            ),
+                            border = if (isCorrect)
+                                androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.success)
+                            else null
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = label,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCorrect) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(modifier = Modifier.weight(1f)) {
+                                    BilingualText(
+                                        textEn = optEn,
+                                        textAs = optAs,
+                                        language = language,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isCorrect) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                if (isCorrect) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Correct Answer",
+                                        tint = MaterialTheme.colorScheme.success,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (question.explanationEn.isNotBlank() || question.explanationAs.isNotBlank()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lightbulb,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Explanation",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
                                 BilingualText(
-                                    textEn = optEn,
-                                    textAs = optAs,
+                                    textEn = question.explanationEn,
+                                    textAs = question.explanationAs,
                                     language = language,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            if (isCorrect) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Correct Answer",
-                                    tint = MaterialTheme.colorScheme.success,
-                                    modifier = Modifier.size(20.dp)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
                 }
-
-                if (question.explanationEn.isNotBlank() || question.explanationAs.isNotBlank()) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "Explanation:",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            BilingualText(
-                                textEn = question.explanationEn,
-                                textAs = question.explanationAs,
-                                language = language,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
             }
         }
-    )
+    }
 }
 
 

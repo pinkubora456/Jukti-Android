@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import com.example.ui.components.SafeOutlinedTextField
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.QuestionEntity
@@ -53,7 +55,11 @@ data class BannerConfig(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) {
+fun PracticeScreen(
+    viewModel: JuktiViewModel,
+    isSmartPractice: Boolean = false,
+    isSavedPractice: Boolean = false
+) {
     val language = com.example.ui.viewmodel.AppLanguage.ENGLISH
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
@@ -61,17 +67,21 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val allQuestions by viewModel.accessibleQuestions.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
+    val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val activePracticeQuestion by viewModel.activePracticeQuestion.collectAsState()
 
     val visibleQuestions by produceState(
         initialValue = emptyList<QuestionEntity>(),
-        allQuestions, isSmartPractice, smartPracticeQuestions
+        allQuestions, isSmartPractice, isSavedPractice, smartPracticeQuestions, bookmarkedQuestions
     ) {
         value = withContext(Dispatchers.Default) {
-            val baseList = if (isSmartPractice) smartPracticeQuestions else allQuestions
-            baseList.take(if (isSmartPractice) 10 else Int.MAX_VALUE)
+            when {
+                isSavedPractice -> bookmarkedQuestions
+                isSmartPractice -> smartPracticeQuestions.take(10)
+                else -> allQuestions
+            }
         }
     }
 
@@ -79,6 +89,18 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var selectedSubjectKey by rememberSaveable { mutableStateOf("All Subjects") }
     var selectedChapters by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showEndPracticeConfirmDialog by remember { mutableStateOf(false) }
+
+    // Sync isSessionStarted with viewModel.isStudySessionActive to manage global bottom navigation bar
+    LaunchedEffect(isSessionStarted) {
+        viewModel.setStudySessionActive(isSessionStarted)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.setStudySessionActive(false)
+        }
+    }
 
     LaunchedEffect(activePracticeQuestion) {
         if (activePracticeQuestion != null) {
@@ -93,60 +115,50 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     // Filter questions by selected subject and chapters asynchronously on Dispatchers.Default
     val practiceQuestions by produceState(
         initialValue = emptyList<QuestionEntity>(),
-        visibleQuestions, selectedSubjectKey, selectedChapters
+        visibleQuestions, selectedSubjectKey, selectedChapters, isSavedPractice
     ) {
         value = withContext(Dispatchers.Default) {
-            visibleQuestions.filter { q ->
-                try {
-                    val matchSubject = when (selectedSubjectKey) {
-                        "All Subjects", "All Subject" -> true
-                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                        "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                        "Mathematics", "General Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                        "Reasoning", "Reasoning & Mental Ability" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                        "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
-                        else -> q.subject.equals(selectedSubjectKey, ignoreCase = true)
-                    }
-                    val matchChapter = if (selectedChapters.isEmpty()) {
-                        true
-                    } else {
-                        val topicStr = q.topic ?: ""
-                        val qSubject = q.subject ?: ""
-                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
+            if (isSavedPractice) {
+                visibleQuestions
+            } else {
+                visibleQuestions.filter { q ->
+                    try {
+                        val matchSubject = isQuestionInSubject(q, selectedSubjectKey)
+                        val matchChapter = if (selectedChapters.isEmpty()) {
+                            true
+                        } else {
+                            val topicStr = q.topic ?: ""
+                            val qSubject = q.subject ?: ""
+                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
 
-                        selectedChapters.any { rawCh ->
-                            val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                            val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
+                            selectedChapters.any { rawCh ->
+                                val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
+                                val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
 
-                            val subjectMatches = if (selSubj.isNotBlank()) {
-                                when (selSubj) {
-                                    "General Knowledge" -> qSubject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                                    "General English" -> qSubject.equals("General English", ignoreCase = true) || qSubject.equals("English", ignoreCase = true) || qSubject.contains("English", ignoreCase = true)
-                                    "General Mathematics", "Mathematics" -> qSubject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                                    "Reasoning", "Reasoning & Mental Ability" -> qSubject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                                    "Transport & Motor Vehicle" -> qSubject.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubject.contains("Transport", ignoreCase = true) || qSubject.contains("Motor Vehicle", ignoreCase = true)
-                                    else -> qSubject.equals(selSubj, ignoreCase = true) || qSubject.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubject, ignoreCase = true)
+                                val subjectMatches = if (selSubj.isNotBlank()) {
+                                    isQuestionInSubject(q, selSubj)
+                                } else {
+                                    true
                                 }
-                            } else {
-                                true
+
+                                if (!subjectMatches) return@any false
+
+                                val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                                normTopic.equals(nCh, ignoreCase = true) ||
+                                (topicStr.isNotBlank() && ch.isNotBlank() && (
+                                    topicStr.equals(ch, ignoreCase = true) ||
+                                    topicStr.contains(ch, ignoreCase = true) ||
+                                    ch.contains(topicStr, ignoreCase = true) ||
+                                    normTopic.contains(nCh, ignoreCase = true) ||
+                                    nCh.contains(normTopic, ignoreCase = true)
+                                ))
                             }
-
-                            if (!subjectMatches) return@any false
-
-                            val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
-                            normTopic.equals(nCh, ignoreCase = true) ||
-                            topicStr.equals(ch, ignoreCase = true) ||
-                            topicStr.contains(ch, ignoreCase = true) ||
-                            ch.contains(topicStr, ignoreCase = true) ||
-                            normTopic.contains(ch, ignoreCase = true) ||
-                            ch.contains(normTopic, ignoreCase = true)
                         }
+                        
+                        matchSubject && matchChapter
+                    } catch (e: Exception) {
+                        false
                     }
-                    
-                    matchSubject && matchChapter
-                } catch (e: Exception) {
-                    false
                 }
             }
         }
@@ -228,7 +240,9 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     norm != "mathematics" &&
                     norm != "reasoning" &&
                     norm != "reasoning & mental ability" &&
-                    norm != "transport & motor vehicle"
+                    norm != "transport & motor vehicle" &&
+                    norm != "voice" &&
+                    norm != "basic computer"
                 }
                 .sorted()
                 .map { subj ->
@@ -262,18 +276,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             }
 
             val bannerQsMap = banners.associateWith { banner ->
-                visibleQuestions.filter { q ->
-                    when (banner.subjectKey) {
-                        "All Subjects" -> true
-                        "General Knowledge" -> q.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                        "General English" -> q.subject.equals("General English", ignoreCase = true) || q.subject.equals("English", ignoreCase = true) || q.subject.contains("English", ignoreCase = true)
-                        "General Mathematics", "Mathematics" -> q.subject in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                        "Reasoning", "Reasoning & Mental Ability" -> q.subject in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                        "Basic Computer", "Computer Knowledge", "Computer" -> q.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") || q.subject.contains("Computer", ignoreCase = true) || q.topic.contains("Computer", ignoreCase = true) || q.topic.contains("MS Office", ignoreCase = true) || q.topic.contains("Operating System", ignoreCase = true) || q.topic.contains("Internet", ignoreCase = true) || q.topic.contains("Hardware", ignoreCase = true)
-                        "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> q.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || q.subject.equals("Transport Rule", ignoreCase = true) || q.subject.equals("Transport Rules", ignoreCase = true) || q.subject.equals("Manual Entry", ignoreCase = true) || q.subject.contains("Manual", ignoreCase = true) || q.subject.contains("Transport", ignoreCase = true) || q.subject.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Transport Rule", ignoreCase = true) || q.topic.contains("Traffic Sign", ignoreCase = true) || q.topic.contains("Motor Vehicle", ignoreCase = true) || q.topic.contains("Driving Regulation", ignoreCase = true) || q.topic.contains("Vehicle Safety", ignoreCase = true)
-                        else -> q.subject.equals(banner.subjectKey, ignoreCase = true)
-                    }
-                }
+                visibleQuestions.filter { q -> isQuestionInSubject(q, banner.subjectKey) }
             }
 
             val bannerDataMap = banners.associate { banner ->
@@ -293,60 +296,12 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             }
                         }
                     }
-                    "General Knowledge" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { it.subject in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
-                    "General English" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { (it.subject.equals("General English", ignoreCase = true) || it.subject.equals("English", ignoreCase = true) || it.subject.contains("English", ignoreCase = true)) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
-                    "General Mathematics" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { it.subject in listOf("General Mathematics", "Mathematics") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
-                    "Reasoning", "Reasoning & Mental Ability" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { it.subject in listOf("Reasoning", "Logical Reasoning & Mental Ability", "Reasoning & Mental Ability") }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
-                    "Basic Computer", "Computer Knowledge", "Computer" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { it.subject in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness") || it.subject.contains("Computer", ignoreCase = true) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
-                    "Transport & Motor Vehicle" -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { it.subject.equals("Transport & Motor Vehicle", ignoreCase = true) || it.subject.equals("Transport Rule", ignoreCase = true) || it.subject.equals("Transport Rules", ignoreCase = true) || it.subject.equals("Manual Entry", ignoreCase = true) || it.subject.contains("Manual", ignoreCase = true) || it.subject.contains("Transport", ignoreCase = true) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                    }
                     else -> {
                         bannerQs.forEach { q ->
                             val norm = qIdToNormalizedTopic[q.id]
                             if (norm != null && norm.isNotBlank()) set.add(norm)
                         }
-                        allSubjectsChapters.filter { it.subject.equals(banner.subjectKey, ignoreCase = true) }
+                        allSubjectsChapters.filter { isQuestionSubjectMatch(it.subject, banner.subjectKey) }
                             .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
                     }
                 }
@@ -376,11 +331,13 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         else {
                             val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj)
                             normTopic.equals(normCh, ignoreCase = true) ||
-                            topicStr.equals(ch, ignoreCase = true) ||
-                            topicStr.contains(ch, ignoreCase = true) ||
-                            ch.contains(topicStr, ignoreCase = true) ||
-                            normTopic.contains(ch, ignoreCase = true) ||
-                            ch.contains(normTopic, ignoreCase = true)
+                            (topicStr.isNotBlank() && ch.isNotBlank() && (
+                                topicStr.equals(ch, ignoreCase = true) ||
+                                topicStr.contains(ch, ignoreCase = true) ||
+                                ch.contains(topicStr, ignoreCase = true) ||
+                                normTopic.contains(normCh, ignoreCase = true) ||
+                                normCh.contains(normTopic, ignoreCase = true)
+                            ))
                         }
                     }
                 }
@@ -396,9 +353,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val dynamicBanners = bannersAndData.first
     val precomputedBannerData = bannersAndData.second
 
-
-
-    var scoreCount by remember { mutableIntStateOf(0) }
     var currentQuestionIndex by rememberSaveable { mutableIntStateOf(0) }
     val totalPracticedCount = userProfile?.totalSolved ?: 0
 
@@ -409,31 +363,42 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     var activeSessionQuestions by remember { mutableStateOf<List<QuestionEntity>>(emptyList()) }
     var lastStartingQuestionId by rememberSaveable { mutableLongStateOf(-1L) }
 
-    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, activePracticeQuestion) {
+    val sectionName = remember(isSavedPractice, isSmartPractice) {
+        if (isSavedPractice) "SAVED_PRACTICE"
+        else if (isSmartPractice) "SMART_PRACTICE"
+        else "PRACTICE"
+    }
+
+    val scopeKeyName = remember(isSavedPractice, isSmartPractice, selectedSubjectKey, selectedChapters) {
+        if (isSavedPractice) "ALL_SAVED"
+        else if (isSmartPractice) "ALL_SMART"
+        else com.example.data.repository.SessionDeckManager.buildScopeKey(selectedSubjectKey, selectedChapters)
+    }
+
+    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, isSavedPractice, activePracticeQuestion, practiceQuestions) {
         if (isSessionStarted) {
             userAnswers.clear()
-            scoreCount = 0
             sessionTotalSeconds = 0
             val eligible = mutableListOf<QuestionEntity>()
             if (activePracticeQuestion != null) {
                 eligible.add(activePracticeQuestion!!)
                 val otherQs = practiceQuestions.filter { it.id != activePracticeQuestion!!.id }
                 eligible.addAll(otherQs)
+                activeSessionQuestions = eligible
+                currentQuestionIndex = 0
             } else {
-                eligible.addAll(practiceQuestions.shuffled())
+                val deckResult = viewModel.getOrUpdateSessionDeck(sectionName, scopeKeyName, practiceQuestions)
+                activeSessionQuestions = deckResult.orderedQuestions
+                currentQuestionIndex = deckResult.currentIndex
             }
-            if (eligible.size > 1 && activePracticeQuestion == null && eligible[0].id == lastStartingQuestionId) {
-                val temp = eligible[0]
-                eligible[0] = eligible[1]
-                eligible[1] = temp
-            }
-            if (eligible.isNotEmpty() && activePracticeQuestion == null) {
-                lastStartingQuestionId = eligible[0].id
-            }
-            activeSessionQuestions = eligible
-            currentQuestionIndex = 0
         } else {
             activeSessionQuestions = emptyList()
+        }
+    }
+
+    LaunchedEffect(isSessionStarted, currentQuestionIndex, activeSessionQuestions) {
+        if (isSessionStarted && activeSessionQuestions.isNotEmpty() && activePracticeQuestion == null) {
+            viewModel.saveSessionIndex(sectionName, scopeKeyName, currentQuestionIndex, activeSessionQuestions.size)
         }
     }
 
@@ -460,20 +425,18 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
     val selectedOptionIndex = currentQuestion?.id?.let { userAnswers[it] }
     val isSubmitted = selectedOptionIndex != null
 
-    // Per-question Timer
-    var secondsElapsed by remember { mutableIntStateOf(0) }
-    LaunchedEffect(currentQuestionIndex, isSubmitted, isSessionStarted) {
-        secondsElapsed = 0
-        if (isSessionStarted && !isSubmitted) {
-            while (true) {
-                delay(1000L)
-                secondsElapsed++
-            }
+    // Real session correct and incorrect counts
+    var correctCount = 0
+    var incorrectCount = 0
+    displayQuestions.forEach { q ->
+        val ans = userAnswers[q.id]
+        if (ans != null) {
+            if (ans == q.correctOptionIndex) correctCount++ else incorrectCount++
         }
     }
 
-    LaunchedEffect(isSmartPractice, smartPracticeQuestions.size) {
-        if (isSmartPractice) {
+    LaunchedEffect(isSmartPractice, isSavedPractice, smartPracticeQuestions.size, bookmarkedQuestions.size) {
+        if (isSmartPractice || isSavedPractice) {
             isSessionStarted = true
         }
     }
@@ -487,26 +450,37 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Top Navigation Header
-        val practiceTitle = if (isSessionStarted) {
-            if (isSmartPractice) {
+        val practiceTitle = if (showSummary) {
+            "Practice Summary"
+        } else if (isSessionStarted) {
+            if (isSavedPractice) {
+                "Saved Questions Practice"
+            } else if (isSmartPractice) {
                 "Smart Practice"
             } else {
                 when (selectedSubjectKey) {
                     "General Knowledge" -> "General Knowledge"
                     "General English" -> "General English"
-                    "Mathematics", "General Mathematics" -> "Mathematics"
-                    "Reasoning", "Reasoning & Mental Ability" -> "Reasoning"
+                    "Mathematics", "General Mathematics" -> "General Mathematics"
+                    "Reasoning", "Reasoning & Mental Ability" -> "Reasoning & Mental Ability"
                     "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
-                    "Transport Rule" -> "Transport Rule"
-                    else -> "All Subjects"
+                    "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
+                    "All Subjects", "All Subject" -> "All Subjects"
+                    else -> selectedSubjectKey
                 }
             }
         } else {
             "Practice"
         }
 
-        val practiceSubtitle = if (isSessionStarted) {
-            if (isSmartPractice) "Your personalized practice session" else {
+        val practiceSubtitle = if (showSummary) {
+            "Performance Review"
+        } else if (isSessionStarted) {
+            if (isSavedPractice) {
+                "${practiceQuestions.size} Saved Questions"
+            } else if (isSmartPractice) {
+                "Your personalized practice session"
+            } else {
                 val chText = if (selectedChapters.isEmpty()) {
                     "All Chapters"
                 } else {
@@ -518,25 +492,38 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             "Select a subject banner to start practice"
         }
 
-        com.example.ui.components.JuktiTopAppBar(
-            title = practiceTitle,
-            subtitle = practiceSubtitle,
-            onBackClick = {
+        val handleBack: () -> Unit = {
+            if (showSummary) {
+                showSummary = false
+                isSessionStarted = false
+                userAnswers.clear()
                 if (activePracticeQuestion != null) {
                     viewModel.clearActivePracticeQuestion()
                 }
-                if (isSessionStarted && !isSmartPractice) {
-                    isSessionStarted = false
-                } else {
-                    if (!viewModel.goBack()) {
-                        viewModel.navigateTo(Screen.HOME)
-                    }
+                if (!viewModel.goBack()) {
+                    viewModel.navigateTo(Screen.HOME)
                 }
-            },
+            } else if (isSessionStarted) {
+                showEndPracticeConfirmDialog = true
+            } else {
+                // Not in session (e.g. subject selection view)
+                if (activePracticeQuestion != null) {
+                    viewModel.clearActivePracticeQuestion()
+                }
+                if (!viewModel.goBack()) {
+                    viewModel.navigateTo(Screen.HOME)
+                }
+            }
+        }
+
+        com.example.ui.components.JuktiTopAppBar(
+            title = practiceTitle,
+            subtitle = practiceSubtitle,
+            onBackClick = handleBack,
             actions = {
                 // Practiced Question Counter Badge
                 Surface(
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
@@ -548,7 +535,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -562,16 +549,19 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
             }
         )
 
+        BackHandler(enabled = !showEndPracticeConfirmDialog && !showReportDialog) {
+            handleBack()
+        }
+
+        // Compact Question Language Selector & Active Session Header
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp
         ) {
-            Column {
-                // Question Language Selector Row
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                // Language Selector
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -582,14 +572,14 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         Icon(
                             imageVector = Icons.Default.Translate,
                             contentDescription = "Language",
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Question Language:",
+                            text = "Language:",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -598,33 +588,101 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                             selected = questionLanguage == AppLanguage.ENGLISH,
                             onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
                             label = { Text("English", fontSize = 11.sp) },
-                            modifier = Modifier.height(30.dp)
+                            modifier = Modifier.height(28.dp)
                         )
                         FilterChip(
                             selected = questionLanguage == AppLanguage.ASSAMESE,
                             onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
                             label = { Text("অসমীয়া", fontSize = 11.sp) },
-                            modifier = Modifier.height(30.dp)
+                            modifier = Modifier.height(28.dp)
                         )
                         FilterChip(
                             selected = questionLanguage == AppLanguage.BOTH,
                             onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
                             label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                            modifier = Modifier.height(30.dp),
+                            modifier = Modifier.height(28.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
                     }
                 }
+
+                // Active Session Status Bar (Question count, Timer, Correct/Incorrect, Progress Bar)
+                if (isSessionStarted && displayQuestions.isNotEmpty() && !showSummary) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Question ${currentQuestionIndex + 1} / ${displayQuestions.size}",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // Timer
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Timer",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            val minutes = sessionTotalSeconds / 60
+                            val secs = sessionTotalSeconds % 60
+                            Text(
+                                text = String.format("%02d:%02d", minutes, secs),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        // Session Stats Badge (✓ Correct   ✕ Incorrect)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "✓ $correctCount",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.success
+                            )
+                            Text(
+                                text = "✕ $incorrectCount",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    LinearProgressIndicator(
+                        progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                }
             }
         }
 
         // BODY CONTENT
-        // BODY CONTENT
         if (!isSessionStarted) {
-            // STEP 1: SHOW 5 SUBJECT BANNERS
+            // STEP 1: SUBJECT BANNERS SELECTION
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -636,7 +694,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     text = "Choose Subject to Practice:",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 if (dynamicBanners.isEmpty()) {
@@ -652,44 +710,44 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     }
                 } else {
                     dynamicBanners.forEach { banner ->
-                    val preData = precomputedBannerData[banner.subjectKey]
-                    val availableChapters = preData?.first ?: emptyList()
-                    val bannerQs = preData?.second ?: emptyList()
-                    val chapterCounts = preData?.third ?: emptyMap()
+                        val preData = precomputedBannerData[banner.subjectKey]
+                        val availableChapters = preData?.first ?: emptyList()
+                        val bannerQs = preData?.second ?: emptyList()
+                        val chapterCounts = preData?.third ?: emptyMap()
 
-                    val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
+                        val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
 
-                    val questionCount = if (currentSelectedChapters.isEmpty()) {
-                        bannerQs.size
-                    } else {
-                        currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
+                        val questionCount = if (currentSelectedChapters.isEmpty()) {
+                            bannerQs.size
+                        } else {
+                            currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
+                        }
+
+                        PracticeSubjectBannerCard(
+                            banner = banner,
+                            availableChapters = availableChapters,
+                            selectedChapters = currentSelectedChapters,
+                            onChaptersChanged = { newSet: Set<String> ->
+                                chaptersMap = chaptersMap + (banner.subjectKey to newSet)
+                            },
+                            totalQuestionsCount = questionCount,
+                            actionButtonTextEn = "Start Practice",
+                            actionButtonTextAs = "অনুশীলন আৰম্ভ কৰক",
+                            onStartClick = {
+                                selectedSubjectKey = banner.subjectKey
+                                selectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
+                                currentQuestionIndex = 0
+                                showSummary = false
+                                userAnswers.clear()
+                                isSessionStarted = true
+                            },
+                            isAssamese = isAssamese,
+                            chapterCounts = chapterCounts
+                        )
                     }
-
-                    PracticeSubjectBannerCard(
-                        banner = banner,
-                        availableChapters = availableChapters,
-                        selectedChapters = currentSelectedChapters,
-                        onChaptersChanged = { newSet: Set<String> ->
-                            chaptersMap = chaptersMap + (banner.subjectKey to newSet)
-                        },
-                        totalQuestionsCount = questionCount,
-                        actionButtonTextEn = "Start Practice",
-                        actionButtonTextAs = "অনুশীলন আৰম্ভ কৰক",
-                        onStartClick = {
-                            selectedSubjectKey = banner.subjectKey
-                            selectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
-                            currentQuestionIndex = 0
-                            showSummary = false
-                            userAnswers.clear()
-                            isSessionStarted = true
-                        },
-                        isAssamese = isAssamese,
-                        chapterCounts = chapterCounts
-                    )
                 }
             }
-        }
-    } else if (showSummary) {
+        } else if (showSummary) {
             PracticeSummaryView(
                 questions = displayQuestions,
                 userAnswers = userAnswers,
@@ -698,32 +756,23 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     showSummary = false
                     isSessionStarted = false
                     userAnswers.clear()
-                    scoreCount = 0
                     viewModel.navigateTo(Screen.HOME)
                 },
                 onPracticeAgain = {
                     showSummary = false
                     userAnswers.clear()
-                    scoreCount = 0
-                    currentQuestionIndex = 0
                     sessionTotalSeconds = 0
-                    val eligible = practiceQuestions.shuffled().toMutableList()
-                    if (eligible.size > 1 && eligible[0].id == lastStartingQuestionId) {
-                        val temp = eligible[0]
-                        eligible[0] = eligible[1]
-                        eligible[1] = temp
-                    }
-                    if (eligible.isNotEmpty()) {
-                        lastStartingQuestionId = eligible[0].id
-                    }
-                    activeSessionQuestions = eligible
+                    val deckResult = viewModel.resetAndReshuffleSessionDeck(sectionName, scopeKeyName, practiceQuestions)
+                    activeSessionQuestions = deckResult.orderedQuestions
+                    currentQuestionIndex = 0
                     isSessionStarted = true
                 },
                 questionLanguage = questionLanguage,
-                isSmartPractice = isSmartPractice
+                isSmartPractice = isSmartPractice,
+                isSavedPractice = isSavedPractice
             )
         } else {
-            // STEP 2: ACTIVE QUESTION AVAILABLE PAGE (Bigger view, NO Subject/Chapter selectors)
+            // ACTIVE QUESTION SCREEN
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -735,7 +784,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
@@ -753,7 +802,7 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         }
                     }
                 } else if (currentQuestion != null) {
-                    // QUESTION CARD (Takes full screen width & height)
+                    // QUESTION CARD
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
@@ -761,116 +810,72 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            // Top Question Meta Row (Count, Timer, Save & Hide Buttons)
+                            // Top Row inside Question Card: Chapter/Topic Tag + Bookmark + Overflow Menu
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Question Count Tag
-                                Surface(
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = RoundedCornerShape(8.dp)
+                                // Topic / Chapter Chip and Question Tag side by side
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 ) {
-                                    Text(
-                                        text = "Q ${currentQuestionIndex + 1} of ${displayQuestions.size}",
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-    
-
-                                // Per-question Timer
-                                }
-                                Surface(
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Default.Timer,
-                                            contentDescription = "Timer",
-                                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        val minutes = secondsElapsed / 60
-                                        val secs = secondsElapsed % 60
                                         Text(
-                                            text = String.format("%02d:%02d", minutes, secs),
+                                            text = currentQuestion.topic.ifBlank { currentQuestion.subject },
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
-        
-    
-
-                                // Action Icons: Save & Hide
                                     }
+                                    
+                                    com.example.ui.components.QuestionTypeBadge(
+                                        questionType = currentQuestion.questionType
+                                    )
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Report Button
-                                    IconButton(
-                                        onClick = { showReportDialog = true },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Report,
-                                            contentDescription = "Report Question",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                    // Save / Bookmark Button
+
+                                // Bookmark & Report Buttons
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    // Bookmark Button
                                     IconButton(
                                         onClick = { viewModel.toggleBookmarkQuestion(currentQuestion) },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(38.dp)
                                     ) {
                                         Icon(
                                             imageVector = if (currentQuestion.id in bookmarkedIds) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                            contentDescription = "Save Question",
-                                            tint = if (currentQuestion.id in bookmarkedIds) androidx.compose.material3.MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            contentDescription = "Bookmark Question",
+                                            tint = if (currentQuestion.id in bookmarkedIds) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    // Hide Question Button
 
+                                    // Report Question Button (Flag)
+                                    IconButton(
+                                        onClick = { showReportDialog = true },
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Flag,
+                                            contentDescription = "Report question",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
+
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Progress bar for question count
-                            LinearProgressIndicator(
-                                progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Subject & Topic Badge
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${currentQuestion.subject} • ${currentQuestion.topic}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                )
-
-                            }
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Question Text
+                            // Question Content
                             if (currentQuestion.isPremium && !isUserPremium && !isAdminOrOwner) {
                                 Surface(
                                     color = MaterialTheme.colorScheme.errorContainer,
@@ -894,10 +899,6 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     }
                                 }
                             } else {
-                                com.example.ui.components.QuestionTypeBadge(
-                                    questionType = currentQuestion.questionType,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
                                 BilingualText(
                                     textEn = currentQuestion.questionEn,
                                     textAs = currentQuestion.questionAs,
@@ -906,195 +907,335 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                                     fontWeight = FontWeight.Bold
                                 )
 
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                                // Options List
+                                val options = listOf(
+                                    currentQuestion.optionAEn to currentQuestion.optionAAs,
+                                    currentQuestion.optionBEn to currentQuestion.optionBAs,
+                                    currentQuestion.optionCEn to currentQuestion.optionCAs,
+                                    currentQuestion.optionDEn to currentQuestion.optionDAs
+                                )
 
-                            // Options List
-                            val options = listOf(
-                                currentQuestion.optionAEn to currentQuestion.optionAAs,
-                                currentQuestion.optionBEn to currentQuestion.optionBAs,
-                                currentQuestion.optionCEn to currentQuestion.optionCAs,
-                                currentQuestion.optionDEn to currentQuestion.optionDAs
-                            )
+                                options.forEachIndexed { index, pair ->
+                                    val isSelected = (selectedOptionIndex == index)
+                                    val isCorrect = (index == currentQuestion.correctOptionIndex)
+                                    val optionLetter = ('A' + index).toString()
 
-                            options.forEachIndexed { index, pair ->
-                                val isSelected = (selectedOptionIndex == index)
-                                val isCorrect = (index == currentQuestion.correctOptionIndex)
-                                val optionLetter = ('A' + index).toString()
+                                    val backgroundColor = when {
+                                        isSubmitted && isCorrect -> MaterialTheme.colorScheme.successContainer
+                                        isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
 
-                                val backgroundColor = when {
-                                    isSubmitted && isCorrect -> MaterialTheme.colorScheme.successContainer
-                                    isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
-                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                }
+                                    val borderColor = when {
+                                        isSubmitted && isCorrect -> MaterialTheme.colorScheme.success
+                                        isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
+                                        isSelected -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    }
 
-                                val borderColor = when {
-                                    isSubmitted && isCorrect -> MaterialTheme.colorScheme.success
-                                    isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
-                                    isSelected -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                }
-
-                                Surface(
-                                    onClick = {
-                                        if (!isSubmitted) {
-                                            val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
-                                            userAnswers[currentQuestion.id] = index
-                                            if (isAnsCorrect) {
-                                                viewModel.awardCorrectAnswerXp()
-                                            }
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = backgroundColor,
-                                    border = BorderStroke(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = borderColor
-                                    ),
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(16.dp)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = when {
-                                                isSubmitted && isCorrect -> MaterialTheme.colorScheme.success
-                                                isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
-                                                else -> MaterialTheme.colorScheme.primaryContainer
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                if (isSubmitted && isCorrect) {
-                                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                                } else if (isSubmitted && isSelected && !isCorrect) {
-                                                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                                } else {
-                                                    Text(
-                                                        text = optionLetter,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                    )
+                                    Surface(
+                                        onClick = {
+                                            if (!isSubmitted) {
+                                                val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
+                                                userAnswers[currentQuestion.id] = index
+                                                if (isAnsCorrect) {
+                                                    viewModel.awardCorrectAnswerXp()
                                                 }
                                             }
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        BilingualText(
-                                            textEn = pair.first,
-                                            textAs = pair.second,
-                                            language = questionLanguage,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = if (isSubmitted && isCorrect) FontWeight.Bold else FontWeight.Normal,
-                                            color = when {
-                                                isSubmitted && isCorrect -> MaterialTheme.colorScheme.onSuccessContainer
-                                                isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
-                                                else -> MaterialTheme.colorScheme.onSurface
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = backgroundColor,
+                                        border = BorderStroke(
+                                            width = if (isSelected || (isSubmitted && isCorrect)) 2.dp else 1.dp,
+                                            color = borderColor
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 5.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(14.dp)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = when {
+                                                    isSubmitted && isCorrect -> MaterialTheme.colorScheme.success
+                                                    isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
+                                                    else -> MaterialTheme.colorScheme.primaryContainer
+                                                },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    if (isSubmitted && isCorrect) {
+                                                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                                    } else if (isSubmitted && isSelected && !isCorrect) {
+                                                        Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                                    } else {
+                                                        Text(
+                                                            text = optionLetter,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        )
+                                                    }
+                                                }
                                             }
+                                            Spacer(modifier = Modifier.width(12.dp))
+
+                                            BilingualText(
+                                                textEn = pair.first,
+                                                textAs = pair.second,
+                                                language = questionLanguage,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (isSubmitted && isCorrect) FontWeight.Bold else FontWeight.Normal,
+                                                color = when {
+                                                    isSubmitted && isCorrect -> MaterialTheme.colorScheme.onSuccessContainer
+                                                    isSubmitted && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
+                                                    else -> MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // After Answering Feedback Banner & Explanation Area
+                                AnimatedVisibility(visible = isSubmitted) {
+                                    Column {
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        val userAnsIndex = selectedOptionIndex ?: -1
+                                        val isUserCorrect = (userAnsIndex == currentQuestion.correctOptionIndex)
+
+                                        // Feedback Card
+                                        Surface(
+                                            color = if (isUserCorrect) MaterialTheme.colorScheme.successContainer.copy(alpha = 0.4f)
+                                                    else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isUserCorrect) MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(14.dp)) {
+                                                if (isUserCorrect) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            Icons.Default.CheckCircle,
+                                                            contentDescription = "Correct",
+                                                            tint = MaterialTheme.colorScheme.success,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text(
+                                                            text = "✓ Correct Answer!",
+                                                            style = MaterialTheme.typography.titleSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.success
+                                                        )
+                                                    }
+                                                } else {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            Icons.Default.Cancel,
+                                                            contentDescription = "Incorrect",
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text(
+                                                            text = "✕ Incorrect",
+                                                            style = MaterialTheme.typography.titleSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.error
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                                    val userSelectedPair = options.getOrNull(userAnsIndex)
+                                                    if (userSelectedPair != null) {
+                                                        Row {
+                                                            Text("Your answer: ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                                            BilingualText(
+                                                                textEn = userSelectedPair.first,
+                                                                textAs = userSelectedPair.second,
+                                                                language = questionLanguage,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.error
+                                                            )
+                                                        }
+                                                    }
+
+                                                    val correctPair = options.getOrNull(currentQuestion.correctOptionIndex)
+                                                    if (correctPair != null) {
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        Row {
+                                                            Text("✓ Correct answer: ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.success)
+                                                            BilingualText(
+                                                                textEn = correctPair.first,
+                                                                textAs = correctPair.second,
+                                                                language = questionLanguage,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.success
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                                Spacer(modifier = Modifier.height(10.dp))
+
+                                                // Explanation
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        Icons.Default.Lightbulb,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "Explanation:",
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                BilingualText(
+                                                    textEn = currentQuestion.explanationEn,
+                                                    textAs = currentQuestion.explanationAs,
+                                                    language = questionLanguage,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Bottom Navigation Controls: Previous & Next with End Practice below
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                if (currentQuestionIndex > 0) {
+                                                    currentQuestionIndex--
+                                                }
+                                            },
+                                            enabled = currentQuestionIndex > 0,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Previous")
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Button(
+                                            onClick = {
+                                                if (currentQuestionIndex < displayQuestions.size - 1) {
+                                                    currentQuestionIndex++
+                                                } else {
+                                                    viewModel.awardChapterCompletionXp()
+                                                    showSummary = true
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                if (currentQuestionIndex == displayQuestions.size - 1) {
+                                                    "Finish Practice"
+                                                } else {
+                                                    "Next"
+                                                }
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                                        }
+                                    }
+
+                                    // End Practice Button directly below Previous / Next
+                                    TextButton(
+                                        onClick = { showEndPracticeConfirmDialog = true },
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ExitToApp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "End Practice",
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.error
                                         )
                                     }
                                 }
-                            }
-
-                            // Explanation Card
-                            AnimatedVisibility(visible = isSubmitted) {
-                                Column {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Surface(
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Column(modifier = Modifier.padding(14.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = "Explanation & Analysis:",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                                )
-                
-                                            }
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            BilingualText(
-                                                textEn = currentQuestion.explanationEn,
-                                                textAs = currentQuestion.explanationAs,
-                                                language = questionLanguage,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-            
-        
-    
-
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Navigation Buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        if (currentQuestionIndex > 0) {
-                                            currentQuestionIndex--
-                                        }
-                                    },
-                                    enabled = currentQuestionIndex > 0
-                                ) {
-                                    Icon(Icons.Default.ChevronLeft, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Previous")
-                                }
-
-                                Button(
-                                    onClick = {
-                                        if (currentQuestionIndex < displayQuestions.size - 1) {
-                                            currentQuestionIndex++
-                                        }
-                                        else {
-                                            viewModel.awardChapterCompletionXp()
-                                            showSummary = true
-                                        }
-                                    }
-                                ) {
-                                    Text(
-                                        if (currentQuestionIndex == displayQuestions.size - 1) {
-                                            "Completed"
-                                        }
-                                        else {
-                                            "Next"
-                                        }
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(Icons.Default.ChevronRight, contentDescription = null)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            TextButton(
-                                onClick = { showSummary = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("End Practice", color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
                 }
             }
         }
-        
+
+        // End Practice Confirmation Dialog
+        if (showEndPracticeConfirmDialog) {
+            val remainingCount = (displayQuestions.size - userAnswers.size).coerceAtLeast(0)
+            AlertDialog(
+                onDismissRequest = { showEndPracticeConfirmDialog = false },
+                title = { Text("End Practice?", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Your progress will be saved.")
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("✓ Correct: $correctCount", color = MaterialTheme.colorScheme.success, fontWeight = FontWeight.Bold)
+                            Text("✕ Incorrect: $incorrectCount", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        }
+                        Text("○ Remaining: $remainingCount", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { showEndPracticeConfirmDialog = false }
+                    ) {
+                        Text("Continue")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showEndPracticeConfirmDialog = false
+                            showSummary = true
+                        }
+                    ) {
+                        Text("End", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            )
+        }
+
+        // Report Question Dialog
         if (showReportDialog && currentQuestion != null) {
             ReportQuestionDialog(
                 questionId = currentQuestion.id,
@@ -1106,6 +1247,5 @@ fun PracticeScreen(viewModel: JuktiViewModel, isSmartPractice: Boolean = false) 
                 }
             )
         }
-      }
     }
 }

@@ -94,7 +94,8 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
-                val showBottomBar = currentScreen in listOf(
+                val isStudySessionActive by viewModel.isStudySessionActive.collectAsState()
+                val showBottomBar = !isStudySessionActive && currentScreen in listOf(
                     Screen.HOME,
                     Screen.MCQ_STUDY,
                     Screen.PRACTICE,
@@ -138,7 +139,7 @@ class MainActivity : ComponentActivity() {
                     var isTransitioning by remember { mutableStateOf(false) }
                     LaunchedEffect(currentScreen) {
                         isTransitioning = true
-                        delay(500) // Block clicks for 500ms after navigation
+                        delay(150) // Responsive debounce to avoid eating user taps
                         isTransitioning = false
                     }
                     Box(modifier = Modifier
@@ -161,6 +162,7 @@ class MainActivity : ComponentActivity() {
                                 Screen.MCQ_STUDY -> McqStudyScreen(viewModel)
                                 Screen.PRACTICE -> PracticeScreen(viewModel)
                                 Screen.SMART_PRACTICE -> PracticeScreen(viewModel, isSmartPractice = true)
+                                Screen.SAVED_PRACTICE -> PracticeScreen(viewModel, isSavedPractice = true)
                                 Screen.MOCK_TESTS -> MockTestsScreen(viewModel)
                                 Screen.MOCK_PLAYER -> MockTestPlayerScreen(viewModel)
                                 Screen.MOCK_RESULT -> MockResultScreen(viewModel)
@@ -234,7 +236,7 @@ fun JuktiBottomNavigation(
     val items = listOf(
         BottomNavItem("Home", "গৃহ", Icons.Filled.Home, Icons.Outlined.Home, Screen.HOME),
         BottomNavItem("Study", "অধ্যয়ন", Icons.Filled.MenuBook, Icons.Outlined.MenuBook, Screen.MCQ_STUDY),
-        BottomNavItem("Mock Tests", "মক টেষ্ট", Icons.Filled.Timer, Icons.Outlined.Timer, Screen.MOCK_TESTS),
+        BottomNavItem("Mock", "মক", Icons.Filled.Timer, Icons.Outlined.Timer, Screen.MOCK_TESTS),
         BottomNavItem("Analyze", "বিশ্লেষণ", Icons.Filled.Analytics, Icons.Outlined.Analytics, Screen.MY_ANALYTICS),
         BottomNavItem("Menu", "মেনু", Icons.Filled.Menu, Icons.Outlined.Menu, Screen.MENU)
     )

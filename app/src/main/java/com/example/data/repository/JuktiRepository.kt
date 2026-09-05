@@ -26,8 +26,7 @@ fun normalizeSubjectName(raw: String?): String {
         lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") ||
         lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport & Motor Vehicle"
 
-        // 3. Basic Computer
-        lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "Basic Computer"
+        // 3. (Removed Basic Computer subject per user request)
 
         // 4. Reasoning & Mental Ability
         lower.contains("reasoning") || lower.contains("mental ability") || lower.contains("logical") ||
@@ -46,7 +45,8 @@ fun normalizeSubjectName(raw: String?): String {
         lower.contains("culture") || lower.contains("assam") || lower.contains("static") ||
         lower.contains("social") || lower.contains("scheme") || lower.contains("award") ||
         lower.contains("book") || lower.contains("day") || lower.contains("sport") ||
-        lower.contains("organization") || lower.contains("environment") || lower.contains("ecology") -> "General Knowledge"
+        lower.contains("organization") || lower.contains("environment") || lower.contains("ecology") ||
+        lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "General Knowledge"
 
         else -> trimmed
     }
@@ -75,6 +75,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("day") || lower.contains("date") -> "Important Days"
             lower.contains("sport") || lower.contains("trophy") || lower.contains("cup") || lower.contains("olympic") || lower.contains("cricket") -> "Sports"
             lower.contains("current") || lower.contains("recent") || lower.contains("news") -> "Current Affairs"
+            lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "Computer"
             else -> trimmed
         }
         "General Mathematics" -> when {
@@ -154,14 +155,6 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("question") || lower.contains("based") -> "Passage Based Questions"
             else -> trimmed
         }
-        "Basic Computer" -> when {
-            lower.contains("fundament") || lower.contains("architect") || lower.contains("basic") -> "Computer Fundamentals & Architecture"
-            lower.contains("operating system") || lower.contains("os") || lower.contains("office") || lower.contains("word") || lower.contains("excel") || lower.contains("powerpoint") -> "Operating Systems & MS Office (Word, Excel, PowerPoint)"
-            lower.contains("internet") || lower.contains("network") || lower.contains("cyber") || lower.contains("security") -> "Internet, Networking & Cyber Security"
-            lower.contains("hardware") || lower.contains("software") || lower.contains("input") || lower.contains("output") -> "Hardware, Software & Input/Output Devices"
-            lower.contains("database") || lower.contains("shortcut") || lower.contains("abbreviat") -> "Database, Shortcuts & Computer Abbreviations"
-            else -> trimmed
-        }
         "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> when {
             lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
             lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
@@ -171,7 +164,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
         }
         else -> {
             val autoSub = normalizeSubjectName(trimmed)
-            if (autoSub != "General Knowledge") {
+            if (autoSub != "General Knowledge" && autoSub != normSubject) {
                 normalizeChapterName(trimmed, autoSub)
             } else {
                 trimmed
@@ -241,7 +234,17 @@ class JuktiRepository(
         map.values.sortedByDescending { it.timestamp }
     }
 
-    val allQuestions: Flow<List<QuestionEntity>> = questionDao.getAllQuestions().map { list ->
+    val allQuestions: Flow<List<QuestionEntity>> = combine(
+        firebaseRepository.observeQuestions(),
+        questionDao.getAllQuestions()
+    ) { remote, local ->
+        val list = if (remote.isEmpty()) local
+        else {
+            val remoteIds = remote.map { it.id }.toSet()
+            val combined = remote.toMutableList()
+            local.forEach { loc -> if (!remoteIds.contains(loc.id)) combined.add(loc) }
+            combined
+        }
         list.map { normalizeQuestionEntity(it) }
     }
 
@@ -494,11 +497,21 @@ class JuktiRepository(
     private val _premiumStudyNotes = kotlinx.coroutines.flow.MutableStateFlow<List<StudyNoteEntity>>(emptyList())
     val premiumStudyNotes: kotlinx.coroutines.flow.StateFlow<List<StudyNoteEntity>> = _premiumStudyNotes.asStateFlow()
 
+    fun updatePremiumContent(
+        questions: List<QuestionEntity>,
+        mockTests: List<MockTestEntity>,
+        studyNotes: List<StudyNoteEntity>
+    ) {
+        _premiumQuestions.value = questions.map { normalizeQuestionEntity(it) }
+        _premiumMockTests.value = mockTests
+        _premiumStudyNotes.value = studyNotes
+    }
+
     suspend fun refreshPremiumContent() {
         try {
             val fetchedQs = firebaseRepository.fetchPremiumQuestions()
             if (fetchedQs.isNotEmpty()) {
-                _premiumQuestions.value = fetchedQs
+                _premiumQuestions.value = fetchedQs.map { normalizeQuestionEntity(it) }
             }
             val fetchedMocks = firebaseRepository.fetchPremiumMockTests()
             if (fetchedMocks.isNotEmpty()) {
@@ -543,8 +556,21 @@ class JuktiRepository(
     val allExams: Flow<List<ExamEntity>> = firebaseRepository.observeExams()
     val activeSubjectChapterStats: Flow<List<SubjectChapterStat>> = questionDao.getSubjectChapterStats()
 
-    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = subjectChapterDao.getAllSubjectsChapters().map { local ->
-        val normalized = local.map { sc ->
+    val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
+        firebaseRepository.observeSubjectsChapters(),
+        subjectChapterDao.getAllSubjectsChapters()
+    ) { remote, local ->
+        val combined = if (remote.isEmpty()) local
+        else {
+            val remoteKeys = remote.map { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }.toSet()
+            val list = remote.toMutableList()
+            local.forEach { loc ->
+                val key = "${loc.subject.trim().lowercase()}|${loc.chapter.trim().lowercase()}"
+                if (!remoteKeys.contains(key)) list.add(loc)
+            }
+            list
+        }
+        val normalized = combined.map { sc ->
             val normChap = normalizeChapterName(sc.chapter, sc.subject)
             val normSubj = normalizeSubjectName(sc.subject)
             sc.copy(subject = normSubj, chapter = normChap)
@@ -682,8 +708,9 @@ class JuktiRepository(
     }
     
     fun getSmartPracticeQuestions(userId: String): Flow<List<QuestionEntity>> {
+        val combinedQuestions = combine(allQuestions, premiumQuestions) { f, p -> f + p }
         return combine(
-            allQuestions,
+            combinedQuestions,
             userQuestionStateDao.getUserStates(userId)
         ) { questions, states ->
             val stateMap = states.associateBy { it.questionId }
@@ -698,8 +725,9 @@ class JuktiRepository(
     }
     
     fun getBookmarkedQuestions(userId: String): Flow<List<QuestionEntity>> {
+        val combinedQuestions = combine(allQuestions, premiumQuestions) { f, p -> f + p }
         return combine(
-            allQuestions,
+            combinedQuestions,
             userQuestionStateDao.getUserStates(userId)
         ) { questions, states ->
             val stateMap = states.associateBy { it.questionId }
@@ -711,8 +739,9 @@ class JuktiRepository(
     }
     
     fun getHiddenQuestions(userId: String): Flow<List<QuestionEntity>> {
+        val combinedQuestions = combine(allQuestions, premiumQuestions) { f, p -> f + p }
         return combine(
-            allQuestions,
+            combinedQuestions,
             userQuestionStateDao.getUserStates(userId)
         ) { questions, states ->
             val stateMap = states.associateBy { it.questionId }
@@ -1127,6 +1156,20 @@ class JuktiRepository(
     ): UserProfileEntity {
         val remoteProfile = firebaseRepository.fetchUserProfile(email, uid)
         val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, uid)
+        
+        // Sync user question states on login
+        if (uid.isNotBlank()) {
+            val remoteQuestionStates = firebaseRepository.fetchUserQuestionStateList(uid)
+            if (remoteQuestionStates.isNotEmpty()) {
+                remoteQuestionStates.forEach { state ->
+                    val localState = userQuestionStateDao.getState(state.userId, state.questionId)
+                    if (localState == null || state.lastUpdated > localState.lastUpdated) {
+                        userQuestionStateDao.insertState(state)
+                    }
+                }
+            }
+        }
+        
         val docKey = firebaseRepository.getSanitizedUserDocId(email)
         val now = System.currentTimeMillis()
 
@@ -1227,6 +1270,20 @@ class JuktiRepository(
             val localProfile = userProfileDao.getUserProfileDirect()
             val remoteProfile = firebaseRepository.fetchUserProfile(email, currentUid)
             val remoteEntitlement = firebaseRepository.fetchUserEntitlement(email, currentUid)
+            
+            // Sync user question states
+            if (currentUid != null) {
+                val remoteQuestionStates = firebaseRepository.fetchUserQuestionStateList(currentUid)
+                if (remoteQuestionStates.isNotEmpty()) {
+                    remoteQuestionStates.forEach { state ->
+                        // Only update local if remote is newer, or if local doesn't exist
+                        val localState = userQuestionStateDao.getState(state.userId, state.questionId)
+                        if (localState == null || state.lastUpdated > localState.lastUpdated) {
+                            userQuestionStateDao.insertState(state)
+                        }
+                    }
+                }
+            }
             
             val docKey = firebaseRepository.getSanitizedUserDocId(email)
             val now = System.currentTimeMillis()
@@ -1454,13 +1511,21 @@ class JuktiRepository(
 
     suspend fun deleteSubject(subject: String) {
         withContext(Dispatchers.IO) {
+            val chaptersToDelete = subjectChapterDao.getSubjectChaptersBySubject(subject)
             subjectChapterDao.deleteSubject(subject)
+            chaptersToDelete.forEach {
+                syncManager.enqueueAndSync("SUBJECT_CHAPTER", it.id.toString(), "DELETE")
+            }
         }
     }
 
     suspend fun deleteChapter(subject: String, chapter: String) {
         withContext(Dispatchers.IO) {
+            val chapterToDelete = subjectChapterDao.getSubjectChapterByNames(subject, chapter).firstOrNull()
             subjectChapterDao.deleteSubjectChapterByNames(subject, chapter)
+            if (chapterToDelete != null) {
+                syncManager.enqueueAndSync("SUBJECT_CHAPTER", chapterToDelete.id.toString(), "DELETE")
+            }
         }
     }
 
@@ -1772,6 +1837,11 @@ class JuktiRepository(
             val notes = firebaseRepository.fetchAllStudyNotes()
             if (notes.isNotEmpty()) {
                 studyNoteDao.insertAll(notes)
+            }
+
+            val subjectsChapters = firebaseRepository.fetchAllSubjectsChapters()
+            if (subjectsChapters.isNotEmpty()) {
+                subjectChapterDao.insertAll(subjectsChapters)
             }
 
             if (isAdminOrOwner || effectiveEntitlement != null) {

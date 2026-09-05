@@ -53,6 +53,22 @@ fun BatchImportMockQuestionsDialog(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val allExistingQuestions by viewModel.questions.collectAsState()
+    val examsList by viewModel.examsList.collectAsState()
+
+    val selectedExams = remember {
+        mutableStateListOf<String>().apply {
+            if (defaultExamCategory.isNotBlank()) {
+                addAll(defaultExamCategory.split(",").map { it.trim() }.filter { it.isNotEmpty() })
+            }
+        }
+    }
+
+    var questionFor by remember {
+        mutableStateOf(if (isMockPremium) "Premium" else "Free")
+    }
+
+    var targetExamDialogVisible by remember { mutableStateOf(false) }
+    var questionForExpanded by remember { mutableStateOf(false) }
 
     var csvInputText by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
@@ -86,8 +102,8 @@ fun BatchImportMockQuestionsDialog(
                             csvText = content,
                             defaultSubject = defaultSubject,
                             defaultChapter = defaultChapter,
-                            defaultExamCategory = defaultExamCategory,
-                            isPremium = isMockPremium,
+                            defaultExamCategory = selectedExams.joinToString(", "),
+                            isPremium = questionFor.equals("Premium", ignoreCase = true),
                             existingQuestions = allExistingQuestions
                         )
                         Toast.makeText(context, "CSV file loaded successfully", Toast.LENGTH_SHORT).show()
@@ -102,15 +118,19 @@ fun BatchImportMockQuestionsDialog(
     }
 
     // Trigger validation when input text changes manually
-    fun runValidation(text: String) {
+    fun runValidation(
+        text: String = csvInputText,
+        targetExamsStr: String = selectedExams.joinToString(", "),
+        isPrem: Boolean = questionFor.equals("Premium", ignoreCase = true)
+    ) {
         csvInputText = text
         if (text.isNotBlank()) {
             validationResult = CsvQuestionParser.validateAndParseQuestions(
                 csvText = text,
                 defaultSubject = defaultSubject,
                 defaultChapter = defaultChapter,
-                defaultExamCategory = defaultExamCategory,
-                isPremium = isMockPremium,
+                defaultExamCategory = targetExamsStr,
+                isPremium = isPrem,
                 existingQuestions = allExistingQuestions
             )
         } else {
@@ -157,7 +177,7 @@ fun BatchImportMockQuestionsDialog(
                             )
                         }
                         Text(
-                            text = "Import multiple questions at once for this mock test.",
+                            text = if (isGeneralQBankImport) "Import multiple questions at once directly into Question Bank." else "Import multiple questions at once for this mock test.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -212,6 +232,103 @@ fun BatchImportMockQuestionsDialog(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Batch Configuration Settings Card
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Batch Import Settings",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // Target Exams (Multiple) Box
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { targetExamDialogVisible = true }
+                                    ) {
+                                        SafeOutlinedTextField(
+                                            value = if (selectedExams.isEmpty()) "Select Target Exams..." else selectedExams.joinToString(", "),
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Target Exams (Multiple)") },
+                                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            enabled = false,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clickable { targetExamDialogVisible = true }
+                                        )
+                                    }
+
+                                    // Question For (Free / Premium) Dropdown
+                                    ExposedDropdownMenuBox(
+                                        expanded = questionForExpanded,
+                                        onExpandedChange = { questionForExpanded = !questionForExpanded },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        SafeOutlinedTextField(
+                                            value = questionFor,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Question For") },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionForExpanded) },
+                                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = questionForExpanded,
+                                            onDismissRequest = { questionForExpanded = false }
+                                        ) {
+                                            listOf("Free", "Premium").forEach { option ->
+                                                DropdownMenuItem(
+                                                    text = { Text(option) },
+                                                    onClick = {
+                                                        questionFor = option
+                                                        questionForExpanded = false
+                                                        runValidation(isPrem = option.equals("Premium", ignoreCase = true))
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Upload / Paste section
                     item {
                         if (selectedInputTab == 0) {
@@ -536,12 +653,13 @@ fun BatchImportMockQuestionsDialog(
                             ) { assignedIds, newQBankCount, message ->
                                 isProcessing = false
                                 if (assignedIds.isNotEmpty()) {
-                                    Toast.makeText(
-                                        context,
+                                    val successMsg = if (isGeneralQBankImport) {
+                                        "Imported ${newQuestionsToInsert.size} questions to Question Bank"
+                                    } else {
                                         "Imported ${assignedIds.size} questions to Mock Test" +
-                                                if (newQBankCount > 0) " ($newQBankCount saved to Question Bank)" else "",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                                if (newQBankCount > 0) " ($newQBankCount saved to Question Bank)" else ""
+                                    }
+                                    Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
                                     onQuestionsImported(assignedIds, newQBankCount)
                                     onDismiss()
                                 } else {
@@ -563,7 +681,12 @@ fun BatchImportMockQuestionsDialog(
                         } else {
                             Icon(Icons.Default.AddCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (validCount > 0) "Add $validCount Questions to Mock" else "Add Questions to Mock")
+                            val buttonText = if (isGeneralQBankImport) {
+                                if (validCount > 0) "Import $validCount Questions" else "Import Questions"
+                            } else {
+                                if (validCount > 0) "Add $validCount Questions to Mock" else "Add Questions to Mock"
+                            }
+                            Text(buttonText)
                         }
                     }
                 }
@@ -652,6 +775,65 @@ fun BatchImportMockQuestionsDialog(
             }
         )
     }
+
+    // Target Exams Selection Dialog
+    if (targetExamDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { targetExamDialogVisible = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Assignment, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Select Target Exams", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                if (examsList.isEmpty()) {
+                    Text("No exams available. Please add exams in Manage Exams first.", color = MaterialTheme.colorScheme.error)
+                } else {
+                    val availableExams = examsList.map { it.title }.distinct()
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(availableExams) { examTitle ->
+                            val isSelected = selectedExams.contains(examTitle)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedExams.remove(examTitle)
+                                        } else {
+                                            selectedExams.add(examTitle)
+                                        }
+                                        runValidation(targetExamsStr = selectedExams.joinToString(", "))
+                                    }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        if (!selectedExams.contains(examTitle)) selectedExams.add(examTitle)
+                                    } else {
+                                        selectedExams.remove(examTitle)
+                                    }
+                                    runValidation(targetExamsStr = selectedExams.joinToString(", "))
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(examTitle, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { targetExamDialogVisible = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -712,7 +894,33 @@ private fun ValidQuestionCard(itemRow: ParsedQuestionRow) {
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (q.examCategory.isNotBlank()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = q.examCategory,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Surface(
+                        color = if (q.isPremium) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = if (q.isPremium) "Premium" else "Free",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (q.isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                     if (itemRow.isExistingInQBank) {
                         Surface(
                             color = MaterialTheme.colorScheme.tertiaryContainer,

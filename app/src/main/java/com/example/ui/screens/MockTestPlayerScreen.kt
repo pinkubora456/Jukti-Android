@@ -82,6 +82,7 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     val activeMockQuestions by viewModel.activeMockQuestions.collectAsState()
     val userAnswers by viewModel.mockUserAnswers.collectAsState()
     val markedForReview by viewModel.mockMarkedForReview.collectAsState()
+    val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val timeRemainingSeconds by viewModel.mockTimeRemainingSeconds.collectAsState()
     val isSubmittingMock by viewModel.isSubmittingMock.collectAsState()
 
@@ -532,21 +533,45 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
                             )
                         }
                     }
-                    Row {
-                        IconButton(onClick = { showReportDialog = true }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // Report Question Button (Red Flag)
+                        IconButton(
+                            onClick = { showReportDialog = true },
+                            modifier = Modifier.size(38.dp)
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Report,
+                                imageVector = Icons.Default.Flag,
                                 contentDescription = "Report Question",
-                                tint = MaterialTheme.colorScheme.error
+                                tint = Color(0xFFE53935), // Red Flag
+                                modifier = Modifier.size(22.dp)
                             )
                         }
-                        TextButton(onClick = { viewModel.toggleMarkForReview(currentQuestionIndex) }) {
+
+                        // Question Bookmark / Save Button (Only show the icon)
+                        val isMarked = markedForReview.contains(currentQuestionIndex)
+                        IconButton(
+                            onClick = {
+                                viewModel.toggleMarkForReview(currentQuestionIndex)
+                                currentQuestion.let { q ->
+                                    val inBookmarks = q.id in bookmarkedIds
+                                    if (!isMarked && !inBookmarks) {
+                                        viewModel.toggleBookmarkQuestion(q)
+                                    } else if (isMarked && inBookmarks) {
+                                        viewModel.toggleBookmarkQuestion(q)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(38.dp)
+                        ) {
                             Icon(
-                                imageVector = if (markedForReview.contains(currentQuestionIndex)) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = null
+                                imageVector = if (isMarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (isMarked) "Remove Bookmark" else "Bookmark / Save Question",
+                                tint = if (isMarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (markedForReview.contains(currentQuestionIndex)) "Marked" else "Mark for Review")
                         }
                     }
                 }
