@@ -197,6 +197,7 @@ class MainActivity : ComponentActivity() {
                                 Screen.SINGLE_QUESTION_UPLOAD -> SingleQuestionUploadScreen(viewModel)
                                 Screen.BATCH_IMPORT_QUESTION -> BatchImportQuestionScreen(viewModel)
                                 Screen.ALL_QUESTIONS -> AllQuestionsScreen(viewModel)
+                                Screen.MOCK_QUESTIONS -> MockQuestionsScreen(viewModel)
                                 Screen.CREATE_PLAN -> CreatePlanScreen(viewModel)
                                 Screen.EDIT_PLAN -> EditPlanScreen(viewModel)
                                 Screen.MANAGE_USER_LOG -> ManageUserLogScreen(viewModel)

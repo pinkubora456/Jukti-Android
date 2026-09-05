@@ -80,6 +80,7 @@ enum class Screen {
     OWNER_DASHBOARD,
     MANAGE_QBANK,
     MANAGE_MOCK,
+    MOCK_QUESTIONS,
     MANAGE_PLAN,
     MANAGE_ADMIN,
     ADMIN_ACTIVITY_LOG,
@@ -905,7 +906,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
-    val questions: StateFlow<List<QuestionEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<QuestionEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
+    val allResolvedQuestions: StateFlow<List<QuestionEntity>> = combine(kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }, effectiveEntitlement, isAdminOrOwner, networkMonitor.isConnected) { list: List<QuestionEntity>, effective: com.example.data.util.EffectiveUserEntitlement?, isAdmin: Boolean, isConnected: Boolean ->
         val eff = effective ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime())
         list.filter { !it.isReported }.map { q ->
             if (!q.isPremium || com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)) q
@@ -919,6 +920,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val questions: StateFlow<List<QuestionEntity>> = allResolvedQuestions
+        .map { list -> list.filter { it.status != "HIDDEN" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val mockOnlyQuestions: StateFlow<List<QuestionEntity>> = allResolvedQuestions
+        .map { list -> list.filter { it.status == "HIDDEN" } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val reportedQuestions = kotlinx.coroutines.flow.combine(repository.allQuestions, repository.premiumQuestions) { f, p -> f + p }.map { list -> list.filter { it.isReported } }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -1658,7 +1667,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         startMockTimer()
 
         // Resolve and lock the EXACT questions belonging to this mock test session
-        val allQuestionsList = questions.value
+        val allQuestionsList = allResolvedQuestions.value
         val resolvedQuestions: List<QuestionEntity> = when {
             mock.questionIds.isNotBlank() -> {
                 val ids = mock.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
@@ -1788,7 +1797,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         _selectedMockTest.value = mock
         _currentMockAttempt.value = attempt
         
-        val allQuestionsList = questions.value
+        val allQuestionsList = allResolvedQuestions.value
         val idMap = allQuestionsList.associateBy { it.id }
         val ids = attempt.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
         val attemptQuestions = ids.mapNotNull { idMap[it] }
@@ -1839,7 +1848,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 viewMockAttemptResult(mockEntity, attempt)
             } else {
                 _selectedMockTest.value = mockEntity
-                val allQ = questions.value
+                val allQ = allResolvedQuestions.value
                 val resolvedQ = if (mockEntity.questionIds.isNotBlank()) {
                     val ids = mockEntity.questionIds.split(",").mapNotNull { it.trim().toLongOrNull() }
                     val idMap = allQ.associateBy { it.id }
@@ -2864,6 +2873,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = repository.updateQuestion(question.copy(isReported = false))
             _syncToastMessage.value = res.second
+        }
+    }
+
+    fun bulkUpdateQuestions(
+        questionsToUpdate: List<QuestionEntity>,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val (success, msg) = repository.bulkUpdateQuestions(questionsToUpdate)
+            onComplete(success, msg)
+            if (success) {
+                _syncToastMessage.value = msg
+            }
         }
     }
 

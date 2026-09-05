@@ -46,6 +46,9 @@ fun ManageMockGrid(viewModel: JuktiViewModel) {
         },
         ManageMockItem("Edit Mock", Icons.Default.Edit) {
             viewModel.navigateTo(com.example.ui.viewmodel.Screen.EDIT_MOCK)
+        },
+        ManageMockItem("Mock Questions", Icons.Default.FormatListBulleted) {
+            viewModel.navigateTo(com.example.ui.viewmodel.Screen.MOCK_QUESTIONS)
         }
     )
 

@@ -511,7 +511,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
                             containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                             iconTintColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             onClick = { showSavedQuestionsOptionsDialog = true },
-                            progressText = "${bookmarkedIds.size} questions saved",
+                            progressText = "${bookmarkedQuestions.size} questions saved",
                             badgeText = "📌 Saved"
                         )
                     }

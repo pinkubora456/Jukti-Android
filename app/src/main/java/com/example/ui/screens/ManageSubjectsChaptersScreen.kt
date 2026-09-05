@@ -317,7 +317,7 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
             onDismissRequest = { showDeleteSubjectDialog = null },
             title = { Text("Delete Subject") },
             text = {
-                Text("Are you sure you want to delete subject \"$subjectToDelete\"? This will remove the subject and its chapters.")
+                Text("Are you sure you want to delete subject \"$subjectToDelete\"? This will remove the subject, its chapters, and permanently delete ALL questions in this subject.")
             },
             confirmButton = {
                 Button(
@@ -343,7 +343,7 @@ fun ManageSubjectsChaptersScreen(viewModel: JuktiViewModel) {
             onDismissRequest = { showDeleteChapterDialog = null },
             title = { Text("Delete Chapter") },
             text = {
-                Text("Are you sure you want to delete chapter \"$chapterToDelete\" from \"$subjectName\"?")
+                Text("Are you sure you want to delete chapter \"$chapterToDelete\" from \"$subjectName\"? This will permanently delete ALL questions in this chapter.")
             },
             confirmButton = {
                 Button(

@@ -54,7 +54,7 @@ fun normalizeSubjectName(raw: String?): String {
 
 fun normalizeChapterName(raw: String?, subject: String = ""): String {
     val trimmed = (raw ?: "").trim()
-    if (trimmed.isEmpty()) return "General Knowledge"
+    if (trimmed.isEmpty()) return ""
     val lower = trimmed.lowercase()
 
     val normSubject = if (subject.isNotBlank()) normalizeSubjectName(subject) else ""
@@ -65,13 +65,17 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("polit") || lower.contains("constitut") || lower.contains("parliament") || lower.contains("preamble") || lower.contains("panchayat") || lower.contains("judiciary") -> "Polity & Constitution"
             lower.contains("geogr") || lower.contains("river") || lower.contains("climate") || lower.contains("park") || lower.contains("wildlife") || lower.contains("soil") -> "Geography"
             lower.contains("econ") || lower.contains("budget") || lower.contains("rbi") || lower.contains("bank") || lower.contains("gdp") || lower.contains("tax") || lower.contains("industry") -> "Economy"
-            lower.contains("sci") || lower.contains("physic") || lower.contains("chemis") || lower.contains("biolog") || lower.contains("tech") || lower.contains("disease") -> "Science & Technology"
+            lower.contains("physic") -> "Physics"
+            lower.contains("chemis") -> "Chemistry"
+            lower.contains("biolog") -> "Biology"
+            lower.contains("sci") || lower.contains("tech") || lower.contains("disease") -> "Science & Technology"
             lower.contains("envir") || lower.contains("ecolog") || lower.contains("pollut") || lower.contains("forest") -> "Environment & Ecology"
             lower.contains("art") || lower.contains("cultur") || lower.contains("festiv") || lower.contains("dance") || lower.contains("tradition") -> "Art & Culture"
             lower.contains("scheme") || lower.contains("yojana") || lower.contains("policy") -> "Government Schemes"
             lower.contains("organi") || lower.contains("un") || lower.contains("who") || lower.contains("wto") || lower.contains("isro") || lower.contains("drdo") -> "Organizations"
-            lower.contains("award") || lower.contains("honor") || lower.contains("nobel") || lower.contains("padma") -> "Awards & Honors"
-            lower.contains("book") || lower.contains("author") || lower.contains("novel") -> "Books & Authors"
+            lower.contains("award") || lower.contains("honor") || lower.contains("nobel") || lower.contains("padma") -> "Awards"
+            lower.contains("book") || lower.contains("author") || lower.contains("auther") || lower.contains("novel") -> "Book & Auther"
+            lower.contains("capital") || lower.contains("currency") -> "Capital & Currency"
             lower.contains("day") || lower.contains("date") -> "Important Days"
             lower.contains("sport") || lower.contains("trophy") || lower.contains("cup") || lower.contains("olympic") || lower.contains("cricket") -> "Sports"
             lower.contains("current") || lower.contains("recent") || lower.contains("news") -> "Current Affairs"
@@ -106,6 +110,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             else -> trimmed
         }
         "Reasoning & Mental Ability" -> when {
+            lower.contains("number") && lower.contains("letter") -> "Number & Letter Arrangement"
             lower.contains("analog") -> "Analogy"
             lower.contains("classif") || lower.contains("odd one") -> "Classification"
             lower.contains("series") -> "Series (Number, Alphabet)"
@@ -121,11 +126,10 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("venn") -> "Venn Diagrams"
             lower.contains("calendar") -> "Calendar"
             lower.contains("clock") -> "Clock"
-            lower.contains("mirror") -> "Mirror Image"
-            lower.contains("water") -> "Water Image"
+            lower.contains("mirror") || lower.contains("water") -> "Mirror & Water Image"
             lower.contains("paper") || lower.contains("fold") || lower.contains("cut") -> "Paper Folding & Cutting"
             lower.contains("embed") -> "Embedded Figures"
-            lower.contains("non-verbal") || lower.contains("figure") || lower.contains("visual") -> "Non-Verbal Reasoning"
+            lower.contains("non-verbal") || lower.contains("nonverbal") || lower.contains("figure") || lower.contains("visual") -> "Nonverbal Reasoning"
             else -> trimmed
         }
         "General English" -> when {
@@ -156,6 +160,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             else -> trimmed
         }
         "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> when {
+            lower.contains("nmr") || lower.contains("driving aware") -> "Driving Awareness"
             lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
             lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
             lower.contains("driv") || lower.contains("licen") || lower.contains("permit") -> "Driving Regulations, Licences & Permits"
@@ -806,6 +811,46 @@ class JuktiRepository(
         }
         val fbId = norm.firebaseId.ifEmpty { norm.id.toString() }
         return syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(norm))
+    }
+
+    suspend fun bulkUpdateQuestions(questionsToUpdate: List<com.example.data.local.QuestionEntity>): Pair<Boolean, String> {
+        if (questionsToUpdate.isEmpty()) return false to "No questions to update"
+
+        val updatedQs = questionsToUpdate.map { 
+            normalizeQuestionEntity(it.copy(updatedAt = System.currentTimeMillis()))
+        }
+
+        val localToUpdate = updatedQs.filter { !it.isPremium }
+        val premToUpdate = updatedQs.filter { it.isPremium }
+
+        if (localToUpdate.isNotEmpty()) {
+            questionDao.updateQuestions(localToUpdate)
+        }
+        
+        if (premToUpdate.isNotEmpty()) {
+            val current = _premiumQuestions.value.toMutableList()
+            premToUpdate.forEach { upd ->
+                val index = current.indexOfFirst { it.id == upd.id }
+                if (index != -1) current[index] = upd else current.add(upd)
+            }
+            _premiumQuestions.value = current
+        }
+
+        val now = System.currentTimeMillis()
+        val syncItems = updatedQs.map { q ->
+            val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+            com.example.data.local.SyncQueueEntity(
+                entityId = fbId,
+                dataType = "QUESTION",
+                operation = "UPDATE",
+                payloadJson = syncManager.mapToJson(syncManager.questionToMap(q)),
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "PENDING"
+            )
+        }
+        syncManager.enqueueBatch(syncItems)
+        return syncManager.uploadAllWorkspaceChangesToFirebase()
     }
 
     suspend fun bulkMoveQuestions(
@@ -1489,42 +1534,85 @@ class JuktiRepository(
 
     suspend fun mergeChapter(subject: String, sourceChapter: String, targetChapter: String) {
         withContext(Dispatchers.IO) {
+            val questionsToUpdate = questionDao.getAllQuestions().firstOrNull()?.filter { it.subject == subject && it.topic == sourceChapter } ?: emptyList()
             questionDao.mergeChapter(subject, sourceChapter, targetChapter)
+            
+            val chapterToDelete = subjectChapterDao.getSubjectChapterByNames(subject, sourceChapter).firstOrNull()
+            subjectChapterDao.deleteSubjectChapterByNames(subject, sourceChapter)
+            if (chapterToDelete != null) {
+                syncManager.enqueueAndSync("SUBJECT_CHAPTER", chapterToDelete.id.toString(), "DELETE")
+            }
+            
+            questionsToUpdate.forEach { q ->
+                val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+                val updatedQ = q.copy(topic = targetChapter)
+                syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(updatedQ))
+            }
         }
     }
 
     suspend fun renameSubject(oldSubject: String, newSubject: String) {
         withContext(Dispatchers.IO) {
+            val questionsToUpdate = questionDao.getAllQuestions().firstOrNull()?.filter { it.subject == oldSubject } ?: emptyList()
+            val chaptersToUpdate = subjectChapterDao.getSubjectChaptersBySubject(oldSubject)
             questionDao.renameSubject(oldSubject, newSubject)
             subjectChapterDao.renameSubject(oldSubject, newSubject)
 
+            chaptersToUpdate.forEach { ch ->
+                val updatedCh = ch.copy(subject = newSubject)
+                syncManager.enqueueAndSync("SUBJECT_CHAPTER", updatedCh.id.toString(), "UPDATE", syncManager.subjectChapterToMap(updatedCh))
+            }
+            questionsToUpdate.forEach { q ->
+                val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+                val updatedQ = q.copy(subject = newSubject)
+                syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(updatedQ))
+            }
         }
     }
 
     suspend fun renameChapter(subject: String, oldChapter: String, newChapter: String) {
         withContext(Dispatchers.IO) {
+            val questionsToUpdate = questionDao.getAllQuestions().firstOrNull()?.filter { it.subject == subject && it.topic == oldChapter } ?: emptyList()
+            val chaptersToUpdate = subjectChapterDao.getSubjectChapterByNames(subject, oldChapter)
             questionDao.renameChapter(subject, oldChapter, newChapter)
             subjectChapterDao.renameChapter(subject, oldChapter, newChapter)
 
+            chaptersToUpdate.forEach { ch ->
+                val updatedCh = ch.copy(chapter = newChapter)
+                syncManager.enqueueAndSync("SUBJECT_CHAPTER", updatedCh.id.toString(), "UPDATE", syncManager.subjectChapterToMap(updatedCh))
+            }
+            questionsToUpdate.forEach { q ->
+                val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+                val updatedQ = q.copy(topic = newChapter)
+                syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(updatedQ))
+            }
         }
     }
 
     suspend fun deleteSubject(subject: String) {
         withContext(Dispatchers.IO) {
+            val questionsToDelete = questionDao.getAllQuestions().firstOrNull()?.filter { it.subject == subject } ?: emptyList()
             val chaptersToDelete = subjectChapterDao.getSubjectChaptersBySubject(subject)
             subjectChapterDao.deleteSubject(subject)
             chaptersToDelete.forEach {
                 syncManager.enqueueAndSync("SUBJECT_CHAPTER", it.id.toString(), "DELETE")
+            }
+            questionsToDelete.forEach { q ->
+                deleteQuestion(q)
             }
         }
     }
 
     suspend fun deleteChapter(subject: String, chapter: String) {
         withContext(Dispatchers.IO) {
+            val questionsToDelete = questionDao.getAllQuestions().firstOrNull()?.filter { it.subject == subject && it.topic == chapter } ?: emptyList()
             val chapterToDelete = subjectChapterDao.getSubjectChapterByNames(subject, chapter).firstOrNull()
             subjectChapterDao.deleteSubjectChapterByNames(subject, chapter)
             if (chapterToDelete != null) {
                 syncManager.enqueueAndSync("SUBJECT_CHAPTER", chapterToDelete.id.toString(), "DELETE")
+            }
+            questionsToDelete.forEach { q ->
+                deleteQuestion(q)
             }
         }
     }
