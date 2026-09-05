@@ -549,19 +549,20 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.WhileSubscribed(5000), null
     )
 
+    private val currentUserUid: Flow<String?> = userProfile
+        .map { it?.uid ?: FirebaseAuth.getInstance().currentUser?.uid }
+        .distinctUntilChanged()
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val bookmarkedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
-        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+    val bookmarkedIds: StateFlow<Set<Long>> = currentUserUid.flatMapLatest { uid ->
         if (uid.isNullOrBlank()) flowOf(emptySet())
         else repository.getUserStates(uid).map { list ->
             list.filter { it.isBookmarked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val likedIds: StateFlow<Set<Long>> = userProfile.flatMapLatest { profile ->
-        val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+    val likedIds: StateFlow<Set<Long>> = currentUserUid.flatMapLatest { uid ->
         if (uid.isNullOrBlank()) flowOf(emptySet())
         else repository.getUserStates(uid).map { list ->
             list.filter { it.isLiked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
@@ -817,8 +818,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = combine(
-        userProfile.flatMapLatest { profile ->
-            val uid = profile?.uid ?: FirebaseAuth.getInstance().currentUser?.uid
+        currentUserUid.flatMapLatest { uid ->
             if (uid.isNullOrBlank()) flowOf(emptyList())
             else repository.getSmartPracticeQuestions(uid)
         },

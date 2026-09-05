@@ -375,7 +375,7 @@ fun PracticeScreen(
         else com.example.data.repository.SessionDeckManager.buildScopeKey(selectedSubjectKey, selectedChapters)
     }
 
-    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, isSavedPractice, activePracticeQuestion, practiceQuestions) {
+    LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, isSavedPractice, activePracticeQuestion) {
         if (isSessionStarted) {
             userAnswers.clear()
             sessionTotalSeconds = 0
