@@ -157,6 +157,10 @@ data class UserProfileEntity(
     val totalSolved: Int = 0,
     val correctCount: Int = 0,
     val totalTimeMinutes: Int = 0,
+    val mockStudyTime: Long = 0L,
+    val practiceStudyTime: Long = 0L,
+    val learningStudyTime: Long = 0L,
+    val totalStudyTime: Long = 0L,
     val isPremium: Boolean = false,
     val accessType: String = "FREE",
     val role: String = "USER",     // "USER", "ADMIN", "OWNER"

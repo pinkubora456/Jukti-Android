@@ -35,7 +35,7 @@ class ExampleUnitTest {
       "One Word Substitution"
     )
     for (v in variants) {
-      assertEquals("One-Word & Idioms", normalizeChapterName(v))
+      assertEquals("One-Word & Idioms", normalizeChapterName(v, "General English"))
     }
   }
 
@@ -52,13 +52,13 @@ class ExampleUnitTest {
       "Transport Rule"
     )
     for (v in manualVariants) {
-      assertEquals("Transport Rule", normalizeSubjectName(v))
+      assertEquals("Transport & Motor Vehicle", normalizeSubjectName(v))
     }
 
     assertEquals("General Knowledge", normalizeSubjectName("General Knowledge"))
     assertEquals("General English", normalizeSubjectName("General English"))
     assertEquals("General Mathematics", normalizeSubjectName("General Mathematics"))
-    assertEquals("Reasoning", normalizeSubjectName("Reasoning"))
+    assertEquals("Reasoning & Mental Ability", normalizeSubjectName("Reasoning"))
   }
 
   @Test
@@ -120,8 +120,8 @@ class ExampleUnitTest {
     )
 
     val normalized = normalizeQuestionEntity(manualQuestion)
-    assertEquals("Transport Rule", normalized.subject)
-    assertEquals("Driving Regulations, Licences & Permits", normalized.topic)
+    assertEquals("Transport & Motor Vehicle", normalized.subject)
+    assertEquals("Motor Vehicles Act & Traffic Rules", normalized.topic)
   }
 
   @Test
@@ -150,7 +150,7 @@ class ExampleUnitTest {
     )
 
     val normalized = normalizeQuestionEntity(transportQuestion)
-    assertEquals("Transport Rule", normalized.subject)
+    assertEquals("Transport & Motor Vehicle", normalized.subject)
     assertEquals("Traffic Signs, Signals & Road Safety", normalized.topic)
   }
 }

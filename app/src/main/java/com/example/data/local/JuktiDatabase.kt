@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 40,
+    version = 41,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -203,6 +203,17 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `mockStudyTime` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `practiceStudyTime` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `learningStudyTime` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `totalStudyTime` INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {}
+            }
+        }
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -210,7 +221,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

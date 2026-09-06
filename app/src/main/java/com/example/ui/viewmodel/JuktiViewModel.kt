@@ -555,6 +555,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         .distinctUntilChanged()
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val userQuestionStates: StateFlow<List<com.example.data.local.UserQuestionStateEntity>> = currentUserUid.flatMapLatest { uid ->
+        if (uid.isNullOrBlank()) flowOf(emptyList())
+        else repository.getUserStates(uid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val bookmarkedIds: StateFlow<Set<Long>> = currentUserUid.flatMapLatest { uid ->
         if (uid.isNullOrBlank()) flowOf(emptySet())
         else repository.getUserStates(uid).map { list ->
@@ -1117,23 +1123,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             networkMonitor.isConnected.collect { online ->
-                if (!online) {
-                    repository.clearPremiumCache()
-                    
-                    if (_activeMockQuestions.value.any { it.isPremium }) {
-                        _activeMockQuestions.value = emptyList()
-                        _currentMockAttempt.value = null
-                        _sessionMessage.value = "Premium Content is unavailable offline."
-                        if (_currentScreen.value == Screen.MOCK_PLAYER || _currentScreen.value == Screen.MOCK_RESULT) {
-                            navigateTo(Screen.HOME)
-                        }
-                    }
-                } else {
-                    kotlinx.coroutines.delay(1000)
-                    try {
-                        repository.refreshDataFromFirebase(getTrustedTime())
-                    } catch (_: Exception) {}
-                }
+                // Keep premium content cached in memory until app is closed or explicitly refreshed from settings.
             }
         }
 
@@ -1855,6 +1845,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 _currentMockAttempt.value = synthAttempt
                 navigateTo(Screen.MOCK_RESULT)
             }
+        }
+    }
+
+    fun recordStudySession(sessionType: String, durationSeconds: Long) {
+        viewModelScope.launch {
+            repository.recordStudySession(sessionType, durationSeconds * 1000)
         }
     }
 

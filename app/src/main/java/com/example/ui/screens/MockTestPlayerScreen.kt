@@ -93,6 +93,13 @@ fun MockTestPlayerScreen(viewModel: JuktiViewModel) {
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
 
+    com.example.ui.components.StudyTimeTracker(
+        isActive = true,
+        onTimeAccumulated = { seconds ->
+            viewModel.recordStudySession("MOCK_TEST", seconds)
+        }
+    )
+
     // Map each question to its normalized display subject
     val questionDisplaySubjects = remember(activeMockQuestions) {
         activeMockQuestions.map { q -> mapQuestionSubjectToDisplaySubject(q.subject) }

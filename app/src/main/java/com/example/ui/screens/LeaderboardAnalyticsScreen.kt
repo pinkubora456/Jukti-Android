@@ -110,11 +110,73 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
 
     val isAssamese = language == AppLanguage.ASSAMESE || language == AppLanguage.BOTH
 
-    // Subject breakdown sample data with chapter accuracy and missed questions
-    val subjectBreakdownList = remember { emptyList<SubjectBreakdown>() }
-
     // Mock test history data from local database
     val mockTestsState by viewModel.accessibleMockTests.collectAsState()
+    val allQuestionsState by viewModel.questions.collectAsState()
+    val userQuestionStates by viewModel.userQuestionStates.collectAsState()
+    val currentProfile = userProfile
+
+    // Compute dynamic subject breakdown list from actual user question states
+    val subjectBreakdownList = remember(userQuestionStates, allQuestionsState) {
+        val canonicalSubjects = com.example.data.repository.SampleData.CANONICAL_SUBJECTS
+        val questionsById = allQuestionsState.associateBy { it.id.toString() }
+
+        canonicalSubjects.mapNotNull { subjName ->
+            val matchingQuestions = allQuestionsState.filter { it.subject.equals(subjName, ignoreCase = true) }
+            if (matchingQuestions.isEmpty()) return@mapNotNull null
+
+            val matchingStates = userQuestionStates.filter { state ->
+                val q = questionsById[state.questionId]
+                q != null && q.subject.equals(subjName, ignoreCase = true)
+            }
+
+            var solvedCount = 0
+            var correctCount = 0
+            val chapterData = mutableMapOf<String, Pair<Int, Int>>() // chapter -> (total attempts, total correct)
+
+            matchingStates.forEach { state ->
+                val attempts = state.totalAttempts
+                if (attempts > 0) {
+                    solvedCount += attempts
+                    correctCount += (attempts - state.incorrectCount)
+                    
+                    val q = questionsById[state.questionId]
+                    if (q != null && q.topic.isNotBlank()) {
+                        val chap = q.topic
+                        val current = chapterData[chap] ?: Pair(0, 0)
+                        chapterData[chap] = Pair(current.first + attempts, current.second + (attempts - state.incorrectCount))
+                    }
+                }
+            }
+
+            if (solvedCount == 0) return@mapNotNull null // Skip subjects with no activity
+
+            val accPercent = ((correctCount.toFloat() / solvedCount.toFloat()) * 100f).toInt().coerceIn(0, 100)
+
+            val chaptersList = chapterData.map { (chap, data) ->
+                val chapAttempts = data.first
+                val chapCorrect = data.second
+                val chapAcc = if (chapAttempts > 0) ((chapCorrect.toFloat() / chapAttempts.toFloat()) * 100f).toInt() else 0
+                ChapterAccuracy(
+                    nameEn = chap,
+                    nameAs = chap,
+                    accuracyPercent = chapAcc
+                )
+            }
+
+            SubjectBreakdown(
+                id = subjName.lowercase().replace(" ", "_"),
+                subjectNameEn = subjName,
+                subjectNameAs = subjName,
+                questionsSolved = solvedCount,
+                accuracyPercent = accPercent,
+                avgTimeSec = 30, // Default for now
+                chapters = chaptersList,
+                missedQuestions = emptyList()
+            )
+        }
+    }
+
     val mockHistoryList = remember(mockTestsState) {
         mockTestsState.filter { it.isCompleted }.map { mock ->
             val scorePct = if (mock.totalMarks > 0) (mock.userScore.toFloat() / mock.totalMarks.toFloat()) * 100f else 0f
@@ -253,8 +315,10 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 // 5. MOCKTEST SCORE TREND IN LINE GRAPH
                 MockTestScoreTrendCard(mockHistoryList = mockHistoryList, isAssamese = isAssamese)
 
-                // 5.1. STUDY TIME TREND IN LINE GRAPH
-                StudyTimeTrendCard(mockHistoryList = mockHistoryList, isAssamese = isAssamese)
+                // 5.1. STUDY TIME SUMMARY
+                if (currentProfile != null) {
+                    StudyTimeSummaryCard(userProfile = currentProfile)
+                }
 
                 // 6. MOCK HISTORY
                 MockTestHistorySection(
@@ -2760,19 +2824,17 @@ fun PodiumItem(
     }
 }
 @Composable
-fun StudyTimeTrendCard(mockHistoryList: List<MockHistoryItem>, isAssamese: Boolean) {
-    val times = mockHistoryList.map { item ->
-        val mins = item.timeSpent.filter { it.isDigit() }.toIntOrNull() ?: 30
-        mins / 60f
+fun StudyTimeSummaryCard(userProfile: com.example.data.local.UserProfileEntity) {
+    val totalSeconds = userProfile.totalStudyTime
+    val mockSeconds = userProfile.mockStudyTime
+    val practiceSeconds = userProfile.practiceStudyTime
+    val learningSeconds = userProfile.learningStudyTime
+
+    val formatTime = { seconds: Long ->
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
-    val maxTime = (times.maxOrNull() ?: 5f).coerceAtLeast(1.0f)
-    val labels = mockHistoryList.map { it.date.ifEmpty { "Test" } }
-    val hasData = times.isNotEmpty()
-    val totalHours = times.sum()
-    
-    val lineColor = MaterialTheme.colorScheme.secondary
-    val gradientColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
-    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2794,174 +2856,77 @@ fun StudyTimeTrendCard(mockHistoryList: List<MockHistoryItem>, isAssamese: Boole
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Study Time Trend",
+                        text = "Study Time",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                if (hasData) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.tertiaryContainer
-                    ) {
-                        Text(
-                            text = "Total: ${String.format(java.util.Locale.getDefault(), "%.1fh", totalHours)}",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        text = "Total: ${formatTime(totalSeconds)}",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
                 }
             }
-            
-            Text(
-                text = "(Based on completed mock test durations)",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 32.dp, top = 2.dp)
-            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (!hasData) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No study time logged yet.\nComplete mock tests to track study time.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                // Line Graph Canvas
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val width = size.width
-                        val height = size.height
-                        val paddingLeft = 30f
-                        val paddingBottom = 40f
-                        val paddingTop = 20f
-                        val paddingRight = 20f
-
-                        val graphWidth = width - paddingLeft - paddingRight
-                        val graphHeight = height - paddingTop - paddingBottom
-
-                        // Draw Grid Lines (0, maxTime/2, maxTime)
-                        val gridY0 = paddingTop + graphHeight
-                        val gridY50 = paddingTop + graphHeight / 2
-                        val gridY100 = paddingTop
-
-                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY0), end = Offset(width - paddingRight, gridY0), strokeWidth = 1f)
-                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY50), end = Offset(width - paddingRight, gridY50), strokeWidth = 1f)
-                        drawLine(color = gridColor, start = Offset(paddingLeft, gridY100), end = Offset(width - paddingRight, gridY100), strokeWidth = 1f)
-
-                        // Calculate point positions
-                        val points = times.mapIndexed { index, time ->
-                            val x = paddingLeft + if (times.size > 1) index * (graphWidth / (times.size - 1)) else graphWidth / 2
-                            val y = paddingTop + graphHeight * (1f - (time / maxTime))
-                            Offset(x, y)
-                        }
-
-                        // Path for Line & Gradient Fill
-                        val path = Path().apply {
-                            if (points.isNotEmpty()) {
-                                moveTo(points[0].x, points[0].y)
-                                for (i in 1 until points.size) {
-                                    lineTo(points[i].x, points[i].y)
-                                }
-                            }
-                        }
-
-                        val fillPath = Path().apply {
-                            addPath(path)
-                            if (points.isNotEmpty()) {
-                                lineTo(points.last().x, gridY0)
-                                lineTo(points.first().x, gridY0)
-                                close()
-                            }
-                        }
-
-                        // Fill Gradient
-                        drawPath(
-                            path = fillPath,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(gradientColor, Color.Transparent),
-                                startY = paddingTop,
-                                endY = gridY0
-                            )
-                        )
-
-                        // Draw Line
-                        drawPath(
-                            path = path,
-                            color = lineColor,
-                            style = Stroke(width = 6f)
-                        )
-
-                        // Draw Points and Node Circles
-                        points.forEach { point ->
-                            drawCircle(color = Color.White, radius = 8f, center = point)
-                            drawCircle(color = lineColor, radius = 5f, center = point)
-                        }
-                    }
-
-                    // Score text overlays on top of points
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 12.dp, end = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        times.forEach { t ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = String.format(java.util.Locale.getDefault(), "%.1fh", t),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-                    }
-
-                    // X-Axis Labels
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .padding(start = 12.dp, end = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        labels.forEach { lbl ->
-                            Text(
-                                text = lbl,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Total study time across ${times.size} mock test session(s) is ${String.format(java.util.Locale.getDefault(), "%.1f", totalHours)} hours.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StudyTimeRow(
+                    label = "Mock Tests",
+                    timeStr = formatTime(mockSeconds),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                StudyTimeRow(
+                    label = "Practice",
+                    timeStr = formatTime(practiceSeconds),
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                StudyTimeRow(
+                    label = "Learning",
+                    timeStr = formatTime(learningSeconds),
+                    color = MaterialTheme.colorScheme.tertiary
                 )
             }
         }
+    }
+}
+
+@Composable
+fun StudyTimeRow(label: String, timeStr: String, color: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(color = color, shape = CircleShape)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Text(
+            text = timeStr,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }

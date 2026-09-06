@@ -62,7 +62,6 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                 listOf(
                     "Traffic Signs, Signals & Road Safety",
                     "Motor Vehicles Act & Traffic Rules",
-                    "Driving Regulations, Licences & Permits",
                     "Vehicle Safety, Violations & Penalties"
                 )
             } else {

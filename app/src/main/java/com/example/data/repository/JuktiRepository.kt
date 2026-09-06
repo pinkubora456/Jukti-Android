@@ -162,8 +162,8 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
         "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> when {
             lower.contains("nmr") || lower.contains("driving aware") -> "Driving Awareness"
             lower.contains("sign") || lower.contains("signal") || lower.contains("safety") -> "Traffic Signs, Signals & Road Safety"
-            lower.contains("act") || lower.contains("rule") -> "Motor Vehicles Act & Traffic Rules"
-            lower.contains("driv") || lower.contains("licen") || lower.contains("permit") -> "Driving Regulations, Licences & Permits"
+            lower.contains("act") || lower.contains("rule") || lower.contains("licen") || lower.contains("permit") -> "Motor Vehicles Act & Traffic Rules"
+            lower.contains("driv") -> "Driving Awareness"
             lower.contains("penalty") || lower.contains("violat") || lower.contains("fine") -> "Vehicle Safety, Violations & Penalties"
             else -> trimmed
         }
@@ -507,24 +507,36 @@ class JuktiRepository(
         mockTests: List<MockTestEntity>,
         studyNotes: List<StudyNoteEntity>
     ) {
-        _premiumQuestions.value = questions.map { normalizeQuestionEntity(it) }
-        _premiumMockTests.value = mockTests
-        _premiumStudyNotes.value = studyNotes
+        val currentQs = _premiumQuestions.value.toMutableList()
+        val newQsMap = questions.associateBy { it.id }
+        val mergedQs = (currentQs.map { q -> newQsMap[q.id] ?: q } + questions.filter { q -> currentQs.none { it.id == q.id } }).distinctBy { it.id }
+        _premiumQuestions.value = mergedQs.map { normalizeQuestionEntity(it) }
+
+        val currentMocks = _premiumMockTests.value.toMutableList()
+        val newMocksMap = mockTests.associateBy { it.id }
+        val mergedMocks = (currentMocks.map { m -> newMocksMap[m.id] ?: m } + mockTests.filter { m -> currentMocks.none { it.id == m.id } }).distinctBy { it.id }
+        _premiumMockTests.value = mergedMocks
+
+        val currentNotes = _premiumStudyNotes.value.toMutableList()
+        val newNotesMap = studyNotes.associateBy { it.id }
+        val mergedNotes = (currentNotes.map { n -> newNotesMap[n.id] ?: n } + studyNotes.filter { n -> currentNotes.none { it.id == n.id } }).distinctBy { it.id }
+        _premiumStudyNotes.value = mergedNotes
     }
 
     suspend fun refreshPremiumContent() {
         try {
             val fetchedQs = firebaseRepository.fetchPremiumQuestions()
             if (fetchedQs.isNotEmpty()) {
-                _premiumQuestions.value = fetchedQs.map { normalizeQuestionEntity(it) }
+                val normalized = fetchedQs.map { normalizeQuestionEntity(it) }
+                updatePremiumContent(normalized, emptyList(), emptyList())
             }
             val fetchedMocks = firebaseRepository.fetchPremiumMockTests()
             if (fetchedMocks.isNotEmpty()) {
-                _premiumMockTests.value = fetchedMocks
+                updatePremiumContent(emptyList(), fetchedMocks, emptyList())
             }
             val fetchedNotes = firebaseRepository.fetchPremiumStudyNotes()
             if (fetchedNotes.isNotEmpty()) {
-                _premiumStudyNotes.value = fetchedNotes
+                updatePremiumContent(emptyList(), emptyList(), fetchedNotes)
             }
         } catch (e: Exception) {
             // Keep existing cache if refresh fails
@@ -983,6 +995,33 @@ class JuktiRepository(
     suspend fun deleteMockTest(mock: MockTestEntity): Pair<Boolean, String> {
         mockTestDao.deleteMockTest(mock)
         return syncManager.enqueueAndSync("MOCK_TEST", mock.id.toString(), "DELETE")
+    }
+
+    suspend fun recordStudySession(sessionType: String, durationMs: Long) = withContext(Dispatchers.IO) {
+        if (durationMs <= 0) return@withContext
+        val durationSeconds = durationMs / 1000
+        val profile = userProfileDao.getUserProfileDirect() ?: return@withContext
+        val currentMock = profile.mockStudyTime
+        val currentPractice = profile.practiceStudyTime
+        val currentLearning = profile.learningStudyTime
+        val currentTotal = profile.totalStudyTime
+        
+        val updatedProfile = when (sessionType) {
+            "MOCK_TEST" -> profile.copy(
+                mockStudyTime = currentMock + durationSeconds,
+                totalStudyTime = currentTotal + durationSeconds
+            )
+            "PRACTICE" -> profile.copy(
+                practiceStudyTime = currentPractice + durationSeconds,
+                totalStudyTime = currentTotal + durationSeconds
+            )
+            "LEARNING" -> profile.copy(
+                learningStudyTime = currentLearning + durationSeconds,
+                totalStudyTime = currentTotal + durationSeconds
+            )
+            else -> profile
+        }
+        userProfileDao.insertOrUpdateProfile(updatedProfile)
     }
 
     suspend fun submitMockResult(

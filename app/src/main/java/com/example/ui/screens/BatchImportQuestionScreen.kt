@@ -60,7 +60,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
     }
 
     // Options state
-    var questionFor by remember { mutableStateOf("Free") } // Free or Premium
+    var questionFor by remember { mutableStateOf("Premium") } // Free or Premium
     val selectedExams = remember { mutableStateListOf<String>() }
 
     // Individual question selection and customization state
@@ -70,7 +70,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
     var showFormatGuideDialog by remember { mutableStateOf(false) }
 
     // Input state
-    var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Upload File, 1 = Paste CSV
+    var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Paste CSV, 1 = Upload File
     var csvInputText by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var selectedFileSize by remember { mutableStateOf<String?>(null) }
@@ -438,7 +438,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                 }
             }
 
-            // Input Method Tabs (Upload CSV File vs Paste CSV Text)
+            // Input Method Tabs (Paste CSV Text vs Upload CSV File)
             item {
                 TabRow(
                     selectedTabIndex = selectedInputTab,
@@ -450,18 +450,6 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                         onClick = { selectedInputTab = 0 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Upload CSV File", fontWeight = FontWeight.SemiBold)
-                            }
-                        },
-                        modifier = Modifier.testTag("tab_upload_csv_file")
-                    )
-                    Tab(
-                        selected = selectedInputTab == 1,
-                        onClick = { selectedInputTab = 1 },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Paste CSV Text", fontWeight = FontWeight.SemiBold)
@@ -469,11 +457,92 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                         },
                         modifier = Modifier.testTag("tab_paste_csv_text")
                     )
+                    Tab(
+                        selected = selectedInputTab == 1,
+                        onClick = { selectedInputTab = 1 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Upload CSV File", fontWeight = FontWeight.SemiBold)
+                            }
+                        },
+                        modifier = Modifier.testTag("tab_upload_csv_file")
+                    )
                 }
             }
 
-            // Tab 0: Upload File Card
+            // Tab 0: Paste CSV Text
             if (selectedInputTab == 0) {
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = csvInputText,
+                            onValueChange = { newText ->
+                                csvInputText = newText
+                                runValidation(text = newText)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 160.dp, max = 280.dp)
+                                .testTag("tf_paste_csv_data"),
+                            placeholder = {
+                                Text(
+                                    "Paste CSV content here...\ne.g.\nstatement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in medieval Assam.\",\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\"",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            },
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (csvInputText.isBlank()) "0 characters"
+                                else "${csvInputText.lines().count { it.isNotBlank() }} lines • ${csvInputText.length} chars",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                TextButton(
+                                    onClick = {
+                                        val sample = CsvQuestionParser.getSampleCsvTemplate()
+                                        csvInputText = sample
+                                        runValidation(text = sample)
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Load Sample Rows")
+                                }
+
+                                if (csvInputText.isNotBlank()) {
+                                    TextButton(
+                                        onClick = {
+                                            csvInputText = ""
+                                            validationResult = null
+                                        }
+                                    ) {
+                                        Text("Clear", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab 1: Upload File Card
+            if (selectedInputTab == 1) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -571,75 +640,6 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("Choose Different File")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Tab 1: Paste CSV Text
-            if (selectedInputTab == 1) {
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = csvInputText,
-                            onValueChange = { newText ->
-                                csvInputText = newText
-                                runValidation(text = newText)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 160.dp, max = 280.dp)
-                                .testTag("tf_paste_csv_data"),
-                            placeholder = {
-                                Text(
-                                    "Paste CSV content here...\ne.g.\nstatement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in medieval Assam.\",\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\"",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            },
-                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (csvInputText.isBlank()) "0 characters"
-                                else "${csvInputText.lines().count { it.isNotBlank() }} lines • ${csvInputText.length} chars",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                TextButton(
-                                    onClick = {
-                                        val sample = CsvQuestionParser.getSampleCsvTemplate()
-                                        csvInputText = sample
-                                        runValidation(text = sample)
-                                    }
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Load Sample Rows")
-                                }
-
-                                if (csvInputText.isNotBlank()) {
-                                    TextButton(
-                                        onClick = {
-                                            csvInputText = ""
-                                            validationResult = null
-                                        }
-                                    ) {
-                                        Text("Clear", color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }

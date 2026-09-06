@@ -558,15 +558,8 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                 }
 
                 item {
-                    val activeSelectedQuestions = remember(testType, selectedMock?.subjectOrChapter, selectedQuestionIds.toList(), allQuestions) {
-                        if (testType == "Subject-wise" && !(selectedMock?.subjectOrChapter.isNullOrBlank())) {
-                            allQuestions.filter { it.subject.equals(selectedMock!!.subjectOrChapter, ignoreCase = true) }
-                        } else if (testType == "Chapter-wise" && (selectedMock?.subjectOrChapter?.contains("||") == true)) {
-                            val parts = selectedMock!!.subjectOrChapter.split("||")
-                            allQuestions.filter { it.subject.equals(parts[0], ignoreCase = true) && it.topic.equals(parts.getOrElse(1) { "" }, ignoreCase = true) }
-                        } else {
-                            allQuestions.filter { selectedQuestionIds.contains(it.id) }
-                        }
+                    val activeSelectedQuestions = remember(selectedQuestionIds.toList(), allQuestions) {
+                        allQuestions.filter { selectedQuestionIds.contains(it.id) }
                     }
 
                     MarksConfigurationSection(
@@ -585,14 +578,7 @@ fun EditMockScreen(viewModel: JuktiViewModel) {
                             if (mockTitleEn.isNotBlank() && selectedExams.isNotEmpty()) {
                                 val duration = durationMinutes.toIntOrNull() ?: 90
                                 
-                                val activeSelectedQuestions = if (testType == "Subject-wise") {
-                                    allQuestions.filter { it.subject.equals(selectedMock!!.subjectOrChapter, ignoreCase = true) }
-                                } else if (testType == "Chapter-wise" && selectedMock!!.subjectOrChapter.contains("||")) {
-                                    val parts = selectedMock!!.subjectOrChapter.split("||")
-                                    allQuestions.filter { it.subject.equals(parts[0], ignoreCase = true) && it.topic.equals(parts.getOrElse(1) { "" }, ignoreCase = true) }
-                                } else {
-                                    allQuestions.filter { selectedQuestionIds.contains(it.id) }
-                                }
+                                val activeSelectedQuestions = allQuestions.filter { selectedQuestionIds.contains(it.id) }
 
                                 val calculatedTotalMarks = calculateTotalMarksFromSubjectConfig(
                                     activeSelectedQuestions, subjectMarks, individualQuestionMarks

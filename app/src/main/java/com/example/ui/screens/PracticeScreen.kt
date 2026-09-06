@@ -96,6 +96,13 @@ fun PracticeScreen(
         viewModel.setStudySessionActive(isSessionStarted)
     }
 
+    com.example.ui.components.StudyTimeTracker(
+        isActive = isSessionStarted,
+        onTimeAccumulated = { seconds ->
+            viewModel.recordStudySession("PRACTICE", seconds)
+        }
+    )
+
     DisposableEffect(Unit) {
         onDispose {
             viewModel.setStudySessionActive(false)

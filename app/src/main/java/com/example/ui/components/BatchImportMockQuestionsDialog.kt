@@ -64,7 +64,7 @@ fun BatchImportMockQuestionsDialog(
     }
 
     var questionFor by remember {
-        mutableStateOf(if (isMockPremium) "Premium" else "Free")
+        mutableStateOf("Premium")
     }
 
     var targetExamDialogVisible by remember { mutableStateOf(false) }
@@ -72,7 +72,7 @@ fun BatchImportMockQuestionsDialog(
 
     var csvInputText by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
-    var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Upload File, 1 = Paste CSV
+    var selectedInputTab by remember { mutableIntStateOf(0) } // 0 = Paste CSV, 1 = Upload File
     var selectedPreviewTab by remember { mutableIntStateOf(0) } // 0 = Valid, 1 = Invalid
 
     var addToQuestionBank by remember { mutableStateOf(true) }
@@ -204,9 +204,9 @@ fun BatchImportMockQuestionsDialog(
                         onClick = { selectedInputTab = 0 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Upload CSV File", fontWeight = FontWeight.SemiBold)
+                                Text("Paste CSV Data", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     )
@@ -215,9 +215,9 @@ fun BatchImportMockQuestionsDialog(
                         onClick = { selectedInputTab = 1 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Paste CSV Data", fontWeight = FontWeight.SemiBold)
+                                Text("Upload CSV File", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     )
@@ -331,7 +331,7 @@ fun BatchImportMockQuestionsDialog(
 
                     // Upload / Paste section
                     item {
-                        if (selectedInputTab == 0) {
+                        if (selectedInputTab == 1) {
                             // File Picker Card
                             Card(
                                 modifier = Modifier.fillMaxWidth(),

@@ -31,7 +31,6 @@ replacement = """
 
         SubjectChapterEntity(subject = "Transport Rule", chapter = "Traffic Signs, Signals & Road Safety"),
         SubjectChapterEntity(subject = "Transport Rule", chapter = "Motor Vehicles Act & Traffic Rules"),
-        SubjectChapterEntity(subject = "Transport Rule", chapter = "Driving Regulations, Licences & Permits"),
         SubjectChapterEntity(subject = "Transport Rule", chapter = "Vehicle Safety, Violations & Penalties")
     )
 """

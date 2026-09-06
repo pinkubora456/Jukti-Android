@@ -799,6 +799,13 @@ fun StudyMcqInteractiveTab(
         showEndLearningConfirmDialog = true
     }
 
+    com.example.ui.components.StudyTimeTracker(
+        isActive = isStudySessionStarted,
+        onTimeAccumulated = { seconds ->
+            viewModel.recordStudySession("LEARNING", seconds)
+        }
+    )
+
     val studySessionResetTrigger by viewModel.studySessionResetTrigger.collectAsState()
     LaunchedEffect(studySessionResetTrigger) {
         if (studySessionResetTrigger > 0) {

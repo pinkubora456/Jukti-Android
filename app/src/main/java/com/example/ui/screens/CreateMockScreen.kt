@@ -599,14 +599,8 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
             }
 
             item {
-                val activeSelectedQuestions = remember(testType, selectedMockSubject, selectedMockChapter, selectedQuestionIds.toList(), allQuestions) {
-                    if (testType == "Subject-wise" && selectedMockSubject.isNotBlank()) {
-                        allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
-                    } else if (testType == "Chapter-wise" && selectedMockChapter.isNotBlank()) {
-                        allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
-                    } else {
-                        allQuestions.filter { selectedQuestionIds.contains(it.id) }
-                    }
+                val activeSelectedQuestions = remember(selectedQuestionIds.toList(), allQuestions) {
+                    allQuestions.filter { selectedQuestionIds.contains(it.id) }
                 }
 
                 MarksConfigurationSection(
@@ -627,50 +621,29 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                             return@Button
                         }
                         
-                        var finalSubjectOrChapter = selectedSubjectFilter
-                        var finalQuestionIds = selectedQuestionIds.toList()
+                        val activeSelectedQuestions = allQuestions.filter { selectedQuestionIds.contains(it.id) }
+
+                        if (testType == "Subject-wise" && selectedMockSubject.isBlank()) {
+                            Toast.makeText(context, "Please select a Subject.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
                         
-                        if (testType == "Subject-wise") {
-                            if (selectedMockSubject.isBlank()) {
-                                Toast.makeText(context, "Please select a Subject.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val questionsInSubject = allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
-                            if (questionsInSubject.isEmpty()) {
-                                Toast.makeText(context, "No questions found for the selected Subject.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            finalSubjectOrChapter = selectedMockSubject
-                            finalQuestionIds = emptyList() // Will be fetched dynamically
-                        } else if (testType == "Chapter-wise") {
-                            if (selectedMockSubject.isBlank() || selectedMockChapter.isBlank()) {
-                                Toast.makeText(context, "Please select both Subject and Chapter.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val questionsInChapter = allQuestions.filter { 
-                                it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true)
-                            }
-                            if (questionsInChapter.isEmpty()) {
-                                Toast.makeText(context, "No questions found for the selected Chapter.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            finalSubjectOrChapter = "$selectedMockSubject||$selectedMockChapter"
-                            finalQuestionIds = emptyList() // Will be fetched dynamically
-                        } else {
-                            // Full-Length mock requires manually selected questions or a default number
-                            if (finalQuestionIds.isEmpty()) {
-                                Toast.makeText(context, "Please add questions for this Full-Length mock.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
+                        if (testType == "Chapter-wise" && (selectedMockSubject.isBlank() || selectedMockChapter.isBlank())) {
+                            Toast.makeText(context, "Please select both Subject and Chapter.", Toast.LENGTH_SHORT).show()
+                            return@Button
                         }
 
-                        val activeSelectedQuestions = if (testType == "Subject-wise") {
-                            allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) }
-                        } else if (testType == "Chapter-wise") {
-                            allQuestions.filter { it.subject.equals(selectedMockSubject, ignoreCase = true) && it.topic.equals(selectedMockChapter, ignoreCase = true) }
-                        } else {
-                            allQuestions.filter { finalQuestionIds.contains(it.id) }
+                        if (activeSelectedQuestions.isEmpty()) {
+                            Toast.makeText(context, "No questions found for this mock test configuration.", Toast.LENGTH_SHORT).show()
+                            return@Button
                         }
+
+                        val finalSubjectOrChapter = when (testType) {
+                            "Subject-wise" -> selectedMockSubject
+                            "Chapter-wise" -> "$selectedMockSubject||$selectedMockChapter"
+                            else -> selectedSubjectFilter
+                        }
+                        val finalQuestionIds = activeSelectedQuestions.map { it.id }
 
                         val duration = durationMinutes.toIntOrNull() ?: 90
                         val totalQ = activeSelectedQuestions.size.coerceAtLeast(1)
@@ -704,6 +677,9 @@ fun CreateMockScreen(viewModel: JuktiViewModel) {
                         )
 
                         viewModel.addMockTest(newMock) {
+                            selectedQuestionIds.clear()
+                            subjectMarks.clear()
+                            individualQuestionMarks.clear()
                             Toast.makeText(context, "Mock Test created successfully!", Toast.LENGTH_SHORT).show()
                             viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_MOCK)
                         }
