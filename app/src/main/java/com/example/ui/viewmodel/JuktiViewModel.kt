@@ -237,7 +237,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             premiumSyncManager.triggerBackgroundSync(
                 coroutineScope = viewModelScope,
                 repository = repository,
-                userProfile = userProfile.value,
+                userProfile = null,
                 userEntitlements = userEntitlements.value,
                 allPlans = plans.value,
                 isAdminOrOwner = isAdminOrOwner.value,
@@ -879,24 +879,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val accessibleMockTests: StateFlow<List<MockTestEntity>> = combine(
-        userProfile,
         userEntitlements,
         plans,
         mockTests,
         isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        @Suppress("UNCHECKED_CAST")
-        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
-
+    ) { ents, allPlans, mocks, admin ->
         com.example.data.util.PlanValidityEngine.filterAccessibleMockTests(
-            userProfile = profile,
-            entitlements = entitlements,
+            userProfile = null,
+            entitlements = ents,
             plans = allPlans,
             mockTests = mocks,
             isAdminOrOwner = admin,
@@ -951,7 +941,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val accessibleContentCounts: StateFlow<com.example.data.util.PlanAccessibleContentCounts> = combine(
-        userProfile,
         userEntitlements,
         plans,
         mockTests,
@@ -959,21 +948,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         questions,
         isAdminOrOwner
     ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
         @Suppress("UNCHECKED_CAST")
-        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
+        val entitlements = args[0] as? List<EntitlementEntity> ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
+        val allPlans = args[1] as? List<PlanEntity> ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val mocks = args[3] as? List<MockTestEntity> ?: emptyList()
+        val mocks = args[2] as? List<MockTestEntity> ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val notes = args[4] as? List<StudyNoteEntity> ?: emptyList()
+        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
         @Suppress("UNCHECKED_CAST")
-        val qs = args[5] as? List<QuestionEntity> ?: emptyList()
-        val admin = args[6] as? Boolean ?: false
-
+        val qs = args[4] as? List<QuestionEntity> ?: emptyList()
+        val admin = args[5] as? Boolean ?: false
         com.example.data.util.PlanValidityEngine.calculateAccessibleCounts(
-            userProfile = profile,
+            userProfile = null,
             entitlements = entitlements,
             plans = allPlans,
             mockTests = mocks,
@@ -987,24 +974,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val accessibleStudyNotes: StateFlow<List<StudyNoteEntity>> = combine(
-        userProfile,
         userEntitlements,
         plans,
         studyNotes,
         isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        @Suppress("UNCHECKED_CAST")
-        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val notes = args[3] as? List<StudyNoteEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
-
+    ) { ents, allPlans, notes, admin ->
         com.example.data.util.PlanValidityEngine.filterAccessibleStudyNotes(
-            userProfile = profile,
-            entitlements = entitlements,
+            userProfile = null,
+            entitlements = ents,
             plans = allPlans,
             studyNotes = notes,
             isAdminOrOwner = admin,
@@ -1015,24 +992,14 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val accessibleQuestions: StateFlow<List<QuestionEntity>> = combine(
-        userProfile,
         userEntitlements,
         plans,
         questions,
         isAdminOrOwner
-    ) { args: Array<Any?> ->
-        val profile = args[0] as? UserProfileEntity
-        @Suppress("UNCHECKED_CAST")
-        val entitlements = args[1] as? List<EntitlementEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val allPlans = args[2] as? List<PlanEntity> ?: emptyList()
-        @Suppress("UNCHECKED_CAST")
-        val qs = args[3] as? List<QuestionEntity> ?: emptyList()
-        val admin = args[4] as? Boolean ?: false
-
+    ) { ents, allPlans, qs, admin ->
         com.example.data.util.PlanValidityEngine.filterAccessibleQuestions(
-            userProfile = profile,
-            entitlements = entitlements,
+            userProfile = null,
+            entitlements = ents,
             plans = allPlans,
             questions = qs,
             isAdminOrOwner = admin,
@@ -1229,7 +1196,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     premiumSyncManager.triggerBackgroundSync(
                         coroutineScope = viewModelScope,
                         repository = repository,
-                        userProfile = userProfile.value,
+                        userProfile = null,
                         userEntitlements = userEntitlements.value,
                         allPlans = plans.value,
                         isAdminOrOwner = isAdminOrOwner.value,
