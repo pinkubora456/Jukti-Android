@@ -28,6 +28,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val selectedSubject by viewModel.selectedSubject.collectAsState()
     val selectedChapter by viewModel.selectedChapter.collectAsState()
+    val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
     
     var searchQuery by remember { mutableStateOf("") }
     var showOnlyIssues by remember { mutableStateOf(false) }
@@ -45,7 +46,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
         }
     }
 
-    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter, showOnlyIssues) {
+    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter, selectedQuestionType, showOnlyIssues) {
         questions.filter { q ->
             val hasIssue = q.questionEn.isBlank() || q.subject.isBlank() || q.topic.isBlank() ||
                            q.optionAEn.isBlank() || q.optionBEn.isBlank() || q.optionCEn.isBlank() || q.optionDEn.isBlank() ||
@@ -53,6 +54,12 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             val matchesIssue = !showOnlyIssues || hasIssue
             val matchesExam = selectedTargetExam == "All Exams" || q.examCategory.contains(selectedTargetExam, ignoreCase = true)
             
+            val matchesType = when (selectedQuestionType) {
+                "Free" -> !q.isPremium
+                "Premium" -> q.isPremium
+                else -> true
+            }
+
             val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
             val matchesSubject = selectedSubject == "All Subjects" || 
                   normSubj.equals(selectedSubject, ignoreCase = true) ||
@@ -69,7 +76,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                     q.subject.contains(searchQuery, ignoreCase = true) ||
                     normSubj.contains(searchQuery, ignoreCase = true) ||
                     q.topic.contains(searchQuery, ignoreCase = true)
-            matchesIssue && matchesExam && matchesSubject && matchesChapter && matchesSearch
+            matchesIssue && matchesExam && matchesSubject && matchesChapter && matchesSearch && matchesType
         }
     }
 

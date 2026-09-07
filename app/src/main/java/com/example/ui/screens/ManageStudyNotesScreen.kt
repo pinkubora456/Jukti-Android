@@ -28,6 +28,22 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
     val notes by viewModel.studyNotes.collectAsState()
     val exams by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
+    val filterSubject by viewModel.selectedSubject.collectAsState()
+    val filterChapter by viewModel.selectedChapter.collectAsState()
+    val filterQuestionType by viewModel.selectedQuestionType.collectAsState()
+    
+    val filteredNotes = remember(notes, filterSubject, filterChapter, filterQuestionType) {
+        notes.filter { n ->
+            val matchesSubj = filterSubject == "All Subjects" || filterSubject.isBlank() || n.subject == filterSubject
+            val matchesChap = filterChapter == "All Chapters" || filterChapter.isBlank() || n.topic == filterChapter
+            val matchesType = when (filterQuestionType) {
+                "Free" -> !n.isPremium
+                "Premium" -> n.isPremium
+                else -> true
+            }
+            matchesSubj && matchesChap && matchesType
+        }
+    }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf<StudyNoteEntity?>(null) }
@@ -92,7 +108,7 @@ fun ManageStudyNotesScreen(viewModel: JuktiViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(notes) { note ->
+                items(filteredNotes) { note ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),

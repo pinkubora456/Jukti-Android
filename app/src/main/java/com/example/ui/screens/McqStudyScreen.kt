@@ -1946,6 +1946,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
                                     val isAnsCorrect = (selectedOptionIndex == currentQuestion?.correctOptionIndex)
                                     if (isAnsCorrect) {
                                         scoreCount += 10
+                                        viewModel.awardCorrectAnswerXp()
                                     }
                                     if (currentQuestion != null) {
                                         viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 10)

@@ -27,6 +27,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.questions.collectAsState()
     val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val selectedSubject by viewModel.selectedSubject.collectAsState()
+    val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
 
     val examOptions = remember(examsList) {
         val examsFromDb = examsList.map { it.title }.distinct().sorted()
@@ -34,6 +35,8 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     }
     
     var examExpanded by remember { mutableStateOf(false) }
+    var questionTypeExpanded by remember { mutableStateOf(false) }
+    val questionTypeOptions = listOf("All Types", "Free", "Premium")
 
     val subjectsList = remember(questions, selectedTargetExam) {
         val filtered = if (selectedTargetExam == "All Exams") {
@@ -53,8 +56,8 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
         }
     }
 
-    val chapterStatsResults by remember(selectedSubject, selectedTargetExam) {
-        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam)
+    val chapterStatsResults by remember(selectedSubject, selectedTargetExam, selectedQuestionType) {
+        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam, selectedQuestionType)
     }.collectAsState(initial = emptyList())
 
     val chapterStats = remember(chapterStatsResults) {
@@ -147,6 +150,37 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
             
             Spacer(modifier = Modifier.height(16.dp))
 
+            ExposedDropdownMenuBox(
+                expanded = questionTypeExpanded,
+                onExpandedChange = { questionTypeExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedQuestionType,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Question Type") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionTypeExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = questionTypeExpanded,
+                    onDismissRequest = { questionTypeExpanded = false }
+                ) {
+                    questionTypeOptions.forEach { type ->
+                        DropdownMenuItem(
+                            text = { Text(type) },
+                            onClick = {
+                                viewModel.setQuestionTypeFilter(type)
+                                questionTypeExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Summary Section
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -204,6 +238,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                             viewModel.setExamFilter(selectedTargetExam)
                                             viewModel.setSubjectFilter(selectedSubject)
                                             viewModel.setChapterFilter(stat.chapter)
+                                            viewModel.setQuestionTypeFilter(selectedQuestionType)
                                             viewModel.setSearchQuery("")
                                             viewModel.navigateTo(Screen.ALL_QUESTIONS)
                                         }

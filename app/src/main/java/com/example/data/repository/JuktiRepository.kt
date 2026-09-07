@@ -1073,7 +1073,9 @@ class JuktiRepository(
             
             val updatedProfile = profile.copy(
                 xp = newXp,
-                level = newLevel
+                level = newLevel,
+                totalSolved = profile.totalSolved + totalAttempted,
+                correctCount = profile.correctCount + correctCount
             )
             userProfileDao.insertOrUpdateProfile(updatedProfile)
             firebaseRepository.saveUserProfile(updatedProfile, merge = true)

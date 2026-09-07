@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,17 +27,28 @@ fun ContentNotesOverviewScreen(viewModel: JuktiViewModel) {
 
     var selectedSubject by remember { mutableStateOf(subjectsList.firstOrNull() ?: "") }
     var expanded by remember { mutableStateOf(false) }
+    
+    val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
+    var questionTypeExpanded by remember { mutableStateOf(false) }
+    val questionTypeOptions = listOf("All Types", "Free", "Premium")
 
     if (selectedSubject.isNotEmpty() && !subjectsList.contains(selectedSubject)) {
         selectedSubject = subjectsList.firstOrNull() ?: ""
     }
 
-    val chapterStats = remember(selectedSubject, allNotes, allSubjectsChapters) {
+    val chapterStats = remember(selectedSubject, allNotes, allSubjectsChapters, selectedQuestionType) {
         val statsMap = mutableMapOf<String, Int>()
         allSubjectsChapters.filter { it.subject == selectedSubject }.forEach { sc ->
             statsMap[sc.chapter] = 0
         }
-        val subjNotes = allNotes.filter { it.subject == selectedSubject }
+        val subjNotes = allNotes.filter { n -> 
+            n.subject == selectedSubject && 
+            when (selectedQuestionType) {
+                "Free" -> !n.isPremium
+                "Premium" -> n.isPremium
+                else -> true
+            }
+        }
         subjNotes.forEach { n ->
             statsMap[n.topic] = (statsMap[n.topic] ?: 0) + 1
         }
@@ -88,6 +100,37 @@ fun ContentNotesOverviewScreen(viewModel: JuktiViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            ExposedDropdownMenuBox(
+                expanded = questionTypeExpanded,
+                onExpandedChange = { questionTypeExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedQuestionType,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Question Type") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionTypeExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = questionTypeExpanded,
+                    onDismissRequest = { questionTypeExpanded = false }
+                ) {
+                    questionTypeOptions.forEach { type ->
+                        DropdownMenuItem(
+                            text = { Text(type) },
+                            onClick = {
+                                viewModel.setQuestionTypeFilter(type)
+                                questionTypeExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Card(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 shape = RoundedCornerShape(12.dp),
@@ -113,6 +156,13 @@ fun ContentNotesOverviewScreen(viewModel: JuktiViewModel) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setSubjectFilter(selectedSubject)
+                                        viewModel.setChapterFilter(chap)
+                                        viewModel.setQuestionTypeFilter(selectedQuestionType)
+                                        viewModel.setSearchQuery("")
+                                        viewModel.navigateTo(Screen.MANAGE_STUDY_NOTES)
+                                    }
                                     .padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {

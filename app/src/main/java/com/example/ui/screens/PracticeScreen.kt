@@ -947,6 +947,7 @@ fun PracticeScreen(
                                             if (!isSubmitted) {
                                                 val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
                                                 userAnswers[currentQuestion.id] = index
+                                                viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 15)
                                                 if (isAnsCorrect) {
                                                     viewModel.awardCorrectAnswerXp()
                                                 }

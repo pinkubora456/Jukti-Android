@@ -853,6 +853,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedExam = MutableStateFlow("All Exams")
     val selectedExam: StateFlow<String> = _selectedExam.asStateFlow()
+    
+    private val _selectedQuestionType = MutableStateFlow("All Types")
+    val selectedQuestionType: StateFlow<String> = _selectedQuestionType.asStateFlow()
 
     private val _selectedChapter = MutableStateFlow("All Chapters")
     val selectedChapter: StateFlow<String> = _selectedChapter.asStateFlow()
@@ -1504,22 +1507,31 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
-    fun getChapterStatsByExam(subject: String, exam: String): Flow<List<com.example.data.local.ChapterStatResult>> {
+    fun getChapterStatsByExam(subject: String, exam: String, questionType: String = "All Types"): Flow<List<com.example.data.local.ChapterStatResult>> {
         return combine(
             repository.getChapterStatsByExam(subject, exam),
             repository.premiumQuestions
         ) { dbStats, premiumQs ->
-            val statsMap = dbStats.associateBy { it.chapter }.toMutableMap()
-            premiumQs.filter { (it.subject == subject || subject == "All Subjects") && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
-                .forEach { q ->
-                    val stat = statsMap[q.topic] ?: com.example.data.local.ChapterStatResult(q.topic, 0, 0, 0, 0)
-                    statsMap[q.topic] = stat.copy(
-                        total = stat.total + 1,
-                        easy = stat.easy + if (q.difficulty == "Easy") 1 else 0,
-                        medium = stat.medium + if (q.difficulty == "Medium") 1 else 0,
-                        hard = stat.hard + if (q.difficulty == "Hard") 1 else 0
-                    )
+            val statsMap = mutableMapOf<String, com.example.data.local.ChapterStatResult>()
+            
+            if (questionType == "All Types" || questionType == "Free") {
+                dbStats.forEach { stat ->
+                    statsMap[stat.chapter] = stat
                 }
+            }
+            
+            if (questionType == "All Types" || questionType == "Premium") {
+                premiumQs.filter { (it.subject == subject || subject == "All Subjects") && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
+                    .forEach { q ->
+                        val stat = statsMap[q.topic] ?: com.example.data.local.ChapterStatResult(q.topic, 0, 0, 0, 0)
+                        statsMap[q.topic] = stat.copy(
+                            total = stat.total + 1,
+                            easy = stat.easy + if (q.difficulty == "Easy") 1 else 0,
+                            medium = stat.medium + if (q.difficulty == "Medium") 1 else 0,
+                            hard = stat.hard + if (q.difficulty == "Hard") 1 else 0
+                        )
+                    }
+            }
             statsMap.values.toList().sortedByDescending { it.total }
         }
     }
@@ -1529,6 +1541,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setExamFilter(exam: String) {
         _selectedExam.value = exam
+    }
+    fun setQuestionTypeFilter(type: String) {
+        _selectedQuestionType.value = type
     }
     fun setChapterFilter(chapter: String) {
         _selectedChapter.value = chapter
