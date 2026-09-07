@@ -648,7 +648,7 @@ fun QuickNavGrid(
     val items = listOf(
         QuickNavItem("Learn", "শিকা", Icons.Default.MenuBook, Screen.MCQ_STUDY, BrandPrimary),
         QuickNavItem("Practice", "অনুশীলন", Icons.Default.Quiz, Screen.PRACTICE, BrandSecondary),
-        QuickNavItem("Mock Test", "মক পৰীক্ষা", Icons.Default.Timer, Screen.MOCK_TESTS, BrandAccent),
+        QuickNavItem("Guidance", "মাৰ্গদৰ্শন", Icons.Default.Explore, Screen.GUIDANCE, BrandAccent),
         QuickNavItem("Study Notes", "অধ্যয়ন নোটছ", Icons.Default.StickyNote2, Screen.STUDY_NOTES, BrandWarning),
         QuickNavItem("Exam Updates", "পৰীক্ষাৰ জাননী", Icons.Default.NotificationsActive, Screen.EXAM_INFO, BrandPrimary),
         QuickNavItem("Leaderboard", "লিডাৰব'ৰ্ড", Icons.Default.Leaderboard, Screen.LEADERBOARD, BrandAccent),

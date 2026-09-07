@@ -26,6 +26,11 @@ import kotlinx.coroutines.launch
         PlanEntity::class,
         ExamEntity::class,
         SubjectChapterEntity::class,
+        PyqFocusEntity::class,
+        FocusTopicEntity::class,
+        PrepStrategyEntity::class,
+        GuidanceBannerEntity::class,
+        
         PendingRequestEntity::class,
         FaqEntity::class,
         ActivityLogEntity::class,
@@ -33,7 +38,7 @@ import kotlinx.coroutines.launch
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 41,
+    version = 42,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -52,6 +57,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun planDao(): PlanDao
     abstract fun examDao(): ExamDao
     abstract fun subjectChapterDao(): SubjectChapterDao
+    abstract fun guidanceDao(): GuidanceDao
     abstract fun pendingRequestDao(): PendingRequestDao
     abstract fun faqDao(): FaqDao
     abstract fun activityLogDao(): ActivityLogDao
@@ -203,6 +209,62 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+                val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                try {
+                    database.execSQL("DROP TABLE IF EXISTS `guidance`")
+                } catch (e: Exception) {}
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `pyq_focus` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `exam` TEXT NOT NULL,
+                        `subject` TEXT NOT NULL,
+                        `chapter` TEXT NOT NULL,
+                        `pyqCount` INTEGER NOT NULL,
+                        `examsCovered` INTEGER NOT NULL,
+                        `firebaseId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `focus_topics` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `exam` TEXT NOT NULL,
+                        `subject` TEXT NOT NULL,
+                        `chapter` TEXT NOT NULL,
+                        `topic` TEXT NOT NULL,
+                        `priority` TEXT NOT NULL,
+                        `instruction` TEXT NOT NULL,
+                        `firebaseId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `prep_strategy` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `exam` TEXT NOT NULL,
+                        `content` TEXT NOT NULL,
+                        `firebaseId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `guidance_banner` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `exam` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `imageUrl` TEXT NOT NULL,
+                        `displayOrder` INTEGER NOT NULL,
+                        `isActive` INTEGER NOT NULL,
+                        `actionTarget` TEXT NOT NULL,
+                        `firebaseId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         val MIGRATION_40_41 = object : Migration(40, 41) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try {
@@ -221,7 +283,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     JuktiDatabase::class.java,
                     "jukti_exam_db"
                 )
-                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41)
+                .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

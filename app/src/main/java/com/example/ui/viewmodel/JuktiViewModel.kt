@@ -48,6 +48,7 @@ enum class UserRole {
 
 enum class Screen {
     SPLASH,
+    GUIDANCE,
     HOME,
     MCQ_STUDY,
     PRACTICE,
@@ -79,6 +80,7 @@ enum class Screen {
     CONTENT_WITH_ISSUES,
     OWNER_DASHBOARD,
     MANAGE_QBANK,
+    MANAGE_GUIDANCE,
     MANAGE_MOCK,
     MOCK_QUESTIONS,
     MANAGE_PLAN,
@@ -202,6 +204,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val lastSessionType: StateFlow<String> = _lastSessionType.asStateFlow()
 
     val repository = JuktiRepository(
+        database.guidanceDao(),
         database.questionDao(),
         database.mockTestDao(),
         database.studyNoteDao(),
@@ -262,6 +265,19 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    
+    val allPyqFocus: StateFlow<List<com.example.data.local.PyqFocusEntity>> = repository.allPyqFocus.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allFocusTopics: StateFlow<List<com.example.data.local.FocusTopicEntity>> = repository.allFocusTopics.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allPrepStrategies: StateFlow<List<com.example.data.local.PrepStrategyEntity>> = repository.allPrepStrategies.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allGuidanceBanners: StateFlow<List<com.example.data.local.GuidanceBannerEntity>> = repository.allGuidanceBanners.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+
+    fun savePyqFocus(entity: com.example.data.local.PyqFocusEntity) { viewModelScope.launch { repository.savePyqFocus(entity) } }
+    fun saveFocusTopic(entity: com.example.data.local.FocusTopicEntity) { viewModelScope.launch { repository.saveFocusTopic(entity) } }
+    fun deleteFocusTopic(entity: com.example.data.local.FocusTopicEntity) { viewModelScope.launch { repository.deleteFocusTopic(entity) } }
+    fun savePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) { viewModelScope.launch { repository.savePrepStrategy(entity) } }
+    fun saveGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) { viewModelScope.launch { repository.saveGuidanceBanner(entity) } }
+    fun deleteGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) { viewModelScope.launch { repository.deleteGuidanceBanner(entity) } }
 
     val allSubjectsChapters = repository.allSubjectsChapters.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -856,6 +872,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _selectedQuestionType = MutableStateFlow("All Types")
     val selectedQuestionType: StateFlow<String> = _selectedQuestionType.asStateFlow()
+
+    private val _selectedQuestionTag = MutableStateFlow("All Tags")
+    val selectedQuestionTag: StateFlow<String> = _selectedQuestionTag.asStateFlow()
 
     private val _selectedChapter = MutableStateFlow("All Chapters")
     val selectedChapter: StateFlow<String> = _selectedChapter.asStateFlow()
@@ -1507,30 +1526,62 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
-    fun getChapterStatsByExam(subject: String, exam: String, questionType: String = "All Types"): Flow<List<com.example.data.local.ChapterStatResult>> {
+    fun getChapterStatsByExam(
+        subject: String, 
+        exam: String, 
+        questionType: String = "All Types",
+        questionTag: String = "All Tags"
+    ): Flow<List<com.example.data.local.ChapterStatResult>> {
         return combine(
-            repository.getChapterStatsByExam(subject, exam),
+            repository.allQuestions,
             repository.premiumQuestions
-        ) { dbStats, premiumQs ->
+        ) { allFreeQs, premiumQs ->
             val statsMap = mutableMapOf<String, com.example.data.local.ChapterStatResult>()
             
             if (questionType == "All Types" || questionType == "Free") {
-                dbStats.forEach { stat ->
-                    statsMap[stat.chapter] = stat
+                allFreeQs.filter { q ->
+                    val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
+                    val matchesSubj = subject == "All Subjects" || 
+                            normSubj.equals(subject, ignoreCase = true) || 
+                            q.subject.equals(subject, ignoreCase = true)
+                    val matchesExam = exam == "All Exams" || q.examCategory.contains(exam, ignoreCase = true)
+                    val matchesTag = questionTag == "All Tags" || 
+                            q.questionType.equals(questionTag, ignoreCase = true) ||
+                            (questionTag.equals("Expected", ignoreCase = true) && q.questionType.isBlank())
+                    matchesSubj && matchesExam && matchesTag && !q.isReported
+                }.forEach { q ->
+                    val normChapter = com.example.data.repository.normalizeChapterName(q.topic, q.subject).ifBlank { q.topic }
+                    val stat = statsMap[normChapter] ?: com.example.data.local.ChapterStatResult(normChapter, 0, 0, 0, 0)
+                    statsMap[normChapter] = stat.copy(
+                        total = stat.total + 1,
+                        easy = stat.easy + if (q.difficulty.equals("Easy", ignoreCase = true)) 1 else 0,
+                        medium = stat.medium + if (q.difficulty.equals("Medium", ignoreCase = true)) 1 else 0,
+                        hard = stat.hard + if (q.difficulty.equals("Hard", ignoreCase = true)) 1 else 0
+                    )
                 }
             }
             
             if (questionType == "All Types" || questionType == "Premium") {
-                premiumQs.filter { (it.subject == subject || subject == "All Subjects") && !it.isReported && (exam == "All Exams" || it.examCategory.contains(exam)) }
-                    .forEach { q ->
-                        val stat = statsMap[q.topic] ?: com.example.data.local.ChapterStatResult(q.topic, 0, 0, 0, 0)
-                        statsMap[q.topic] = stat.copy(
-                            total = stat.total + 1,
-                            easy = stat.easy + if (q.difficulty == "Easy") 1 else 0,
-                            medium = stat.medium + if (q.difficulty == "Medium") 1 else 0,
-                            hard = stat.hard + if (q.difficulty == "Hard") 1 else 0
-                        )
-                    }
+                premiumQs.filter { q ->
+                    val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
+                    val matchesSubj = subject == "All Subjects" || 
+                            normSubj.equals(subject, ignoreCase = true) || 
+                            q.subject.equals(subject, ignoreCase = true)
+                    val matchesExam = exam == "All Exams" || q.examCategory.contains(exam, ignoreCase = true)
+                    val matchesTag = questionTag == "All Tags" || 
+                            q.questionType.equals(questionTag, ignoreCase = true) ||
+                            (questionTag.equals("Expected", ignoreCase = true) && q.questionType.isBlank())
+                    matchesSubj && matchesExam && matchesTag && !q.isReported
+                }.forEach { q ->
+                    val normChapter = com.example.data.repository.normalizeChapterName(q.topic, q.subject).ifBlank { q.topic }
+                    val stat = statsMap[normChapter] ?: com.example.data.local.ChapterStatResult(normChapter, 0, 0, 0, 0)
+                    statsMap[normChapter] = stat.copy(
+                        total = stat.total + 1,
+                        easy = stat.easy + if (q.difficulty.equals("Easy", ignoreCase = true)) 1 else 0,
+                        medium = stat.medium + if (q.difficulty.equals("Medium", ignoreCase = true)) 1 else 0,
+                        hard = stat.hard + if (q.difficulty.equals("Hard", ignoreCase = true)) 1 else 0
+                    )
+                }
             }
             statsMap.values.toList().sortedByDescending { it.total }
         }
@@ -1544,6 +1595,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setQuestionTypeFilter(type: String) {
         _selectedQuestionType.value = type
+    }
+    fun setQuestionTagFilter(tag: String) {
+        _selectedQuestionTag.value = tag
     }
     fun setChapterFilter(chapter: String) {
         _selectedChapter.value = chapter

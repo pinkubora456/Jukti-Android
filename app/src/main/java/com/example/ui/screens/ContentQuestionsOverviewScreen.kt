@@ -9,11 +9,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.JuktiTopAppBar
 import com.example.ui.viewmodel.JuktiViewModel
@@ -28,6 +31,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val selectedSubject by viewModel.selectedSubject.collectAsState()
     val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
+    val selectedQuestionTag by viewModel.selectedQuestionTag.collectAsState()
 
     val examOptions = remember(examsList) {
         val examsFromDb = examsList.map { it.title }.distinct().sorted()
@@ -37,6 +41,16 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     var examExpanded by remember { mutableStateOf(false) }
     var questionTypeExpanded by remember { mutableStateOf(false) }
     val questionTypeOptions = listOf("All Types", "Free", "Premium")
+
+    var questionTagExpanded by remember { mutableStateOf(false) }
+    val questionTagOptions = remember(questions) {
+        val tagsFromDb = questions
+            .map { it.questionType.trim() }
+            .filter { it.isNotBlank() && !it.equals("Expected", ignoreCase = true) && !it.equals("PYQ", ignoreCase = true) }
+            .distinct()
+            .sorted()
+        listOf("All Tags", "Expected", "PYQ") + tagsFromDb
+    }
 
     val subjectsList = remember(questions, selectedTargetExam) {
         val filtered = if (selectedTargetExam == "All Exams") {
@@ -56,8 +70,8 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
         }
     }
 
-    val chapterStatsResults by remember(selectedSubject, selectedTargetExam, selectedQuestionType) {
-        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam, selectedQuestionType)
+    val chapterStatsResults by remember(selectedSubject, selectedTargetExam, selectedQuestionType, selectedQuestionTag) {
+        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam, selectedQuestionType, selectedQuestionTag)
     }.collectAsState(initial = emptyList())
 
     val chapterStats = remember(chapterStatsResults) {
@@ -90,96 +104,158 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            ExposedDropdownMenuBox(
-                expanded = examExpanded,
-                onExpandedChange = { examExpanded = it }
+            val isFilterActive = selectedTargetExam != "All Exams" || 
+                    (subjectsList.isNotEmpty() && selectedSubject != subjectsList.first()) || 
+                    selectedQuestionType != "All Types" || 
+                    selectedQuestionTag != "All Tags"
+
+            // Row 1: Exam + Subject (2 Columns)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value = selectedTargetExam,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Exam") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
+                ExposedDropdownMenuBox(
                     expanded = examExpanded,
-                    onDismissRequest = { examExpanded = false }
+                    onExpandedChange = { examExpanded = it },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    examOptions.forEach { exam ->
-                        DropdownMenuItem(
-                            text = { Text(exam) },
-                            onClick = {
-                                viewModel.setExamFilter(exam)
-                                examExpanded = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = selectedTargetExam,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Exam", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = examExpanded,
+                        onDismissRequest = { examExpanded = false }
+                    ) {
+                        examOptions.forEach { exam ->
+                            DropdownMenuItem(
+                                text = { Text(exam, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    viewModel.setExamFilter(exam)
+                                    examExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedSubject,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Subject") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
+
+                ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onExpandedChange = { expanded = it },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    subjectsList.forEach { subj ->
-                        DropdownMenuItem(
-                            text = { Text(subj) },
-                            onClick = {
-                                viewModel.setSubjectFilter(subj)
-                                expanded = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = selectedSubject,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Subject", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        subjectsList.forEach { subj ->
+                            DropdownMenuItem(
+                                text = { Text(subj, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    viewModel.setSubjectFilter(subj)
+                                    expanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = questionTypeExpanded,
-                onExpandedChange = { questionTypeExpanded = it }
+            // Row 2: Type + Tag (2 Columns)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value = selectedQuestionType,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Question Type") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionTypeExpanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
+                ExposedDropdownMenuBox(
                     expanded = questionTypeExpanded,
-                    onDismissRequest = { questionTypeExpanded = false }
+                    onExpandedChange = { questionTypeExpanded = it },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    questionTypeOptions.forEach { type ->
-                        DropdownMenuItem(
-                            text = { Text(type) },
-                            onClick = {
-                                viewModel.setQuestionTypeFilter(type)
-                                questionTypeExpanded = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = selectedQuestionType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Type", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionTypeExpanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = questionTypeExpanded,
+                        onDismissRequest = { questionTypeExpanded = false }
+                    ) {
+                        questionTypeOptions.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    viewModel.setQuestionTypeFilter(type)
+                                    questionTypeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                ExposedDropdownMenuBox(
+                    expanded = questionTagExpanded,
+                    onExpandedChange = { questionTagExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = selectedQuestionTag,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tag", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = questionTagExpanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = questionTagExpanded,
+                        onDismissRequest = { questionTagExpanded = false }
+                    ) {
+                        questionTagOptions.forEach { tag ->
+                            DropdownMenuItem(
+                                text = { Text(tag, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    viewModel.setQuestionTagFilter(tag)
+                                    questionTagExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Summary Section
             Card(
@@ -187,18 +263,47 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Total Questions: $totalCount", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Total Questions: $totalCount", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        if (isFilterActive) {
+                            TextButton(
+                                onClick = {
+                                    viewModel.setExamFilter("All Exams")
+                                    if (subjectsList.isNotEmpty()) {
+                                        viewModel.setSubjectFilter(subjectsList.first())
+                                    }
+                                    viewModel.setQuestionTypeFilter("All Types")
+                                    viewModel.setQuestionTagFilter("All Tags")
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Reset", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Easy: $totalEasy", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
-                        Text("Medium: $totalMedium", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
-                        Text("Hard: $totalHard", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+                        Text("Easy: $totalEasy", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                        Text("Medium: $totalMedium", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                        Text("Hard: $totalHard", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -239,6 +344,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                             viewModel.setSubjectFilter(selectedSubject)
                                             viewModel.setChapterFilter(stat.chapter)
                                             viewModel.setQuestionTypeFilter(selectedQuestionType)
+                                            viewModel.setQuestionTagFilter(selectedQuestionTag)
                                             viewModel.setSearchQuery("")
                                             viewModel.navigateTo(Screen.ALL_QUESTIONS)
                                         }

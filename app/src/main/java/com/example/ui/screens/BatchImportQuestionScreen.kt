@@ -650,6 +650,16 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
 
             // Real-Time Stats Bar
             if (res != null) {
+                // Preview Category Tabs
+                val previewTabs = mutableListOf<String>()
+                previewTabs.add("Ready (${validNonDuplicateRows.size})")
+                if (duplicateInQBankRows.isNotEmpty()) {
+                    previewTabs.add("In Q-Bank (${duplicateInQBankRows.size})")
+                }
+                if (invalidRows.isNotEmpty()) {
+                    previewTabs.add("Invalid (${invalidRows.size})")
+                }
+
                 item {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -699,16 +709,6 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             }
                         }
 
-                        // Preview Category Tabs
-                        val previewTabs = mutableListOf<String>()
-                        previewTabs.add("Ready (${validNonDuplicateRows.size})")
-                        if (duplicateInQBankRows.isNotEmpty()) {
-                            previewTabs.add("In Q-Bank (${duplicateInQBankRows.size})")
-                        }
-                        if (invalidRows.isNotEmpty()) {
-                            previewTabs.add("Invalid (${invalidRows.size})")
-                        }
-
                         if (previewTabs.size > 1) {
                             ScrollableTabRow(
                                 selectedTabIndex = selectedPreviewTab.coerceIn(0, previewTabs.size - 1),
@@ -729,8 +729,9 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                 }
 
                 // Preview Content
-                when (selectedPreviewTab) {
-                    0 -> {
+                val currentTabTitle = previewTabs.getOrNull(selectedPreviewTab)?.substringBefore(" (") ?: "Ready"
+                when (currentTabTitle) {
+                    "Ready" -> {
                         // Ready Questions
                         if (validNonDuplicateRows.isEmpty()) {
                             item {
@@ -837,7 +838,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             }
                         }
                     }
-                    1 -> {
+                    "In Q-Bank" -> {
                         // Duplicates (Already in Question Bank)
                         if (duplicateInQBankRows.isEmpty()) {
                             item {
@@ -882,7 +883,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             }
                         }
                     }
-                    else -> {
+                    "Invalid" -> {
                         // Invalid Rows
                         if (invalidRows.isEmpty()) {
                             item {

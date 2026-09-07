@@ -205,6 +205,12 @@ object CsvQuestionParser {
         val duplicateInBatchList = mutableListOf<ParsedQuestionRow>()
 
         val seenQuestionsInBatch = mutableMapOf<String, Int>()
+        
+        val existingKeys = mutableMapOf<String, Long>()
+        existingQuestions.forEach { q ->
+            val key = if (q.duplicateKey.isNotBlank()) q.duplicateKey else generateDuplicateKey(q.questionEn)
+            existingKeys[key] = q.id
+        }
 
         dataRows.forEachIndexed { index, row ->
             val rowNum = startIndex + index
@@ -369,13 +375,10 @@ object CsvQuestionParser {
                     seenQuestionsInBatch[duplicateKey] = rowNum
                 }
 
-                val matchedQ = existingQuestions.firstOrNull { 
-                    (it.duplicateKey.isNotBlank() && it.duplicateKey == duplicateKey) ||
-                    generateDuplicateKey(it.questionEn) == duplicateKey
-                }
-                if (matchedQ != null) {
+                val matchedId = existingKeys[duplicateKey]
+                if (matchedId != null) {
                     isExistingInQBank = true
-                    existingQBankId = matchedQ.id
+                    existingQBankId = matchedId
                 }
             }
 

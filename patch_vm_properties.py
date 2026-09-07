@@ -4,16 +4,14 @@ vm_file = "app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt"
 with open(vm_file, "r") as f:
     content = f.read()
 
-# Make sure GUIDANCE screen is there
-if "GUIDANCE," not in content:
-    content = content.replace("SPLASH,", "SPLASH,\n    GUIDANCE,")
+# I see it still has `allGuidance = repository.allGuidance` at 269
+# Let's replace it with the new properties
 
-old_vm_guidance = r'val allGuidance = repository\.allGuidance.*?fun saveGuidance.*?\}[\s]*\}'
-new_vm_guidance = """
-    val allPyqFocus = repository.allPyqFocus.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val allFocusTopics = repository.allFocusTopics.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val allPrepStrategies = repository.allPrepStrategies.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val allGuidanceBanners = repository.allGuidanceBanners.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+new_props = """
+    val allPyqFocus = repository.allPyqFocus.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allFocusTopics = repository.allFocusTopics.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allPrepStrategies = repository.allPrepStrategies.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
+    val allGuidanceBanners = repository.allGuidanceBanners.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
 
     fun savePyqFocus(entity: com.example.data.local.PyqFocusEntity) { viewModelScope.launch { repository.savePyqFocus(entity) } }
     fun saveFocusTopic(entity: com.example.data.local.FocusTopicEntity) { viewModelScope.launch { repository.saveFocusTopic(entity) } }
@@ -23,7 +21,8 @@ new_vm_guidance = """
     fun deleteGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) { viewModelScope.launch { repository.deleteGuidanceBanner(entity) } }
 """
 
-content = re.sub(old_vm_guidance, new_vm_guidance.strip(), content)
+content = re.sub(r'val allGuidance = repository\.allGuidance\.stateIn.*?emptyList\(\)\)', new_props.strip(), content, flags=re.DOTALL)
 
 with open(vm_file, "w") as f:
     f.write(content)
+

@@ -334,6 +334,11 @@ fun WorkspaceDashboardContent(viewModel: JuktiViewModel, isOwner: Boolean) {
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.CONTENT_OVERVIEW) }
         )
         WorkspaceBannerCard(
+            title = "Manage Guidance",
+            icon = Icons.Default.Explore,
+            onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_GUIDANCE) }
+        )
+        WorkspaceBannerCard(
             title = "Manage Q-Bank",
             icon = Icons.Default.LibraryBooks,
             onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) }

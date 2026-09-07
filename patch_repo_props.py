@@ -1,11 +1,9 @@
+import re
+
 repo_file = "app/src/main/java/com/example/data/repository/JuktiRepository.kt"
 with open(repo_file, "r") as f:
     content = f.read()
 
-# Replace old Guidance flow with new flows
-import re
-
-old_guidance = r'val allGuidance = guidanceDao\.getAllGuidance\(\)[\s\S]*?suspend fun saveGuidance.*?\}'
 new_guidance = """
     val allPyqFocus = guidanceDao.getAllPyqFocus()
     val allFocusTopics = guidanceDao.getAllFocusTopics()
@@ -32,7 +30,8 @@ new_guidance = """
     }
 """
 
-content = re.sub(old_guidance, new_guidance.strip(), content)
+content = re.sub(r'val allGuidance = guidanceDao\.getAllGuidance\(\)', new_guidance.strip(), content)
 
 with open(repo_file, "w") as f:
     f.write(content)
+

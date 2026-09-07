@@ -423,4 +423,50 @@ data class UserQuestionStateEntity(
     val lastUpdated: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "pyq_focus")
+data class PyqFocusEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val exam: String,
+    val subject: String,
+    val chapter: String,
+    val pyqCount: Int = 0,
+    val examsCovered: Int = 0,
+    val firebaseId: String = "",
+    val updatedAt: Long = 0L
+)
 
+@Entity(tableName = "focus_topics")
+data class FocusTopicEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val exam: String,
+    val subject: String,
+    val chapter: String,
+    val topic: String,
+    val priority: String = "Medium",
+    val instruction: String,
+    val firebaseId: String = "",
+    val updatedAt: Long = 0L
+)
+
+@Entity(tableName = "prep_strategy")
+data class PrepStrategyEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val exam: String,
+    val content: String,
+    val firebaseId: String = "",
+    val updatedAt: Long = 0L
+)
+
+@Entity(tableName = "guidance_banner")
+data class GuidanceBannerEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val exam: String,
+    val title: String,
+    val description: String,
+    val imageUrl: String = "",
+    val displayOrder: Int = 0,
+    val isActive: Boolean = true,
+    val actionTarget: String = "",
+    val firebaseId: String = "",
+    val updatedAt: Long = 0L
+)
