@@ -964,7 +964,13 @@ class JuktiRepository(
         }
         syncManager.enqueueBatch(syncItems)
 
-        return@withContext syncManager.uploadAllWorkspaceChangesToFirebase()
+        try {
+            syncManager.uploadAllWorkspaceChangesToFirebase()
+        } catch (e: Exception) {
+            Log.w("JuktiRepository", "Firebase sync background upload notice: ${e.localizedMessage}", e)
+        }
+
+        return@withContext Pair(true, "Successfully imported ${updatedList.size} questions.")
     }
 
     suspend fun batchImportMockQuestions(

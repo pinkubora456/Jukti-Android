@@ -75,6 +75,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var selectedFileSize by remember { mutableStateOf<String?>(null) }
     var validationResult by remember { mutableStateOf<BatchValidationResult?>(null) }
+    var isValidating by remember { mutableStateOf(false) }
 
     // Preview state
     var selectedPreviewTab by remember { mutableIntStateOf(0) } // 0 = Ready to Import, 1 = Duplicates, 2 = Invalid
@@ -83,23 +84,56 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
     var isImporting by remember { mutableStateOf(false) }
     var importSuccessSummary by remember { mutableStateOf<Pair<Int, Int>?>(null) } // <importedCount, skippedCount>
 
-    // Function to re-run validation
+    // Function to re-run validation asynchronously
     fun runValidation(
         text: String = csvInputText,
         exams: String = selectedExams.joinToString(", "),
         isPrem: Boolean = questionFor.equals("Premium", ignoreCase = true)
     ) {
         if (text.isNotBlank()) {
-            validationResult = CsvQuestionParser.validateAndParseQuestions(
-                csvText = text,
-                defaultSubject = "General Studies",
-                defaultChapter = "General",
-                defaultExamCategory = exams,
-                isPremium = isPrem,
-                existingQuestions = allExistingQuestions
-            )
+            isValidating = true
+            coroutineScope.launch {
+                val result = withContext(Dispatchers.Default) {
+                    CsvQuestionParser.validateAndParseQuestions(
+                        csvText = text,
+                        defaultSubject = "General Studies",
+                        defaultChapter = "General",
+                        defaultExamCategory = exams,
+                        isPremium = isPrem,
+                        existingQuestions = allExistingQuestions
+                    )
+                }
+                validationResult = result
+                isValidating = false
+            }
         } else {
             validationResult = null
+            isValidating = false
+        }
+    }
+
+    // Debounce validation on text paste or changes
+    LaunchedEffect(csvInputText, questionFor, selectedExams.toList()) {
+        if (csvInputText.isNotBlank()) {
+            isValidating = true
+            kotlinx.coroutines.delay(250) // Debounce rapid text updates / pasting
+            val isPrem = questionFor.equals("Premium", ignoreCase = true)
+            val exams = selectedExams.joinToString(", ")
+            val result = withContext(Dispatchers.Default) {
+                CsvQuestionParser.validateAndParseQuestions(
+                    csvText = csvInputText,
+                    defaultSubject = "General Studies",
+                    defaultChapter = "General",
+                    defaultExamCategory = exams,
+                    isPremium = isPrem,
+                    existingQuestions = allExistingQuestions
+                )
+            }
+            validationResult = result
+            isValidating = false
+        } else {
+            validationResult = null
+            isValidating = false
         }
     }
 
@@ -483,7 +517,6 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             value = csvInputText,
                             onValueChange = { newText ->
                                 csvInputText = newText
-                                runValidation(text = newText)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -820,7 +853,10 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                 }
                             }
 
-                            items(validNonDuplicateRows, key = { it.rowNumber }) { row ->
+                            items(
+                                items = validNonDuplicateRows,
+                                key = { "valid_${it.rowNumber}_${it.question?.questionEn.hashCode()}" }
+                            ) { row ->
                                 val isSelected = selectedRowNumbers.contains(row.rowNumber)
                                 val currentIsPremium = individualQuestionOverrides[row.rowNumber] ?: (row.question?.isPremium ?: false)
                                 QBankValidQuestionCard(
@@ -878,7 +914,10 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                 }
                             }
 
-                            items(duplicateInQBankRows) { row ->
+                            items(
+                                items = duplicateInQBankRows,
+                                key = { "dup_${it.rowNumber}_${it.question?.questionEn.hashCode()}" }
+                            ) { row ->
                                 QBankDuplicateQuestionCard(itemRow = row)
                             }
                         }
@@ -897,7 +936,10 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                 }
                             }
                         } else {
-                            items(invalidRows) { row ->
+                            items(
+                                items = invalidRows,
+                                key = { "inv_${it.rowNumber}_${it.rawPreview.hashCode()}" }
+                            ) { row ->
                                 QBankInvalidQuestionCard(itemRow = row)
                             }
                         }

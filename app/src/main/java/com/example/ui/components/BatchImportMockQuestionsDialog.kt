@@ -98,14 +98,19 @@ fun BatchImportMockQuestionsDialog(
                     if (!content.isNullOrBlank()) {
                         csvInputText = content
                         selectedFileName = uri.lastPathSegment ?: "questions.csv"
-                        validationResult = CsvQuestionParser.validateAndParseQuestions(
-                            csvText = content,
-                            defaultSubject = defaultSubject,
-                            defaultChapter = defaultChapter,
-                            defaultExamCategory = selectedExams.joinToString(", "),
-                            isPremium = questionFor.equals("Premium", ignoreCase = true),
-                            existingQuestions = allExistingQuestions
-                        )
+                        val isPrem = questionFor.equals("Premium", ignoreCase = true)
+                        val targetExamsStr = selectedExams.joinToString(", ")
+                        val result = withContext(Dispatchers.Default) {
+                            CsvQuestionParser.validateAndParseQuestions(
+                                csvText = content,
+                                defaultSubject = defaultSubject,
+                                defaultChapter = defaultChapter,
+                                defaultExamCategory = targetExamsStr,
+                                isPremium = isPrem,
+                                existingQuestions = allExistingQuestions
+                            )
+                        }
+                        validationResult = result
                         Toast.makeText(context, "CSV file loaded successfully", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Selected file is empty.", Toast.LENGTH_SHORT).show()
@@ -125,14 +130,41 @@ fun BatchImportMockQuestionsDialog(
     ) {
         csvInputText = text
         if (text.isNotBlank()) {
-            validationResult = CsvQuestionParser.validateAndParseQuestions(
-                csvText = text,
-                defaultSubject = defaultSubject,
-                defaultChapter = defaultChapter,
-                defaultExamCategory = targetExamsStr,
-                isPremium = isPrem,
-                existingQuestions = allExistingQuestions
-            )
+            coroutineScope.launch {
+                val result = withContext(Dispatchers.Default) {
+                    CsvQuestionParser.validateAndParseQuestions(
+                        csvText = text,
+                        defaultSubject = defaultSubject,
+                        defaultChapter = defaultChapter,
+                        defaultExamCategory = targetExamsStr,
+                        isPremium = isPrem,
+                        existingQuestions = allExistingQuestions
+                    )
+                }
+                validationResult = result
+            }
+        } else {
+            validationResult = null
+        }
+    }
+
+    // Debounce validation on text changes
+    LaunchedEffect(csvInputText, questionFor, selectedExams.toList()) {
+        if (csvInputText.isNotBlank()) {
+            kotlinx.coroutines.delay(250)
+            val isPrem = questionFor.equals("Premium", ignoreCase = true)
+            val targetExamsStr = selectedExams.joinToString(", ")
+            val result = withContext(Dispatchers.Default) {
+                CsvQuestionParser.validateAndParseQuestions(
+                    csvText = csvInputText,
+                    defaultSubject = defaultSubject,
+                    defaultChapter = defaultChapter,
+                    defaultExamCategory = targetExamsStr,
+                    isPremium = isPrem,
+                    existingQuestions = allExistingQuestions
+                )
+            }
+            validationResult = result
         } else {
             validationResult = null
         }
@@ -535,7 +567,10 @@ fun BatchImportMockQuestionsDialog(
                                     }
                                 }
                             } else {
-                                items(res.validRows) { itemRow ->
+                                items(
+                                    items = res.validRows,
+                                    key = { "mvalid_${it.rowNumber}_${it.question?.questionEn.hashCode()}" }
+                                ) { itemRow ->
                                     ValidQuestionCard(itemRow = itemRow)
                                 }
                             }
@@ -556,7 +591,10 @@ fun BatchImportMockQuestionsDialog(
                                     }
                                 }
                             } else {
-                                items(res.invalidRows) { itemRow ->
+                                items(
+                                    items = res.invalidRows,
+                                    key = { "minv_${it.rowNumber}_${it.rawPreview.hashCode()}" }
+                                ) { itemRow ->
                                     InvalidQuestionCard(itemRow = itemRow)
                                 }
                             }

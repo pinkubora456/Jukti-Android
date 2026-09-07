@@ -39,26 +39,33 @@ object CsvQuestionParser {
     }
 
     /**
-     * Sanitizes raw CSV text to fix common paste issues, such as an unmatched
-     * leading quote on the header or trailing quotes.
+     * Sanitizes raw CSV text to fix BOM, smart quotes, stray leading/trailing quotes, and strange line breaks.
      */
     fun cleanCsvInput(raw: String): String {
         if (raw.isBlank()) return ""
-        val lines = raw.lines().map { it.trim() }
-        val cleanedLines = lines.map { line ->
-            var l = line
-            // If the line starts with an unmatched leading quote before the header or row
-            if (l.startsWith("\"") && l.contains(",")) {
+        var text = raw.trim()
+        // Strip UTF-8 Byte Order Mark (BOM) if present
+        if (text.startsWith("\uFEFF")) {
+            text = text.substring(1)
+        }
+        // Normalize smart / curly double quotes to standard ASCII double quote
+        text = text.replace('\u201C', '\"')
+            .replace('\u201D', '\"')
+            .replace('\u201E', '\"')
+            .replace('\u201F', '\"')
+
+        // Fix stray unmatched leading quote before header or first line
+        val lines = text.lines()
+        val cleanedLines = lines.mapIndexed { idx, line ->
+            var l = line.trim()
+            if (l.contains(",")) {
                 val quoteCount = l.count { it == '\"' }
                 if (quoteCount % 2 != 0) {
-                    l = l.removePrefix("\"")
-                }
-            }
-            // If the line ends with an unmatched trailing quote
-            if (l.endsWith("\"") && l.contains(",")) {
-                val quoteCount = l.count { it == '\"' }
-                if (quoteCount % 2 != 0) {
-                    l = l.removeSuffix("\"")
+                    if (l.startsWith("\"") && !l.startsWith("\"\"")) {
+                        l = l.removePrefix("\"")
+                    } else if (l.endsWith("\"") && !l.endsWith("\"\"")) {
+                        l = l.removeSuffix("\"")
+                    }
                 }
             }
             l
@@ -68,7 +75,7 @@ object CsvQuestionParser {
 
     /**
      * Parses raw CSV text into rows and columns handling quoted fields,
-     * multiline strings, escaped quotes (""), and varied line endings.
+     * multiline strings, escaped quotes ("" and \"), and varied line endings.
      */
     fun parseCsv(csvText: String): List<List<String>> {
         val rows = mutableListOf<List<String>>()
@@ -81,28 +88,40 @@ object CsvQuestionParser {
         var i = 0
         val len = cleanedText.length
 
+        fun cleanField(field: String): String {
+            var f = field.trim()
+            if (f.startsWith("\"") && f.endsWith("\"") && f.length >= 2) {
+                f = f.substring(1, f.length - 1).trim()
+            }
+            return f.replace("\"\"", "\"")
+        }
+
         while (i < len) {
             val c = cleanedText[i]
 
             if (c == '\"') {
                 if (inQuotes && i + 1 < len && cleanedText[i + 1] == '\"') {
-                    // Escaped double quote
+                    // Escaped double quote ("")
                     currentField.append('\"')
                     i += 2
                     continue
                 } else {
                     inQuotes = !inQuotes
                 }
+            } else if (c == '\\' && i + 1 < len && cleanedText[i + 1] == '\"') {
+                // Escaped quote (\")
+                currentField.append('\"')
+                i += 2
+                continue
             } else if (c == ',' && !inQuotes) {
-                currentRow.add(currentField.toString().trim())
+                currentRow.add(cleanField(currentField.toString()))
                 currentField.clear()
             } else if ((c == '\n' || c == '\r') && !inQuotes) {
                 if (c == '\r' && i + 1 < len && cleanedText[i + 1] == '\n') {
                     i++ // skip \r of \r\n
                 }
-                currentRow.add(currentField.toString().trim())
+                currentRow.add(cleanField(currentField.toString()))
                 currentField.clear()
-                // Only add if row is not purely empty
                 if (currentRow.any { it.isNotEmpty() }) {
                     rows.add(currentRow.toList())
                 }
@@ -115,7 +134,7 @@ object CsvQuestionParser {
 
         // Add trailing row if present
         if (currentField.isNotEmpty() || currentRow.isNotEmpty()) {
-            currentRow.add(currentField.toString().trim())
+            currentRow.add(cleanField(currentField.toString()))
             if (currentRow.any { it.isNotEmpty() }) {
                 rows.add(currentRow.toList())
             }
@@ -207,9 +226,11 @@ object CsvQuestionParser {
         val seenQuestionsInBatch = mutableMapOf<String, Int>()
         
         val existingKeys = mutableMapOf<String, Long>()
-        existingQuestions.forEach { q ->
+        for (q in existingQuestions) {
             val key = if (q.duplicateKey.isNotBlank()) q.duplicateKey else generateDuplicateKey(q.questionEn)
-            existingKeys[key] = q.id
+            if (key.isNotBlank()) {
+                existingKeys[key] = q.id
+            }
         }
 
         dataRows.forEachIndexed { index, row ->
@@ -230,213 +251,225 @@ object CsvQuestionParser {
                 return@forEachIndexed
             }
 
-            var qEn = ""
-            var qAs = ""
-            var opAEn = ""
-            var opAAs = ""
-            var opBEn = ""
-            var opBAs = ""
-            var opCEn = ""
-            var opCAs = ""
-            var opDEn = ""
-            var opDAs = ""
-            var correctAnsStr = ""
-            var expEn = ""
-            var expAs = ""
-            var subj = ""
-            var topic = ""
-            var tags = ""
-            var diff = "Medium"
-            var targetExamsInRow = ""
-            var questionForInRow = ""
+            try {
+                var qEn = ""
+                var qAs = ""
+                var opAEn = ""
+                var opAAs = ""
+                var opBEn = ""
+                var opBAs = ""
+                var opCEn = ""
+                var opCAs = ""
+                var opDEn = ""
+                var opDAs = ""
+                var correctAnsStr = ""
+                var expEn = ""
+                var expAs = ""
+                var subj = ""
+                var topic = ""
+                var tags = ""
+                var diff = "Medium"
+                var targetExamsInRow = ""
+                var questionForInRow = ""
 
-            // Extract using header mapping if available
-            if (hasHeader && colQEn != null && colOpAEn != null && colOpBEn != null) {
-                qEn = colQEn.let { if (it < row.size) row[it].trim() else "" }
-                qAs = colQAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opAEn = colOpAEn.let { if (it < row.size) row[it].trim() else "" }
-                opAAs = colOpAAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opBEn = colOpBEn.let { if (it < row.size) row[it].trim() else "" }
-                opBAs = colOpBAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opCEn = colOpCEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opCAs = colOpCAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opDEn = colOpDEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                opDAs = colOpDAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                correctAnsStr = colCorrect?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                expEn = colExpEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                expAs = colExpAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                subj = colSubj?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                topic = colTopic?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                tags = colTags?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                diff = colDiff?.let { if (it < row.size) row[it].trim() else "Medium" } ?: "Medium"
-                targetExamsInRow = colTargetExams?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-                questionForInRow = colQuestionFor?.let { if (it < row.size) row[it].trim() else "" } ?: ""
-            } else if (row.size >= 17) {
-                // 17-column standard format or extended (statement, statementAssamese, a, a_as, b, b_as, c, c_as, d, d_as, correctAnswer, explanation, explanationAssamese, subject, topic, tags, difficulty, [targetExams], [questionFor])
-                qEn = row.getOrElse(0) { "" }.trim()
-                qAs = row.getOrElse(1) { "" }.trim()
-                opAEn = row.getOrElse(2) { "" }.trim()
-                opAAs = row.getOrElse(3) { "" }.trim()
-                opBEn = row.getOrElse(4) { "" }.trim()
-                opBAs = row.getOrElse(5) { "" }.trim()
-                opCEn = row.getOrElse(6) { "" }.trim()
-                opCAs = row.getOrElse(7) { "" }.trim()
-                opDEn = row.getOrElse(8) { "" }.trim()
-                opDAs = row.getOrElse(9) { "" }.trim()
-                correctAnsStr = row.getOrElse(10) { "" }.trim()
-                expEn = row.getOrElse(11) { "" }.trim()
-                expAs = row.getOrElse(12) { "" }.trim()
-                subj = row.getOrElse(13) { "" }.trim()
-                topic = row.getOrElse(14) { "" }.trim()
-                tags = row.getOrElse(15) { "" }.trim()
-                diff = row.getOrElse(16) { "Medium" }.trim()
-                targetExamsInRow = row.getOrElse(17) { "" }.trim()
-                questionForInRow = row.getOrElse(18) { "" }.trim()
-            } else if (row.size >= 11) {
-                // 11-column simplified format
-                qEn = row.getOrElse(0) { "" }.trim()
-                opAEn = row.getOrElse(1) { "" }.trim()
-                opBEn = row.getOrElse(2) { "" }.trim()
-                opCEn = row.getOrElse(3) { "" }.trim()
-                opDEn = row.getOrElse(4) { "" }.trim()
-                correctAnsStr = row.getOrElse(5) { "" }.trim()
-                expEn = row.getOrElse(6) { "" }.trim()
-                subj = row.getOrElse(7) { "" }.trim()
-                topic = row.getOrElse(8) { "" }.trim()
-                tags = row.getOrElse(9) { "" }.trim()
-                diff = row.getOrElse(10) { "Medium" }.trim()
-            } else if (row.size >= 7) {
-                // 7-column minimal format
-                qEn = row.getOrElse(0) { "" }.trim()
-                opAEn = row.getOrElse(1) { "" }.trim()
-                opBEn = row.getOrElse(2) { "" }.trim()
-                opCEn = row.getOrElse(3) { "" }.trim()
-                opDEn = row.getOrElse(4) { "" }.trim()
-                correctAnsStr = row.getOrElse(5) { "" }.trim()
-                subj = row.getOrElse(6) { "" }.trim()
-            } else {
-                errors.add("Insufficient columns (found ${row.size}, expected at least 7 or 17 columns)")
-            }
-
-            // Validation rules
-            if (qEn.isBlank()) {
-                errors.add("Missing Question text / statement in English")
-            }
-            if (opAEn.isBlank()) {
-                errors.add("Missing Option A")
-            }
-            if (opBEn.isBlank()) {
-                errors.add("Missing Option B")
-            }
-
-            // Correct answer validation
-            val parsedCorrectIndex = parseCorrectOption(correctAnsStr)
-            if (parsedCorrectIndex == -1) {
-                errors.add("Invalid Correct Answer '$correctAnsStr' (must be A, B, C, or D)")
-            }
-
-            // Fallbacks for Subject and Topic
-            val finalSubject = if (subj.isNotBlank()) subj.trim() else normalizeSubjectName(defaultSubject.ifBlank { "General Studies" })
-            val finalTopic = if (topic.isNotBlank()) topic.trim() else normalizeChapterName(defaultChapter.ifBlank { "General" }, finalSubject)
-            val finalDifficulty = when (diff.lowercase()) {
-                "easy" -> "Easy"
-                "hard" -> "Hard"
-                else -> "Medium"
-            }
-            val finalQuestionType = if (tags.isNotBlank()) tags else "Expected"
-
-            val finalTargetExams = when {
-                targetExamsInRow.isNotBlank() -> targetExamsInRow
-                defaultExamCategory.isNotBlank() -> defaultExamCategory
-                tags.isNotBlank() -> tags
-                else -> ""
-            }
-            val finalIsPremium = if (questionForInRow.isNotBlank()) {
-                questionForInRow.equals("Premium", ignoreCase = true) ||
-                questionForInRow.equals("PREMIUM", ignoreCase = true) ||
-                questionForInRow.equals("true", ignoreCase = true) ||
-                questionForInRow.equals("1", ignoreCase = true)
-            } else {
-                isPremium
-            }
-
-            // Duplicate detection
-            val duplicateKey = generateDuplicateKey(qEn)
-            var isDuplicateInBatch = false
-            var isExistingInQBank = false
-            var existingQBankId: Long? = null
-
-            if (duplicateKey.isNotEmpty()) {
-                if (seenQuestionsInBatch.containsKey(duplicateKey)) {
-                    val prevRow = seenQuestionsInBatch[duplicateKey]!!
-                    isDuplicateInBatch = true
-                    errors.add("Duplicate question in batch (matches Row $prevRow)")
+                // Extract using header mapping if available
+                if (hasHeader && colQEn != null && colOpAEn != null && colOpBEn != null) {
+                    qEn = colQEn.let { if (it < row.size) row[it].trim() else "" }
+                    qAs = colQAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opAEn = colOpAEn.let { if (it < row.size) row[it].trim() else "" }
+                    opAAs = colOpAAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opBEn = colOpBEn.let { if (it < row.size) row[it].trim() else "" }
+                    opBAs = colOpBAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opCEn = colOpCEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opCAs = colOpCAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opDEn = colOpDEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    opDAs = colOpDAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    correctAnsStr = colCorrect?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    expEn = colExpEn?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    expAs = colExpAs?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    subj = colSubj?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    topic = colTopic?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    tags = colTags?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    diff = colDiff?.let { if (it < row.size) row[it].trim() else "Medium" } ?: "Medium"
+                    targetExamsInRow = colTargetExams?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                    questionForInRow = colQuestionFor?.let { if (it < row.size) row[it].trim() else "" } ?: ""
+                } else if (row.size >= 17) {
+                    // 17-column standard format or extended
+                    qEn = row.getOrElse(0) { "" }.trim()
+                    qAs = row.getOrElse(1) { "" }.trim()
+                    opAEn = row.getOrElse(2) { "" }.trim()
+                    opAAs = row.getOrElse(3) { "" }.trim()
+                    opBEn = row.getOrElse(4) { "" }.trim()
+                    opBAs = row.getOrElse(5) { "" }.trim()
+                    opCEn = row.getOrElse(6) { "" }.trim()
+                    opCAs = row.getOrElse(7) { "" }.trim()
+                    opDEn = row.getOrElse(8) { "" }.trim()
+                    opDAs = row.getOrElse(9) { "" }.trim()
+                    correctAnsStr = row.getOrElse(10) { "" }.trim()
+                    expEn = row.getOrElse(11) { "" }.trim()
+                    expAs = row.getOrElse(12) { "" }.trim()
+                    subj = row.getOrElse(13) { "" }.trim()
+                    topic = row.getOrElse(14) { "" }.trim()
+                    tags = row.getOrElse(15) { "" }.trim()
+                    diff = row.getOrElse(16) { "Medium" }.trim()
+                    targetExamsInRow = row.getOrElse(17) { "" }.trim()
+                    questionForInRow = row.getOrElse(18) { "" }.trim()
+                } else if (row.size >= 11) {
+                    // 11-column simplified format
+                    qEn = row.getOrElse(0) { "" }.trim()
+                    opAEn = row.getOrElse(1) { "" }.trim()
+                    opBEn = row.getOrElse(2) { "" }.trim()
+                    opCEn = row.getOrElse(3) { "" }.trim()
+                    opDEn = row.getOrElse(4) { "" }.trim()
+                    correctAnsStr = row.getOrElse(5) { "" }.trim()
+                    expEn = row.getOrElse(6) { "" }.trim()
+                    subj = row.getOrElse(7) { "" }.trim()
+                    topic = row.getOrElse(8) { "" }.trim()
+                    tags = row.getOrElse(9) { "" }.trim()
+                    diff = row.getOrElse(10) { "Medium" }.trim()
+                } else if (row.size >= 7) {
+                    // 7-column minimal format
+                    qEn = row.getOrElse(0) { "" }.trim()
+                    opAEn = row.getOrElse(1) { "" }.trim()
+                    opBEn = row.getOrElse(2) { "" }.trim()
+                    opCEn = row.getOrElse(3) { "" }.trim()
+                    opDEn = row.getOrElse(4) { "" }.trim()
+                    correctAnsStr = row.getOrElse(5) { "" }.trim()
+                    subj = row.getOrElse(6) { "" }.trim()
                 } else {
-                    seenQuestionsInBatch[duplicateKey] = rowNum
+                    errors.add("Insufficient columns (found ${row.size}, expected at least 7 or 17 columns)")
                 }
 
-                val matchedId = existingKeys[duplicateKey]
-                if (matchedId != null) {
-                    isExistingInQBank = true
-                    existingQBankId = matchedId
+                // Validation rules
+                if (qEn.isBlank()) {
+                    errors.add("Missing Question text / statement in English")
                 }
-            }
+                if (opAEn.isBlank()) {
+                    errors.add("Missing Option A")
+                }
+                if (opBEn.isBlank()) {
+                    errors.add("Missing Option B")
+                }
 
-            if (errors.isNotEmpty()) {
-                val invalidRow = ParsedQuestionRow(
-                    rowNumber = rowNum,
-                    question = null,
-                    isValid = false,
-                    errorReasons = errors,
-                    isDuplicateInBatch = isDuplicateInBatch,
-                    isExistingInQBank = isExistingInQBank,
-                    existingQBankId = existingQBankId,
-                    rawPreview = rawPreview
-                )
-                invalidList.add(invalidRow)
-                if (isDuplicateInBatch) {
-                    duplicateInBatchList.add(invalidRow)
+                // Correct answer validation
+                val parsedCorrectIndex = parseCorrectOption(correctAnsStr)
+                if (parsedCorrectIndex == -1) {
+                    errors.add("Invalid Correct Answer '$correctAnsStr' (must be A, B, C, or D)")
                 }
-            } else {
-                val entity = QuestionEntity(
-                    id = 0L,
-                    subject = finalSubject,
-                    topic = finalTopic,
-                    difficulty = finalDifficulty,
-                    questionEn = qEn,
-                    questionAs = qAs,
-                    optionAEn = opAEn,
-                    optionBEn = opBEn,
-                    optionCEn = opCEn,
-                    optionDEn = opDEn,
-                    optionAAs = opAAs,
-                    optionBAs = opBAs,
-                    optionCAs = opCAs,
-                    optionDAs = opDAs,
-                    correctOptionIndex = parsedCorrectIndex,
-                    explanationEn = expEn,
-                    explanationAs = expAs,
-                    examCategory = finalTargetExams,
-                    isPremium = finalIsPremium,
-                    accessType = if (finalIsPremium) "PREMIUM" else "FREE",
-                    questionType = finalQuestionType,
-                    duplicateKey = duplicateKey
-                )
 
-                val validRow = ParsedQuestionRow(
-                    rowNumber = rowNum,
-                    question = entity,
-                    isValid = true,
-                    errorReasons = emptyList(),
-                    isDuplicateInBatch = false,
-                    isExistingInQBank = isExistingInQBank,
-                    existingQBankId = existingQBankId,
-                    rawPreview = rawPreview
-                )
-                validList.add(validRow)
-                if (isExistingInQBank) {
-                    duplicateInQBankList.add(validRow)
+                // Fallbacks for Subject and Topic
+                val finalSubject = if (subj.isNotBlank()) subj.trim() else normalizeSubjectName(defaultSubject.ifBlank { "General Studies" })
+                val finalTopic = if (topic.isNotBlank()) topic.trim() else normalizeChapterName(defaultChapter.ifBlank { "General" }, finalSubject)
+                val finalDifficulty = when (diff.lowercase()) {
+                    "easy" -> "Easy"
+                    "hard" -> "Hard"
+                    else -> "Medium"
                 }
+                val finalQuestionType = if (tags.isNotBlank()) tags else "Expected"
+
+                val finalTargetExams = when {
+                    targetExamsInRow.isNotBlank() -> targetExamsInRow
+                    defaultExamCategory.isNotBlank() -> defaultExamCategory
+                    tags.isNotBlank() -> tags
+                    else -> ""
+                }
+                val finalIsPremium = if (questionForInRow.isNotBlank()) {
+                    questionForInRow.equals("Premium", ignoreCase = true) ||
+                    questionForInRow.equals("PREMIUM", ignoreCase = true) ||
+                    questionForInRow.equals("true", ignoreCase = true) ||
+                    questionForInRow.equals("1", ignoreCase = true)
+                } else {
+                    isPremium
+                }
+
+                // Duplicate detection
+                val duplicateKey = generateDuplicateKey(qEn)
+                var isDuplicateInBatch = false
+                var isExistingInQBank = false
+                var existingQBankId: Long? = null
+
+                if (duplicateKey.isNotEmpty()) {
+                    if (seenQuestionsInBatch.containsKey(duplicateKey)) {
+                        val prevRow = seenQuestionsInBatch[duplicateKey]!!
+                        isDuplicateInBatch = true
+                        errors.add("Duplicate question in batch (matches Row $prevRow)")
+                    } else {
+                        seenQuestionsInBatch[duplicateKey] = rowNum
+                    }
+
+                    val matchedId = existingKeys[duplicateKey]
+                    if (matchedId != null) {
+                        isExistingInQBank = true
+                        existingQBankId = matchedId
+                    }
+                }
+
+                if (errors.isNotEmpty()) {
+                    val invalidRow = ParsedQuestionRow(
+                        rowNumber = rowNum,
+                        question = null,
+                        isValid = false,
+                        errorReasons = errors,
+                        isDuplicateInBatch = isDuplicateInBatch,
+                        isExistingInQBank = isExistingInQBank,
+                        existingQBankId = existingQBankId,
+                        rawPreview = rawPreview
+                    )
+                    invalidList.add(invalidRow)
+                    if (isDuplicateInBatch) {
+                        duplicateInBatchList.add(invalidRow)
+                    }
+                } else {
+                    val entity = QuestionEntity(
+                        id = 0L,
+                        subject = finalSubject,
+                        topic = finalTopic,
+                        difficulty = finalDifficulty,
+                        questionEn = qEn,
+                        questionAs = qAs,
+                        optionAEn = opAEn,
+                        optionBEn = opBEn,
+                        optionCEn = opCEn,
+                        optionDEn = opDEn,
+                        optionAAs = opAAs,
+                        optionBAs = opBAs,
+                        optionCAs = opCAs,
+                        optionDAs = opDAs,
+                        correctOptionIndex = parsedCorrectIndex,
+                        explanationEn = expEn,
+                        explanationAs = expAs,
+                        examCategory = finalTargetExams,
+                        isPremium = finalIsPremium,
+                        accessType = if (finalIsPremium) "PREMIUM" else "FREE",
+                        questionType = finalQuestionType,
+                        duplicateKey = duplicateKey
+                    )
+
+                    val validRow = ParsedQuestionRow(
+                        rowNumber = rowNum,
+                        question = entity,
+                        isValid = true,
+                        errorReasons = emptyList(),
+                        isDuplicateInBatch = false,
+                        isExistingInQBank = isExistingInQBank,
+                        existingQBankId = existingQBankId,
+                        rawPreview = rawPreview
+                    )
+                    validList.add(validRow)
+                    if (isExistingInQBank) {
+                        duplicateInQBankList.add(validRow)
+                    }
+                }
+            } catch (e: Exception) {
+                invalidList.add(
+                    ParsedQuestionRow(
+                        rowNumber = rowNum,
+                        question = null,
+                        isValid = false,
+                        errorReasons = listOf("Parsing error: ${e.localizedMessage ?: "Invalid row data"}"),
+                        rawPreview = rawPreview
+                    )
+                )
             }
         }
 

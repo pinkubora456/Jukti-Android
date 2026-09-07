@@ -207,4 +207,21 @@ statement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanatio
         assertEquals("Who was the first King of the Ahom Kingdom?", q.questionEn)
         assertEquals(0, q.correctOptionIndex)
     }
+
+    @Test
+    fun testLargeBatchImport50Questions() {
+        val header = "statement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n"
+        val rows = (1..50).joinToString("\n") { i ->
+            "\"Question $i regarding Assam General Studies?\",\"প্ৰশ্ন $i?\",\"Option A $i\",\"ক $i\",\"Option B $i\",\"খ $i\",\"Option C $i\",\"গ $i\",\"Option D $i\",\"ঘ $i\",\"A\",\"Explanation for question $i\",\"ব্যাখ্যা $i\",\"Assam History\",\"Chapter ${(i % 5) + 1}\",\"ADRE\",\"Medium\""
+        }
+        val fullCsv = header + rows
+
+        val result = CsvQuestionParser.validateAndParseQuestions(csvText = fullCsv)
+
+        assertEquals(50, result.totalRows)
+        assertEquals(50, result.validCount)
+        assertEquals(0, result.invalidCount)
+        assertEquals("Question 1 regarding Assam General Studies?", result.validRows[0].question?.questionEn)
+        assertEquals("Question 50 regarding Assam General Studies?", result.validRows[49].question?.questionEn)
+    }
 }
