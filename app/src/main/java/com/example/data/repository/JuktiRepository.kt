@@ -46,7 +46,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("scheme") || lower.contains("yojana") || lower.contains("policy") -> "Government Schemes"
             lower.contains("organi") || lower.contains("un") || lower.contains("who") || lower.contains("wto") || lower.contains("isro") || lower.contains("drdo") -> "Organizations"
             lower.contains("award") || lower.contains("honor") || lower.contains("nobel") || lower.contains("padma") -> "Awards"
-            lower.contains("book") || lower.contains("author") || lower.contains("auther") || lower.contains("novel") -> "Book & Auther"
+            lower.contains("book") || lower.contains("author") || lower.contains("auther") || lower.contains("novel") -> "Book & Author"
             lower.contains("capital") || lower.contains("currency") -> "Capital & Currency"
             lower.contains("day") || lower.contains("date") -> "Important Days"
             lower.contains("sport") || lower.contains("trophy") || lower.contains("cup") || lower.contains("olympic") || lower.contains("cricket") -> "Sports"

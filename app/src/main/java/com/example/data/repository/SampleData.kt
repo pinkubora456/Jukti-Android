@@ -36,7 +36,7 @@ object SampleData {
         SubjectChapterEntity(subject = "General Knowledge", chapter = "Computer"),
         SubjectChapterEntity(subject = "General Knowledge", chapter = "Current Affairs"),
         SubjectChapterEntity(subject = "General Knowledge", chapter = "Capital & Currency"),
-        SubjectChapterEntity(subject = "General Knowledge", chapter = "Book & Auther"),
+        SubjectChapterEntity(subject = "General Knowledge", chapter = "Book & Author"),
         SubjectChapterEntity(subject = "General Knowledge", chapter = "Awards"),
         SubjectChapterEntity(subject = "General Mathematics", chapter = "Number System"),
         SubjectChapterEntity(subject = "General Mathematics", chapter = "Simplification"),
