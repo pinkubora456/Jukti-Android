@@ -23,6 +23,7 @@ fun EditQuestionDialog(
     var subject by remember { mutableStateOf(question.subject) }
     var topic by remember { mutableStateOf(question.topic) }
     var difficulty by remember { mutableStateOf(question.difficulty) }
+    var isPremium by remember { mutableStateOf(question.isPremium) }
     var questionEn by remember { mutableStateOf(question.questionEn) }
     var questionAs by remember { mutableStateOf(question.questionAs) }
     
@@ -51,6 +52,31 @@ fun EditQuestionDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text("Access Type", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = !isPremium,
+                        onClick = { isPremium = false },
+                        label = { Text("🆓 Free") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                    FilterChip(
+                        selected = isPremium,
+                        onClick = { isPremium = true },
+                        label = { Text("💎 Premium") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    )
+                }
+
                 SafeOutlinedTextField(
                     value = subject,
                     onValueChange = { subject = it },
@@ -180,6 +206,8 @@ fun EditQuestionDialog(
                             subject = subject,
                             topic = topic,
                             difficulty = difficulty,
+                            isPremium = isPremium,
+                            accessType = if (isPremium) "PREMIUM" else "FREE",
                             questionEn = questionEn,
                             questionAs = questionAs,
                             optionAEn = optionAEn,

@@ -838,17 +838,119 @@ class JuktiRepository(
     suspend fun updateQuestion(question: QuestionEntity): Pair<Boolean, String> {
         val norm = normalizeQuestionEntity(question.copy(updatedAt = System.currentTimeMillis()))
         if (norm.isPremium) {
+            // If question became premium, remove from local Room cache
+            questionDao.deleteQuestionById(norm.id)
             val current = _premiumQuestions.value.toMutableList()
-            val index = current.indexOfFirst { it.id == norm.id }
+            val index = current.indexOfFirst { it.id == norm.id || (norm.firebaseId.isNotBlank() && it.firebaseId == norm.firebaseId) }
             if (index != -1) {
                 current[index] = norm
-                _premiumQuestions.value = current
+            } else {
+                current.add(norm)
             }
+            _premiumQuestions.value = current
         } else {
-            questionDao.updateQuestion(norm)
+            // If question became free, remove from premium cache and update/insert in Room
+            val current = _premiumQuestions.value.toMutableList()
+            current.removeAll { it.id == norm.id || (norm.firebaseId.isNotBlank() && it.firebaseId == norm.firebaseId) }
+            _premiumQuestions.value = current
+
+            val existing = questionDao.getQuestionById(norm.id)
+            if (existing != null) {
+                questionDao.updateQuestion(norm)
+            } else {
+                questionDao.insertQuestionInternal(norm)
+            }
         }
         val fbId = norm.firebaseId.ifEmpty { norm.id.toString() }
         return syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(norm))
+    }
+
+    suspend fun setQuestionAccessType(question: QuestionEntity, isPremium: Boolean): Pair<Boolean, String> {
+        // Data safety guarantee: ONLY modify isPremium, accessType, and updatedAt.
+        // Never modify, remove, or reset question text, options, explanations, IDs, tags, or any metadata.
+        val updated = question.copy(
+            isPremium = isPremium,
+            accessType = if (isPremium) "PREMIUM" else "FREE",
+            updatedAt = System.currentTimeMillis()
+        )
+        val res = updateQuestion(updated)
+        return if (res.first) {
+            Pair(true, "Question successfully changed to ${if (isPremium) "Premium" else "Free"}.")
+        } else {
+            res
+        }
+    }
+
+    suspend fun bulkSetQuestionsAccessType(
+        questionsToUpdate: List<com.example.data.local.QuestionEntity>,
+        isPremium: Boolean
+    ): Pair<Boolean, String> {
+        if (questionsToUpdate.isEmpty()) return false to "No questions selected"
+
+        val newAccessType = if (isPremium) "PREMIUM" else "FREE"
+        val now = System.currentTimeMillis()
+
+        // Data safety guarantee: ONLY modify isPremium, accessType, and updatedAt
+        val updatedQs = questionsToUpdate.map { q ->
+            q.copy(
+                isPremium = isPremium,
+                accessType = newAccessType,
+                updatedAt = now
+            )
+        }
+
+        if (isPremium) {
+            // Moving to Premium: Delete from Room, add to _premiumQuestions
+            updatedQs.forEach { q ->
+                questionDao.deleteQuestionById(q.id)
+            }
+            val current = _premiumQuestions.value.toMutableList()
+            updatedQs.forEach { upd ->
+                val index = current.indexOfFirst { it.id == upd.id || (upd.firebaseId.isNotBlank() && it.firebaseId == upd.firebaseId) }
+                if (index != -1) {
+                    current[index] = upd
+                } else {
+                    current.add(upd)
+                }
+            }
+            _premiumQuestions.value = current
+        } else {
+            // Moving to Free: Remove from _premiumQuestions, save in Room
+            val updatedIds = updatedQs.map { it.id }.toSet()
+            val updatedFbIds = updatedQs.mapNotNull { if (it.firebaseId.isNotBlank()) it.firebaseId else null }.toSet()
+            val current = _premiumQuestions.value.toMutableList()
+            current.removeAll { it.id in updatedIds || (it.firebaseId in updatedFbIds) }
+            _premiumQuestions.value = current
+
+            updatedQs.forEach { q ->
+                val existing = questionDao.getQuestionById(q.id)
+                if (existing != null) {
+                    questionDao.updateQuestion(q)
+                } else {
+                    questionDao.insertQuestionInternal(q)
+                }
+            }
+        }
+
+        val syncItems = updatedQs.map { q ->
+            val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+            com.example.data.local.SyncQueueEntity(
+                entityId = fbId,
+                dataType = "QUESTION",
+                operation = "UPDATE",
+                payloadJson = syncManager.mapToJson(syncManager.questionToMap(q)),
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "PENDING"
+            )
+        }
+        syncManager.enqueueBatch(syncItems)
+        try {
+            syncManager.uploadAllWorkspaceChangesToFirebase()
+        } catch (e: Exception) {
+            Log.w("JuktiRepository", "Firebase sync background upload notice: ${e.localizedMessage}")
+        }
+        return Pair(true, "Successfully updated ${updatedQs.size} questions to ${if (isPremium) "Premium" else "Free"}.")
     }
 
     suspend fun bulkUpdateQuestions(questionsToUpdate: List<com.example.data.local.QuestionEntity>): Pair<Boolean, String> {
@@ -862,13 +964,23 @@ class JuktiRepository(
         val premToUpdate = updatedQs.filter { it.isPremium }
 
         if (localToUpdate.isNotEmpty()) {
-            questionDao.updateQuestions(localToUpdate)
+            localToUpdate.forEach { q ->
+                val existing = questionDao.getQuestionById(q.id)
+                if (existing != null) {
+                    questionDao.updateQuestion(q)
+                } else {
+                    questionDao.insertQuestionInternal(q)
+                }
+            }
         }
         
         if (premToUpdate.isNotEmpty()) {
+            premToUpdate.forEach { q ->
+                questionDao.deleteQuestionById(q.id)
+            }
             val current = _premiumQuestions.value.toMutableList()
             premToUpdate.forEach { upd ->
-                val index = current.indexOfFirst { it.id == upd.id }
+                val index = current.indexOfFirst { it.id == upd.id || (upd.firebaseId.isNotBlank() && it.firebaseId == upd.firebaseId) }
                 if (index != -1) current[index] = upd else current.add(upd)
             }
             _premiumQuestions.value = current

@@ -2952,6 +2952,24 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setQuestionAccessType(question: QuestionEntity, isPremium: Boolean, onResult: ((Boolean, String) -> Unit)? = null) {
+        logActivity("Changed question ID ${question.id} access type to ${if (isPremium) "Premium" else "Free"}")
+        viewModelScope.launch {
+            val res = repository.setQuestionAccessType(question, isPremium)
+            _syncToastMessage.value = res.second
+            onResult?.invoke(res.first, res.second)
+        }
+    }
+
+    fun bulkSetQuestionsAccessType(questions: List<QuestionEntity>, isPremium: Boolean, onResult: ((Boolean, String) -> Unit)? = null) {
+        logActivity("Bulk changed ${questions.size} questions to ${if (isPremium) "Premium" else "Free"}")
+        viewModelScope.launch {
+            val res = repository.bulkSetQuestionsAccessType(questions, isPremium)
+            _syncToastMessage.value = res.second
+            onResult?.invoke(res.first, res.second)
+        }
+    }
+
     fun updateQuestionAndResolve(question: QuestionEntity) {
         viewModelScope.launch {
             val res = repository.updateQuestion(question.copy(isReported = false))

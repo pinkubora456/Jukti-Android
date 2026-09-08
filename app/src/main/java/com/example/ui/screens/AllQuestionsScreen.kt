@@ -35,7 +35,10 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     var showOnlyIssues by remember { mutableStateOf(false) }
     var editingQuestion by remember { mutableStateOf<QuestionEntity?>(null) }
     var questionToDelete by remember { mutableStateOf<QuestionEntity?>(null) }
+    var questionToToggleAccess by remember { mutableStateOf<QuestionEntity?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+    var showBulkMakeFreeConfirm by remember { mutableStateOf(false) }
+    var showBulkMakePremiumConfirm by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var selectedQuestionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
@@ -192,19 +195,39 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                 }
                 
                 if (selectedQuestionIds.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(
                             onClick = {
                                 showBulkDeleteConfirm = true
                             },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete (${selectedQuestionIds.size})")
+                            Text("Delete (${selectedQuestionIds.size})", style = MaterialTheme.typography.labelSmall)
                         }
-                        Button(onClick = { showMoveDialog = true }) {
-                            Text("Move")
+                        OutlinedButton(
+                            onClick = {
+                                showBulkMakeFreeConfirm = true
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("🆓 Free", style = MaterialTheme.typography.labelSmall)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                showBulkMakePremiumConfirm = true
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("💎 Premium", style = MaterialTheme.typography.labelSmall)
+                        }
+                        Button(
+                            onClick = { showMoveDialog = true },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("Move", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -271,22 +294,26 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Checkbox(
-                                        checked = isSelected,
-                                        onCheckedChange = { checked ->
-                                            if (checked) selectedQuestionIds = selectedQuestionIds + question.id
-                                            else selectedQuestionIds = selectedQuestionIds - question.id
-                                        }
-                                    )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (question.isPremium) {
-                                            Icon(
-                                                imageVector = Icons.Default.Star,
-                                                contentDescription = "Premium",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = { checked ->
+                                                if (checked) selectedQuestionIds = selectedQuestionIds + question.id
+                                                else selectedQuestionIds = selectedQuestionIds - question.id
+                                            }
+                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (question.isPremium) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (question.isPremium) "💎 Premium" else "🆓 Free",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (question.isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
                                         }
                                         Text(
                                             text = question.subject,
@@ -294,7 +321,8 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -304,6 +332,17 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        OutlinedButton(
+                                            onClick = { questionToToggleAccess = question },
+                                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text(
+                                                text = if (question.isPremium) "Make Free" else "Make Premium",
+                                                style = MaterialTheme.typography.labelSmall
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -319,7 +358,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                         }
                                         Spacer(modifier = Modifier.width(4.dp))
                                         IconButton(
-                                            onClick = { viewModel.deleteQuestion(question) },
+                                            onClick = { questionToDelete = question },
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
@@ -487,6 +526,103 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showBulkDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    questionToToggleAccess?.let { targetQuestion ->
+        val targetToPremium = !targetQuestion.isPremium
+        AlertDialog(
+            onDismissRequest = { questionToToggleAccess = null },
+            title = {
+                Text(if (targetToPremium) "Change Question to Premium?" else "Make Question Free?")
+            },
+            text = {
+                Text(
+                    if (targetToPremium)
+                        "This question will become available only to Premium users."
+                    else
+                        "This question will become available to all users."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setQuestionAccessType(targetQuestion, targetToPremium) { _, msg ->
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        questionToToggleAccess = null
+                    }
+                ) {
+                    Text(if (targetToPremium) "Make Premium" else "Make Free")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { questionToToggleAccess = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showBulkMakeFreeConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBulkMakeFreeConfirm = false },
+            title = { Text("Make Questions Free?") },
+            text = {
+                Text("Are you sure you want to change ${selectedQuestionIds.size} selected question(s) to Free?\n\nThis question will become available to all users.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val selectedQs = questions.filter { it.id in selectedQuestionIds }
+                        viewModel.bulkSetQuestionsAccessType(selectedQs, false) { success, msg ->
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                            if (success) {
+                                selectedQuestionIds = emptySet()
+                            }
+                        }
+                        showBulkMakeFreeConfirm = false
+                    }
+                ) {
+                    Text("Make Free")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkMakeFreeConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showBulkMakePremiumConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBulkMakePremiumConfirm = false },
+            title = { Text("Change Questions to Premium?") },
+            text = {
+                Text("Are you sure you want to change ${selectedQuestionIds.size} selected question(s) to Premium?\n\nThis question will become available only to Premium users.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val selectedQs = questions.filter { it.id in selectedQuestionIds }
+                        viewModel.bulkSetQuestionsAccessType(selectedQs, true) { success, msg ->
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                            if (success) {
+                                selectedQuestionIds = emptySet()
+                            }
+                        }
+                        showBulkMakePremiumConfirm = false
+                    }
+                ) {
+                    Text("Make Premium")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkMakePremiumConfirm = false }) {
                     Text("Cancel")
                 }
             }

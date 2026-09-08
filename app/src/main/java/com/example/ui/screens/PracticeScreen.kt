@@ -150,10 +150,11 @@ fun PracticeScreen(
 
                                 if (!subjectMatches) return@any false
 
-                                val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                                val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
                                 normTopic.equals(nCh, ignoreCase = true) ||
+                                normTopic.equals(ch, ignoreCase = true) ||
+                                topicStr.equals(ch, ignoreCase = true) ||
                                 (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                    topicStr.equals(ch, ignoreCase = true) ||
                                     topicStr.contains(ch, ignoreCase = true) ||
                                     ch.contains(topicStr, ignoreCase = true) ||
                                     normTopic.contains(nCh, ignoreCase = true) ||
@@ -293,26 +294,31 @@ fun PracticeScreen(
                 when (banner.subjectKey) {
                     "All Subjects", "All Subject" -> {
                         allSubjectsChapters.forEach { sc ->
-                            if (sc.chapter.isNotBlank()) {
-                                set.add("${sc.subject}: ${sc.chapter}")
+                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
+                            if (norm.isNotBlank()) {
+                                set.add(norm)
                             }
                         }
                         bannerQs.forEach { q ->
-                            if (!q.topic.isNullOrBlank() && !q.subject.isNullOrBlank()) {
-                                set.add("${q.subject}: ${q.topic}")
+                            val norm = qIdToNormalizedTopic[q.id]?.ifBlank { q.topic?.trim() ?: "" } ?: (q.topic?.trim() ?: "")
+                            if (norm.isNotBlank()) {
+                                set.add(norm)
                             }
                         }
                     }
                     else -> {
                         bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]
-                            if (norm != null && norm.isNotBlank()) set.add(norm)
+                            val norm = qIdToNormalizedTopic[q.id]?.ifBlank { q.topic?.trim() ?: "" } ?: (q.topic?.trim() ?: "")
+                            if (norm.isNotBlank()) set.add(norm)
                         }
                         allSubjectsChapters.filter { isQuestionSubjectMatch(it.subject, banner.subjectKey) }
-                            .forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
+                            .forEach { sc ->
+                                val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
+                                if (norm.isNotBlank()) set.add(norm)
+                            }
                     }
                 }
-                val availableChaptersList = set.toList().sorted()
+                val availableChaptersList = set.toList().sortedWith(String.CASE_INSENSITIVE_ORDER)
 
                 val chapterCountsMap = availableChaptersList.associateWith { rawCh ->
                     val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
@@ -336,10 +342,11 @@ fun PracticeScreen(
 
                         if (!subjectMatches) false
                         else {
-                            val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj)
+                            val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj).ifBlank { ch }
                             normTopic.equals(normCh, ignoreCase = true) ||
+                            normTopic.equals(ch, ignoreCase = true) ||
+                            topicStr.equals(ch, ignoreCase = true) ||
                             (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                topicStr.equals(ch, ignoreCase = true) ||
                                 topicStr.contains(ch, ignoreCase = true) ||
                                 ch.contains(topicStr, ignoreCase = true) ||
                                 normTopic.contains(normCh, ignoreCase = true) ||
@@ -1237,7 +1244,7 @@ fun PracticeScreen(
                             showSummary = true
                         }
                     ) {
-                        Text("End", color = MaterialTheme.colorScheme.error)
+                        Text("End Practice", color = MaterialTheme.colorScheme.error)
                     }
                 }
             )

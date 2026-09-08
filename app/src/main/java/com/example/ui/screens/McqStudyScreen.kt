@@ -887,10 +887,11 @@ fun StudyMcqInteractiveTab(
 
                             if (!subjectMatches) return@any false
 
-                            val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                            val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
                             normTopic.equals(nCh, ignoreCase = true) ||
+                            normTopic.equals(ch, ignoreCase = true) ||
+                            topicStr.equals(ch, ignoreCase = true) ||
                             (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                topicStr.equals(ch, ignoreCase = true) ||
                                 topicStr.contains(ch, ignoreCase = true) ||
                                 ch.contains(topicStr, ignoreCase = true) ||
                                 normTopic.contains(nCh, ignoreCase = true) ||
@@ -930,10 +931,11 @@ fun StudyMcqInteractiveTab(
 
                         if (!subjectMatches) return@any false
 
-                        val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject)
+                        val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
                         normTopic.equals(nCh, ignoreCase = true) ||
+                        normTopic.equals(ch, ignoreCase = true) ||
+                        topicStr.equals(ch, ignoreCase = true) ||
                         (topicStr.isNotBlank() && ch.isNotBlank() && (
-                            topicStr.equals(ch, ignoreCase = true) ||
                             topicStr.contains(ch, ignoreCase = true) ||
                             ch.contains(topicStr, ignoreCase = true) ||
                             normTopic.contains(nCh, ignoreCase = true) ||
@@ -1049,28 +1051,32 @@ fun StudyMcqInteractiveTab(
                 val totalCount = bannerQuestions.size
                 
                 val availableChapters = remember(banner.subjectKey, allSubjectsChapters, questions) {
+                    val set = mutableSetOf<String>()
                     if (banner.subjectKey == "All Subjects" || banner.subjectKey == "All Subject") {
-                        val set = mutableSetOf<String>()
                         allSubjectsChapters.forEach { sc ->
-                            if (sc.chapter.isNotBlank()) {
-                                set.add("${sc.subject}: ${sc.chapter}")
+                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
+                            if (norm.isNotBlank()) {
+                                set.add(norm)
                             }
                         }
                         bannerQuestions.forEach { q ->
-                            if (!q.topic.isNullOrBlank() && !q.subject.isNullOrBlank()) {
-                                set.add("${q.subject}: ${q.topic}")
+                            val norm = com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject ?: "").ifBlank { q.topic?.trim() ?: "" }
+                            if (norm.isNotBlank()) {
+                                set.add(norm)
                             }
                         }
-                        set.toList().sorted()
                     } else {
-                        val set = mutableSetOf<String>()
                         val filteredFromDb = allSubjectsChapters.filter { isQuestionSubjectMatch(it.subject, banner.subjectKey) }
-                        filteredFromDb.forEach { if (it.chapter.isNotBlank()) set.add(it.chapter) }
-                        bannerQuestions.forEach { q ->
-                            if (!q.topic.isNullOrBlank()) set.add(q.topic)
+                        filteredFromDb.forEach { sc ->
+                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
+                            if (norm.isNotBlank()) set.add(norm)
                         }
-                        set.toList().sorted()
+                        bannerQuestions.forEach { q ->
+                            val norm = com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject ?: "").ifBlank { q.topic?.trim() ?: "" }
+                            if (norm.isNotBlank()) set.add(norm)
+                        }
                     }
+                    set.toList().sortedWith(String.CASE_INSENSITIVE_ORDER)
                 }
                 
                 val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
@@ -1083,7 +1089,7 @@ fun StudyMcqInteractiveTab(
                         bannerQuestions.count { q ->
                             val qSubj = q.subject ?: ""
                             val topicStr = q.topic ?: ""
-                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubj)
+                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubj).ifBlank { topicStr }
 
                             val subjectMatches = if (selSubj.isNotBlank()) {
                                 when (selSubj) {
@@ -1098,10 +1104,11 @@ fun StudyMcqInteractiveTab(
 
                             if (!subjectMatches) false
                             else {
-                                val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj)
+                                val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj).ifBlank { ch }
                                 normTopic.equals(normCh, ignoreCase = true) ||
+                                normTopic.equals(ch, ignoreCase = true) ||
+                                topicStr.equals(ch, ignoreCase = true) ||
                                 (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                    topicStr.equals(ch, ignoreCase = true) ||
                                     topicStr.contains(ch, ignoreCase = true) ||
                                     ch.contains(topicStr, ignoreCase = true) ||
                                     normTopic.contains(normCh, ignoreCase = true) ||
@@ -2587,6 +2594,13 @@ fun isQuestionInSubject(q: com.example.data.local.QuestionEntity, subjectKey: St
     if (key.equals("All Subject", ignoreCase = true) || key.equals("All Subjects", ignoreCase = true) || key.isBlank()) {
         return true
     }
+    val qNorm = com.example.data.repository.normalizeSubjectName(q.subject)
+    val targetNorm = com.example.data.repository.normalizeSubjectName(key)
+
+    if (qNorm.equals(targetNorm, ignoreCase = true)) {
+        return true
+    }
+
     val qSubj = q.subject.trim()
     val qTopic = (q.topic ?: "").trim()
 
@@ -2651,8 +2665,7 @@ fun isQuestionInSubject(q: com.example.data.local.QuestionEntity, subjectKey: St
                 false
             } else {
                 qSubj.equals(key, ignoreCase = true) ||
-                qSubj.contains(key, ignoreCase = true) ||
-                (key.length >= 3 && key.contains(qSubj, ignoreCase = true))
+                qSubj.contains(key, ignoreCase = true)
             }
         }
     }
