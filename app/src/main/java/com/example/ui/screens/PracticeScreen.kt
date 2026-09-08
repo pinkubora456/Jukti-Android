@@ -230,43 +230,7 @@ fun PracticeScreen(
                 )
             )
 
-            val existingKeys = predefined.map { it.subjectKey.lowercase() }.toMutableSet()
-            existingKeys.add("all subjects")
-
-            val dynamicSubjects = mutableSetOf<String>()
-            allSubjectsChapters.forEach { if (it.subject.isNotBlank()) dynamicSubjects.add(it.subject) }
-            visibleQuestions.forEach { if (it.subject.isNotBlank()) dynamicSubjects.add(it.subject) }
-
-            val dynamicBanners = dynamicSubjects
-                .filter { subj ->
-                    val norm = subj.lowercase()
-                    !existingKeys.contains(norm) &&
-                    norm != "general knowledge" &&
-                    norm != "general english" &&
-                    norm != "english" &&
-                    norm != "general mathematics" &&
-                    norm != "mathematics" &&
-                    norm != "reasoning" &&
-                    norm != "reasoning & mental ability" &&
-                    norm != "transport & motor vehicle" &&
-                    norm != "voice" &&
-                    norm != "basic computer"
-                }
-                .sorted()
-                .map { subj ->
-                    BannerConfig(
-                        titleEn = subj,
-                        titleAs = subj,
-                        subtitleEn = "Practice questions for $subj",
-                        subtitleAs = "$subj ৰ প্ৰশ্নসমূহ",
-                        subjectKey = subj,
-                        icon = Icons.Default.Book,
-                        containerColor = colorSurfaceVariant,
-                        iconColor = colorPrimary
-                    )
-                }
-
-            val banners = predefined + dynamicBanners + listOf(
+            val banners = predefined + listOf(
                 BannerConfig(
                     titleEn = "All Subjects",
                     titleAs = "সকলো বিষয়",

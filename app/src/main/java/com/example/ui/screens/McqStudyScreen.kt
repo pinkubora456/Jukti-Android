@@ -934,13 +934,7 @@ fun StudyMcqInteractiveTab(
                         val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
                         normTopic.equals(nCh, ignoreCase = true) ||
                         normTopic.equals(ch, ignoreCase = true) ||
-                        topicStr.equals(ch, ignoreCase = true) ||
-                        (topicStr.isNotBlank() && ch.isNotBlank() && (
-                            topicStr.contains(ch, ignoreCase = true) ||
-                            ch.contains(topicStr, ignoreCase = true) ||
-                            normTopic.contains(nCh, ignoreCase = true) ||
-                            nCh.contains(normTopic, ignoreCase = true)
-                        ))
+                        topicStr.equals(ch, ignoreCase = true)
                     }
                     matchSubj && matchCh
                 }
@@ -978,43 +972,7 @@ fun StudyMcqInteractiveTab(
         StudyBannerConfig("Transport & Motor Vehicle", "পৰিবহন আৰু মটৰ বাহন", "Motor vehicle act and traffic signs", "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত", "Transport & Motor Vehicle", androidx.compose.material.icons.Icons.Default.Traffic, androidx.compose.ui.graphics.Color(0xFFFBE9E7), androidx.compose.ui.graphics.Color(0xFFD84315))
     )
 
-    val existingStudyKeys = predefinedStudy.map { it.subjectKey.lowercase() }.toMutableSet()
-    existingStudyKeys.add("all subjects")
-
-    val dynamicStudySubjects = mutableSetOf<String>()
-    allSubjectsChapters.forEach { if (it.subject.isNotBlank()) dynamicStudySubjects.add(it.subject) }
-    questions.forEach { if (it.subject.isNotBlank()) dynamicStudySubjects.add(it.subject) }
-
-    val dynamicStudyBanners = dynamicStudySubjects
-        .filter { subj ->
-            val norm = subj.lowercase()
-            !existingStudyKeys.contains(norm) &&
-            norm != "general knowledge" &&
-            norm != "general english" &&
-            norm != "english" &&
-            norm != "general mathematics" &&
-            norm != "mathematics" &&
-            norm != "reasoning" &&
-            norm != "reasoning & mental ability" &&
-            norm != "transport & motor vehicle" &&
-            norm != "voice" &&
-            norm != "basic computer"
-        }
-        .sorted()
-        .map { subj ->
-            StudyBannerConfig(
-                titleEn = subj,
-                titleAs = subj,
-                subtitleEn = "Study notes and questions for $subj",
-                subtitleAs = "$subj ৰ অধ্যয়ন নোট আৰু প্ৰশ্ন",
-                subjectKey = subj,
-                icon = androidx.compose.material.icons.Icons.Default.Book,
-                containerColor = androidx.compose.ui.graphics.Color(0xFFEFEBE9),
-                iconColor = androidx.compose.ui.graphics.Color(0xFF4E342E)
-            )
-        }
-
-    val studyBanners = predefinedStudy + dynamicStudyBanners + listOf(
+    val studyBanners = predefinedStudy + listOf(
         StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFFFF8E1), androidx.compose.ui.graphics.Color(0xFFFF8F00))
     )
 
@@ -2594,81 +2552,11 @@ fun isQuestionInSubject(q: com.example.data.local.QuestionEntity, subjectKey: St
     if (key.equals("All Subject", ignoreCase = true) || key.equals("All Subjects", ignoreCase = true) || key.isBlank()) {
         return true
     }
-    val qNorm = com.example.data.repository.normalizeSubjectName(q.subject)
-    val targetNorm = com.example.data.repository.normalizeSubjectName(key)
-
-    if (qNorm.equals(targetNorm, ignoreCase = true)) {
-        return true
-    }
-
     val qSubj = q.subject.trim()
-    val qTopic = (q.topic ?: "").trim()
+    val qNorm = com.example.data.repository.normalizeSubjectName(qSubj)
+    val keyNorm = com.example.data.repository.normalizeSubjectName(key)
 
-    return when {
-        key.equals("General Knowledge", ignoreCase = true) || key.equals("GK", ignoreCase = true) -> {
-            qSubj.equals("General Knowledge", ignoreCase = true) ||
-            qSubj.equals("GK", ignoreCase = true) ||
-            qSubj.contains("GK", ignoreCase = true) ||
-            qSubj.contains("Knowledge", ignoreCase = true) ||
-            qSubj.contains("History", ignoreCase = true) ||
-            qSubj.contains("Geography", ignoreCase = true) ||
-            qSubj.contains("Polity", ignoreCase = true) ||
-            qSubj.contains("Economy", ignoreCase = true) ||
-            qSubj.contains("Culture", ignoreCase = true) ||
-            qSubj.contains("Current Affairs", ignoreCase = true) ||
-            qSubj.contains("General Studies", ignoreCase = true) ||
-            qSubj in listOf("Assam History", "Assam Geography", "Assamese Literature & Culture", "Indian History", "Indian Polity", "Indian Economy", "Current Affairs", "General Studies", "GS", "History", "Geography", "Polity", "Economy")
-        }
-        key.equals("General English", ignoreCase = true) || key.equals("English", ignoreCase = true) -> {
-            qSubj.equals("General English", ignoreCase = true) ||
-            qSubj.equals("English", ignoreCase = true) ||
-            qSubj.contains("English", ignoreCase = true) ||
-            qSubj.contains("Grammar", ignoreCase = true) ||
-            qSubj.contains("Vocabulary", ignoreCase = true) ||
-            qSubj.contains("Comprehension", ignoreCase = true)
-        }
-        key.equals("General Mathematics", ignoreCase = true) || key.equals("Mathematics", ignoreCase = true) || key.equals("Maths", ignoreCase = true) || key.equals("Quantitative Aptitude", ignoreCase = true) -> {
-            qSubj in listOf("General Mathematics", "Mathematics", "Maths", "Quantitative Aptitude", "Arithmetic", "Elementary Mathematics") ||
-            qSubj.contains("Math", ignoreCase = true) ||
-            qSubj.contains("Aptitude", ignoreCase = true) ||
-            qSubj.contains("Arithmetic", ignoreCase = true)
-        }
-        key.equals("Reasoning", ignoreCase = true) || key.equals("Reasoning & Mental Ability", ignoreCase = true) || key.equals("Logical Reasoning", ignoreCase = true) || key.equals("Mental Ability", ignoreCase = true) -> {
-            qSubj in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability", "Analytical Reasoning") ||
-            qSubj.contains("Reasoning", ignoreCase = true) ||
-            qSubj.contains("Mental Ability", ignoreCase = true)
-        }
-        key.equals("Basic Computer", ignoreCase = true) || key.equals("Computer Knowledge", ignoreCase = true) || key.equals("Computer", ignoreCase = true) || key.equals("Computer Awareness", ignoreCase = true) -> {
-            qSubj in listOf("Basic Computer", "Computer Knowledge", "Computer", "Computer Awareness", "Computer Science", "Information Technology", "IT") ||
-            qSubj.contains("Computer", ignoreCase = true) ||
-            qSubj.contains("Information Technology", ignoreCase = true) ||
-            qTopic.contains("Computer", ignoreCase = true) ||
-            qTopic.contains("MS Office", ignoreCase = true) ||
-            qTopic.contains("Operating System", ignoreCase = true) ||
-            qTopic.contains("Internet", ignoreCase = true) ||
-            qTopic.contains("Hardware", ignoreCase = true)
-        }
-        key.equals("Transport & Motor Vehicle", ignoreCase = true) || key.equals("Transport Rule", ignoreCase = true) || key.equals("Transport Rules", ignoreCase = true) -> {
-            qSubj.equals("Transport & Motor Vehicle", ignoreCase = true) ||
-            qSubj.equals("Transport Rule", ignoreCase = true) ||
-            qSubj.equals("Transport Rules", ignoreCase = true) ||
-            qSubj.contains("Transport", ignoreCase = true) ||
-            qSubj.contains("Motor Vehicle", ignoreCase = true) ||
-            qTopic.contains("Transport Rule", ignoreCase = true) ||
-            qTopic.contains("Traffic Sign", ignoreCase = true) ||
-            qTopic.contains("Motor Vehicle", ignoreCase = true) ||
-            qTopic.contains("Driving Regulation", ignoreCase = true) ||
-            qTopic.contains("Vehicle Safety", ignoreCase = true)
-        }
-        else -> {
-            if (qSubj.isBlank()) {
-                false
-            } else {
-                qSubj.equals(key, ignoreCase = true) ||
-                qSubj.contains(key, ignoreCase = true)
-            }
-        }
-    }
+    return qNorm.equals(keyNorm, ignoreCase = true)
 }
 
 fun isQuestionSubjectMatch(qSubject: String, subjectKey: String): Boolean {

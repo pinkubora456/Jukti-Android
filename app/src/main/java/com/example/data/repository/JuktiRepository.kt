@@ -16,39 +16,11 @@ fun normalizeSubjectName(raw: String?): String {
     if (trimmed.isEmpty()) return "General Knowledge"
     val lower = trimmed.lowercase()
     return when {
-        // 1. Reading Comprehension (Standalone Subject)
-        lower == "reading comprehension" || lower == "comprehension" || lower == "reading" ||
-        lower == "reading comprehension & passages" || lower == "passage based questions" ||
-        lower == "passages" || lower == "short passages" || lower == "long passages" ||
-        lower.contains("comprehension") || lower.contains("passage") -> "Reading Comprehension"
-
-        // 2. Transport & Motor Vehicle
-        lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") ||
-        lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport & Motor Vehicle"
-
-        // 3. (Removed Basic Computer subject per user request)
-
-        // 4. Reasoning & Mental Ability
-        lower.contains("reasoning") || lower.contains("mental ability") || lower.contains("logical") ||
-        (lower.contains("aptitude") && !lower.contains("quant")) || lower == "general intelligence" -> "Reasoning & Mental Ability"
-
-        // 5. General Mathematics
+        lower.contains("english") || lower.contains("grammar") || lower.contains("vocabulary") || lower.contains("comprehension") || lower.contains("reading") || lower.contains("passage") -> "General English"
+        lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") || lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport & Motor Vehicle"
+        lower.contains("reasoning") || lower.contains("mental ability") || lower.contains("logical") || lower.contains("intelligence") || (lower.contains("aptitude") && !lower.contains("quant")) -> "Reasoning & Mental Ability"
         lower.contains("math") || lower.contains("quant") || lower.contains("numeracy") || lower.contains("arithmetic") -> "General Mathematics"
-
-        // 6. General English
-        lower.contains("english") || lower.contains("grammar") || lower.contains("vocabulary") -> "General English"
-
-        // 7. General Knowledge (default / canonical GK categories)
-        lower.contains("gk") || lower.contains("knowledge") || lower.contains("history") ||
-        lower.contains("geography") || lower.contains("polity") || lower.contains("constitution") ||
-        lower.contains("science") || lower.contains("economy") || lower.contains("current affairs") ||
-        lower.contains("culture") || lower.contains("assam") || lower.contains("static") ||
-        lower.contains("social") || lower.contains("scheme") || lower.contains("award") ||
-        lower.contains("book") || lower.contains("day") || lower.contains("sport") ||
-        lower.contains("organization") || lower.contains("environment") || lower.contains("ecology") ||
-        lower.contains("computer") || lower == "it" || lower == "information technology" || lower.contains("hardware") || lower.contains("networking") -> "General Knowledge"
-
-        else -> trimmed
+        else -> "General Knowledge"
     }
 }
 
@@ -229,6 +201,72 @@ class JuktiRepository(
     val syncManager: FirebaseSyncManager
 ) {
     private val firebaseRepository = FirebaseRepository()
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                if (planDao.getAllPlansDirect().isEmpty()) {
+                    planDao.insertAll(listOf(
+                        PlanEntity(
+                            id = 1L,
+                            planName = "Free Plan",
+                            planPrice = "₹0",
+                            discount = "0%",
+                            finalPrice = "₹0",
+                            offerValidity = "Lifetime",
+                            validityType = "LIFETIME",
+                            validityValue = 0,
+                            validityLabel = "Lifetime",
+                            isLifetime = true,
+                            contents = "All Free Mock Tests, Study Notes & Practice Questions",
+                            features = "Access to free content, community discussions, daily quizzes",
+                            isActive = true
+                        ),
+                        PlanEntity(
+                            id = 2L,
+                            planName = "Jukti Complete Premium",
+                            planPrice = "₹1999",
+                            discount = "50% OFF",
+                            finalPrice = "₹999",
+                            offerValidity = "1 Year",
+                            validityType = "YEARS",
+                            validityValue = 1,
+                            validityLabel = "1 Year",
+                            isLifetime = false,
+                            contents = "All Mock Tests, Premium Study Notes & Unlimited Practice",
+                            features = "Ad-free experience, full syllabus coverage, expert doubt support",
+                            isActive = true,
+                            googlePlayProductId = "premium_1_year"
+                        ),
+                        PlanEntity(
+                            id = 3L,
+                            planName = "Jukti Starter Plan",
+                            planPrice = "₹499",
+                            discount = "60% OFF",
+                            finalPrice = "₹199",
+                            offerValidity = "7 Days",
+                            validityType = "DAYS",
+                            validityValue = 7,
+                            validityLabel = "7 Days",
+                            isLifetime = false,
+                            contents = "Access to all mock tests for 7 days",
+                            features = "Quick revision package, all practice sets",
+                            isActive = true,
+                            googlePlayProductId = "starter_7_day"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {}
+
+            try {
+                firebaseRepository.observePlans().collect { remotePlans ->
+                    if (remotePlans.isNotEmpty()) {
+                        planDao.insertAll(remotePlans)
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+    }
 
     val activityLogs: Flow<List<ActivityLogEntity>> = combine(
         firebaseRepository.observeActivityLogs(),
@@ -550,19 +588,7 @@ class JuktiRepository(
         _premiumStudyNotes.value = emptyList()
     }
 
-    val allPlans: Flow<List<PlanEntity>> = combine(
-        firebaseRepository.observePlans(),
-        planDao.getAllPlans()
-    ) { remote, local ->
-        if (remote.isEmpty()) {
-            local
-        } else if (local.isEmpty()) {
-            remote
-        } else {
-            val remoteMap = remote.associateBy { it.id }
-            local.map { loc -> remoteMap[loc.id] ?: loc }
-        }
-    }
+    val allPlans: Flow<List<PlanEntity>> = planDao.getAllPlans()
 
 
 
