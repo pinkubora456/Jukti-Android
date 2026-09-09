@@ -273,9 +273,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val allGuidanceBanners: StateFlow<List<com.example.data.local.GuidanceBannerEntity>> = repository.allGuidanceBanners.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, emptyList())
 
     fun savePyqFocus(entity: com.example.data.local.PyqFocusEntity) { viewModelScope.launch { repository.savePyqFocus(entity) } }
+    fun deletePyqFocus(entity: com.example.data.local.PyqFocusEntity) { viewModelScope.launch { repository.deletePyqFocus(entity) } }
     fun saveFocusTopic(entity: com.example.data.local.FocusTopicEntity) { viewModelScope.launch { repository.saveFocusTopic(entity) } }
     fun deleteFocusTopic(entity: com.example.data.local.FocusTopicEntity) { viewModelScope.launch { repository.deleteFocusTopic(entity) } }
     fun savePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) { viewModelScope.launch { repository.savePrepStrategy(entity) } }
+    fun deletePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) { viewModelScope.launch { repository.deletePrepStrategy(entity) } }
     fun saveGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) { viewModelScope.launch { repository.saveGuidanceBanner(entity) } }
     fun deleteGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) { viewModelScope.launch { repository.deleteGuidanceBanner(entity) } }
 
@@ -396,6 +398,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setStudySessionActive(active: Boolean) {
         _isStudySessionActive.value = active
+    }
+
+    private val _editingQuestionForUpload = MutableStateFlow<com.example.data.local.QuestionEntity?>(null)
+    val editingQuestionForUpload: StateFlow<com.example.data.local.QuestionEntity?> = _editingQuestionForUpload.asStateFlow()
+
+    fun startEditingQuestion(question: com.example.data.local.QuestionEntity?) {
+        _editingQuestionForUpload.value = question
+        if (question != null) {
+            navigateTo(Screen.SINGLE_QUESTION_UPLOAD)
+        }
     }
 
     fun setStudySubView(subView: String?, fromHome: Boolean = false) {
@@ -1136,6 +1148,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
 
     init {
+        refreshGuidanceData()
         com.example.JuktiApplication.ensureFirebaseInitialized(application)
         syncTrustedTime()
 
@@ -1419,6 +1432,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _returnToSavedQuestions = MutableStateFlow(false)
     val returnToSavedQuestions: StateFlow<Boolean> = _returnToSavedQuestions
+
+    
+    var preSelectedPracticeSubject: String? = null
+    var preSelectedPracticeChapter: String? = null
+
+    fun startSmartPracticeSession(exam: String, subject: String, chapter: String, topic: String) {
+        preSelectedPracticeSubject = subject
+        preSelectedPracticeChapter = chapter
+        navigateTo(Screen.PRACTICE)
+    }
 
     fun startPracticeForQuestion(question: QuestionEntity) {
         _activePracticeQuestion.value = question
@@ -2921,15 +2944,35 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun bulkEditQuestions(
+        questionsToUpdate: List<QuestionEntity>,
+        targetExam: String?,
+        targetAccess: String?,
+        targetQuestionType: String?,
+        targetPyqExamName: String?,
+        targetTags: String?,
+        targetDifficulty: String?,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val (success, msg) = repository.bulkEditQuestions(
+                questionsToUpdate, targetExam, targetAccess, targetQuestionType, targetPyqExamName, targetTags, targetDifficulty
+            )
+            onComplete(success, msg)
+            if (success) {
+                _syncToastMessage.value = msg
+            }
+        }
+    }
+
     fun bulkMoveQuestions(
         questionsToUpdate: List<QuestionEntity>,
-        targetExam: String,
         targetSubject: String,
         targetChapter: String,
         onComplete: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
-            val (success, msg) = repository.bulkMoveQuestions(questionsToUpdate, targetExam, targetSubject, targetChapter)
+            val (success, msg) = repository.bulkMoveQuestions(questionsToUpdate, targetSubject, targetChapter)
             onComplete(success, msg)
             if (success) {
                 _syncToastMessage.value = msg
@@ -2937,6 +2980,16 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    fun deleteQuestions(questions: List<QuestionEntity>) {
+        logActivity("Deleted ${questions.size} questions")
+        viewModelScope.launch {
+            questions.forEach { q ->
+                repository.deleteQuestion(q)
+            }
+            _syncToastMessage.value = "Successfully deleted ${questions.size} questions."
+        }
+    }
+
     fun deleteQuestion(question: QuestionEntity) {
         logActivity("Deleted question ID: ${question.id}")
         viewModelScope.launch {
@@ -4165,11 +4218,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                     resolver.openOutputStream(savedUri)?.use { it.write(bytes) }
                 }
             } else {
-                val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                val dir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
                 if (!dir.exists()) dir.mkdirs()
                 val file = java.io.File(dir, filename)
                 java.io.FileOutputStream(file).use { it.write(bytes) }
-                savedUri = android.net.Uri.fromFile(file)
+                savedUri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
             }
 
             launchOnMain {
@@ -4316,7 +4373,21 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun refreshGuidanceData() {
+        viewModelScope.launch {
+            repository.refreshGuidanceData()
+        }
+    }
+
+    fun migrateGuidanceToFirestore() {
+        viewModelScope.launch {
+            repository.migrateGuidanceToFirestore()
+        }
+    }
+
 }
+
 
 data class PlanPurchaseSummaryItem(
     val planName: String,

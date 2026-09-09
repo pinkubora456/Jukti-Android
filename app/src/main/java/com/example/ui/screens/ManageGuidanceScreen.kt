@@ -1,59 +1,97 @@
-
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.local.*
+import com.example.data.util.GuidanceEngine
 import com.example.ui.components.SafeOutlinedTextField
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.Screen
-import java.util.UUID
+import java.util.Locale
+
+enum class ManageGuidanceSection {
+    LANDING,
+    PYQ_FOCUS,
+    PRIORITY_TOPICS,
+    STRENGTH_WEAKNESS,
+    PREP_STRATEGY
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManageGuidanceScreen(viewModel: JuktiViewModel) {
+fun ManageGuidanceScreen(viewModel: JuktiViewModel, onBackClick: () -> Unit = {}) {
+    var currentSection by rememberSaveable { mutableStateOf(ManageGuidanceSection.LANDING) }
+    val context = LocalContext.current
+
     val examsList by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    
-    val allPyqFocus: List<PyqFocusEntity> by viewModel.allPyqFocus.collectAsState(initial = emptyList())
-    val allFocusTopics: List<FocusTopicEntity> by viewModel.allFocusTopics.collectAsState(initial = emptyList())
-    val allPrepStrategies: List<PrepStrategyEntity> by viewModel.allPrepStrategies.collectAsState(initial = emptyList())
-    val allGuidanceBanners: List<GuidanceBannerEntity> by viewModel.allGuidanceBanners.collectAsState(initial = emptyList())
+    val allQuestions by viewModel.questions.collectAsState()
+    val allPyqFocus by viewModel.allPyqFocus.collectAsState(initial = emptyList())
+    val allFocusTopics by viewModel.allFocusTopics.collectAsState(initial = emptyList())
+    val allPrepStrategies by viewModel.allPrepStrategies.collectAsState(initial = emptyList())
 
-    var selectedExam by remember { mutableStateOf<String?>(null) }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    // Independent Exam & Subject states for each of the 4 sections
+    var pyqExam by rememberSaveable { mutableStateOf<String?>(null) }
+    var pyqSubject by rememberSaveable { mutableStateOf("All Subjects") }
 
-    var examDropdownExpanded by remember { mutableStateOf(false) }
+    var priorityExam by rememberSaveable { mutableStateOf<String?>(null) }
+    var prioritySubject by rememberSaveable { mutableStateOf("All Subjects") }
 
-    val categories = listOf(
-        "Guidance Banners" to Icons.Default.ViewCarousel,
-        "PYQ Focus" to Icons.Default.History,
-        "Focus Topics" to Icons.Default.TrackChanges,
-        "Preparation Strategy" to Icons.Default.Lightbulb
-    )
+    var strengthExam by rememberSaveable { mutableStateOf<String?>(null) }
+    var strengthSubject by rememberSaveable { mutableStateOf("All Subjects") }
+
+    var strategyExam by rememberSaveable { mutableStateOf<String?>(null) }
+    var strategySubject by rememberSaveable { mutableStateOf("All Subjects") }
+
+    // Initialize default exams once exams list is loaded
+    LaunchedEffect(examsList) {
+        if (examsList.isNotEmpty()) {
+            val firstExam = examsList.first().title
+            if (pyqExam == null) pyqExam = firstExam
+            if (priorityExam == null) priorityExam = firstExam
+            if (strengthExam == null) strengthExam = firstExam
+            if (strategyExam == null) strategyExam = firstExam
+        }
+    }
+
+    val screenTitle = when (currentSection) {
+        ManageGuidanceSection.LANDING -> "Manage Guidance"
+        ManageGuidanceSection.PYQ_FOCUS -> "Manage PYQ Focus"
+        ManageGuidanceSection.PRIORITY_TOPICS -> "Manage Priority Topics"
+        ManageGuidanceSection.STRENGTH_WEAKNESS -> "Strength & Weakness Configuration"
+        ManageGuidanceSection.PREP_STRATEGY -> "Manage Preparation Strategy"
+    }
 
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
-                title = if (selectedCategory != null) "Manage ${selectedCategory}" else "Manage Guidance",
+                title = screenTitle,
                 onBackClick = {
-                    if (selectedCategory != null) {
-                        selectedCategory = null
+                    if (currentSection != ManageGuidanceSection.LANDING) {
+                        currentSection = ManageGuidanceSection.LANDING
                     } else {
                         viewModel.navigateTo(Screen.WORKSPACE)
                     }
@@ -61,108 +99,77 @@ fun ManageGuidanceScreen(viewModel: JuktiViewModel) {
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (selectedCategory == null) {
-                // LEVEL 1: Select Exam and Category
-                Text("1. Select Exam", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                
-                ExposedDropdownMenuBox(
-                    expanded = examDropdownExpanded,
-                    onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
-                ) {
-                    SafeOutlinedTextField(
-                        value = selectedExam ?: "Select Exam",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Exam") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = examDropdownExpanded,
-                        onDismissRequest = { examDropdownExpanded = false }
-                    ) {
-                        examsList.forEach { exam ->
-                            DropdownMenuItem(
-                                text = { Text(exam.title) },
-                                onClick = {
-                                    selectedExam = exam.title
-                                    examDropdownExpanded = false
-                                }
-                            )
+            when (currentSection) {
+                ManageGuidanceSection.LANDING -> {
+                    ManageGuidanceLanding(
+                        onNavigate = { currentSection = it },
+                        onSyncCloud = {
+                            viewModel.migrateGuidanceToFirestore()
+                            Toast.makeText(context, "Published Guidance data to Firestore", Toast.LENGTH_SHORT).show()
+                        },
+                        onRefreshCloud = {
+                            viewModel.refreshGuidanceData()
+                            Toast.makeText(context, "Refreshed Guidance data from Cloud", Toast.LENGTH_SHORT).show()
                         }
-                    }
+                    )
                 }
 
-                if (selectedExam != null) {
-                    Text(
-                        text = "2. Select Guidance Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
+                ManageGuidanceSection.PYQ_FOCUS -> {
+                    ManagePyqFocusScreen(
+                        selectedExam = pyqExam,
+                        selectedSubject = pyqSubject,
+                        examsList = examsList,
+                        allSubjectsChapters = allSubjectsChapters,
+                        allQuestions = allQuestions,
+                        allPyqFocus = allPyqFocus,
+                        onExamChange = { pyqExam = it; pyqSubject = "All Subjects" },
+                        onSubjectChange = { pyqSubject = it },
+                        onSavePyq = { viewModel.savePyqFocus(it) },
+                        onDeletePyq = { viewModel.deletePyqFocus(it) }
                     )
-                    
-                    categories.forEach { (catName, icon) ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedCategory = catName },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(catName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            } else {
-                // LEVEL 2: Inside a specific Category
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Exam: ${selectedExam!!}", fontWeight = FontWeight.Bold)
-                    }
                 }
 
-                when (selectedCategory) {
-                    "Guidance Banners" -> ManageGuidanceBanners(
-                        exam = selectedExam!!, 
-                        banners = allGuidanceBanners.filter { it.exam == selectedExam },
-                        onSave = { viewModel.saveGuidanceBanner(it) },
-                        onDelete = { viewModel.deleteGuidanceBanner(it) }
-                    )
-                    "PYQ Focus" -> ManagePyqFocus(
-                        exam = selectedExam!!,
+                ManageGuidanceSection.PRIORITY_TOPICS -> {
+                    ManagePriorityTopicsScreen(
+                        selectedExam = priorityExam,
+                        selectedSubject = prioritySubject,
+                        examsList = examsList,
                         allSubjectsChapters = allSubjectsChapters,
-                        pyqFocusData = allPyqFocus.filter { it.exam == selectedExam },
-                        onSave = { viewModel.savePyqFocus(it) }
+                        allPyqFocus = allPyqFocus,
+                        allFocusTopics = allFocusTopics,
+                        onExamChange = { priorityExam = it; prioritySubject = "All Subjects" },
+                        onSubjectChange = { prioritySubject = it },
+                        onSaveFocusTopic = { viewModel.saveFocusTopic(it) },
+                        onDeleteFocusTopic = { viewModel.deleteFocusTopic(it) }
                     )
-                    "Focus Topics" -> ManageFocusTopics(
-                        exam = selectedExam!!,
+                }
+
+                ManageGuidanceSection.STRENGTH_WEAKNESS -> {
+                    ManageStrengthWeaknessScreen(
+                        selectedExam = strengthExam,
+                        selectedSubject = strengthSubject,
+                        examsList = examsList,
+                        onExamChange = { strengthExam = it },
+                        onSubjectChange = { strengthSubject = it }
+                    )
+                }
+
+                ManageGuidanceSection.PREP_STRATEGY -> {
+                    ManagePrepStrategyScreen(
+                        selectedExam = strategyExam,
+                        selectedSubject = strategySubject,
+                        examsList = examsList,
                         allSubjectsChapters = allSubjectsChapters,
-                        focusTopics = allFocusTopics.filter { it.exam == selectedExam },
-                        onSave = { viewModel.saveFocusTopic(it) },
-                        onDelete = { viewModel.deleteFocusTopic(it) }
-                    )
-                    "Preparation Strategy" -> ManagePrepStrategy(
-                        exam = selectedExam!!,
-                        strategy = allPrepStrategies.find { it.exam == selectedExam },
-                        onSave = { viewModel.savePrepStrategy(it) }
+                        allPrepStrategies = allPrepStrategies,
+                        onExamChange = { strategyExam = it; strategySubject = "All Subjects" },
+                        onSubjectChange = { strategySubject = it },
+                        onSaveStrategy = { viewModel.savePrepStrategy(it) },
+                        onDeleteStrategy = { viewModel.deletePrepStrategy(it) }
                     )
                 }
             }
@@ -170,112 +177,85 @@ fun ManageGuidanceScreen(viewModel: JuktiViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManagePyqFocus(
-    exam: String,
-    allSubjectsChapters: List<SubjectChapterEntity>,
-    pyqFocusData: List<PyqFocusEntity>,
-    onSave: (PyqFocusEntity) -> Unit
+fun ManageGuidanceLanding(
+    onNavigate: (ManageGuidanceSection) -> Unit,
+    onSyncCloud: () -> Unit,
+    onRefreshCloud: () -> Unit
 ) {
-    var selectedSubject by remember { mutableStateOf<String?>(null) }
-    var subjectDropdownExpanded by remember { mutableStateOf(false) }
-
-    val uniqueSubjects = remember(allSubjectsChapters) {
-        allSubjectsChapters.map { it.subject }.distinct().sorted()
-    }
-
-    val chaptersForSubject = remember(allSubjectsChapters, selectedSubject) {
-        if (selectedSubject == null) emptyList()
-        else allSubjectsChapters.filter { it.subject == selectedSubject }.map { it.chapter }.distinct().sorted()
-    }
-
-    ExposedDropdownMenuBox(
-        expanded = subjectDropdownExpanded,
-        onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SafeOutlinedTextField(
-            value = selectedSubject ?: "Select Subject",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Subject") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = subjectDropdownExpanded,
-            onDismissRequest = { subjectDropdownExpanded = false }
-        ) {
-            uniqueSubjects.forEach { subject ->
-                DropdownMenuItem(
-                    text = { Text(subject) },
-                    onClick = {
-                        selectedSubject = subject
-                        subjectDropdownExpanded = false
-                    }
-                )
-            }
+        item {
+            ManageSectionBannerCard(
+                title = "PYQ Focus",
+                subtitle = "View entries, Add PYQ Focus Entry, Edit, Delete",
+                icon = Icons.Default.History,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                onClick = { onNavigate(ManageGuidanceSection.PYQ_FOCUS) }
+            )
         }
-    }
-
-    if (selectedSubject != null) {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Header
-            item {
+        item {
+            ManageSectionBannerCard(
+                title = "Priority Topics",
+                subtitle = "View entries, Add, Edit, Delete",
+                icon = Icons.Default.TrackChanges,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                onClick = { onNavigate(ManageGuidanceSection.PRIORITY_TOPICS) }
+            )
+        }
+        item {
+            ManageSectionBannerCard(
+                title = "Strength & Weakness",
+                subtitle = "View entries, Add, Edit, Delete",
+                icon = Icons.Default.FitnessCenter,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                onClick = { onNavigate(ManageGuidanceSection.STRENGTH_WEAKNESS) }
+            )
+        }
+        
+        // Guidance Data Sync
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable {
+                    onSyncCloud()
+                    onRefreshCloud()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Chapter", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold)
-                    Text("PYQ", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                    Text("Exams", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                    Text("Avg", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                }
-            }
-
-            items(chaptersForSubject) { chapter ->
-                val currentData = pyqFocusData.find { it.subject == selectedSubject && it.chapter == chapter }
-                    ?: PyqFocusEntity(exam = exam, subject = selectedSubject!!, chapter = chapter)
-
-                var pyqCountStr by remember(currentData) { mutableStateOf(currentData.pyqCount.toString()) }
-                var examsCoveredStr by remember(currentData) { mutableStateOf(currentData.examsCovered.toString()) }
-
-                val pyqCount = pyqCountStr.toIntOrNull() ?: 0
-                val examsCovered = examsCoveredStr.toIntOrNull() ?: 0
-                val avg = if (examsCovered > 0) pyqCount.toFloat() / examsCovered else 0f
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(chapter, modifier = Modifier.weight(2f), style = MaterialTheme.typography.bodyMedium)
-                        
-                        SafeOutlinedTextField(
-                            value = pyqCountStr,
-                            onValueChange = { 
-                                pyqCountStr = it 
-                                onSave(currentData.copy(pyqCount = it.toIntOrNull() ?: 0, examsCovered = examsCoveredStr.toIntOrNull() ?: 0, updatedAt = System.currentTimeMillis()))
-                            },
-                            modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    Icon(
+                        imageVector = Icons.Default.CloudSync,
+                        contentDescription = "Guidance Data Sync",
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .padding(10.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Guidance Data Sync",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                        
-                        SafeOutlinedTextField(
-                            value = examsCoveredStr,
-                            onValueChange = { 
-                                examsCoveredStr = it
-                                onSave(currentData.copy(pyqCount = pyqCountStr.toIntOrNull() ?: 0, examsCovered = it.toIntOrNull() ?: 0, updatedAt = System.currentTimeMillis()))
-                            },
-                            modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "One centralized Firestore sync option",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        
-                        Text(String.format("%.1f", avg), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -283,122 +263,757 @@ fun ManagePyqFocus(
     }
 }
 
+@Composable
+fun ManageSectionBannerCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    containerColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                    .padding(10.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Open",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/* ==========================================================================
+   SECTION 1: PYQ FOCUS MANAGEMENT
+   ========================================================================== */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManageFocusTopics(
-    exam: String,
+fun ManagePyqFocusScreen(
+    selectedExam: String?,
+    selectedSubject: String,
+    examsList: List<ExamEntity>,
     allSubjectsChapters: List<SubjectChapterEntity>,
-    focusTopics: List<FocusTopicEntity>,
-    onSave: (FocusTopicEntity) -> Unit,
-    onDelete: (FocusTopicEntity) -> Unit
+    allQuestions: List<QuestionEntity>,
+    allPyqFocus: List<PyqFocusEntity>,
+    onExamChange: (String) -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onSavePyq: (PyqFocusEntity) -> Unit,
+    onDeletePyq: (PyqFocusEntity) -> Unit
 ) {
-    var selectedSubject by remember { mutableStateOf<String?>(null) }
-    var selectedChapter by remember { mutableStateOf<String?>(null) }
-    
+    var examDropdownExpanded by remember { mutableStateOf(false) }
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
-    var chapterDropdownExpanded by remember { mutableStateOf(false) }
-
-    var topicName by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf("Medium") }
-    var instruction by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    val uniqueSubjects = remember(allSubjectsChapters) {
-        allSubjectsChapters.map { it.subject }.distinct().sorted()
+    // Available subjects for selected exam
+    val availableSubjects = remember(selectedExam, allSubjectsChapters, allPyqFocus, allQuestions) {
+        val chapterSubjs = allSubjectsChapters.map { it.subject }
+        val pyqSubjs = allPyqFocus.filter { 
+            selectedExam == null || it.exam.equals(selectedExam, ignoreCase = true) || it.exam.contains(selectedExam, ignoreCase = true) 
+        }.map { it.subject }
+        val qSubjs = allQuestions.filter { 
+            selectedExam == null || it.examCategory.contains(selectedExam, ignoreCase = true) || selectedExam.contains(it.examCategory, ignoreCase = true)
+        }.map { it.subject }
+        val combined = (chapterSubjs + pyqSubjs + qSubjs).filter { it.isNotBlank() }.distinct().sorted()
+        listOf("All Subjects") + combined
     }
 
-    val chaptersForSubject = remember(allSubjectsChapters, selectedSubject) {
-        if (selectedSubject == null) emptyList()
-        else allSubjectsChapters.filter { it.subject == selectedSubject }.map { it.chapter }.distinct().sorted()
+    // Filter PYQ Focus records matching selected exam
+    val examPyqs = remember(allPyqFocus, selectedExam) {
+        if (selectedExam == null) emptyList()
+        else allPyqFocus.filter { 
+            it.exam.equals(selectedExam, ignoreCase = true) || 
+            it.exam.contains(selectedExam, ignoreCase = true) || 
+            selectedExam.contains(it.exam, ignoreCase = true)
+        }
     }
 
-    val topicsForChapter = remember(focusTopics, selectedSubject, selectedChapter) {
-        focusTopics.filter { it.subject == selectedSubject && it.chapter == selectedChapter }
+    // Chapters to display based on subject selection
+    val displayedPyqs = remember(examPyqs, selectedSubject) {
+        if (selectedSubject == "All Subjects") {
+            examPyqs
+        } else {
+            examPyqs.filter { it.subject.equals(selectedSubject, ignoreCase = true) }
+        }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Independent Exam Selector
         ExposedDropdownMenuBox(
-            expanded = subjectDropdownExpanded,
-            onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+            expanded = examDropdownExpanded,
+            onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
         ) {
             SafeOutlinedTextField(
-                value = selectedSubject ?: "Select Subject",
+                value = selectedExam ?: "Select Exam",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Subject") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
+                label = { Text("Select Exam") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
                 modifier = Modifier.menuAnchor().fillMaxWidth()
             )
             ExposedDropdownMenu(
-                expanded = subjectDropdownExpanded,
-                onDismissRequest = { subjectDropdownExpanded = false }
+                expanded = examDropdownExpanded,
+                onDismissRequest = { examDropdownExpanded = false }
             ) {
-                uniqueSubjects.forEach { subject ->
+                examsList.forEach { exam ->
                     DropdownMenuItem(
-                        text = { Text(subject) },
+                        text = { Text(exam.title) },
                         onClick = {
-                            selectedSubject = subject
-                            selectedChapter = null // Reset chapter
-                            subjectDropdownExpanded = false
+                            onExamChange(exam.title)
+                            examDropdownExpanded = false
                         }
                     )
                 }
             }
         }
 
-        if (selectedSubject != null) {
+        // Independent Subject Selector
+        if (selectedExam != null) {
             ExposedDropdownMenuBox(
-                expanded = chapterDropdownExpanded,
-                onExpandedChange = { chapterDropdownExpanded = !chapterDropdownExpanded }
+                expanded = subjectDropdownExpanded,
+                onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
             ) {
                 SafeOutlinedTextField(
-                    value = selectedChapter ?: "Select Chapter",
+                    value = selectedSubject,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Chapter") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterDropdownExpanded) },
+                    label = { Text("Select Subject") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
                 ExposedDropdownMenu(
-                    expanded = chapterDropdownExpanded,
-                    onDismissRequest = { chapterDropdownExpanded = false }
+                    expanded = subjectDropdownExpanded,
+                    onDismissRequest = { subjectDropdownExpanded = false }
                 ) {
-                    chaptersForSubject.forEach { chapter ->
+                    availableSubjects.forEach { subject ->
                         DropdownMenuItem(
-                            text = { Text(chapter) },
+                            text = { Text(subject) },
                             onClick = {
-                                selectedChapter = chapter
-                                chapterDropdownExpanded = false
+                                onSubjectChange(subject)
+                                subjectDropdownExpanded = false
                             }
                         )
                     }
                 }
             }
-        }
 
-        if (selectedChapter != null) {
-            Button(
-                onClick = { showAddDialog = true },
-                modifier = Modifier.align(Alignment.End)
+            // Action Row: Add Chapter & Auto-Scan
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Topic")
+                Text(
+                    text = if (selectedSubject == "All Subjects") "All Chapters (${displayedPyqs.size})" else "$selectedSubject Chapters",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            // Auto-scan questions tagged with PYQ for this exam
+                            val pyqQuestions = allQuestions.filter { 
+                                (it.examCategory.contains(selectedExam, ignoreCase = true) || selectedExam.contains(it.examCategory, ignoreCase = true) || it.examCategory.isEmpty()) &&
+                                it.questionType.equals("PYQ", ignoreCase = true)
+                            }
+                            if (pyqQuestions.isEmpty()) {
+                                Toast.makeText(context, "No PYQ-tagged questions found in Q-Bank for $selectedExam", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val grouped = pyqQuestions.groupBy { Pair(it.subject, it.topic) }
+                                var addedCount = 0
+                                grouped.forEach { (key, qList) ->
+                                    val subj = key.first
+                                    val chap = key.second
+                                    if (subj.isNotBlank() && chap.isNotBlank()) {
+                                        val existing = examPyqs.find { it.subject.equals(subj, ignoreCase = true) && it.chapter.equals(chap, ignoreCase = true) }
+                                        val entity = existing?.copy(pyqCount = qList.size, updatedAt = System.currentTimeMillis())
+                                            ?: PyqFocusEntity(exam = selectedExam, subject = subj, chapter = chap, pyqCount = qList.size, examsCovered = 1, updatedAt = System.currentTimeMillis())
+                                        onSavePyq(entity)
+                                        addedCount++
+                                    }
+                                }
+                                Toast.makeText(context, "Scanned $addedCount chapters from Q-Bank PYQ questions!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Auto-Scan Q-Bank", style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    Button(
+                        onClick = { showAddDialog = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add PYQ Entry", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(topicsForChapter) { topic ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(topic.topic, fontWeight = FontWeight.Bold)
-                                Text("Priority: ${topic.priority}", style = MaterialTheme.typography.bodySmall)
-                                if (topic.instruction.isNotBlank()) {
-                                    Text(topic.instruction, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+            // PYQ Chapters List
+            if (displayedPyqs.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No PYQ records for this selection yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tap 'Auto-Scan Q-Bank' to generate from existing questions or 'Add PYQ Entry' to enter manually.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 60.dp)
+                ) {
+                    // Header Row
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Chapter & Subject", modifier = Modifier.weight(2.2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            Text("PYQs", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                            Text("Exams", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                            Text("Avg/Imp", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                            Spacer(modifier = Modifier.width(36.dp))
+                        }
+                    }
+
+                    items(displayedPyqs) { pyqItem ->
+                        PyqFocusRowItem(
+                            item = pyqItem,
+                            onSave = onSavePyq,
+                            onDelete = { onDeletePyq(pyqItem) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Add PYQ Entry Dialog
+    if (showAddDialog && selectedExam != null) {
+        var addSubject by remember { mutableStateOf(if (selectedSubject != "All Subjects") selectedSubject else availableSubjects.getOrNull(1) ?: "") }
+        var addChapter by remember { mutableStateOf("") }
+        var addPyqCountStr by remember { mutableStateOf("5") }
+        var addExamsCoveredStr by remember { mutableStateOf("2") }
+
+        val chaptersForSubj = remember(addSubject, allSubjectsChapters) {
+            allSubjectsChapters.filter { it.subject.equals(addSubject, ignoreCase = true) }.map { it.chapter }.distinct().sorted()
+        }
+
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Add PYQ Focus Entry") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    var subjectExpanded by remember { mutableStateOf(false) }
+                    var chapterExpanded by remember { mutableStateOf(false) }
+
+                    val allRawSubjects = remember(allSubjectsChapters) {
+                        allSubjectsChapters.map { it.subject }.distinct().sorted()
+                    }
+
+                    ExposedDropdownMenuBox(
+                        expanded = subjectExpanded,
+                        onExpandedChange = { subjectExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = addSubject,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Subject Name") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = subjectExpanded,
+                            onDismissRequest = { subjectExpanded = false }
+                        ) {
+                            allRawSubjects.forEach { subj ->
+                                DropdownMenuItem(
+                                    text = { Text(subj) },
+                                    onClick = { 
+                                        if (addSubject != subj) {
+                                            addSubject = subj
+                                            addChapter = ""
+                                        }
+                                        subjectExpanded = false 
+                                    }
+                                )
                             }
-                            IconButton(onClick = { onDelete(topic) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+
+                    ExposedDropdownMenuBox(
+                        expanded = chapterExpanded,
+                        onExpandedChange = { chapterExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = addChapter,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Chapter / Topic Name") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = chapterExpanded,
+                            onDismissRequest = { chapterExpanded = false }
+                        ) {
+                            chaptersForSubj.forEach { chap ->
+                                DropdownMenuItem(
+                                    text = { Text(chap) },
+                                    onClick = { addChapter = chap; chapterExpanded = false }
+                                )
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SafeOutlinedTextField(
+                            value = addPyqCountStr,
+                            onValueChange = { addPyqCountStr = it },
+                            label = { Text("Total PYQs") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        SafeOutlinedTextField(
+                            value = addExamsCoveredStr,
+                            onValueChange = { addExamsCoveredStr = it },
+                            label = { Text("Exams Covered") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmedSubj = addSubject.trim()
+                        val trimmedChap = addChapter.trim()
+                        
+                        if (trimmedSubj.isBlank() || trimmedChap.isBlank()) {
+                            Toast.makeText(context, "Subject and Chapter are required", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        if (!chaptersForSubj.contains(trimmedChap)) {
+                            Toast.makeText(context, "Chapter does not belong to selected Subject", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        val isDuplicate = allPyqFocus.any { 
+                            it.exam.equals(selectedExam, ignoreCase = true) && 
+                            it.subject.equals(trimmedSubj, ignoreCase = true) && 
+                            it.chapter.equals(trimmedChap, ignoreCase = true) 
+                        }
+                        
+                        if (isDuplicate) {
+                            Toast.makeText(context, "PYQ Focus for this Chapter already exists", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        val pyqCount = addPyqCountStr.toIntOrNull() ?: 0
+                        val examsCovered = addExamsCoveredStr.toIntOrNull() ?: 1
+                        onSavePyq(
+                            PyqFocusEntity(
+                                exam = selectedExam,
+                                subject = trimmedSubj,
+                                chapter = trimmedChap,
+                                pyqCount = pyqCount,
+                                examsCovered = examsCovered,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                        showAddDialog = false
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+fun PyqFocusRowItem(
+    item: PyqFocusEntity,
+    onSave: (PyqFocusEntity) -> Unit,
+    onDelete: () -> Unit
+) {
+    var pyqCountStr by remember(item) { mutableStateOf(item.pyqCount.toString()) }
+    var examsCoveredStr by remember(item) { mutableStateOf(item.examsCovered.toString()) }
+
+    val pyqCount = pyqCountStr.toIntOrNull() ?: 0
+    val examsCovered = examsCoveredStr.toIntOrNull() ?: 0
+    val avg = if (examsCovered > 0) pyqCount.toFloat() / examsCovered else 0f
+
+    val (impLabel, impColor) = when {
+        avg >= 2.0f -> Pair("High", Color(0xFFE53935))
+        avg >= 1.0f -> Pair("Med", Color(0xFFFB8C00))
+        else -> Pair("Low", Color(0xFF757575))
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Column(modifier = Modifier.weight(2.2f)) {
+                Text(
+                    text = item.chapter,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = item.subject,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            SafeOutlinedTextField(
+                value = pyqCountStr,
+                onValueChange = {
+                    pyqCountStr = it
+                    val newCount = it.toIntOrNull() ?: 0
+                    onSave(item.copy(pyqCount = newCount, examsCovered = examsCoveredStr.toIntOrNull() ?: 0, updatedAt = System.currentTimeMillis()))
+                },
+                modifier = Modifier.weight(1.1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            SafeOutlinedTextField(
+                value = examsCoveredStr,
+                onValueChange = {
+                    examsCoveredStr = it
+                    val newCovered = it.toIntOrNull() ?: 0
+                    onSave(item.copy(pyqCount = pyqCountStr.toIntOrNull() ?: 0, examsCovered = newCovered, updatedAt = System.currentTimeMillis()))
+                },
+                modifier = Modifier.weight(1.1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            Column(
+                modifier = Modifier.weight(1.3f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = String.format(Locale.US, "%.1f", avg),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = impColor.copy(alpha = 0.15f),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = impLabel,
+                        color = impColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+/* ==========================================================================
+   SECTION 2: PRIORITY TOPICS MANAGEMENT
+   ========================================================================== */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManagePriorityTopicsScreen(
+    selectedExam: String?,
+    selectedSubject: String,
+    examsList: List<ExamEntity>,
+    allSubjectsChapters: List<SubjectChapterEntity>,
+    allPyqFocus: List<PyqFocusEntity>,
+    allFocusTopics: List<FocusTopicEntity>,
+    onExamChange: (String) -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onSaveFocusTopic: (FocusTopicEntity) -> Unit,
+    onDeleteFocusTopic: (FocusTopicEntity) -> Unit
+) {
+    var examDropdownExpanded by remember { mutableStateOf(false) }
+    var subjectDropdownExpanded by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val availableSubjects = remember(selectedExam, allSubjectsChapters, allPyqFocus) {
+        val chapterSubjs = allSubjectsChapters.map { it.subject }
+        val pyqSubjs = allPyqFocus.filter { 
+            selectedExam == null || it.exam.equals(selectedExam, ignoreCase = true) || it.exam.contains(selectedExam, ignoreCase = true) 
+        }.map { it.subject }
+        val combined = (chapterSubjs + pyqSubjs).filter { it.isNotBlank() }.distinct().sorted()
+        listOf("All Subjects") + combined
+    }
+
+    val examTopics = remember(allFocusTopics, selectedExam) {
+        if (selectedExam == null) emptyList()
+        else allFocusTopics.filter { 
+            it.exam.equals(selectedExam, ignoreCase = true) || 
+            it.exam.contains(selectedExam, ignoreCase = true) || 
+            selectedExam.contains(it.exam, ignoreCase = true)
+        }
+    }
+
+    val displayedTopics = remember(examTopics, selectedSubject) {
+        if (selectedSubject == "All Subjects") examTopics
+        else examTopics.filter { it.subject.equals(selectedSubject, ignoreCase = true) }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Exam Selector
+        ExposedDropdownMenuBox(
+            expanded = examDropdownExpanded,
+            onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
+        ) {
+            SafeOutlinedTextField(
+                value = selectedExam ?: "Select Exam",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select Exam") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = examDropdownExpanded,
+                onDismissRequest = { examDropdownExpanded = false }
+            ) {
+                examsList.forEach { exam ->
+                    DropdownMenuItem(
+                        text = { Text(exam.title) },
+                        onClick = {
+                            onExamChange(exam.title)
+                            examDropdownExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Subject Selector
+        if (selectedExam != null) {
+            ExposedDropdownMenuBox(
+                expanded = subjectDropdownExpanded,
+                onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+            ) {
+                SafeOutlinedTextField(
+                    value = selectedSubject,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Subject") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = subjectDropdownExpanded,
+                    onDismissRequest = { subjectDropdownExpanded = false }
+                ) {
+                    availableSubjects.forEach { subject ->
+                        DropdownMenuItem(
+                            text = { Text(subject) },
+                            onClick = {
+                                onSubjectChange(subject)
+                                subjectDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Info & Add Action
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Configured Priority Topics (${displayedTopics.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Button(
+                    onClick = { showAddDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Priority Topic", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            if (displayedTopics.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.TrackChanges, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No manual priority overrides set for this selection.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "The system automatically computes topic priority using PYQ frequency + individual user accuracy. You can optionally add custom priority tags and study recommendations above.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 60.dp)
+                ) {
+                    items(displayedTopics) { topic ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(topic.topic, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        val badgeColor = when (topic.priority) {
+                                            "High" -> Color(0xFFE53935)
+                                            "Medium" -> Color(0xFFFB8C00)
+                                            else -> Color(0xFF43A047)
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = badgeColor.copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                text = "${topic.priority} Priority",
+                                                color = badgeColor,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        "${topic.subject} • ${topic.chapter}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    if (topic.instruction.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            topic.instruction,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                IconButton(onClick = { onDeleteFocusTopic(topic) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
@@ -407,177 +1022,125 @@ fun ManageFocusTopics(
         }
     }
 
-    if (showAddDialog) {
+    // Add Priority Topic Dialog
+    if (showAddDialog && selectedExam != null) {
+        var addSubject by remember { mutableStateOf(if (selectedSubject != "All Subjects") selectedSubject else availableSubjects.getOrNull(1) ?: "") }
+        var addChapter by remember { mutableStateOf("") }
+        var addTopic by remember { mutableStateOf("") }
+        var addPriority by remember { mutableStateOf("High") }
+        var addInstruction by remember { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add Focus Topic") },
+            title = { Text("Add Priority Topic") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    var subjectExpanded by remember { mutableStateOf(false) }
+                    var chapterExpanded by remember { mutableStateOf(false) }
+
+                    val allRawSubjects = remember(allSubjectsChapters) {
+                        allSubjectsChapters.map { it.subject }.distinct().sorted()
+                    }
+                    val chaptersForSubj = remember(addSubject, allSubjectsChapters) {
+                        allSubjectsChapters.filter { it.subject.equals(addSubject, ignoreCase = true) }.map { it.chapter }.distinct().sorted()
+                    }
+
+                    ExposedDropdownMenuBox(
+                        expanded = subjectExpanded,
+                        onExpandedChange = { subjectExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = addSubject,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Subject") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = subjectExpanded,
+                            onDismissRequest = { subjectExpanded = false }
+                        ) {
+                            allRawSubjects.forEach { subj ->
+                                DropdownMenuItem(
+                                    text = { Text(subj) },
+                                    onClick = { 
+                                        if (addSubject != subj) {
+                                            addSubject = subj
+                                            addChapter = ""
+                                        }
+                                        subjectExpanded = false 
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    ExposedDropdownMenuBox(
+                        expanded = chapterExpanded,
+                        onExpandedChange = { chapterExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = addChapter,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Chapter") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapterExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = chapterExpanded,
+                            onDismissRequest = { chapterExpanded = false }
+                        ) {
+                            chaptersForSubj.forEach { chap ->
+                                DropdownMenuItem(
+                                    text = { Text(chap) },
+                                    onClick = { addChapter = chap; chapterExpanded = false }
+                                )
+                            }
+                        }
+                    }
                     SafeOutlinedTextField(
-                        value = topicName,
-                        onValueChange = { topicName = it },
+                        value = addTopic,
+                        onValueChange = { addTopic = it },
                         label = { Text("Topic Name") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     SafeOutlinedTextField(
-                        value = priority,
-                        onValueChange = { priority = it },
-                        label = { Text("Priority (High, Medium, Low)") },
+                        value = addPriority,
+                        onValueChange = { addPriority = it },
+                        label = { Text("Priority Level (High, Medium, Low)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     SafeOutlinedTextField(
-                        value = instruction,
-                        onValueChange = { instruction = it },
-                        label = { Text("Guidance/Instruction (Optional)") },
+                        value = addInstruction,
+                        onValueChange = { addInstruction = it },
+                        label = { Text("Recommendation Note (Optional)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (topicName.isNotBlank() && selectedSubject != null && selectedChapter != null) {
-                        onSave(FocusTopicEntity(
-                            exam = exam,
-                            subject = selectedSubject!!,
-                            chapter = selectedChapter!!,
-                            topic = topicName,
-                            priority = priority,
-                            instruction = instruction,
-                            updatedAt = System.currentTimeMillis()
-                        ))
-                        topicName = ""
-                        instruction = ""
-                        priority = "Medium"
-                        showAddDialog = false
-                    }
-                }) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-}
-
-@Composable
-fun ManagePrepStrategy(
-    exam: String,
-    strategy: PrepStrategyEntity?,
-    onSave: (PrepStrategyEntity) -> Unit
-) {
-    var content by remember(strategy) { mutableStateOf(strategy?.content ?: "") }
-
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Overall Preparation Strategy for $exam", fontWeight = FontWeight.Bold)
-        
-        SafeOutlinedTextField(
-            value = content,
-            onValueChange = { content = it },
-            label = { Text("Strategy Content (Leave empty to hide from users)") },
-            modifier = Modifier.fillMaxWidth().height(250.dp),
-            minLines = 8
-        )
-
-        Button(
-            onClick = {
-                onSave(
-                    (strategy ?: PrepStrategyEntity(exam = exam, content = "")).copy(
-                        content = content,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                )
-            },
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text("Save Strategy")
-        }
-    }
-}
-
-@Composable
-fun ManageGuidanceBanners(
-    exam: String,
-    banners: List<GuidanceBannerEntity>,
-    onSave: (GuidanceBannerEntity) -> Unit,
-    onDelete: (GuidanceBannerEntity) -> Unit
-) {
-    var showAddDialog by remember { mutableStateOf(false) }
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var actionTarget by remember { mutableStateOf("") }
-    
-    Button(
-        onClick = { showAddDialog = true },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Icon(Icons.Default.Add, contentDescription = null)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Add Banner")
-    }
-
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
-        items(banners) { banner ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(banner.title, fontWeight = FontWeight.Bold)
-                        Text(banner.description, style = MaterialTheme.typography.bodySmall)
-                        if (banner.actionTarget.isNotBlank()) {
-                            Text("Links to: ${banner.actionTarget}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Button(
+                    onClick = {
+                        if (addSubject.isNotBlank() && addChapter.isNotBlank() && addTopic.isNotBlank()) {
+                            onSaveFocusTopic(
+                                FocusTopicEntity(
+                                    exam = selectedExam,
+                                    subject = addSubject.trim(),
+                                    chapter = addChapter.trim(),
+                                    topic = addTopic.trim(),
+                                    priority = addPriority.trim(),
+                                    instruction = addInstruction.trim(),
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                            showAddDialog = false
                         }
                     }
-                    IconButton(onClick = { onDelete(banner) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        }
-    }
-
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("Add Guidance Banner") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SafeOutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Title") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    SafeOutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        label = { Text("Description") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    SafeOutlinedTextField(
-                        value = actionTarget,
-                        onValueChange = { actionTarget = it },
-                        label = { Text("Action Target (e.g. PYQ Focus)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (title.isNotBlank()) {
-                        onSave(GuidanceBannerEntity(
-                            exam = exam,
-                            title = title,
-                            description = description,
-                            actionTarget = actionTarget,
-                            updatedAt = System.currentTimeMillis()
-                        ))
-                        title = ""
-                        description = ""
-                        actionTarget = ""
-                        showAddDialog = false
-                    }
-                }) {
+                ) {
                     Text("Save")
                 }
             },
@@ -585,5 +1148,368 @@ fun ManageGuidanceBanners(
                 TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
             }
         )
+    }
+}
+
+/* ==========================================================================
+   SECTION 3: STRENGTH & WEAKNESS CONFIGURATION
+   ========================================================================== */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManageStrengthWeaknessScreen(
+    selectedExam: String?,
+    selectedSubject: String,
+    examsList: List<ExamEntity>,
+    onExamChange: (String) -> Unit,
+    onSubjectChange: (String) -> Unit
+) {
+    val context = LocalContext.current
+
+    var minAttemptsStr by remember { mutableStateOf(GuidanceEngine.minAttemptsRequired.toString()) }
+    var weakThresholdStr by remember { mutableStateOf(String.format(Locale.US, "%.0f", GuidanceEngine.weakAccuracyThreshold)) }
+    var strongThresholdStr by remember { mutableStateOf(String.format(Locale.US, "%.0f", GuidanceEngine.strongAccuracyThreshold)) }
+    var highPyqAvgStr by remember { mutableStateOf(String.format(Locale.US, "%.1f", GuidanceEngine.highImportancePyqAvg)) }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 60.dp)
+    ) {
+        // System Explanation Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Automated Performance Engine",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Strength & Weakness uses actual user practice data (attempts, correct answers, accuracy, and chapter PYQ frequency). No fake or manual student scores are entered here. You can calibrate the system evaluation thresholds below.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Calibrate Thresholds Form
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "Analysis Threshold Settings",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    SafeOutlinedTextField(
+                        value = minAttemptsStr,
+                        onValueChange = { minAttemptsStr = it },
+                        label = { Text("Minimum Attempts Required") },
+                        supportingText = { Text("Topics with fewer attempts are tagged 'Not Enough Data'") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    SafeOutlinedTextField(
+                        value = weakThresholdStr,
+                        onValueChange = { weakThresholdStr = it },
+                        label = { Text("Weak Topic Threshold (Accuracy %)") },
+                        supportingText = { Text("Accuracy below this marks a topic as Weak") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    SafeOutlinedTextField(
+                        value = strongThresholdStr,
+                        onValueChange = { strongThresholdStr = it },
+                        label = { Text("Strong Topic Threshold (Accuracy %)") },
+                        supportingText = { Text("Accuracy at or above this marks a topic as Strong") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    SafeOutlinedTextField(
+                        value = highPyqAvgStr,
+                        onValueChange = { highPyqAvgStr = it },
+                        label = { Text("High Importance PYQ Threshold (Avg PYQ)") },
+                        supportingText = { Text("Avg PYQ per exam at or above this marks High Importance") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                        onClick = {
+                            val minAtt = minAttemptsStr.toIntOrNull() ?: 10
+                            val weakThresh = weakThresholdStr.toFloatOrNull() ?: 60f
+                            val strongThresh = strongThresholdStr.toFloatOrNull() ?: 80f
+                            val highPyq = highPyqAvgStr.toFloatOrNull() ?: 1.5f
+
+                            GuidanceEngine.setThresholds(minAtt, weakThresh, strongThresh, highPyq)
+                            Toast.makeText(context, "Analysis thresholds updated successfully", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save Thresholds")
+                    }
+                }
+            }
+        }
+
+        // Classification Legend Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Classification Matrix Rules",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "• 🔴 Weak & Important: High PYQ (≥ $highPyqAvgStr) + Low Accuracy (< $weakThresholdStr%)\n" +
+                        "• 🟢 Strong & Important: High PYQ (≥ $highPyqAvgStr) + High Accuracy (≥ $strongThresholdStr%)\n" +
+                        "• 🟡 Weak & Less Important: Low PYQ (< $highPyqAvgStr) + Low Accuracy (< $weakThresholdStr%)\n" +
+                        "• 🟢 Strong: Low PYQ (< $highPyqAvgStr) + High Accuracy (≥ $strongThresholdStr%)\n" +
+                        "• ⚪ Not Enough Data: Student attempts < $minAttemptsStr",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/* ==========================================================================
+   SECTION 4: PREPARATION STRATEGY MANAGEMENT
+   ========================================================================== */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManagePrepStrategyScreen(
+    selectedExam: String?,
+    selectedSubject: String,
+    examsList: List<ExamEntity>,
+    allSubjectsChapters: List<SubjectChapterEntity>,
+    allPrepStrategies: List<PrepStrategyEntity>,
+    onExamChange: (String) -> Unit,
+    onSubjectChange: (String) -> Unit,
+    onSaveStrategy: (PrepStrategyEntity) -> Unit,
+    onDeleteStrategy: (PrepStrategyEntity) -> Unit
+) {
+    var examDropdownExpanded by remember { mutableStateOf(false) }
+    var subjectDropdownExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val availableSubjects = remember(selectedExam, allSubjectsChapters) {
+        val chapterSubjs = allSubjectsChapters.map { it.subject }.filter { it.isNotBlank() }.distinct().sorted()
+        listOf("All Subjects") + chapterSubjs
+    }
+
+    // Find current strategy for (selectedExam, selectedSubject)
+    val subjectKey = if (selectedSubject != "All Subjects") selectedSubject else null
+    val currentStrategy = remember(allPrepStrategies, selectedExam, subjectKey) {
+        if (selectedExam == null) null
+        else allPrepStrategies.find { 
+            (it.exam.equals(selectedExam, ignoreCase = true) || selectedExam.contains(it.exam, ignoreCase = true)) &&
+            ((subjectKey == null && (it.subject == null || it.subject == "All Subjects")) || (subjectKey != null && it.subject.equals(subjectKey, ignoreCase = true)))
+        }
+    }
+
+    var strategyContent by remember(currentStrategy, selectedExam, selectedSubject) {
+        mutableStateOf(currentStrategy?.content ?: "")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Exam Selector
+        ExposedDropdownMenuBox(
+            expanded = examDropdownExpanded,
+            onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
+        ) {
+            SafeOutlinedTextField(
+                value = selectedExam ?: "Select Exam",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select Exam") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = examDropdownExpanded,
+                onDismissRequest = { examDropdownExpanded = false }
+            ) {
+                examsList.forEach { exam ->
+                    DropdownMenuItem(
+                        text = { Text(exam.title) },
+                        onClick = {
+                            onExamChange(exam.title)
+                            examDropdownExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Subject Selector: Supports All Subjects (Overall Exam) + Individual Subjects
+        if (selectedExam != null) {
+            ExposedDropdownMenuBox(
+                expanded = subjectDropdownExpanded,
+                onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+            ) {
+                SafeOutlinedTextField(
+                    value = if (selectedSubject == "All Subjects") "All Subjects (Overall Exam Strategy)" else selectedSubject,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Strategy Scope") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = subjectDropdownExpanded,
+                    onDismissRequest = { subjectDropdownExpanded = false }
+                ) {
+                    availableSubjects.forEach { subject ->
+                        DropdownMenuItem(
+                            text = { Text(if (subject == "All Subjects") "All Subjects (Overall Exam Strategy)" else subject) },
+                            onClick = {
+                                onSubjectChange(subject)
+                                subjectDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Quick Template Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        strategyContent = "Overall 3-Phase Preparation Strategy for $selectedExam:\n\n" +
+                                "Phase 1: Foundation Building (Weeks 1-3)\n" +
+                                "• Complete core concepts from high-weightage chapters.\n" +
+                                "• Clear grammar rules and fundamental formulas.\n\n" +
+                                "Phase 2: PYQ Drill & Topic Practice (Weeks 4-6)\n" +
+                                "• Solve past 5 years' question papers chapter-wise.\n" +
+                                "• Target weak areas identified in Strength & Weakness analysis.\n\n" +
+                                "Phase 3: Full-Length Mocks & Revision (Weeks 7-8)\n" +
+                                "• Attempt 2 full-length timed mocks weekly.\n" +
+                                "• Revise bookmarked questions and error log daily."
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text("Roadmap Template", style = MaterialTheme.typography.labelSmall)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val subjName = if (selectedSubject != "All Subjects") selectedSubject else "Subject"
+                        strategyContent = "Subject Preparation Strategy for $subjName ($selectedExam):\n\n" +
+                                "1. High-Priority Focus: Prioritize chapters with highest PYQ frequency.\n" +
+                                "2. Daily Practice: Dedicate at least 30 minutes to MCQs from this subject.\n" +
+                                "3. Error Analysis: Re-attempt all incorrect questions within 48 hours.\n" +
+                                "4. Formula & Notes Revision: Maintain concise formula sheets for weekly revision.\n" +
+                                "5. Speed & Accuracy: Aim for >80% accuracy under timed conditions."
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text("Subject Template", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            // Content Editor
+            SafeOutlinedTextField(
+                value = strategyContent,
+                onValueChange = { strategyContent = it },
+                label = { Text("Preparation Strategy Content") },
+                supportingText = { Text("Visible to all students under ${if (selectedSubject == "All Subjects") "Overall Exam Strategy" else selectedSubject}") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                minLines = 8
+            )
+
+            // Save & Delete Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (currentStrategy != null) {
+                    TextButton(
+                        onClick = {
+                            onDeleteStrategy(currentStrategy)
+                            strategyContent = ""
+                            Toast.makeText(context, "Strategy removed. System will use dynamic strategy.", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Clear Strategy", color = MaterialTheme.colorScheme.error)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                Button(
+                    onClick = {
+                        val entity = (currentStrategy ?: PrepStrategyEntity(
+                            exam = selectedExam,
+                            subject = subjectKey,
+                            content = ""
+                        )).copy(
+                            exam = selectedExam,
+                            subject = subjectKey,
+                            content = strategyContent.trim(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        onSaveStrategy(entity)
+                        Toast.makeText(context, "Preparation strategy published to Firestore!", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Save & Publish")
+                }
+            }
+        }
     }
 }

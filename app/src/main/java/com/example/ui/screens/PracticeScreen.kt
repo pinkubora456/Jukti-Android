@@ -109,6 +109,22 @@ fun PracticeScreen(
         }
     }
 
+    
+    LaunchedEffect(viewModel.preSelectedPracticeSubject, viewModel.preSelectedPracticeChapter) {
+        val preSubj = viewModel.preSelectedPracticeSubject
+        val preChap = viewModel.preSelectedPracticeChapter
+        if (preSubj != null && preSubj.isNotBlank()) {
+            selectedSubjectKey = preSubj
+            if (preChap != null && preChap.isNotBlank()) {
+                selectedChapters = setOf(preChap)
+            }
+            isSessionStarted = true
+            viewModel.preSelectedPracticeSubject = null
+            viewModel.preSelectedPracticeChapter = null
+        }
+    }
+
+
     LaunchedEffect(activePracticeQuestion) {
         if (activePracticeQuestion != null) {
             selectedSubjectKey = activePracticeQuestion!!.subject

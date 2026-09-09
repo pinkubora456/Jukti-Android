@@ -54,6 +54,9 @@ abstract class QuestionDao {
 
     @Delete
     abstract suspend fun deleteQuestion(question: QuestionEntity)
+    
+    @Delete
+    abstract suspend fun deleteQuestions(questions: List<QuestionEntity>)
 
     @Query("DELETE FROM questions WHERE id = :id")
     abstract suspend fun deleteQuestionById(id: Long)
@@ -556,6 +559,13 @@ interface EntitlementHistoryDao {
 
 @Dao
 interface GuidanceDao {
+
+    @Query("DELETE FROM pyq_focus")
+    abstract suspend fun deleteAllPyqFocus()
+
+    @Query("DELETE FROM prep_strategy")
+    abstract suspend fun deleteAllPrepStrategies()
+
     // PYQ Focus
     @Query("SELECT * FROM pyq_focus")
     fun getAllPyqFocus(): kotlinx.coroutines.flow.Flow<List<PyqFocusEntity>>
@@ -565,6 +575,9 @@ interface GuidanceDao {
     
     @Update
     suspend fun updatePyqFocus(entity: PyqFocusEntity)
+
+    @Delete
+    suspend fun deletePyqFocus(entity: PyqFocusEntity)
 
     // Focus Topics
     @Query("SELECT * FROM focus_topics")
@@ -588,6 +601,9 @@ interface GuidanceDao {
     
     @Update
     suspend fun updatePrepStrategy(entity: PrepStrategyEntity)
+
+    @Delete
+    suspend fun deletePrepStrategy(entity: PrepStrategyEntity)
 
     // Guidance Banners
     @Query("SELECT * FROM guidance_banner")

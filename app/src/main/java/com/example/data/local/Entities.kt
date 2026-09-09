@@ -452,6 +452,7 @@ data class FocusTopicEntity(
 data class PrepStrategyEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val exam: String,
+    val subject: String? = null,
     val content: String,
     val firebaseId: String = "",
     val updatedAt: Long = 0L

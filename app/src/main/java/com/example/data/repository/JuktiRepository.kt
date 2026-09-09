@@ -104,7 +104,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("non-verbal") || lower.contains("nonverbal") || lower.contains("figure") || lower.contains("visual") -> "Nonverbal Reasoning"
             else -> trimmed
         }
-        "General English" -> when {
+                "General English" -> when {
             lower.contains("vocab") -> "Vocabulary"
             lower.contains("synonym") || lower.contains("antonym") -> "Synonyms & Antonyms"
             lower.contains("one-word") || lower.contains("one word") || lower.contains("idiom") || lower.contains("substitution") -> "One-Word & Idioms"
@@ -123,12 +123,7 @@ fun normalizeChapterName(raw: String?, subject: String = ""): String {
             lower.contains("sub") && lower.contains("verb") -> "Sub–Verb Agreement"
             lower.contains("narration") -> "Narration"
             lower.contains("correction") || lower.contains("grammar") -> "Sentence Correction"
-            else -> trimmed
-        }
-        "Reading Comprehension" -> when {
-            lower.contains("short") -> "Short Passages"
-            lower.contains("long") -> "Long Passages"
-            lower.contains("question") || lower.contains("based") -> "Passage Based Questions"
+            lower.contains("comprehension") || lower.contains("passage") || lower.contains("reading") -> "Reading Comprehension"
             else -> trimmed
         }
         "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> when {
@@ -160,15 +155,10 @@ fun normalizeQuestionEntity(q: QuestionEntity): QuestionEntity {
     val isComprehension = qTypeLower.contains("comprehension") || qTypeLower.contains("passage") ||
             topicLower.contains("comprehension") || topicLower.contains("passage") ||
             subLower.contains("comprehension") || subLower.contains("passage") ||
-            qEnLower.contains("read the passage") || qEnLower.contains("following passage")
+            qEnLower.contains("read the passage") || qEnLower.contains("following passage") || q.subject.equals("Reading Comprehension", ignoreCase = true)
 
-    val normSubject = if (isComprehension) {
-        "Reading Comprehension"
-    } else {
-        normalizeSubjectName(q.subject)
-    }
-
-    val normTopic = normalizeChapterName(q.topic, normSubject)
+    val normSubject = normalizeSubjectName(q.subject)
+    val normTopic = if (isComprehension) "Reading Comprehension" else normalizeChapterName(q.topic, normSubject)
 
     return if (normSubject != q.subject || normTopic != q.topic) {
         q.copy(subject = normSubject, topic = normTopic)
@@ -606,15 +596,27 @@ class JuktiRepository(
 
     suspend fun savePyqFocus(entity: com.example.data.local.PyqFocusEntity) {
         if (entity.id == 0L) guidanceDao.insertPyqFocus(entity) else guidanceDao.updatePyqFocus(entity)
+        try { firebaseRepository.savePyqFocus(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error saving pyq to cloud", e) }
+    }
+    suspend fun deletePyqFocus(entity: com.example.data.local.PyqFocusEntity) {
+        guidanceDao.deletePyqFocus(entity)
+        try { firebaseRepository.deletePyqFocus(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error deleting pyq from cloud", e) }
     }
     suspend fun saveFocusTopic(entity: com.example.data.local.FocusTopicEntity) {
         if (entity.id == 0L) guidanceDao.insertFocusTopic(entity) else guidanceDao.updateFocusTopic(entity)
+        try { firebaseRepository.saveFocusTopic(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error saving focus topic to cloud", e) }
     }
     suspend fun deleteFocusTopic(entity: com.example.data.local.FocusTopicEntity) {
         guidanceDao.deleteFocusTopic(entity)
+        try { firebaseRepository.deleteFocusTopic(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error deleting focus topic from cloud", e) }
     }
     suspend fun savePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) {
         if (entity.id == 0L) guidanceDao.insertPrepStrategy(entity) else guidanceDao.updatePrepStrategy(entity)
+        try { firebaseRepository.savePrepStrategy(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error saving prep strategy to cloud", e) }
+    }
+    suspend fun deletePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) {
+        guidanceDao.deletePrepStrategy(entity)
+        try { firebaseRepository.deletePrepStrategy(entity) } catch (e: Exception) { Log.e("JuktiRepository", "Error deleting prep strategy from cloud", e) }
     }
     suspend fun saveGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) {
         if (entity.id == 0L) guidanceDao.insertGuidanceBanner(entity) else guidanceDao.updateGuidanceBanner(entity)
@@ -1029,9 +1031,91 @@ class JuktiRepository(
         return syncManager.uploadAllWorkspaceChangesToFirebase()
     }
 
+    suspend fun bulkEditQuestions(
+        questionsToUpdate: List<com.example.data.local.QuestionEntity>,
+        targetExam: String?,
+        targetAccess: String?,
+        targetQuestionType: String?,
+        targetPyqExamName: String?,
+        targetTags: String?,
+        targetDifficulty: String?
+    ): Pair<Boolean, String> {
+        if (questionsToUpdate.isEmpty()) return false to "No questions found to edit"
+
+        val updatedQs = questionsToUpdate.map { q ->
+            var finalQuestionType = q.questionType
+            
+            if (targetQuestionType == "PYQ") {
+                val baseExam = if (targetPyqExamName.isNullOrBlank()) "" else targetPyqExamName
+                finalQuestionType = if (baseExam.isNotBlank()) "PYQ - $baseExam" else "PYQ"
+            } else if (targetQuestionType == "Expected") {
+                finalQuestionType = "Expected"
+            }
+            
+            if (targetTags != null) {
+                if (targetTags == "Expected" && targetQuestionType == null && !q.questionType.startsWith("PYQ", ignoreCase = true)) {
+                    finalQuestionType = "Expected"
+                }
+            }
+
+            normalizeQuestionEntity(q.copy(
+                examCategory = targetExam ?: q.examCategory,
+                isPremium = when (targetAccess) {
+                    "Free" -> false
+                    "Premium" -> true
+                    else -> q.isPremium
+                },
+                questionType = finalQuestionType,
+                difficulty = targetDifficulty ?: q.difficulty,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+
+        val localToUpdate = updatedQs.filter { !it.isPremium }
+        val premToUpdate = updatedQs.filter { it.isPremium }
+        val localToRemove = questionsToUpdate.filter { !it.isPremium && updatedQs.find { u -> u.id == it.id }?.isPremium == true }
+        val premToRemove = questionsToUpdate.filter { it.isPremium && updatedQs.find { u -> u.id == it.id }?.isPremium == false }
+
+        if (localToRemove.isNotEmpty()) {
+            questionDao.deleteQuestions(localToRemove)
+        }
+        
+        if (localToUpdate.isNotEmpty()) {
+            val existingLocal = questionDao.getAllQuestions().firstOrNull() ?: emptyList()
+            val existingIds = existingLocal.map { it.id }.toSet()
+            val toInsert = localToUpdate.filter { !existingIds.contains(it.id) }
+            val toUpdate = localToUpdate.filter { existingIds.contains(it.id) }
+            
+            if (toInsert.isNotEmpty()) questionDao.insertAll(toInsert)
+            if (toUpdate.isNotEmpty()) questionDao.updateQuestions(toUpdate)
+        }
+        
+        val currentPrem = _premiumQuestions.value.toMutableList()
+        if (premToRemove.isNotEmpty()) {
+            val idsToRemove = premToRemove.map { it.id }.toSet()
+            currentPrem.removeAll { it.id in idsToRemove }
+            _premiumQuestions.value = currentPrem
+        }
+        
+        if (premToUpdate.isNotEmpty()) {
+            premToUpdate.forEach { upd ->
+                val index = currentPrem.indexOfFirst { it.id == upd.id }
+                if (index >= 0) currentPrem[index] = upd
+                else currentPrem.add(upd)
+            }
+            _premiumQuestions.value = currentPrem
+        }
+        
+        updatedQs.forEach { q ->
+            val fbId = q.firebaseId.ifEmpty { q.id.toString() }
+            syncManager.enqueueAndSync("QUESTION", fbId, "UPDATE", syncManager.questionToMap(q))
+        }
+        
+        return true to "Successfully updated ${questionsToUpdate.size} questions"
+    }
+
     suspend fun bulkMoveQuestions(
         questionsToUpdate: List<com.example.data.local.QuestionEntity>,
-        targetExam: String,
         targetSubject: String,
         targetChapter: String
     ): Pair<Boolean, String> {
@@ -1042,7 +1126,6 @@ class JuktiRepository(
 
         val updatedQs = questionsToUpdate.map { 
             normalizeQuestionEntity(it.copy(
-                examCategory = targetExam,
                 subject = normSubject,
                 topic = normTopic,
                 updatedAt = System.currentTimeMillis()
@@ -2224,4 +2307,76 @@ class JuktiRepository(
         allLocalAndPrem.addAll(_premiumQuestions.value)
         return allLocalAndPrem.distinctBy { it.id }
     }
+
+    
+    
+
+    suspend fun normalizeGuidanceData() {
+        try {
+            val pyqs = guidanceDao.getAllPyqFocus().firstOrNull() ?: emptyList()
+            pyqs.forEach { pyq ->
+                if (pyq.subject.equals("Reading Comprehension", ignoreCase = true)) {
+                    val normalized = pyq.copy(subject = "General English", chapter = "Reading Comprehension")
+                    guidanceDao.deletePyqFocus(pyq)
+                    guidanceDao.insertPyqFocus(normalized)
+                    // We don't delete from Firestore here directly because uploadGuidanceData uses merge, 
+                    // but wait, we need to delete the old one. We'll let pyqs sync handle the new ones, 
+                    // but we should delete the old one from firestore.
+                    try { firebaseRepository.deletePyqFocus(pyq) } catch (e: Exception) {}
+                }
+            }
+            val topics = guidanceDao.getAllFocusTopics().firstOrNull() ?: emptyList()
+            topics.forEach { topic ->
+                if (topic.subject.equals("Reading Comprehension", ignoreCase = true)) {
+                    val normalized = topic.copy(subject = "General English", chapter = "Reading Comprehension")
+                    guidanceDao.deleteFocusTopic(topic)
+                    guidanceDao.insertFocusTopic(normalized)
+                    try { firebaseRepository.deleteFocusTopic(topic) } catch (e: Exception) {}
+                    try { firebaseRepository.saveFocusTopic(normalized) } catch (e: Exception) {}
+                }
+            }
+            val strats = guidanceDao.getAllPrepStrategies().firstOrNull() ?: emptyList()
+            strats.forEach { strat ->
+                if (strat.subject?.equals("Reading Comprehension", ignoreCase = true) == true) {
+                    val normalized = strat.copy(subject = "General English")
+                    guidanceDao.deletePrepStrategy(strat)
+                    guidanceDao.insertPrepStrategy(normalized)
+                    try { firebaseRepository.deletePrepStrategy(strat) } catch (e: Exception) {}
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun migrateGuidanceToFirestore() {
+        normalizeGuidanceData()
+        val pyqs = guidanceDao.getAllPyqFocus().firstOrNull() ?: emptyList()
+        val strats = guidanceDao.getAllPrepStrategies().firstOrNull() ?: emptyList()
+        firebaseRepository.uploadGuidanceData(pyqs, strats)
+    }
+
+    suspend fun refreshGuidanceData() {
+        try {
+            val pyqs = firebaseRepository.fetchPyqFocus()
+            if (pyqs.isNotEmpty()) {
+                guidanceDao.deleteAllPyqFocus()
+                pyqs.forEach { guidanceDao.insertPyqFocus(it) }
+            }
+            
+            val strats = firebaseRepository.fetchPrepStrategies()
+            if (strats.isNotEmpty()) {
+                guidanceDao.deleteAllPrepStrategies()
+                strats.forEach { guidanceDao.insertPrepStrategy(it) }
+            }
+
+            val focusTopics = firebaseRepository.fetchFocusTopics()
+            if (focusTopics.isNotEmpty()) {
+                focusTopics.forEach { guidanceDao.insertFocusTopic(it) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
 }

@@ -449,11 +449,10 @@ fun MockQuestionsScreen(viewModel: JuktiViewModel) {
             viewModel = viewModel,
             selectedCount = selectedQuestionIds.size,
             onDismiss = { showMoveDialog = false },
-            onConfirm = { destExam, destSubj, destChap ->
+            onConfirm = { destSubj, destChap ->
                 val selectedQs = questions.filter { it.id in selectedQuestionIds }
                 viewModel.bulkMoveQuestions(
                     questionsToUpdate = selectedQs,
-                    targetExam = destExam,
                     targetSubject = destSubj,
                     targetChapter = destChap
                 ) { success, _ ->

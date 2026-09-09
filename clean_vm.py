@@ -1,20 +1,33 @@
 import re
 
 with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "r") as f:
-    lines = f.readlines()
+    content = f.read()
 
-new_lines = []
-skip = False
-block_count = 0
+funcs = """
+    fun refreshGuidanceData() {
+        viewModelScope.launch {
+            repository.refreshGuidanceData()
+        }
+    }
 
-for i, line in enumerate(lines):
-    if "private val networkMonitor = NetworkMonitor(application)" in line:
-        block_count += 1
-        if block_count > 1:
-            skip = True
-    
-    if skip:
-        # We need to skip until the end of the init block.
-        # But wait, it's easier to just use regex to remove the duplicates.
-        pass
+    fun migrateGuidanceToFirestore() {
+        viewModelScope.launch {
+            repository.migrateGuidanceToFirestore()
+        }
+    }
+"""
 
+def remove_stray(text, func_name):
+    pattern = r'    fun ' + func_name + r'\(\).*?\{.*?\n    \}'
+    return re.sub(pattern, '', text, flags=re.DOTALL)
+
+content = remove_stray(content, "migrateGuidanceToFirestore")
+content = remove_stray(content, "refreshGuidanceData")
+
+# Let's insert it back safely inside JuktiViewModel
+idx = content.rfind("companion object {")
+if idx != -1:
+    content = content[:idx] + funcs + "\n    " + content[idx:]
+
+with open("app/src/main/java/com/example/ui/viewmodel/JuktiViewModel.kt", "w") as f:
+    f.write(content)

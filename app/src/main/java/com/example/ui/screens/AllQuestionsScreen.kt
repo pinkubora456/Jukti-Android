@@ -15,7 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.local.QuestionEntity
-import com.example.ui.components.EditQuestionDialog
+import com.example.ui.components.BulkEditQuestionsDialog
+import androidx.compose.ui.res.vectorResource
 import com.example.ui.viewmodel.JuktiViewModel
 import kotlinx.coroutines.launch
 
@@ -37,8 +38,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     var questionToDelete by remember { mutableStateOf<QuestionEntity?>(null) }
     var questionToToggleAccess by remember { mutableStateOf<QuestionEntity?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
-    var showBulkMakeFreeConfirm by remember { mutableStateOf(false) }
-    var showBulkMakePremiumConfirm by remember { mutableStateOf(false) }
+    var showBulkEditDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var selectedQuestionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
@@ -204,30 +204,26 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete (${selectedQuestionIds.size})", style = MaterialTheme.typography.labelSmall)
                         }
                         OutlinedButton(
-                            onClick = {
-                                showBulkMakeFreeConfirm = true
-                            },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text("🆓 Free", style = MaterialTheme.typography.labelSmall)
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                showBulkMakePremiumConfirm = true
-                            },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text("💎 Premium", style = MaterialTheme.typography.labelSmall)
-                        }
-                        Button(
                             onClick = { showMoveDialog = true },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("Move", style = MaterialTheme.typography.labelSmall)
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                        OutlinedButton(
+                            onClick = { 
+                                if (selectedQuestionIds.size == 1) {
+                                    val q = questions.find { it.id == selectedQuestionIds.first() }
+                                    viewModel.startEditingQuestion(q)
+                                    selectedQuestionIds = emptySet()
+                                } else {
+                                    showBulkEditDialog = true 
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -319,7 +315,10 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                             text = question.subject,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,20 +333,10 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        OutlinedButton(
-                                            onClick = { questionToToggleAccess = question },
-                                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                                            modifier = Modifier.height(30.dp)
-                                        ) {
-                                            Text(
-                                                text = if (question.isPremium) "Make Free" else "Make Premium",
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        }
+
                                         Spacer(modifier = Modifier.width(4.dp))
                                         IconButton(
-                                            onClick = { editingQuestion = question },
+                                            onClick = { viewModel.startEditingQuestion(question) },
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
@@ -458,11 +447,10 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             viewModel = viewModel,
             selectedCount = selectedQuestionIds.size,
             onDismiss = { showMoveDialog = false },
-            onConfirm = { destExam, destSubj, destChap ->
+            onConfirm = { destSubj, destChap ->
                 val selectedQs = questions.filter { it.id in selectedQuestionIds }
                 viewModel.bulkMoveQuestions(
                     questionsToUpdate = selectedQs,
-                    targetExam = destExam,
                     targetSubject = destSubj,
                     targetChapter = destChap
                 ) { success, _ ->
@@ -475,13 +463,29 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
         )
     }
 
-    editingQuestion?.let { question ->
-        EditQuestionDialog(
-            question = question,
-            onDismiss = { editingQuestion = null },
-            onSave = { updated ->
-                viewModel.updateQuestion(updated)
-                editingQuestion = null
+
+    if (showBulkEditDialog) {
+        val examsList by viewModel.examsList.collectAsState()
+        BulkEditQuestionsDialog(
+            selectedCount = selectedQuestionIds.size,
+            examsList = examsList.map { it.title }.distinct(),
+            onDismiss = { showBulkEditDialog = false },
+            onConfirm = { exam, access, questionType, pyqExamName, tags, difficulty ->
+                val selectedQs = questions.filter { it.id in selectedQuestionIds }
+                viewModel.bulkEditQuestions(
+                    questionsToUpdate = selectedQs,
+                    targetExam = exam,
+                    targetAccess = access,
+                    targetQuestionType = questionType,
+                    targetPyqExamName = pyqExamName,
+                    targetTags = tags,
+                    targetDifficulty = difficulty
+                ) { success, _ ->
+                    if (success) {
+                        selectedQuestionIds = emptySet()
+                        showBulkEditDialog = false
+                    }
+                }
             }
         )
     }
@@ -511,16 +515,17 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
         AlertDialog(
             onDismissRequest = { showBulkDeleteConfirm = false },
             title = { Text("Confirm Bulk Delete") },
-            text = { Text("Are you sure you want to delete these ${selectedQuestionIds.size} questions?") },
+            text = { Text("Are you sure you want to delete ${selectedQuestionIds.size} selected questions? This cannot be undone.") },
             confirmButton = {
-                Button(onClick = {
-                    val selectedQs = questions.filter { it.id in selectedQuestionIds }
-                    selectedQs.forEach { q ->
-                        viewModel.deleteQuestion(q)
-                    }
-                    selectedQuestionIds = emptySet()
-                    showBulkDeleteConfirm = false
-                }) {
+                Button(
+                    onClick = {
+                        val toDelete = questions.filter { it.id in selectedQuestionIds }
+                        viewModel.deleteQuestions(toDelete)
+                        selectedQuestionIds = emptySet()
+                        showBulkDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
                     Text("Delete All")
                 }
             },
@@ -566,68 +571,6 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             }
         )
     }
-
-    if (showBulkMakeFreeConfirm) {
-        AlertDialog(
-            onDismissRequest = { showBulkMakeFreeConfirm = false },
-            title = { Text("Make Questions Free?") },
-            text = {
-                Text("Are you sure you want to change ${selectedQuestionIds.size} selected question(s) to Free?\n\nThis question will become available to all users.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val selectedQs = questions.filter { it.id in selectedQuestionIds }
-                        viewModel.bulkSetQuestionsAccessType(selectedQs, false) { success, msg ->
-                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                            if (success) {
-                                selectedQuestionIds = emptySet()
-                            }
-                        }
-                        showBulkMakeFreeConfirm = false
-                    }
-                ) {
-                    Text("Make Free")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBulkMakeFreeConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showBulkMakePremiumConfirm) {
-        AlertDialog(
-            onDismissRequest = { showBulkMakePremiumConfirm = false },
-            title = { Text("Change Questions to Premium?") },
-            text = {
-                Text("Are you sure you want to change ${selectedQuestionIds.size} selected question(s) to Premium?\n\nThis question will become available only to Premium users.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val selectedQs = questions.filter { it.id in selectedQuestionIds }
-                        viewModel.bulkSetQuestionsAccessType(selectedQs, true) { success, msg ->
-                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                            if (success) {
-                                selectedQuestionIds = emptySet()
-                            }
-                        }
-                        showBulkMakePremiumConfirm = false
-                    }
-                ) {
-                    Text("Make Premium")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBulkMakePremiumConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -636,37 +579,28 @@ fun BulkMoveQuestionsDialog(
     viewModel: JuktiViewModel,
     selectedCount: Int,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String) -> Unit
+    onConfirm: (String, String) -> Unit
 ) {
-    val examsList by viewModel.examsList.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
-    val questions by viewModel.questions.collectAsState()
     
-    val examOptions = remember(examsList) {
-        examsList.map { it.title }.distinct().sorted()
-    }
-    
-    var destExam by remember { mutableStateOf(examOptions.firstOrNull() ?: "") }
-    var examExpanded by remember { mutableStateOf(false) }
-
-    val subjOptions = remember(allSubjectsChapters, questions, destExam) {
-        val targetExams = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }
-        val filtered = if (targetExams.isEmpty()) questions else questions.filter { q -> 
-            targetExams.any { q.examCategory.contains(it, ignoreCase = true) } 
-        }
-        filtered.map { com.example.data.repository.normalizeSubjectName(it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
+    val subjOptions = remember(allSubjectsChapters) {
+        allSubjectsChapters.map { com.example.data.repository.normalizeSubjectName(it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
     }
     
     var destSubj by remember { mutableStateOf("") }
     var subjExpanded by remember { mutableStateOf(false) }
 
-    val chapOptions = remember(questions, destExam, destSubj) {
-        val targetExams = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }
-        val filtered = questions.filter { q -> 
-            (targetExams.isEmpty() || targetExams.any { q.examCategory.contains(it, ignoreCase = true) }) && 
-            (com.example.data.repository.normalizeSubjectName(q.subject).equals(destSubj, ignoreCase = true) || q.subject.equals(destSubj, ignoreCase = true)) 
+    val chapOptions = remember(allSubjectsChapters, destSubj) {
+        if (destSubj.isBlank()) emptyList()
+        else {
+            val normDestSubj = com.example.data.repository.normalizeSubjectName(destSubj)
+            allSubjectsChapters
+                .filter { com.example.data.repository.normalizeSubjectName(it.subject).equals(normDestSubj, ignoreCase = true) }
+                .map { com.example.data.repository.normalizeChapterName(it.chapter, it.subject) }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
         }
-        filtered.map { com.example.data.repository.normalizeChapterName(it.topic, it.subject) }.filter { it.isNotBlank() }.distinct().sorted()
     }
     
     var destChap by remember { mutableStateOf("") }
@@ -674,27 +608,19 @@ fun BulkMoveQuestionsDialog(
 
     var showConfirm by remember { mutableStateOf(false) }
 
-    LaunchedEffect(subjOptions) {
-        if (destSubj !in subjOptions) destSubj = subjOptions.firstOrNull() ?: ""
-    }
-    
-    LaunchedEffect(chapOptions) {
-        if (destChap !in chapOptions) destChap = chapOptions.firstOrNull() ?: ""
-    }
-
     if (showConfirm) {
         AlertDialog(
             onDismissRequest = { showConfirm = false },
-            title = { Text("Confirm Question Transfer") },
+            title = { Text("Confirm Move") },
             text = {
-                Text("You are about to move $selectedCount questions to:\n\nExam: $destExam\nSubject: $destSubj\nChapter/Topic: $destChap\n\nAre you sure?")
+                Text("Update $selectedCount Questions?\n\nSubject: $destSubj\nChapter: $destChap\n\nThese changes will be applied to all $selectedCount selected questions.")
             },
             confirmButton = {
                 Button(onClick = { 
                     showConfirm = false
-                    onConfirm(destExam, destSubj, destChap)
+                    onConfirm(destSubj, destChap)
                 }) {
-                    Text("Confirm Move")
+                    Text("Update")
                 }
             },
             dismissButton = {
@@ -712,65 +638,61 @@ fun BulkMoveQuestionsDialog(
                     Text("Selected Questions: $selectedCount", style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Destination Exam
-                    ExposedDropdownMenuBox(expanded = examExpanded, onExpandedChange = { examExpanded = it }) {
+                    ExposedDropdownMenuBox(
+                        expanded = subjExpanded,
+                        onExpandedChange = { subjExpanded = it }
+                    ) {
                         OutlinedTextField(
-                            value = destExam, onValueChange = { destExam = it },
-                            label = { Text("Destination Exam") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            value = destSubj,
+                            onValueChange = { destSubj = it; destChap = "" },
+                            label = { Text("Select Subject") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
-                        ExposedDropdownMenu(expanded = examExpanded, onDismissRequest = { examExpanded = false }) {
-                            val currentSelected = destExam.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
-                            examOptions.forEach { e ->
+                        ExposedDropdownMenu(
+                            expanded = subjExpanded,
+                            onDismissRequest = { subjExpanded = false }
+                        ) {
+                            subjOptions.forEach { option ->
                                 DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                            androidx.compose.material3.Checkbox(
-                                                checked = currentSelected.contains(e),
-                                                onCheckedChange = null
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(e)
-                                        }
-                                    },
+                                    text = { Text(option) },
                                     onClick = {
-                                        val newSelected = if (currentSelected.contains(e)) currentSelected - e else currentSelected + e
-                                        destExam = newSelected.joinToString(", ")
+                                        destSubj = option
+                                        destChap = ""
+                                        subjExpanded = false
                                     }
                                 )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    // Destination Subject
-                    ExposedDropdownMenuBox(expanded = subjExpanded, onExpandedChange = { subjExpanded = it }) {
-                        OutlinedTextField(
-                            value = destSubj, onValueChange = { destSubj = it },
-                            label = { Text("Destination Subject") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(expanded = subjExpanded, onDismissRequest = { subjExpanded = false }) {
-                            subjOptions.forEach { s ->
-                                DropdownMenuItem(text = { Text(s) }, onClick = { destSubj = s; subjExpanded = false })
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Destination Chapter
-                    ExposedDropdownMenuBox(expanded = chapExpanded, onExpandedChange = { chapExpanded = it }) {
+                    ExposedDropdownMenuBox(
+                        expanded = chapExpanded,
+                        onExpandedChange = { chapExpanded = it }
+                    ) {
                         OutlinedTextField(
-                            value = destChap, onValueChange = { destChap = it },
-                            label = { Text("Destination Chapter/Topic") },
+                            value = destChap,
+                            onValueChange = { destChap = it },
+                            label = { Text("Select Chapter") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = chapExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(), colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
-                        ExposedDropdownMenu(expanded = chapExpanded, onDismissRequest = { chapExpanded = false }) {
-                            chapOptions.forEach { c ->
-                                DropdownMenuItem(text = { Text(c) }, onClick = { destChap = c; chapExpanded = false })
+                        ExposedDropdownMenu(
+                            expanded = chapExpanded,
+                            onDismissRequest = { chapExpanded = false }
+                        ) {
+                            chapOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        destChap = option
+                                        chapExpanded = false
+                                    }
+                                )
                             }
                         }
                     }
@@ -779,14 +701,17 @@ fun BulkMoveQuestionsDialog(
             confirmButton = {
                 Button(
                     onClick = { showConfirm = true },
-                    enabled = destExam.isNotBlank() && destSubj.isNotBlank() && destChap.isNotBlank()
+                    enabled = destSubj.isNotBlank() && destChap.isNotBlank()
                 ) {
                     Text("Move Questions")
                 }
             },
             dismissButton = {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         )
     }
 }
+

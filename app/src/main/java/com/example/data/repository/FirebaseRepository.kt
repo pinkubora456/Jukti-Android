@@ -8,6 +8,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.callbackFlow
@@ -2378,6 +2380,218 @@ class FirebaseRepository {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun fetchPyqFocus(): List<PyqFocusEntity> = suspendCancellableCoroutine { continuation ->
+        val db = firestore ?: run {
+            continuation.resume(emptyList())
+            return@suspendCancellableCoroutine
+        }
+        
+        db.collection("guidance_pyq_focus")
+            .whereEqualTo("published", true)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val list = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        PyqFocusEntity(
+                            id = 0L,
+                            exam = doc.getString("exam") ?: "",
+                            subject = doc.getString("subject") ?: "",
+                            chapter = doc.getString("chapter") ?: "",
+                            pyqCount = doc.getLong("pyqCount")?.toInt() ?: 0,
+                            examsCovered = doc.getLong("examsCovered")?.toInt() ?: 0
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                continuation.resume(list)
+            }
+            .addOnFailureListener {
+                continuation.resume(emptyList())
+            }
+    }
+
+    suspend fun fetchPrepStrategies(): List<PrepStrategyEntity> = suspendCancellableCoroutine { continuation ->
+        val db = firestore ?: run {
+            continuation.resume(emptyList())
+            return@suspendCancellableCoroutine
+        }
+        
+        db.collection("guidance_prep_strategies")
+            .whereEqualTo("published", true)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val list = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        PrepStrategyEntity(
+                            id = 0L,
+                            exam = doc.getString("exam") ?: "",
+                            subject = doc.getString("subject"),
+                            content = doc.getString("content") ?: ""
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                continuation.resume(list)
+            }
+            .addOnFailureListener {
+                continuation.resume(emptyList())
+            }
+    }
+
+    suspend fun savePyqFocus(pyq: PyqFocusEntity) {
+        val db = firestore ?: return
+        val docId = "${pyq.exam}_${pyq.subject}_${pyq.chapter}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        val data = hashMapOf(
+            "exam" to pyq.exam,
+            "subject" to pyq.subject,
+            "chapter" to pyq.chapter,
+            "pyqCount" to pyq.pyqCount,
+            "examsCovered" to pyq.examsCovered,
+            "published" to true,
+            "version" to 1,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        try {
+            db.collection("guidance_pyq_focus").document(docId).set(data, SetOptions.merge()).await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error saving pyq_focus to Firestore", e)
+        }
+    }
+
+    suspend fun deletePyqFocus(pyq: PyqFocusEntity) {
+        val db = firestore ?: return
+        val docId = "${pyq.exam}_${pyq.subject}_${pyq.chapter}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        try {
+            db.collection("guidance_pyq_focus").document(docId).delete().await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error deleting pyq_focus from Firestore", e)
+        }
+    }
+
+    suspend fun savePrepStrategy(strat: PrepStrategyEntity) {
+        val db = firestore ?: return
+        val docId = "${strat.exam}_${strat.subject ?: "all"}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        val data = hashMapOf(
+            "exam" to strat.exam,
+            "subject" to strat.subject,
+            "content" to strat.content,
+            "published" to true,
+            "version" to 1,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        try {
+            db.collection("guidance_prep_strategies").document(docId).set(data, SetOptions.merge()).await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error saving prep_strategy to Firestore", e)
+        }
+    }
+
+    suspend fun deletePrepStrategy(strat: PrepStrategyEntity) {
+        val db = firestore ?: return
+        val docId = "${strat.exam}_${strat.subject ?: "all"}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        try {
+            db.collection("guidance_prep_strategies").document(docId).delete().await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error deleting prep_strategy from Firestore", e)
+        }
+    }
+
+    suspend fun saveFocusTopic(topic: FocusTopicEntity) {
+        val db = firestore ?: return
+        val docId = "${topic.exam}_${topic.subject}_${topic.chapter}_${topic.topic}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        val data = hashMapOf(
+            "exam" to topic.exam,
+            "subject" to topic.subject,
+            "chapter" to topic.chapter,
+            "topic" to topic.topic,
+            "priority" to topic.priority,
+            "instruction" to topic.instruction,
+            "published" to true,
+            "version" to 1,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        try {
+            db.collection("guidance_focus_topics").document(docId).set(data, SetOptions.merge()).await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error saving focus_topic to Firestore", e)
+        }
+    }
+
+    suspend fun deleteFocusTopic(topic: FocusTopicEntity) {
+        val db = firestore ?: return
+        val docId = "${topic.exam}_${topic.subject}_${topic.chapter}_${topic.topic}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+        try {
+            db.collection("guidance_focus_topics").document(docId).delete().await()
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error deleting focus_topic from Firestore", e)
+        }
+    }
+
+    suspend fun fetchFocusTopics(): List<FocusTopicEntity> = suspendCancellableCoroutine { continuation ->
+        val db = firestore ?: run {
+            continuation.resume(emptyList())
+            return@suspendCancellableCoroutine
+        }
+        db.collection("guidance_focus_topics")
+            .whereEqualTo("published", true)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val list = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        FocusTopicEntity(
+                            id = 0L,
+                            exam = doc.getString("exam") ?: "",
+                            subject = doc.getString("subject") ?: "",
+                            chapter = doc.getString("chapter") ?: "",
+                            topic = doc.getString("topic") ?: "",
+                            priority = doc.getString("priority") ?: "Medium",
+                            instruction = doc.getString("instruction") ?: ""
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                continuation.resume(list)
+            }
+            .addOnFailureListener {
+                continuation.resume(emptyList())
+            }
+    }
+
+    suspend fun uploadGuidanceData(pyqs: List<PyqFocusEntity>, strats: List<PrepStrategyEntity>) {
+        val db = firestore ?: return
+        
+        pyqs.forEach { pyq ->
+            val docId = "${pyq.exam}_${pyq.subject}_${pyq.chapter}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+            val data = hashMapOf(
+                "exam" to pyq.exam,
+                "subject" to pyq.subject,
+                "chapter" to pyq.chapter,
+                "pyqCount" to pyq.pyqCount,
+                "examsCovered" to pyq.examsCovered,
+                "published" to true,
+                "version" to 1,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            db.collection("guidance_pyq_focus").document(docId).set(data, SetOptions.merge())
+        }
+        
+        strats.forEach { strat ->
+            val docId = "${strat.exam}_${strat.subject ?: "all"}".replace(Regex("[^a-zA-Z0-9_]"), "_").lowercase()
+            val data = hashMapOf(
+                "exam" to strat.exam,
+                "subject" to strat.subject,
+                "content" to strat.content,
+                "published" to true,
+                "version" to 1,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            db.collection("guidance_prep_strategies").document(docId).set(data, SetOptions.merge())
         }
     }
 }

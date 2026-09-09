@@ -1,23 +1,18 @@
 import re
 
-def fix_file(filepath):
-    with open(filepath, "r") as f:
-        content = f.read()
+with open("app/src/main/java/com/example/data/local/Daos.kt", "r") as f:
+    content = f.read()
 
-    old = """    @Update
-    abstract suspend fun updateQuestion(question: QuestionEntity)"""
-    new = """    @Update
-    abstract suspend fun updateQuestion(question: QuestionEntity)
-    
-    @Update
-    abstract suspend fun updateQuestions(questions: List<QuestionEntity>)"""
+new_daos = """
+    @Query("DELETE FROM pyq_focus")
+    abstract suspend fun deleteAllPyqFocus()
 
-    if old in content:
-        content = content.replace(old, new)
-        with open(filepath, "w") as f:
-            f.write(content)
-        print("Fixed Daos.kt")
-    else:
-        print("old not found")
+    @Query("DELETE FROM prep_strategies")
+    abstract suspend fun deleteAllPrepStrategies()
+"""
 
-fix_file("app/src/main/java/com/example/data/local/Daos.kt")
+if "deleteAllPyqFocus" not in content:
+    content = content.replace("interface GuidanceDao {", "interface GuidanceDao {\n" + new_daos)
+
+with open("app/src/main/java/com/example/data/local/Daos.kt", "w") as f:
+    f.write(content)

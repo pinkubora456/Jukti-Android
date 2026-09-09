@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
         EntitlementEntity::class,
         EntitlementHistoryEntity::class
     ],
-    version = 42,
+    version = 43,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -276,6 +276,14 @@ abstract class JuktiDatabase : RoomDatabase() {
             }
         }
 
+        
+val MIGRATION_42_43 = object : androidx.room.migration.Migration(42, 43) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE prep_strategy ADD COLUMN subject TEXT DEFAULT NULL")
+    }
+}
+
+
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -284,6 +292,7 @@ abstract class JuktiDatabase : RoomDatabase() {
                     "jukti_exam_db"
                 )
                 .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42)
+                .addMigrations(MIGRATION_42_43)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

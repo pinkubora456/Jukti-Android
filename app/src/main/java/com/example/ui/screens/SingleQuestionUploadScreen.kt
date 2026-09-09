@@ -26,6 +26,8 @@ import com.example.ui.viewmodel.JuktiViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
+    val editingQuestion by viewModel.editingQuestionForUpload.collectAsState()
+    
     var subject by remember { mutableStateOf("") }
     var chapter by remember { mutableStateOf("") }
     val selectedExams = remember { mutableStateListOf<String>() }
@@ -107,6 +109,59 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     var isDeploying by remember { mutableStateOf(false) }
     var duplicateError by remember { mutableStateOf<com.example.data.local.QuestionEntity?>(null) }
 
+    LaunchedEffect(editingQuestion) {
+        editingQuestion?.let { q ->
+            subject = q.subject
+            chapter = q.topic
+            difficulty = q.difficulty
+            questionFor = if (q.isPremium) "Premium" else "Free"
+            
+            if (q.questionType.startsWith("PYQ", ignoreCase = true)) {
+                questionTag = "PYQ"
+                val pyqParts = q.questionType.replace("PYQ - ", "").split(" ")
+                if (pyqParts.size >= 2 && pyqParts.last().toIntOrNull() != null) {
+                    pyqYear = pyqParts.last()
+                    pyqExamName = pyqParts.dropLast(1).joinToString(" ")
+                } else {
+                    pyqExamName = q.questionType.replace("PYQ - ", "")
+                    pyqYear = ""
+                }
+            } else {
+                questionTag = q.questionType.ifBlank { "Expected" }
+            }
+            
+            questionEnglish = q.questionEn
+            questionAssamese = q.questionAs
+            
+            optionAEnglish = q.optionAEn
+            optionBEnglish = q.optionBEn
+            optionCEnglish = q.optionCEn
+            optionDEnglish = q.optionDEn
+            
+            optionAAssamese = q.optionAAs
+            optionBAssamese = q.optionBAs
+            optionCAssamese = q.optionCAs
+            optionDAssamese = q.optionDAs
+            
+            correctOption = when(q.correctOptionIndex) {
+                0 -> "A"
+                1 -> "B"
+                2 -> "C"
+                3 -> "D"
+                else -> "A"
+            }
+            
+            explanationEnglish = q.explanationEn
+            explanationAssamese = q.explanationAs
+            
+            selectedExams.clear()
+            if (q.examCategory.isNotBlank()) {
+                selectedExams.addAll(q.examCategory.split(",").map { it.trim() })
+            }
+        }
+    }
+
+
     if (duplicateError != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { duplicateError = null },
@@ -131,8 +186,8 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
-                title = "Manual Entry",
-                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
+                title = if (editingQuestion != null) "Edit Question" else "Manual Entry",
+                onBackClick = { viewModel.startEditingQuestion(null); viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
                 actions = {
                     IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }) {
                         Icon(Icons.Default.Category, contentDescription = "Manage Subjects & Chapters")
@@ -517,6 +572,8 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                                 val normChapter = com.example.data.repository.normalizeChapterName(chapter, normSubject)
                                 
                                 val newQuestion = QuestionEntity(
+                                    id = editingQuestion?.id ?: 0L,
+                                    updatedAt = System.currentTimeMillis(),
                                     subject = normSubject,
                                     topic = normChapter,
                                     difficulty = difficulty,
@@ -536,27 +593,36 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                                     examCategory = selectedExams.joinToString(", "),
                                     isPremium = questionFor.equals("Premium", ignoreCase = true),
                                     questionType = finalQuestionTag,
-                                    duplicateKey = duplicateKey
+                                    duplicateKey = if (editingQuestion == null) duplicateKey else editingQuestion!!.duplicateKey,
+                                    status = editingQuestion?.status ?: "ACTIVE"
                                 )
                                 
-                                viewModel.addQuestion(newQuestion) {
+                                if (editingQuestion != null) {
+                                    viewModel.updateQuestion(newQuestion)
                                     isDeploying = false
-                                    android.widget.Toast.makeText(context, "Question deployed successfully!", android.widget.Toast.LENGTH_SHORT).show()
-                                    
-                                    // Reset fields
-                                    questionEnglish = ""
-                                    questionAssamese = ""
-                                    optionAEnglish = ""
-                                    optionBEnglish = ""
-                                    optionCEnglish = ""
-                                    optionDEnglish = ""
-                                    optionAAssamese = ""
-                                    optionBAssamese = ""
-                                    optionCAssamese = ""
-                                    optionDAssamese = ""
-                                    explanationEnglish = ""
-                                    explanationAssamese = ""
-                                    // Keep context like subject, chapter, exam intact for fast subsequent inserts
+                                    android.widget.Toast.makeText(context, "Question updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                                    viewModel.startEditingQuestion(null)
+                                    viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK)
+                                } else {
+                                    viewModel.addQuestion(newQuestion) {
+                                        isDeploying = false
+                                        android.widget.Toast.makeText(context, "Question deployed successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                                        
+                                        // Reset fields
+                                        questionEnglish = ""
+                                        questionAssamese = ""
+                                        optionAEnglish = ""
+                                        optionBEnglish = ""
+                                        optionCEnglish = ""
+                                        optionDEnglish = ""
+                                        optionAAssamese = ""
+                                        optionBAssamese = ""
+                                        optionCAssamese = ""
+                                        optionDAssamese = ""
+                                        explanationEnglish = ""
+                                        explanationAssamese = ""
+                                        // Keep context like subject, chapter, exam intact for fast subsequent inserts
+                                    }
                                 }
                             }
                         } else {
@@ -569,9 +635,9 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
                     if (isDeploying) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Deploying...")
+                        Text(if (editingQuestion != null) "Updating..." else "Deploying...")
                     } else {
-                        Text("Deploy Question")
+                        Text(if (editingQuestion != null) "Update Question" else "Deploy Question")
                     }
                 }
             }
