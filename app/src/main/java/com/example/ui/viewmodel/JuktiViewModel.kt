@@ -851,6 +851,22 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(note, effective, isAdminOrOwner.value)
     }
 
+    fun canAccessGuidance(examTitle: String? = null): Boolean {
+        if (isAdminOrOwner.value) return true
+        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime(), isAdminOrOwner = isAdminOrOwner.value)
+        if (effective == null || !effective.isPremium || !effective.guidanceEnabled) {
+            return false
+        }
+        if (examTitle == null) return true
+        return com.example.data.util.PlanValidityEngine.isGuidanceAccessibleForExam(examTitle, effective, isAdminOrOwner.value)
+    }
+
+    fun getAccessibleGuidanceExams(): List<ExamEntity> {
+        val allExams = examsList.value
+        val effective = effectiveEntitlement.value ?: com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(userEntitlements.value, plans.value, getTrustedTime(), isAdminOrOwner = isAdminOrOwner.value)
+        return com.example.data.util.PlanValidityEngine.filterAccessibleGuidanceExams(allExams, effective, isAdminOrOwner.value)
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val smartPracticeQuestions: StateFlow<List<QuestionEntity>> = combine(
         currentUserUid.flatMapLatest { uid ->

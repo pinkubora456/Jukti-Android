@@ -39,7 +39,9 @@ data class GuidanceData(
     val pyqFocus: List<PyqFocusEntity>,
     val priorityTopics: List<PriorityTopicItem>,
     val strengthWeakness: List<StrengthWeaknessItem>,
-    val preparationStrategy: String
+    val preparationStrategy: String,
+    val isAccessDenied: Boolean = false,
+    val accessDeniedReason: String = ""
 )
 
 object GuidanceEngine {
@@ -61,8 +63,37 @@ object GuidanceEngine {
         allPyqFocus: List<PyqFocusEntity>,
         allQuestions: List<QuestionEntity>,
         userStates: List<UserQuestionStateEntity>,
-        allPrepStrategies: List<com.example.data.local.PrepStrategyEntity>
+        allPrepStrategies: List<com.example.data.local.PrepStrategyEntity>,
+        effectiveEntitlement: EffectiveUserEntitlement? = null,
+        isAdminOrOwner: Boolean = false
     ): GuidanceData {
+        // Enforce backend/logic restriction: verify user's plan permits Guidance for this exam
+        if (!isAdminOrOwner) {
+            if (effectiveEntitlement == null || !effectiveEntitlement.isPremium || !effectiveEntitlement.guidanceEnabled) {
+                return GuidanceData(
+                    exam = exam,
+                    subject = subject,
+                    pyqFocus = emptyList(),
+                    priorityTopics = emptyList(),
+                    strengthWeakness = emptyList(),
+                    preparationStrategy = "",
+                    isAccessDenied = true,
+                    accessDeniedReason = "Guidance access is not included with your current plan."
+                )
+            }
+            if (!PlanValidityEngine.isGuidanceAccessibleForExam(exam, effectiveEntitlement, isAdminOrOwner)) {
+                return GuidanceData(
+                    exam = exam,
+                    subject = subject,
+                    pyqFocus = emptyList(),
+                    priorityTopics = emptyList(),
+                    strengthWeakness = emptyList(),
+                    preparationStrategy = "",
+                    isAccessDenied = true,
+                    accessDeniedReason = "Your current plan does not include Guidance access for '$exam'."
+                )
+            }
+        }
         // Filter PYQ for exam and subject with flexible matching and Q-Bank fallback
         val matchedPyqs = allPyqFocus.filter { 
             it.exam.equals(exam, ignoreCase = true) || 

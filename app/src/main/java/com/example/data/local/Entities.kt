@@ -287,7 +287,9 @@ data class PlanEntity(
     val examTarget: String = "",
     val googlePlayProductId: String = "",
     val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    val guidanceEnabled: Boolean = false,
+    val guidanceAllowedExams: String = ""
 )
 
 @Entity(tableName = "exams")

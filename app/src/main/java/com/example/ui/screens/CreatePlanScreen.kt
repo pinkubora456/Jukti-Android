@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +65,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val examsList by viewModel.examsList.collectAsState()
     val examTitles = examsList.map { it.title }
+
+    // State for Guidance Access
+    var isGuidanceEnabled by remember { mutableStateOf(false) }
+    val guidanceAllowedExamsSelected = remember { mutableStateListOf<String>() }
 
     // State for Mock Test Benefit
     val mockTestExamsSelected = remember { mutableStateListOf<String>() }
@@ -834,6 +839,100 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 }
             }
 
+            // 7. Guidance Access Configuration
+            item {
+                Text("Guidance Access", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Enable Guidance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("Control personalized Guidance access (PYQ focus, Priority topics, Prep strategy) for this plan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(
+                                checked = isGuidanceEnabled,
+                                onCheckedChange = { isGuidanceEnabled = it }
+                            )
+                        }
+
+                        if (isGuidanceEnabled) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            Text("Allowed Exam Levels", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Select which exam levels receive Guidance access with this plan:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            if (examsList.isEmpty()) {
+                                Text("No exam levels found. Please configure exams in Manage Exams first.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(onClick = {
+                                        guidanceAllowedExamsSelected.clear()
+                                        guidanceAllowedExamsSelected.addAll(examTitles)
+                                    }) {
+                                        Text("Select All")
+                                    }
+                                    TextButton(onClick = {
+                                        guidanceAllowedExamsSelected.clear()
+                                    }) {
+                                        Text("Clear All")
+                                    }
+                                }
+
+                                examsList.forEach { exam ->
+                                    val isSelected = guidanceAllowedExamsSelected.contains(exam.title)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (isSelected) {
+                                                    guidanceAllowedExamsSelected.remove(exam.title)
+                                                } else {
+                                                    guidanceAllowedExamsSelected.add(exam.title)
+                                                }
+                                            }
+                                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = { checked ->
+                                                if (checked == true) {
+                                                    if (!guidanceAllowedExamsSelected.contains(exam.title)) {
+                                                        guidanceAllowedExamsSelected.add(exam.title)
+                                                    }
+                                                } else {
+                                                    guidanceAllowedExamsSelected.remove(exam.title)
+                                                }
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(exam.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                            if (exam.subtitle.isNotBlank()) {
+                                                Text(exam.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Added Benefits List View
             if (featuresList.isNotEmpty()) {
                 item {
@@ -1013,6 +1112,10 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 if (isAnalyzePageEnabled) {
                                     allFeatures.add("Analyze Performance Page Enabled")
                                 }
+                                if (isGuidanceEnabled) {
+                                    val guidanceStr = if (guidanceAllowedExamsSelected.isEmpty()) "All Exams" else guidanceAllowedExamsSelected.joinToString(", ")
+                                    allFeatures.add("Personalized Guidance: $guidanceStr")
+                                }
                             }
 
                             val newPlan = com.example.data.local.PlanEntity(
@@ -1030,7 +1133,11 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 features = allFeatures.joinToString(separator = "|"),
                                 imageUrl = imageUrl.text,
                                 examTarget = if (examTargetExamsSelected.isEmpty()) "All Exams" else examTargetExamsSelected.joinToString(", "),
-                                googlePlayProductId = googlePlayProductId.text.trim()
+                                googlePlayProductId = googlePlayProductId.text.trim(),
+                                guidanceEnabled = isGuidanceEnabled,
+                                guidanceAllowedExams = if (isGuidanceEnabled) {
+                                    if (guidanceAllowedExamsSelected.isEmpty()) "All Exams" else guidanceAllowedExamsSelected.joinToString(", ")
+                                } else ""
                             )
                             isSubmitting = true
                             viewModel.requestOrCreatePlan(newPlan) { isSuccess, message ->

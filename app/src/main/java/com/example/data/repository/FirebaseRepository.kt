@@ -715,7 +715,9 @@ class FirebaseRepository {
         "examTarget" to p.examTarget,
         "googlePlayProductId" to p.googlePlayProductId,
         "createdAt" to (if (p.createdAt > 0L) p.createdAt else System.currentTimeMillis()),
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to System.currentTimeMillis(),
+        "guidanceEnabled" to p.guidanceEnabled,
+        "guidanceAllowedExams" to p.guidanceAllowedExams.split(",").map { it.trim() }.filter { it.isNotBlank() }
     )
 
     private fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(
@@ -1027,7 +1029,13 @@ class FirebaseRepository {
                     examTarget = doc.getString("examTarget") ?: "",
                     googlePlayProductId = doc.getString("googlePlayProductId") ?: "",
                     createdAt = doc.getLong("createdAt") ?: 0L,
-                    updatedAt = doc.getLong("updatedAt") ?: 0L
+                    updatedAt = doc.getLong("updatedAt") ?: 0L,
+                    guidanceEnabled = doc.getBoolean("guidanceEnabled") ?: false,
+                    guidanceAllowedExams = when (val raw = doc.get("guidanceAllowedExams")) {
+                        is List<*> -> raw.filterIsInstance<String>().joinToString(",")
+                        is String -> raw
+                        else -> ""
+                    }
                 )
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -1783,7 +1791,13 @@ class FirebaseRepository {
                                         examTarget = doc.getString("examTarget") ?: "",
                                         googlePlayProductId = doc.getString("googlePlayProductId") ?: "",
                                         createdAt = doc.getLong("createdAt") ?: 0L,
-                                        updatedAt = doc.getLong("updatedAt") ?: 0L
+                                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                                        guidanceEnabled = doc.getBoolean("guidanceEnabled") ?: false,
+                                        guidanceAllowedExams = when (val raw = doc.get("guidanceAllowedExams")) {
+                                            is List<*> -> raw.filterIsInstance<String>().joinToString(",")
+                                            is String -> raw
+                                            else -> ""
+                                        }
                                     )
                                 } catch (e: Throwable) {
                                     null

@@ -24,6 +24,7 @@ fun ManagePlanScreen(viewModel: JuktiViewModel) {
     var planToEdit by remember { mutableStateOf<PlanEntity?>(null) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
+    val examsList by viewModel.examsList.collectAsState()
 
     if (showSuccessDialog) {
         AlertDialog(
@@ -41,6 +42,7 @@ fun ManagePlanScreen(viewModel: JuktiViewModel) {
     if (planToEdit != null) {
         EditPlanDialog(
             plan = planToEdit!!,
+            examsList = examsList,
             onDismiss = { planToEdit = null },
             onSave = { updatedPlan ->
                 viewModel.requestOrCreatePlan(updatedPlan) { _, message ->

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -165,6 +166,8 @@ fun ManageGuidanceScreen(viewModel: JuktiViewModel, onBackClick: () -> Unit = {}
                         selectedSubject = strategySubject,
                         examsList = examsList,
                         allSubjectsChapters = allSubjectsChapters,
+                        allQuestions = allQuestions,
+                        allPyqFocus = allPyqFocus,
                         allPrepStrategies = allPrepStrategies,
                         onExamChange = { strategyExam = it; strategySubject = "All Subjects" },
                         onSubjectChange = { strategySubject = it },
@@ -210,10 +213,19 @@ fun ManageGuidanceLanding(
         item {
             ManageSectionBannerCard(
                 title = "Strength & Weakness",
-                subtitle = "View entries, Add, Edit, Delete",
+                subtitle = "Configure accuracy & importance thresholds",
                 icon = Icons.Default.FitnessCenter,
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 onClick = { onNavigate(ManageGuidanceSection.STRENGTH_WEAKNESS) }
+            )
+        }
+        item {
+            ManageSectionBannerCard(
+                title = "Preparation Strategy",
+                subtitle = "View entries, Add, Edit, Delete preparation strategies",
+                icon = Icons.Default.Lightbulb,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                onClick = { onNavigate(ManageGuidanceSection.PREP_STRATEGY) }
             )
         }
         
@@ -1320,6 +1332,8 @@ fun ManagePrepStrategyScreen(
     selectedSubject: String,
     examsList: List<ExamEntity>,
     allSubjectsChapters: List<SubjectChapterEntity>,
+    allQuestions: List<QuestionEntity> = emptyList(),
+    allPyqFocus: List<PyqFocusEntity> = emptyList(),
     allPrepStrategies: List<PrepStrategyEntity>,
     onExamChange: (String) -> Unit,
     onSubjectChange: (String) -> Unit,
@@ -1330,17 +1344,35 @@ fun ManagePrepStrategyScreen(
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val availableSubjects = remember(selectedExam, allSubjectsChapters) {
-        val chapterSubjs = allSubjectsChapters.map { it.subject }.filter { it.isNotBlank() }.distinct().sorted()
-        listOf("All Subjects") + chapterSubjs
+    val availableSubjects = remember(selectedExam, allSubjectsChapters, allQuestions, allPyqFocus, allPrepStrategies) {
+        val chapterSubjs = allSubjectsChapters.map { it.subject }
+        val pyqSubjs = allPyqFocus.filter { 
+            selectedExam == null || it.exam.equals(selectedExam, ignoreCase = true) || it.exam.contains(selectedExam, ignoreCase = true) || selectedExam.contains(it.exam, ignoreCase = true)
+        }.map { it.subject }
+        val qSubjs = allQuestions.filter { 
+            selectedExam == null || it.examCategory.contains(selectedExam, ignoreCase = true) || selectedExam.contains(it.examCategory, ignoreCase = true)
+        }.map { it.subject }
+        val stratSubjs = allPrepStrategies.filter {
+            selectedExam == null || it.exam.equals(selectedExam, ignoreCase = true) || selectedExam.contains(it.exam, ignoreCase = true) || selectedExam.contains(it.exam, ignoreCase = true)
+        }.mapNotNull { it.subject }
+        val combined = (chapterSubjs + pyqSubjs + qSubjs + stratSubjs).filter { it.isNotBlank() }.distinct().sorted()
+        listOf("All Subjects") + combined
+    }
+
+    val examStrategies = remember(allPrepStrategies, selectedExam) {
+        if (selectedExam == null) emptyList()
+        else allPrepStrategies.filter { 
+            it.exam.equals(selectedExam, ignoreCase = true) || 
+            it.exam.contains(selectedExam, ignoreCase = true) || 
+            selectedExam.contains(it.exam, ignoreCase = true)
+        }
     }
 
     // Find current strategy for (selectedExam, selectedSubject)
     val subjectKey = if (selectedSubject != "All Subjects") selectedSubject else null
-    val currentStrategy = remember(allPrepStrategies, selectedExam, subjectKey) {
+    val currentStrategy = remember(examStrategies, selectedExam, subjectKey) {
         if (selectedExam == null) null
-        else allPrepStrategies.find { 
-            (it.exam.equals(selectedExam, ignoreCase = true) || selectedExam.contains(it.exam, ignoreCase = true)) &&
+        else examStrategies.find { 
             ((subjectKey == null && (it.subject == null || it.subject == "All Subjects")) || (subjectKey != null && it.subject.equals(subjectKey, ignoreCase = true)))
         }
     }
@@ -1349,165 +1381,405 @@ fun ManagePrepStrategyScreen(
         mutableStateOf(currentStrategy?.content ?: "")
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Exam Selector
-        ExposedDropdownMenuBox(
-            expanded = examDropdownExpanded,
-            onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
-        ) {
-            SafeOutlinedTextField(
-                value = selectedExam ?: "Select Exam",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Select Exam") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = examDropdownExpanded,
-                onDismissRequest = { examDropdownExpanded = false }
-            ) {
-                examsList.forEach { exam ->
-                    DropdownMenuItem(
-                        text = { Text(exam.title) },
-                        onClick = {
-                            onExamChange(exam.title)
-                            examDropdownExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        // Subject Selector: Supports All Subjects (Overall Exam) + Individual Subjects
-        if (selectedExam != null) {
+        item {
             ExposedDropdownMenuBox(
-                expanded = subjectDropdownExpanded,
-                onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+                expanded = examDropdownExpanded,
+                onExpandedChange = { examDropdownExpanded = !examDropdownExpanded }
             ) {
                 SafeOutlinedTextField(
-                    value = if (selectedSubject == "All Subjects") "All Subjects (Overall Exam Strategy)" else selectedSubject,
+                    value = selectedExam ?: "Select Exam",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Strategy Scope") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
+                    label = { Text("Select Exam") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = examDropdownExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
                 ExposedDropdownMenu(
-                    expanded = subjectDropdownExpanded,
-                    onDismissRequest = { subjectDropdownExpanded = false }
+                    expanded = examDropdownExpanded,
+                    onDismissRequest = { examDropdownExpanded = false }
                 ) {
-                    availableSubjects.forEach { subject ->
+                    examsList.forEach { exam ->
                         DropdownMenuItem(
-                            text = { Text(if (subject == "All Subjects") "All Subjects (Overall Exam Strategy)" else subject) },
+                            text = { Text(exam.title) },
                             onClick = {
-                                onSubjectChange(subject)
-                                subjectDropdownExpanded = false
+                                onExamChange(exam.title)
+                                examDropdownExpanded = false
                             }
                         )
                     }
                 }
             }
+        }
+
+        if (selectedExam != null) {
+            // Scope / Subject Selector
+            item {
+                ExposedDropdownMenuBox(
+                    expanded = subjectDropdownExpanded,
+                    onExpandedChange = { subjectDropdownExpanded = !subjectDropdownExpanded }
+                ) {
+                    SafeOutlinedTextField(
+                        value = if (selectedSubject == "All Subjects") "All Subjects (Overall Exam Strategy)" else selectedSubject,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Strategy Scope") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectDropdownExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = subjectDropdownExpanded,
+                        onDismissRequest = { subjectDropdownExpanded = false }
+                    ) {
+                        availableSubjects.forEach { subject ->
+                            DropdownMenuItem(
+                                text = { Text(if (subject == "All Subjects") "All Subjects (Overall Exam Strategy)" else subject) },
+                                onClick = {
+                                    onSubjectChange(subject)
+                                    subjectDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Quick select chip row for existing published strategies for this exam
+            if (examStrategies.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Published Strategies (${examStrategies.size}):",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(examStrategies) { strat ->
+                                val label = if (strat.subject.isNullOrBlank() || strat.subject == "All Subjects") "Overall Exam" else strat.subject
+                                val isSelected = (subjectKey == null && (strat.subject.isNullOrBlank() || strat.subject == "All Subjects")) ||
+                                        (subjectKey != null && strat.subject.equals(subjectKey, ignoreCase = true))
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        onSubjectChange(if (strat.subject.isNullOrBlank()) "All Subjects" else strat.subject)
+                                    },
+                                    label = { Text(label) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Lightbulb,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Status Banner
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (currentStrategy != null) 
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else 
+                            MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (currentStrategy != null) Icons.Default.CheckCircle else Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (currentStrategy != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (currentStrategy != null) 
+                                    "Custom Strategy Published" 
+                                else 
+                                    "Dynamic Auto-Strategy Active",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (currentStrategy != null)
+                                    "Scope: ${if (selectedSubject == "All Subjects") "Overall Exam" else selectedSubject} (${strategyContent.length} chars). Editing and saving will update this live."
+                                else
+                                    "No custom strategy published yet for ${if (selectedSubject == "All Subjects") "Overall Exam" else selectedSubject}. System dynamically derives advice from mock accuracy. Enter custom guidelines below to publish.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             // Quick Template Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        strategyContent = "Overall 3-Phase Preparation Strategy for $selectedExam:\n\n" +
-                                "Phase 1: Foundation Building (Weeks 1-3)\n" +
-                                "• Complete core concepts from high-weightage chapters.\n" +
-                                "• Clear grammar rules and fundamental formulas.\n\n" +
-                                "Phase 2: PYQ Drill & Topic Practice (Weeks 4-6)\n" +
-                                "• Solve past 5 years' question papers chapter-wise.\n" +
-                                "• Target weak areas identified in Strength & Weakness analysis.\n\n" +
-                                "Phase 3: Full-Length Mocks & Revision (Weeks 7-8)\n" +
-                                "• Attempt 2 full-length timed mocks weekly.\n" +
-                                "• Revise bookmarked questions and error log daily."
-                    },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Roadmap Template", style = MaterialTheme.typography.labelSmall)
-                }
+                    OutlinedButton(
+                        onClick = {
+                            strategyContent = "Overall 3-Phase Preparation Strategy for $selectedExam:\n\n" +
+                                    "Phase 1: Foundation Building (Weeks 1-3)\n" +
+                                    "• Complete core concepts from high-weightage chapters.\n" +
+                                    "• Clear grammar rules and fundamental formulas.\n\n" +
+                                    "Phase 2: PYQ Drill & Topic Practice (Weeks 4-6)\n" +
+                                    "• Solve past 5 years' question papers chapter-wise.\n" +
+                                    "• Target weak areas identified in Strength & Weakness analysis.\n\n" +
+                                    "Phase 3: Full-Length Mocks & Revision (Weeks 7-8)\n" +
+                                    "• Attempt 2 full-length timed mocks weekly.\n" +
+                                    "• Revise bookmarked questions and error log daily."
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text("Roadmap Template", style = MaterialTheme.typography.labelSmall)
+                    }
 
-                OutlinedButton(
-                    onClick = {
-                        val subjName = if (selectedSubject != "All Subjects") selectedSubject else "Subject"
-                        strategyContent = "Subject Preparation Strategy for $subjName ($selectedExam):\n\n" +
-                                "1. High-Priority Focus: Prioritize chapters with highest PYQ frequency.\n" +
-                                "2. Daily Practice: Dedicate at least 30 minutes to MCQs from this subject.\n" +
-                                "3. Error Analysis: Re-attempt all incorrect questions within 48 hours.\n" +
-                                "4. Formula & Notes Revision: Maintain concise formula sheets for weekly revision.\n" +
-                                "5. Speed & Accuracy: Aim for >80% accuracy under timed conditions."
-                    },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text("Subject Template", style = MaterialTheme.typography.labelSmall)
+                    OutlinedButton(
+                        onClick = {
+                            val subjName = if (selectedSubject != "All Subjects") selectedSubject else "Subject"
+                            strategyContent = "Subject Preparation Strategy for $subjName ($selectedExam):\n\n" +
+                                    "1. High-Priority Focus: Prioritize chapters with highest PYQ frequency.\n" +
+                                    "2. Daily Practice: Dedicate at least 30 minutes to MCQs from this subject.\n" +
+                                    "3. Error Analysis: Re-attempt all incorrect questions within 48 hours.\n" +
+                                    "4. Formula & Notes Revision: Maintain concise formula sheets for weekly revision.\n" +
+                                    "5. Speed & Accuracy: Aim for >80% accuracy under timed conditions."
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text("Subject Template", style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    if (strategyContent.isNotBlank()) {
+                        IconButton(
+                            onClick = { strategyContent = "" },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Clear Text",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
             // Content Editor
-            SafeOutlinedTextField(
-                value = strategyContent,
-                onValueChange = { strategyContent = it },
-                label = { Text("Preparation Strategy Content") },
-                supportingText = { Text("Visible to all students under ${if (selectedSubject == "All Subjects") "Overall Exam Strategy" else selectedSubject}") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                minLines = 8
-            )
+            item {
+                SafeOutlinedTextField(
+                    value = strategyContent,
+                    onValueChange = { strategyContent = it },
+                    label = { Text("Preparation Strategy Content") },
+                    supportingText = { 
+                        Text("Scope: ${if (selectedSubject == "All Subjects") "Overall Exam Strategy" else selectedSubject} • ${strategyContent.length} characters") 
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 180.dp, max = 320.dp),
+                    minLines = 8
+                )
+            }
 
             // Save & Delete Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (currentStrategy != null) {
-                    TextButton(
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (currentStrategy != null) {
+                        TextButton(
+                            onClick = {
+                                onDeleteStrategy(currentStrategy)
+                                strategyContent = ""
+                                Toast.makeText(context, "Strategy removed. System will use dynamic strategy.", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear Strategy", color = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    Button(
+                        enabled = strategyContent.isNotBlank(),
                         onClick = {
-                            onDeleteStrategy(currentStrategy)
-                            strategyContent = ""
-                            Toast.makeText(context, "Strategy removed. System will use dynamic strategy.", Toast.LENGTH_SHORT).show()
+                            val entity = (currentStrategy ?: PrepStrategyEntity(
+                                exam = selectedExam,
+                                subject = subjectKey,
+                                content = ""
+                            )).copy(
+                                exam = selectedExam,
+                                subject = subjectKey,
+                                content = strategyContent.trim(),
+                                updatedAt = System.currentTimeMillis()
+                            )
+                            onSaveStrategy(entity)
+                            Toast.makeText(context, "Preparation strategy published to Firestore!", Toast.LENGTH_SHORT).show()
                         }
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Clear Strategy", color = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (currentStrategy != null) "Update & Publish" else "Save & Publish")
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(1.dp))
                 }
+            }
 
-                Button(
-                    onClick = {
-                        val entity = (currentStrategy ?: PrepStrategyEntity(
-                            exam = selectedExam,
-                            subject = subjectKey,
-                            content = ""
-                        )).copy(
-                            exam = selectedExam,
-                            subject = subjectKey,
-                            content = strategyContent.trim(),
-                            updatedAt = System.currentTimeMillis()
-                        )
-                        onSaveStrategy(entity)
-                        Toast.makeText(context, "Preparation strategy published to Firestore!", Toast.LENGTH_SHORT).show()
-                    }
+            // List of all published strategies for this exam
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save & Publish")
+                    Text(
+                        text = "All Published Strategies ($selectedExam)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${examStrategies.size} entries",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (examStrategies.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.MenuBook,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No custom preparation strategies created for $selectedExam yet.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(examStrategies) { strat ->
+                    val scopeName = if (strat.subject.isNullOrBlank() || strat.subject == "All Subjects") "Overall Exam Strategy" else "Subject: ${strat.subject}"
+                    val isEditingThis = (subjectKey == null && (strat.subject.isNullOrBlank() || strat.subject == "All Subjects")) ||
+                            (subjectKey != null && strat.subject.equals(subjectKey, ignoreCase = true))
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSubjectChange(if (strat.subject.isNullOrBlank()) "All Subjects" else strat.subject)
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isEditingThis)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lightbulb,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = scopeName,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = {
+                                            onSubjectChange(if (strat.subject.isNullOrBlank()) "All Subjects" else strat.subject)
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            onDeleteStrategy(strat)
+                                            if (isEditingThis) strategyContent = ""
+                                            Toast.makeText(context, "Deleted strategy for $scopeName", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = strat.content.replace("\n", " ").take(140) + if (strat.content.length > 140) "..." else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }

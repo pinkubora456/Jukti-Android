@@ -58,14 +58,28 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
     val userQuestionStates by viewModel.userQuestionStates.collectAsState(initial = emptyList())
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
 
-    // Initialize default exams
-    LaunchedEffect(examsList) {
-        if (examsList.isNotEmpty()) {
-            val firstExam = examsList.first().title
-            if (pyqExam == null) pyqExam = firstExam
-            if (priorityExam == null) priorityExam = firstExam
-            if (strengthExam == null) strengthExam = firstExam
-            if (strategyExam == null) strategyExam = firstExam
+    val effectiveEntitlement by viewModel.effectiveEntitlement.collectAsState()
+    val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
+
+    val isGuidanceUnlocked = isAdminOrOwner || (effectiveEntitlement?.isPremium == true && effectiveEntitlement?.guidanceEnabled == true)
+
+    val accessibleExams = remember(examsList, effectiveEntitlement, isAdminOrOwner) {
+        PlanValidityEngine.filterAccessibleGuidanceExams(examsList, effectiveEntitlement, isAdminOrOwner)
+    }
+
+    // Initialize default exams constrained strictly by allowed exams
+    LaunchedEffect(accessibleExams) {
+        if (accessibleExams.isNotEmpty()) {
+            val validTitles = accessibleExams.map { it.title }
+            if (pyqExam == null || !validTitles.contains(pyqExam)) pyqExam = accessibleExams.first().title
+            if (priorityExam == null || !validTitles.contains(priorityExam)) priorityExam = accessibleExams.first().title
+            if (strengthExam == null || !validTitles.contains(strengthExam)) strengthExam = accessibleExams.first().title
+            if (strategyExam == null || !validTitles.contains(strategyExam)) strategyExam = accessibleExams.first().title
+        } else {
+            pyqExam = null
+            priorityExam = null
+            strengthExam = null
+            strategyExam = null
         }
     }
 
@@ -73,8 +87,11 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
         when (section) {
             GuidanceSectionType.NONE -> {
                 GuidanceLandingPage(
+                    isGuidanceUnlocked = isGuidanceUnlocked,
+                    effectivePlanName = effectiveEntitlement?.effectivePlanName ?: "Free Plan",
                     onBackClick = { viewModel.navigateTo(Screen.HOME) },
-                    onSectionClick = { currentSection = it }
+                    onSectionClick = { currentSection = it },
+                    onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) }
                 )
             }
             GuidanceSectionType.PYQ_FOCUS -> {
@@ -83,12 +100,15 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
                     icon = Icons.Default.History,
                     selectedExam = pyqExam,
                     selectedSubject = pyqSubject,
-                    examsList = examsList,
+                    accessibleExams = accessibleExams,
                     allPyqFocus = allPyqFocus,
                     allQuestions = allQuestions,
+                    effectiveEntitlement = effectiveEntitlement,
+                    isAdminOrOwner = isAdminOrOwner,
                     onExamChange = { pyqExam = it; pyqSubject = "All Subjects" },
                     onSubjectChange = { pyqSubject = it },
-                    onBackClick = { currentSection = GuidanceSectionType.NONE }
+                    onBackClick = { currentSection = GuidanceSectionType.NONE },
+                    onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) }
                 ) { guidanceData ->
                     if (guidanceData.pyqFocus.isNotEmpty()) {
                         PyqFocusSection(guidanceData.pyqFocus) { chapter -> 
@@ -105,13 +125,16 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
                     icon = Icons.Default.TrackChanges,
                     selectedExam = priorityExam,
                     selectedSubject = prioritySubject,
-                    examsList = examsList,
+                    accessibleExams = accessibleExams,
                     allPyqFocus = allPyqFocus,
                     allQuestions = allQuestions,
                     userQuestionStates = userQuestionStates,
+                    effectiveEntitlement = effectiveEntitlement,
+                    isAdminOrOwner = isAdminOrOwner,
                     onExamChange = { priorityExam = it; prioritySubject = "All Subjects" },
                     onSubjectChange = { prioritySubject = it },
-                    onBackClick = { currentSection = GuidanceSectionType.NONE }
+                    onBackClick = { currentSection = GuidanceSectionType.NONE },
+                    onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) }
                 ) { guidanceData ->
                     if (guidanceData.priorityTopics.isNotEmpty()) {
                         PriorityTopicsSection(guidanceData.priorityTopics) { subj, chapter ->
@@ -128,13 +151,16 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
                     icon = Icons.Default.FitnessCenter,
                     selectedExam = strengthExam,
                     selectedSubject = strengthSubject,
-                    examsList = examsList,
+                    accessibleExams = accessibleExams,
                     allPyqFocus = allPyqFocus,
                     allQuestions = allQuestions,
                     userQuestionStates = userQuestionStates,
+                    effectiveEntitlement = effectiveEntitlement,
+                    isAdminOrOwner = isAdminOrOwner,
                     onExamChange = { strengthExam = it; strengthSubject = "All Subjects" },
                     onSubjectChange = { strengthSubject = it },
-                    onBackClick = { currentSection = GuidanceSectionType.NONE }
+                    onBackClick = { currentSection = GuidanceSectionType.NONE },
+                    onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) }
                 ) { guidanceData ->
                     if (guidanceData.strengthWeakness.isNotEmpty()) {
                         StrengthWeaknessSection(guidanceData.strengthWeakness) { subj, chapter ->
@@ -153,14 +179,17 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
                     icon = Icons.Default.Lightbulb,
                     selectedExam = strategyExam,
                     selectedSubject = strategySubject,
-                    examsList = examsList,
+                    accessibleExams = accessibleExams,
                     allPyqFocus = allPyqFocus,
                     allQuestions = allQuestions,
                     userQuestionStates = userQuestionStates,
                     allPrepStrategies = allPrepStrategies,
+                    effectiveEntitlement = effectiveEntitlement,
+                    isAdminOrOwner = isAdminOrOwner,
                     onExamChange = { strategyExam = it; strategySubject = "All Subjects" },
                     onSubjectChange = { strategySubject = it },
-                    onBackClick = { currentSection = GuidanceSectionType.NONE }
+                    onBackClick = { currentSection = GuidanceSectionType.NONE },
+                    onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) }
                 ) { guidanceData ->
                     if (guidanceData.preparationStrategy.isNotBlank()) {
                         PrepStrategySection(guidanceData.exam, guidanceData.preparationStrategy)
@@ -173,9 +202,107 @@ fun GuidanceScreen(viewModel: JuktiViewModel) {
     }
 }
 
+@Composable
+fun GuidanceLockedView(
+    title: String = "Guidance Locked",
+    message: String = "Personalized Guidance is an exclusive premium benefit included with supported subscription plans.",
+    currentPlanName: String = "Free Plan",
+    onUpgradeClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Guidance Locked",
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Current Plan: ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = currentPlanName,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onUpgradeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View Supported Plans", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GuidanceLandingPage(onBackClick: () -> Unit, onSectionClick: (GuidanceSectionType) -> Unit) {
+fun GuidanceLandingPage(
+    isGuidanceUnlocked: Boolean,
+    effectivePlanName: String,
+    onBackClick: () -> Unit,
+    onSectionClick: (GuidanceSectionType) -> Unit,
+    onUpgradeClick: () -> Unit
+) {
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
@@ -184,44 +311,59 @@ fun GuidanceLandingPage(onBackClick: () -> Unit, onSectionClick: (GuidanceSectio
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                GuidanceBannerCard(
-                    title = "PYQ Focus",
-                    subtitle = "See previous exam question trends and important chapters",
-                    icon = Icons.Default.History,
-                    onClick = { onSectionClick(GuidanceSectionType.PYQ_FOCUS) }
+        if (!isGuidanceUnlocked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                GuidanceLockedView(
+                    title = "Guidance Access Locked",
+                    message = "Personalized Guidance (PYQ Focus, Priority Topics, Strength & Weakness, and Preparation Strategy) is automatically included with supported subscription plans.",
+                    currentPlanName = effectivePlanName,
+                    onUpgradeClick = onUpgradeClick
                 )
             }
-            item {
-                GuidanceBannerCard(
-                    title = "Priority Topics",
-                    subtitle = "Know what to study first",
-                    icon = Icons.Default.TrackChanges,
-                    onClick = { onSectionClick(GuidanceSectionType.PRIORITY_TOPICS) }
-                )
-            }
-            item {
-                GuidanceBannerCard(
-                    title = "Strength & Weakness",
-                    subtitle = "Understand your performance",
-                    icon = Icons.Default.FitnessCenter,
-                    onClick = { onSectionClick(GuidanceSectionType.STRENGTH_WEAKNESS) }
-                )
-            }
-            item {
-                GuidanceBannerCard(
-                    title = "Preparation Strategy",
-                    subtitle = "Know how to prepare effectively",
-                    icon = Icons.Default.Lightbulb,
-                    onClick = { onSectionClick(GuidanceSectionType.PREP_STRATEGY) }
-                )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    GuidanceBannerCard(
+                        title = "PYQ Focus",
+                        subtitle = "See previous exam question trends and important chapters",
+                        icon = Icons.Default.History,
+                        onClick = { onSectionClick(GuidanceSectionType.PYQ_FOCUS) }
+                    )
+                }
+                item {
+                    GuidanceBannerCard(
+                        title = "Priority Topics",
+                        subtitle = "Know what to study first",
+                        icon = Icons.Default.TrackChanges,
+                        onClick = { onSectionClick(GuidanceSectionType.PRIORITY_TOPICS) }
+                    )
+                }
+                item {
+                    GuidanceBannerCard(
+                        title = "Strength & Weakness",
+                        subtitle = "Understand your performance",
+                        icon = Icons.Default.FitnessCenter,
+                        onClick = { onSectionClick(GuidanceSectionType.STRENGTH_WEAKNESS) }
+                    )
+                }
+                item {
+                    GuidanceBannerCard(
+                        title = "Preparation Strategy",
+                        subtitle = "Know how to prepare effectively",
+                        icon = Icons.Default.Lightbulb,
+                        onClick = { onSectionClick(GuidanceSectionType.PREP_STRATEGY) }
+                    )
+                }
             }
         }
     }
@@ -273,18 +415,23 @@ fun GuidanceDetailScreen(
     icon: ImageVector,
     selectedExam: String?,
     selectedSubject: String,
-    examsList: List<ExamEntity>,
+    accessibleExams: List<ExamEntity>,
     allPyqFocus: List<PyqFocusEntity>,
     allQuestions: List<QuestionEntity>,
     userQuestionStates: List<UserQuestionStateEntity> = emptyList(),
     allPrepStrategies: List<PrepStrategyEntity> = emptyList(),
+    effectiveEntitlement: EffectiveUserEntitlement? = null,
+    isAdminOrOwner: Boolean = false,
     onExamChange: (String) -> Unit,
     onSubjectChange: (String) -> Unit,
     onBackClick: () -> Unit,
+    onUpgradeClick: () -> Unit,
     content: @Composable (GuidanceData) -> Unit
 ) {
     var examDropdownExpanded by remember { mutableStateOf(false) }
     var subjectDropdownExpanded by remember { mutableStateOf(false) }
+
+    val isExamAllowed = selectedExam != null && (isAdminOrOwner || PlanValidityEngine.isGuidanceAccessibleForExam(selectedExam, effectiveEntitlement, isAdminOrOwner))
 
     val availableSubjects = remember(allPyqFocus, selectedExam, allQuestions) {
         val pyqSubjects = allPyqFocus.filter { it.exam == selectedExam }.map { it.subject }
@@ -293,7 +440,7 @@ fun GuidanceDetailScreen(
         if (subjects.isEmpty()) listOf("All Subjects") else listOf("All Subjects") + subjects
     }
 
-    val guidanceData = remember(selectedExam, selectedSubject, allPyqFocus, allQuestions, userQuestionStates, allPrepStrategies) {
+    val guidanceData = remember(selectedExam, selectedSubject, allPyqFocus, allQuestions, userQuestionStates, allPrepStrategies, effectiveEntitlement, isAdminOrOwner) {
         if (selectedExam == null) null
         else GuidanceEngine.calculateGuidance(
             exam = selectedExam,
@@ -301,7 +448,9 @@ fun GuidanceDetailScreen(
             allPyqFocus = allPyqFocus,
             allQuestions = allQuestions,
             userStates = userQuestionStates,
-            allPrepStrategies = allPrepStrategies
+            allPrepStrategies = allPrepStrategies,
+            effectiveEntitlement = effectiveEntitlement,
+            isAdminOrOwner = isAdminOrOwner
         )
     }
 
@@ -336,21 +485,28 @@ fun GuidanceDetailScreen(
                         expanded = examDropdownExpanded,
                         onDismissRequest = { examDropdownExpanded = false }
                     ) {
-                        examsList.forEach { exam ->
+                        if (accessibleExams.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(exam.title) },
-                                onClick = {
-                                    onExamChange(exam.title)
-                                    examDropdownExpanded = false
-                                }
+                                text = { Text("No exam levels available") },
+                                onClick = { examDropdownExpanded = false }
                             )
+                        } else {
+                            accessibleExams.forEach { exam ->
+                                DropdownMenuItem(
+                                    text = { Text(exam.title) },
+                                    onClick = {
+                                        onExamChange(exam.title)
+                                        examDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
             
-            // Subject Selection
-            if (selectedExam != null) {
+            // Subject Selection (only displayed when exam is selected and access is allowed)
+            if (selectedExam != null && isExamAllowed && guidanceData?.isAccessDenied != true) {
                 Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     ExposedDropdownMenuBox(
                         expanded = subjectDropdownExpanded,
@@ -382,7 +538,14 @@ fun GuidanceDetailScreen(
                 }
             }
 
-            if (guidanceData != null) {
+            if (!isExamAllowed || guidanceData?.isAccessDenied == true) {
+                GuidanceLockedView(
+                    title = "Access Restricted",
+                    message = guidanceData?.accessDeniedReason ?: "Your active plan does not include Guidance for '${selectedExam ?: "this exam"}'. Please upgrade your plan to unlock Guidance for this exam level.",
+                    currentPlanName = effectiveEntitlement?.effectivePlanName ?: "Free Plan",
+                    onUpgradeClick = onUpgradeClick
+                )
+            } else if (guidanceData != null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 80.dp)

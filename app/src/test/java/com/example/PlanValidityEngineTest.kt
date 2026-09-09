@@ -1,11 +1,8 @@
 package com.example
 
-import com.example.data.local.EntitlementEntity
-import com.example.data.local.MockTestEntity
-import com.example.data.local.QuestionEntity
-import com.example.data.local.StudyNoteEntity
-import com.example.data.local.UserProfileEntity
+import com.example.data.local.*
 import com.example.data.util.PlanValidityEngine
+import com.example.data.util.GuidanceEngine
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -190,5 +187,310 @@ class PlanValidityEngineTest {
 
         assertEquals(1, accessibleForFree.size)
         assertEquals(1L, accessibleForFree.first().id)
+    }
+
+    // --- 7 Test Cases for Plan-Based Guidance Access ---
+
+    private val sampleExams = listOf(
+        ExamEntity(id = 1L, title = "Grade 3", subtitle = "ADRE Grade 3"),
+        ExamEntity(id = 2L, title = "Grade 4", subtitle = "ADRE Grade 4"),
+        ExamEntity(id = 3L, title = "Graduate Level", subtitle = "Assam Graduate Level")
+    )
+
+    @Test
+    fun testCase1_FreeUser_GuidanceLocked() {
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = emptyList(),
+            plans = emptyList(),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        // Free user has no premium entitlement, guidanceEnabled is false
+        assertFalse(effective.isPremium)
+        assertFalse(effective.guidanceEnabled)
+
+        // Guidance accessible exams must be empty
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, isAdminOrOwner = false)
+        assertTrue(accessibleExams.isEmpty())
+
+        // GuidanceEngine blocks calculateGuidance
+        val guidance = GuidanceEngine.calculateGuidance(
+            exam = "Grade 4",
+            subject = null,
+            allPyqFocus = emptyList<PyqFocusEntity>(),
+            allQuestions = emptyList<QuestionEntity>(),
+            userStates = emptyList<UserQuestionStateEntity>(),
+            allPrepStrategies = emptyList<PrepStrategyEntity>(),
+            effectiveEntitlement = effective,
+            isAdminOrOwner = false
+        )
+        assertTrue(guidance.isAccessDenied)
+    }
+
+    @Test
+    fun testCase2_UserWithGrade4Plan_GuidanceUnlockedForGrade4Only() {
+        val plan = PlanEntity(
+            id = 101L,
+            planName = "Jukti Pass – Grade 4",
+            planPrice = "199",
+            discount = "0",
+            finalPrice = "199",
+            offerValidity = "1 Year",
+            validityType = "YEARS",
+            validityValue = 1,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "Grade 4"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "101",
+            planName = "Jukti Pass – Grade 4",
+            status = "ACTIVE",
+            validUntil = now + 864000000L,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        assertTrue(effective.isPremium)
+        assertTrue(effective.guidanceEnabled)
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 4", effective, false))
+        assertFalse(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 3", effective, false))
+        assertFalse(PlanValidityEngine.isGuidanceAccessibleForExam("Graduate Level", effective, false))
+
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, false)
+        assertEquals(1, accessibleExams.size)
+        assertEquals("Grade 4", accessibleExams.first().title)
+    }
+
+    @Test
+    fun testCase3_UserWithGrade3Plan_GuidanceUnlockedForGrade3Only() {
+        val plan = PlanEntity(
+            id = 102L,
+            planName = "Jukti Pass – Grade 3",
+            planPrice = "199",
+            discount = "0",
+            finalPrice = "199",
+            offerValidity = "1 Year",
+            validityType = "YEARS",
+            validityValue = 1,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "Grade 3"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "102",
+            planName = "Jukti Pass – Grade 3",
+            status = "ACTIVE",
+            validUntil = now + 864000000L,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        assertTrue(effective.isPremium)
+        assertTrue(effective.guidanceEnabled)
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 3", effective, false))
+        assertFalse(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 4", effective, false))
+
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, false)
+        assertEquals(1, accessibleExams.size)
+        assertEquals("Grade 3", accessibleExams.first().title)
+    }
+
+    @Test
+    fun testCase4_UserWithGraduateLevelPlan_GuidanceUnlockedForGraduateOnly() {
+        val plan = PlanEntity(
+            id = 103L,
+            planName = "Jukti Pass – Graduate Level",
+            planPrice = "299",
+            discount = "0",
+            finalPrice = "299",
+            offerValidity = "1 Year",
+            validityType = "YEARS",
+            validityValue = 1,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "Graduate Level"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "103",
+            planName = "Jukti Pass – Graduate Level",
+            status = "ACTIVE",
+            validUntil = now + 864000000L,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        assertTrue(effective.isPremium)
+        assertTrue(effective.guidanceEnabled)
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Graduate Level", effective, false))
+        assertFalse(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 4", effective, false))
+
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, false)
+        assertEquals(1, accessibleExams.size)
+        assertEquals("Graduate Level", accessibleExams.first().title)
+    }
+
+    @Test
+    fun testCase5_UserWithGrade3PlusGrade4Plan_GuidanceUnlockedForBoth() {
+        val plan = PlanEntity(
+            id = 104L,
+            planName = "Jukti Pass – Grade 3 + Grade 4",
+            planPrice = "349",
+            discount = "0",
+            finalPrice = "349",
+            offerValidity = "1 Year",
+            validityType = "YEARS",
+            validityValue = 1,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "Grade 3, Grade 4"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "104",
+            planName = "Jukti Pass – Grade 3 + Grade 4",
+            status = "ACTIVE",
+            validUntil = now + 864000000L,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        assertTrue(effective.isPremium)
+        assertTrue(effective.guidanceEnabled)
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 3", effective, false))
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 4", effective, false))
+        assertFalse(PlanValidityEngine.isGuidanceAccessibleForExam("Graduate Level", effective, false))
+
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, false)
+        assertEquals(2, accessibleExams.size)
+        val titles = accessibleExams.map { it.title }.toSet()
+        assertTrue(titles.contains("Grade 3"))
+        assertTrue(titles.contains("Grade 4"))
+    }
+
+    @Test
+    fun testCase6_UserWithAllExams_FullAccess() {
+        val plan = PlanEntity(
+            id = 105L,
+            planName = "All Access Mega Plan",
+            planPrice = "599",
+            discount = "0",
+            finalPrice = "599",
+            offerValidity = "Lifetime",
+            validityType = "LIFETIME",
+            validityValue = 0,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "All, Grade 3, Grade 4, Graduate Level"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "105",
+            planName = "All Access Mega Plan",
+            status = "ACTIVE",
+            validUntil = 0L,
+            isLifetime = true,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        assertTrue(effective.isPremium)
+        assertTrue(effective.guidanceEnabled)
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 3", effective, false))
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Grade 4", effective, false))
+        assertTrue(PlanValidityEngine.isGuidanceAccessibleForExam("Graduate Level", effective, false))
+
+        val accessibleExams = PlanValidityEngine.filterAccessibleGuidanceExams(sampleExams, effective, false)
+        assertEquals(3, accessibleExams.size)
+    }
+
+    @Test
+    fun testCase7_UnauthorizedDirectRequest_IsBlocked() {
+        val plan = PlanEntity(
+            id = 106L,
+            planName = "Jukti Pass – Grade 4",
+            planPrice = "199",
+            discount = "0",
+            finalPrice = "199",
+            offerValidity = "1 Year",
+            validityType = "YEARS",
+            validityValue = 1,
+            guidanceEnabled = true,
+            guidanceAllowedExams = "Grade 4"
+        )
+        val entitlement = EntitlementEntity(
+            userId = "user1",
+            planId = "106",
+            planName = "Jukti Pass – Grade 4",
+            status = "ACTIVE",
+            validUntil = now + 864000000L,
+            activatedAt = now - 10000L
+        )
+
+        val effective = PlanValidityEngine.resolveEffectiveEntitlement(
+            entitlements = listOf(entitlement),
+            plans = listOf(plan),
+            currentTime = now,
+            isAdminOrOwner = false
+        )
+
+        // Grade 4 should succeed
+        val authorizedGuidance = GuidanceEngine.calculateGuidance(
+            exam = "Grade 4",
+            subject = null,
+            allPyqFocus = emptyList<PyqFocusEntity>(),
+            allQuestions = emptyList<QuestionEntity>(),
+            userStates = emptyList<UserQuestionStateEntity>(),
+            allPrepStrategies = emptyList<PrepStrategyEntity>(),
+            effectiveEntitlement = effective,
+            isAdminOrOwner = false
+        )
+        assertFalse(authorizedGuidance.isAccessDenied)
+
+        // Grade 3 (unauthorized) must be blocked and return isAccessDenied = true with no guidance data
+        val unauthorizedGuidance = GuidanceEngine.calculateGuidance(
+            exam = "Grade 3",
+            subject = null,
+            allPyqFocus = emptyList<PyqFocusEntity>(),
+            allQuestions = emptyList<QuestionEntity>(),
+            userStates = emptyList<UserQuestionStateEntity>(),
+            allPrepStrategies = emptyList<PrepStrategyEntity>(),
+            effectiveEntitlement = effective,
+            isAdminOrOwner = false
+        )
+        assertTrue("Unauthorized direct request for Grade 3 must be blocked", unauthorizedGuidance.isAccessDenied)
+        assertTrue(unauthorizedGuidance.pyqFocus.isEmpty())
+        assertTrue(unauthorizedGuidance.priorityTopics.isEmpty())
+        assertTrue(unauthorizedGuidance.strengthWeakness.isEmpty())
+        assertTrue(unauthorizedGuidance.preparationStrategy.isEmpty())
     }
 }

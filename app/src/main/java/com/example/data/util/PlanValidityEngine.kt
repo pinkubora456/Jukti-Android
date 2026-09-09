@@ -24,7 +24,9 @@ data class EffectiveUserEntitlement(
     val combinedBenefits: Set<String> = emptySet(),
     val combinedTargetExams: Set<String> = emptySet(),
     val hasAllExamsAccess: Boolean = false,
-    val maxExpiryTime: Long = 0L
+    val maxExpiryTime: Long = 0L,
+    val guidanceEnabled: Boolean = false,
+    val allowedGuidanceExams: Set<String> = emptySet()
 )
 
 object PlanValidityEngine {
@@ -279,7 +281,9 @@ object PlanValidityEngine {
                 combinedBenefits = ownerBenefits,
                 combinedTargetExams = setOf("All Exams"),
                 hasAllExamsAccess = true,
-                maxExpiryTime = 0L
+                maxExpiryTime = 0L,
+                guidanceEnabled = true,
+                allowedGuidanceExams = setOf("All Exams")
             )
         }
 
@@ -298,13 +302,17 @@ object PlanValidityEngine {
                 combinedBenefits = setOf("Basic Questions", "Daily Tests", "Syllabus Updates"),
                 combinedTargetExams = emptySet(),
                 hasAllExamsAccess = false,
-                maxExpiryTime = 0L
+                maxExpiryTime = 0L,
+                guidanceEnabled = false,
+                allowedGuidanceExams = emptySet()
             )
         }
 
         val activeMatchingPlanEntities = mutableListOf<PlanEntity>()
         val combinedBenefitsSet = mutableSetOf<String>()
         val combinedTargetsSet = mutableSetOf<String>()
+        var guidanceEnabled = false
+        val allowedGuidanceExamsSet = mutableSetOf<String>()
         var hasAllExamsAccess = false
         var isLifetime = false
         var maxExpiry = 0L
@@ -318,6 +326,29 @@ object PlanValidityEngine {
             }
             if (matchingPlan != null) {
                 activeMatchingPlanEntities.add(matchingPlan)
+                if (matchingPlan.guidanceEnabled) {
+                    guidanceEnabled = true
+                    val allowed = matchingPlan.guidanceAllowedExams.split(",", "|").map { it.trim() }.filter { it.isNotBlank() }
+                    if (allowed.isEmpty() || allowed.any { it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) }) {
+                        allowedGuidanceExamsSet.add("All Exams")
+                    } else {
+                        allowedGuidanceExamsSet.addAll(allowed)
+                    }
+                }
+            }
+
+            // Also check if plan features or benefits mention guidance for backwards compatibility
+            val planFeatures = (matchingPlan?.features.orEmpty() + " " + matchingPlan?.contents.orEmpty() + " " + ent.benefits).lowercase(Locale.ROOT)
+            if (planFeatures.contains("guidance")) {
+                guidanceEnabled = true
+                if (allowedGuidanceExamsSet.isEmpty()) {
+                    val targets = inferExamTargetsFromPlan(ent.planName, matchingPlan?.examTarget ?: "")
+                    if (targets.isNotEmpty()) {
+                        allowedGuidanceExamsSet.addAll(targets)
+                    } else {
+                        allowedGuidanceExamsSet.add("All Exams")
+                    }
+                }
             }
 
             if (ent.isLifetime || ent.validityType.uppercase(Locale.ROOT) == TYPE_LIFETIME || matchingPlan?.isLifetime == true) {
@@ -384,7 +415,9 @@ object PlanValidityEngine {
             combinedBenefits = combinedBenefitsSet,
             combinedTargetExams = combinedTargetsSet,
             hasAllExamsAccess = hasAllExamsAccess,
-            maxExpiryTime = if (isLifetime) 0L else maxExpiry
+            maxExpiryTime = if (isLifetime) 0L else maxExpiry,
+            guidanceEnabled = guidanceEnabled,
+            allowedGuidanceExams = allowedGuidanceExamsSet
         )
     }
 
@@ -512,6 +545,74 @@ object PlanValidityEngine {
             if (isApscPlan) return@any isApscItem
 
             combined.contains(allowed) || cat.lowercase(Locale.ROOT).contains(allowed)
+        }
+    }
+
+    /**
+     * Checks if Guidance is accessible for a specific exam title/category.
+     */
+    fun isGuidanceAccessibleForExam(
+        examTitle: String,
+        effectiveEntitlement: EffectiveUserEntitlement?,
+        isAdminOrOwner: Boolean = false
+    ): Boolean {
+        if (isAdminOrOwner) return true
+        if (effectiveEntitlement == null || !effectiveEntitlement.isPremium || !effectiveEntitlement.guidanceEnabled) {
+            return false
+        }
+        val cleanExam = examTitle.trim()
+        if (cleanExam.isBlank()) return false
+
+        if (effectiveEntitlement.hasAllExamsAccess ||
+            effectiveEntitlement.allowedGuidanceExams.any {
+                it.equals("All Exams", ignoreCase = true) ||
+                it.equals("All", ignoreCase = true) ||
+                it.equals("ALL_EXAMS", ignoreCase = true)
+            }
+        ) {
+            return true
+        }
+
+        val cleanExamLower = cleanExam.lowercase(Locale.ROOT)
+        for (rawAllowed in effectiveEntitlement.allowedGuidanceExams) {
+            val allowedLower = rawAllowed.trim().lowercase(Locale.ROOT)
+            if (allowedLower == cleanExamLower) return true
+            if (allowedLower.isNotBlank() && (cleanExamLower.contains(allowedLower) || allowedLower.contains(cleanExamLower))) {
+                return true
+            }
+        }
+
+        return matchesExamTarget(
+            itemExamCategory = cleanExam,
+            itemTitleOrTopic = cleanExam,
+            allowedExams = effectiveEntitlement.allowedGuidanceExams.toList()
+        )
+    }
+
+    /**
+     * Filters a list of exams to only those accessible for Guidance under the user's active plan.
+     */
+    fun filterAccessibleGuidanceExams(
+        allExams: List<ExamEntity>,
+        effectiveEntitlement: EffectiveUserEntitlement?,
+        isAdminOrOwner: Boolean
+    ): List<ExamEntity> {
+        if (isAdminOrOwner) return allExams
+        if (effectiveEntitlement == null || !effectiveEntitlement.isPremium || !effectiveEntitlement.guidanceEnabled) {
+            return emptyList()
+        }
+        if (effectiveEntitlement.hasAllExamsAccess ||
+            effectiveEntitlement.allowedGuidanceExams.any {
+                it.equals("All Exams", ignoreCase = true) ||
+                it.equals("All", ignoreCase = true) ||
+                it.equals("ALL_EXAMS", ignoreCase = true)
+            }
+        ) {
+            return allExams
+        }
+        return allExams.filter { exam ->
+            isGuidanceAccessibleForExam(exam.title, effectiveEntitlement, isAdminOrOwner) ||
+            (exam.subtitle.isNotBlank() && isGuidanceAccessibleForExam(exam.subtitle, effectiveEntitlement, isAdminOrOwner))
         }
     }
 
