@@ -11,17 +11,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 
 fun normalizeSubjectName(raw: String?): String {
     val trimmed = (raw ?: "").trim()
-    if (trimmed.isEmpty()) return "General Knowledge"
+    if (trimmed.isEmpty()) return "Unknown Subject"
     val lower = trimmed.lowercase()
     return when {
         lower.contains("english") || lower.contains("grammar") || lower.contains("vocabulary") || lower.contains("comprehension") || lower.contains("reading") || lower.contains("passage") -> "General English"
         lower.contains("transport") || lower.contains("manual") || lower.contains("traffic") || lower.contains("driving") || lower.contains("motor vehicle") || lower.contains("road safety") -> "Transport & Motor Vehicle"
         lower.contains("reasoning") || lower.contains("mental ability") || lower.contains("logical") || lower.contains("intelligence") || (lower.contains("aptitude") && !lower.contains("quant")) -> "Reasoning & Mental Ability"
         lower.contains("math") || lower.contains("quant") || lower.contains("numeracy") || lower.contains("arithmetic") -> "General Mathematics"
-        else -> "General Knowledge"
+        lower.contains("general knowledge") || lower.contains("gk") -> "General Knowledge"
+        else -> trimmed
     }
 }
 
@@ -224,7 +226,7 @@ class JuktiRepository(
     }
 
     val allQuestions: Flow<List<QuestionEntity>> = combine(
-        firebaseRepository.observeQuestions(),
+        firebaseRepository.observeQuestions().onStart { emit(emptyList()) },
         questionDao.getAllQuestions()
     ) { remote, local ->
         val list = if (remote.isEmpty()) local
@@ -238,7 +240,7 @@ class JuktiRepository(
     }
 
     val allMockTests: Flow<List<MockTestEntity>> = combine(
-        firebaseRepository.observeMockTests(),
+        firebaseRepository.observeMockTests().onStart { emit(emptyList()) },
         mockTestDao.getAllMockTests()
     ) { remoteMocks, localMocks ->
         if (remoteMocks.isEmpty()) {
@@ -266,7 +268,7 @@ class JuktiRepository(
     }
 
     val allNotes: Flow<List<StudyNoteEntity>> = combine(
-        firebaseRepository.observeStudyNotes(),
+        firebaseRepository.observeStudyNotes().onStart { emit(emptyList()) },
         studyNoteDao.getAllNotes()
     ) { remoteNotes, localNotes ->
         if (remoteNotes.isEmpty()) {
@@ -289,7 +291,7 @@ class JuktiRepository(
     val savedNotes: Flow<List<StudyNoteEntity>> = allNotes.map { list -> list.filter { it.isBookmarked || it.isDownloaded } }
 
     val allExamUpdates: Flow<List<ExamUpdateEntity>> = combine(
-        firebaseRepository.observeExamUpdates(),
+        firebaseRepository.observeExamUpdates().onStart { emit(emptyList()) },
         examUpdateDao.getAllUpdates()
     ) { remote, local ->
         if (remote.isEmpty()) local
@@ -302,7 +304,7 @@ class JuktiRepository(
     }
 
     val allBanners: Flow<List<BannerEntity>> = combine(
-        firebaseRepository.observeBanners(),
+        firebaseRepository.observeBanners().onStart { emit(emptyList()) },
         bannerDao.getAllBanners()
     ) { remote, local ->
         if (remote.isEmpty()) local
@@ -316,7 +318,7 @@ class JuktiRepository(
     val activeBanners: Flow<List<BannerEntity>> = allBanners.map { list -> list.filter { it.isActive } }
 
     val allNotifications: Flow<List<NotificationEntity>> = combine(
-        firebaseRepository.observeNotifications(),
+        firebaseRepository.observeNotifications().onStart { emit(emptyList()) },
         notificationDao.getAllNotifications()
     ) { remoteNotifications, localNotifications ->
         if (remoteNotifications.isEmpty()) {
@@ -583,7 +585,7 @@ class JuktiRepository(
     val activeSubjectChapterStats: Flow<List<SubjectChapterStat>> = questionDao.getSubjectChapterStats()
 
     val allSubjectsChapters: Flow<List<SubjectChapterEntity>> = combine(
-        firebaseRepository.observeSubjectsChapters(),
+        firebaseRepository.observeSubjectsChapters().onStart { emit(emptyList()) },
         subjectChapterDao.getAllSubjectsChapters()
     ) { remote, local ->
         val combined = if (remote.isEmpty()) local
@@ -604,7 +606,7 @@ class JuktiRepository(
         normalized.distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" }.filter { it.chapter.isNotBlank() }
     }
     val allPendingRequests: Flow<List<PendingRequestEntity>> = combine(
-        firebaseRepository.observePendingRequests(),
+        firebaseRepository.observePendingRequests().onStart { emit(emptyList()) },
         pendingRequestDao.getAllPendingRequests()
     ) { remote, local ->
         val map = HashMap<Long, PendingRequestEntity>()
@@ -614,7 +616,7 @@ class JuktiRepository(
     }
 
     val allFaqs: Flow<List<FaqEntity>> = combine(
-        firebaseRepository.observeFaqs(),
+        firebaseRepository.observeFaqs().onStart { emit(emptyList()) },
         faqDao.getAllFaqs()
     ) { remote, local ->
         if (remote.isEmpty()) {

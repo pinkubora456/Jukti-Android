@@ -1,0 +1,27 @@
+    // Filter questions by selected subject and chapters asynchronously on Dispatchers.Default
+    val filteredStudyQuestions = remember(visibleQuestions, selectedTargetExam, selectedSubjectTab, selectedChapters) {
+        com.example.data.util.QuestionFilterUtils.filterQuestions(
+            allQuestions = visibleQuestions,
+            targetExam = selectedTargetExam,
+            targetSubject = selectedSubjectTab,
+            targetChapters = selectedChapters
+        )
+    }
+
+    LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters, filteredStudyQuestions, visibleQuestions) {
+        if (isStudySessionStarted) {
+            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedTargetExam, selectedSubjectTab, selectedChapters)
+            val deckResult = viewModel.getOrUpdateSessionDeck("LEARN", scopeKey, filteredStudyQuestions)
+            activeStudySessionQuestions = deckResult.orderedQuestions
+            currentQuestionIndex = deckResult.currentIndex
+        } else {
+            activeStudySessionQuestions = emptyList()
+        }
+    }
+
+    LaunchedEffect(isStudySessionStarted, currentQuestionIndex, activeStudySessionQuestions) {
+        if (isStudySessionStarted && activeStudySessionQuestions.isNotEmpty()) {
+            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedTargetExam, selectedSubjectTab, selectedChapters)
+            viewModel.saveSessionIndex("LEARN", scopeKey, currentQuestionIndex, activeStudySessionQuestions.size)
+        }
+    }

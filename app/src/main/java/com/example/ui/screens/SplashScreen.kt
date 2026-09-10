@@ -28,6 +28,8 @@ fun SplashScreen(viewModel: JuktiViewModel) {
     val imageScale = remember { Animatable(0.92f) }
     val imageAlpha = remember { Animatable(0f) }
 
+    val userProfile by viewModel.userProfile.collectAsState()
+
     LaunchedEffect(Unit) {
         launch {
             imageScale.animateTo(
@@ -44,9 +46,12 @@ fun SplashScreen(viewModel: JuktiViewModel) {
                 animationSpec = tween(800, easing = EaseInOutCubic)
             )
         }
-        
-        delay(3000) // Show full-screen splash for 3 seconds
-        viewModel.finishSplash()
+    }
+
+    LaunchedEffect(userProfile) {
+        if (userProfile != null) {
+            viewModel.finishSplash()
+        }
     }
 
     Box(

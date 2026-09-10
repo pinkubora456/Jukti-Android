@@ -508,9 +508,9 @@ class FirebaseRepository {
                         previousExpiry = doc.getLong("previousExpiry") ?: 0L,
                         newExpiry = doc.getLong("newExpiry") ?: 0L,
                         validityGranted = doc.getString("validityGranted") ?: "",
-                        validityType = doc.getString("validityType") ?: "",
-                        validityValue = doc.getLong("validityValue")?.toInt() ?: 0,
-                        isLifetime = doc.getBoolean("isLifetime") ?: false,
+                        validityType = doc.get("validityType")?.toString() ?: "",
+                        validityValue = doc.get("validityValue")?.toString()?.toDoubleOrNull()?.toLong()?.toInt() ?: 0,
+                        isLifetime = doc.get("isLifetime")?.toString()?.toBooleanStrictOrNull() ?: false,
                         source = doc.getString("source") ?: "",
                         actor = doc.getString("actor") ?: "",
                         timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
@@ -533,7 +533,7 @@ class FirebaseRepository {
                     return@forEach
                 }
                 users.add(UserProfileEntity(
-                    id = doc.getLong("id")?.toInt() ?: 1,
+                    id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong()?.toInt() ?: 1,
                     name = doc.getString("name") ?: "Assam Scholar",
                     email = doc.getString("email") ?: "",
                     mobile = doc.getString("mobile") ?: "",
@@ -1003,7 +1003,7 @@ class FirebaseRepository {
             val snapshot = firestore?.collection("banners")?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
                 BannerEntity(
-                    id = doc.getLong("id") ?: 0L,
+                    id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                     titleEn = doc.getString("titleEn") ?: "",
                     titleAs = doc.getString("titleAs") ?: "",
                     subtitleEn = doc.getString("subtitleEn") ?: "",
@@ -1011,13 +1011,13 @@ class FirebaseRepository {
                     badgeText = doc.getString("badgeText") ?: "",
                     type = doc.getString("type") ?: "INFORMATION",
                     actionUrl = doc.getString("actionUrl") ?: "",
-                    isActive = doc.getBoolean("isActive") ?: true,
-                    imageUrl = doc.getString("imageUrl") ?: "",
+                    isActive = doc.get("isActive")?.toString()?.toBooleanStrictOrNull() ?: true,
+                    imageUrl = doc.get("imageUrl")?.toString() ?: "",
                     actionType = doc.getString("actionType") ?: "Link",
-                    offerValidity = doc.getString("offerValidity") ?: "",
-                    planPrice = doc.getString("planPrice") ?: "",
-                    discount = doc.getString("discount") ?: "",
-                    finalPrice = doc.getString("finalPrice") ?: ""
+                    offerValidity = doc.get("offerValidity")?.toString() ?: "",
+                    planPrice = doc.get("planPrice")?.toString() ?: "",
+                    discount = doc.get("discount")?.toString() ?: "",
+                    finalPrice = doc.get("finalPrice")?.toString() ?: ""
                 )
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -1031,42 +1031,42 @@ class FirebaseRepository {
         return try {
             val snapshot = firestore?.collection("plans")?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
-                val planId = doc.getLong("id") ?: 0L
-                val planName = doc.getString("planName") ?: ""
-                val googlePlayProductId = doc.getString("googlePlayProductId") ?: ""
+                val planId = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L
+                val planName = doc.get("planName")?.toString() ?: ""
+                val googlePlayProductId = doc.get("googlePlayProductId")?.toString() ?: ""
                 if (com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(planId, planName, googlePlayProductId) ||
                     doc.id in listOf("1", "2", "3")
                 ) {
                     try { doc.reference.delete() } catch (e: Throwable) {}
                     return@mapNotNull null
                 }
-                val rawVal = doc.getString("planValidity") ?: doc.getString("offerValidity") ?: ""
-                val isLifetime = doc.getBoolean("isLifetime") ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.getString("validityType") ?: "").equals("LIFETIME", ignoreCase = true))
-                val validityType = doc.getString("validityType") ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
-                val validityValue = doc.getLong("validityValue")?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(rawVal)
-                val validityLabel = doc.getString("validityLabel") ?: if (isLifetime) "Lifetime" else com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
+                val rawVal = doc.get("planValidity")?.toString() ?: doc.get("offerValidity")?.toString() ?: ""
+                val isLifetime = doc.get("isLifetime")?.toString()?.toBooleanStrictOrNull() ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.get("validityType")?.toString() ?: "").equals("LIFETIME", ignoreCase = true))
+                val validityType = doc.get("validityType")?.toString() ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
+                val validityValue = doc.get("validityValue")?.toString()?.toDoubleOrNull()?.toLong()?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(rawVal)
+                val validityLabel = doc.get("validityLabel")?.toString() ?: if (isLifetime) "Lifetime" else com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
 
                 PlanEntity(
-                    id = doc.getLong("id") ?: 0L,
-                    planName = doc.getString("planName") ?: "",
-                    planPrice = doc.getString("planPrice") ?: "",
-                    discount = doc.getString("discount") ?: "",
-                    finalPrice = doc.getString("finalPrice") ?: "",
-                    offerValidity = doc.getString("offerValidity") ?: validityLabel,
-                    planValidity = doc.getString("planValidity") ?: validityLabel,
+                    id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
+                    planName = doc.get("planName")?.toString() ?: "",
+                    planPrice = doc.get("planPrice")?.toString() ?: "",
+                    discount = doc.get("discount")?.toString() ?: "",
+                    finalPrice = doc.get("finalPrice")?.toString() ?: "",
+                    offerValidity = doc.get("offerValidity")?.toString() ?: validityLabel,
+                    planValidity = doc.get("planValidity")?.toString() ?: validityLabel,
                     validityType = validityType,
                     validityValue = validityValue,
                     validityLabel = validityLabel,
                     isLifetime = isLifetime,
-                    features = doc.getString("features") ?: "",
-                    contents = doc.getString("contents") ?: "",
-                    isActive = doc.getBoolean("isActive") ?: true,
-                    imageUrl = doc.getString("imageUrl") ?: "",
-                    examTarget = doc.getString("examTarget") ?: "",
-                    googlePlayProductId = doc.getString("googlePlayProductId") ?: "",
-                    createdAt = doc.getLong("createdAt") ?: 0L,
-                    updatedAt = doc.getLong("updatedAt") ?: 0L,
-                    guidanceEnabled = doc.getBoolean("guidanceEnabled") ?: false,
+                    features = doc.get("features")?.toString() ?: "",
+                    contents = doc.get("contents")?.toString() ?: "",
+                    isActive = doc.get("isActive")?.toString()?.toBooleanStrictOrNull() ?: true,
+                    imageUrl = doc.get("imageUrl")?.toString() ?: "",
+                    examTarget = doc.get("examTarget")?.toString() ?: "",
+                    googlePlayProductId = doc.get("googlePlayProductId")?.toString() ?: "",
+                    createdAt = doc.get("createdAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
+                    updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
+                    guidanceEnabled = doc.get("guidanceEnabled")?.toString()?.toBooleanStrictOrNull() ?: false,
                     guidanceAllowedExams = when (val raw = doc.get("guidanceAllowedExams")) {
                         is List<*> -> raw.filterIsInstance<String>().joinToString(",")
                         is String -> raw
@@ -1092,7 +1092,7 @@ class FirebaseRepository {
                     val normSubj = normalizeSubjectName(rawSubj)
                     if (normChap.isBlank() || normSubj.isBlank()) null
                     else SubjectChapterEntity(
-                        id = doc.getLong("id") ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         subject = normSubj,
                         chapter = normChap
                     )
@@ -1115,7 +1115,7 @@ class FirebaseRepository {
                     val normSubject = normalizeSubjectName(rawSubject)
                     val normTopic = normalizeChapterName(rawTopic, normSubject)
                     QuestionEntity(
-                        id = doc.getLong("id") ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         subject = normSubject,
                         topic = normTopic,
                         difficulty = doc.getString("difficulty") ?: "Medium",
@@ -1140,7 +1140,7 @@ class FirebaseRepository {
                         cachedAt = doc.getLong("cachedAt") ?: System.currentTimeMillis(),
                         lastAccessedAt = doc.getLong("lastAccessedAt") ?: System.currentTimeMillis(),
                         version = doc.getLong("version")?.toInt() ?: 1,
-                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                        updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         firebaseId = doc.getString("firebaseId") ?: doc.id
                     )
                 } catch (e: Exception) { null }
@@ -1162,7 +1162,7 @@ class FirebaseRepository {
                     val normSubject = normalizeSubjectName(rawSubject)
                     val normTopic = normalizeChapterName(rawTopic, normSubject)
                     QuestionEntity(
-                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: doc.id.toLongOrNull() ?: 0L,
                         subject = normSubject,
                         topic = normTopic,
                         difficulty = doc.getString("difficulty") ?: "Medium",
@@ -1187,7 +1187,7 @@ class FirebaseRepository {
                         cachedAt = doc.getLong("cachedAt") ?: System.currentTimeMillis(),
                         lastAccessedAt = doc.getLong("lastAccessedAt") ?: System.currentTimeMillis(),
                         version = doc.getLong("version")?.toInt() ?: 1,
-                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                        updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         firebaseId = doc.getString("firebaseId") ?: doc.id
                     )
                 } catch (e: Exception) { null }
@@ -1205,7 +1205,7 @@ class FirebaseRepository {
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     MockTestEntity(
-                        id = doc.getLong("id") ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         titleEn = doc.getString("titleEn") ?: "",
                         titleAs = doc.getString("titleAs") ?: "",
                         category = doc.getString("category") ?: "",
@@ -1249,7 +1249,7 @@ class FirebaseRepository {
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     StudyNoteEntity(
-                        id = doc.getLong("id") ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         subject = doc.getString("subject") ?: "",
                         topic = doc.getString("topic") ?: "",
                         titleEn = doc.getString("titleEn") ?: "",
@@ -1277,7 +1277,7 @@ class FirebaseRepository {
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     ExamUpdateEntity(
-                        id = doc.getLong("id") ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                         examName = doc.getString("examName") ?: "",
                         category = doc.getString("category") ?: "",
                         titleEn = doc.getString("titleEn") ?: "",
@@ -1367,7 +1367,7 @@ class FirebaseRepository {
                     val rawTopic = doc.getString("topic") ?: ""
                     val rawSubject = doc.getString("subject") ?: ""
                     QuestionEntity(
-                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: doc.id.toLongOrNull() ?: 0L,
                         subject = normalizeSubjectName(rawSubject),
                         topic = normalizeChapterName(rawTopic, normalizeSubjectName(doc.getString("subject"))),
                         difficulty = doc.getString("difficulty") ?: "Medium",
@@ -1443,7 +1443,7 @@ class FirebaseRepository {
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     MockTestEntity(
-                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: doc.id.toLongOrNull() ?: 0L,
                         titleEn = doc.getString("titleEn") ?: "",
                         titleAs = doc.getString("titleAs") ?: "",
                         category = doc.getString("category") ?: "",
@@ -1504,7 +1504,7 @@ class FirebaseRepository {
             snapshot?.documents?.mapNotNull { doc ->
                 try {
                     StudyNoteEntity(
-                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: doc.id.toLongOrNull() ?: 0L,
                         subject = doc.getString("subject") ?: "",
                         topic = doc.getString("topic") ?: "",
                         titleEn = doc.getString("titleEn") ?: "",
@@ -1546,7 +1546,7 @@ class FirebaseRepository {
                                     val normSubject = normalizeSubjectName(rawSubject)
                                     val normTopic = normalizeChapterName(rawTopic, normSubject)
                                     QuestionEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         subject = normSubject,
                                         topic = normTopic,
                                         difficulty = doc.getString("difficulty") ?: "Medium",
@@ -1571,7 +1571,7 @@ class FirebaseRepository {
                                         cachedAt = doc.getLong("cachedAt") ?: System.currentTimeMillis(),
                                         lastAccessedAt = doc.getLong("lastAccessedAt") ?: System.currentTimeMillis(),
                                         version = doc.getLong("version")?.toInt() ?: 1,
-                                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                                        updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         firebaseId = doc.getString("firebaseId") ?: doc.id
                                     )
                                 } catch (e: Throwable) {
@@ -1606,7 +1606,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     MockTestEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         titleEn = doc.getString("titleEn") ?: "",
                                         titleAs = doc.getString("titleAs") ?: "",
                                         category = doc.getString("category") ?: "",
@@ -1667,7 +1667,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     StudyNoteEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         subject = doc.getString("subject") ?: "",
                                         topic = doc.getString("topic") ?: "",
                                         titleEn = doc.getString("titleEn") ?: "",
@@ -1712,7 +1712,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     ExamUpdateEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         examName = doc.getString("examName") ?: "",
                                         category = doc.getString("category") ?: "",
                                         titleEn = doc.getString("titleEn") ?: "",
@@ -1755,7 +1755,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     BannerEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         titleEn = doc.getString("titleEn") ?: "",
                                         titleAs = doc.getString("titleAs") ?: "",
                                         subtitleEn = doc.getString("subtitleEn") ?: "",
@@ -1763,13 +1763,13 @@ class FirebaseRepository {
                                         badgeText = doc.getString("badgeText") ?: "",
                                         type = doc.getString("type") ?: "INFORMATION",
                                         actionUrl = doc.getString("actionUrl") ?: "",
-                                        isActive = doc.getBoolean("isActive") ?: true,
-                                        imageUrl = doc.getString("imageUrl") ?: "",
+                                        isActive = doc.get("isActive")?.toString()?.toBooleanStrictOrNull() ?: true,
+                                        imageUrl = doc.get("imageUrl")?.toString() ?: "",
                                         actionType = doc.getString("actionType") ?: "Link",
-                                        offerValidity = doc.getString("offerValidity") ?: "",
-                                        planPrice = doc.getString("planPrice") ?: "",
-                                        discount = doc.getString("discount") ?: "",
-                                        finalPrice = doc.getString("finalPrice") ?: ""
+                                        offerValidity = doc.get("offerValidity")?.toString() ?: "",
+                                        planPrice = doc.get("planPrice")?.toString() ?: "",
+                                        discount = doc.get("discount")?.toString() ?: "",
+                                        finalPrice = doc.get("finalPrice")?.toString() ?: ""
                                     )
                                 } catch (e: Throwable) {
                                     null
@@ -1802,42 +1802,42 @@ class FirebaseRepository {
                         if (snapshot != null) {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
-                                    val planId = doc.getLong("id")?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it })
-                                    val planName = doc.getString("planName") ?: ""
-                                    val googlePlayProductId = doc.getString("googlePlayProductId") ?: ""
+                                    val planId = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong()?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it })
+                                    val planName = doc.get("planName")?.toString() ?: ""
+                                    val googlePlayProductId = doc.get("googlePlayProductId")?.toString() ?: ""
                                     if (com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(planId, planName, googlePlayProductId) ||
                                         doc.id in listOf("1", "2", "3")
                                     ) {
                                         try { doc.reference.delete() } catch (e: Throwable) {}
                                         return@mapNotNull null
                                     }
-                                    val rawVal = doc.getString("planValidity") ?: doc.getString("offerValidity") ?: ""
-                                    val isLifetime = doc.getBoolean("isLifetime") ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.getString("validityType") ?: "").equals("LIFETIME", ignoreCase = true))
-                                    val validityType = doc.getString("validityType") ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
-                                    val validityValue = doc.getLong("validityValue")?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(rawVal)
-                                    val validityLabel = doc.getString("validityLabel") ?: if (isLifetime) "Lifetime" else com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
+                                    val rawVal = doc.get("planValidity")?.toString() ?: doc.get("offerValidity")?.toString() ?: ""
+                                    val isLifetime = doc.get("isLifetime")?.toString()?.toBooleanStrictOrNull() ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.get("validityType")?.toString() ?: "").equals("LIFETIME", ignoreCase = true))
+                                    val validityType = doc.get("validityType")?.toString() ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
+                                    val validityValue = doc.get("validityValue")?.toString()?.toDoubleOrNull()?.toLong()?.toInt() ?: if (isLifetime) 0 else com.example.data.util.PlanValidityEngine.inferValidityValue(rawVal)
+                                    val validityLabel = doc.get("validityLabel")?.toString() ?: if (isLifetime) "Lifetime" else com.example.data.util.PlanValidityEngine.formatValidityLabel(validityType, validityValue)
 
                                     PlanEntity(
-                                        id = doc.getLong("id")?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
-                                        planName = doc.getString("planName") ?: "",
-                                        planPrice = doc.getString("planPrice") ?: "",
-                                        discount = doc.getString("discount") ?: "",
-                                        finalPrice = doc.getString("finalPrice") ?: "",
-                                        offerValidity = doc.getString("offerValidity") ?: validityLabel,
-                                        planValidity = doc.getString("planValidity") ?: validityLabel,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong()?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        planName = doc.get("planName")?.toString() ?: "",
+                                        planPrice = doc.get("planPrice")?.toString() ?: "",
+                                        discount = doc.get("discount")?.toString() ?: "",
+                                        finalPrice = doc.get("finalPrice")?.toString() ?: "",
+                                        offerValidity = doc.get("offerValidity")?.toString() ?: validityLabel,
+                                        planValidity = doc.get("planValidity")?.toString() ?: validityLabel,
                                         validityType = validityType,
                                         validityValue = validityValue,
                                         validityLabel = validityLabel,
                                         isLifetime = isLifetime,
-                                        features = doc.getString("features") ?: "",
-                                        contents = doc.getString("contents") ?: "",
-                                        isActive = doc.getBoolean("isActive") ?: true,
-                                        imageUrl = doc.getString("imageUrl") ?: "",
-                                        examTarget = doc.getString("examTarget") ?: "",
-                                        googlePlayProductId = doc.getString("googlePlayProductId") ?: "",
-                                        createdAt = doc.getLong("createdAt") ?: 0L,
-                                        updatedAt = doc.getLong("updatedAt") ?: 0L,
-                                        guidanceEnabled = doc.getBoolean("guidanceEnabled") ?: false,
+                                        features = doc.get("features")?.toString() ?: "",
+                                        contents = doc.get("contents")?.toString() ?: "",
+                                        isActive = doc.get("isActive")?.toString()?.toBooleanStrictOrNull() ?: true,
+                                        imageUrl = doc.get("imageUrl")?.toString() ?: "",
+                                        examTarget = doc.get("examTarget")?.toString() ?: "",
+                                        googlePlayProductId = doc.get("googlePlayProductId")?.toString() ?: "",
+                                        createdAt = doc.get("createdAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
+                                        updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
+                                        guidanceEnabled = doc.get("guidanceEnabled")?.toString()?.toBooleanStrictOrNull() ?: false,
                                         guidanceAllowedExams = when (val raw = doc.get("guidanceAllowedExams")) {
                                             is List<*> -> raw.filterIsInstance<String>().joinToString(",")
                                             is String -> raw
@@ -1876,12 +1876,12 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     ExamEntity(
-                                        id = doc.getLong("id")?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong()?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
                                         firebaseId = doc.id,
                                         title = doc.getString("title") ?: "",
                                         subtitle = doc.getString("subtitle") ?: "",
                                         status = doc.getString("status") ?: "Active",
-                                        updatedAt = doc.getLong("updatedAt") ?: 0L,
+                                        updatedAt = doc.get("updatedAt")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         version = doc.getLong("version")?.toInt() ?: 1,
                                         syncStatus = "SYNCED"
                                     )
@@ -1924,7 +1924,7 @@ class FirebaseRepository {
                                         null
                                     } else {
                                         SubjectChapterEntity(
-                                            id = doc.getLong("id") ?: 0L,
+                                            id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                             subject = normSubj,
                                             chapter = normChap
                                         )
@@ -1961,7 +1961,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     FaqEntity(
-                                        id = doc.getLong("id") ?: 0L,
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: 0L,
                                         questionEn = doc.getString("questionEn") ?: "",
                                         questionAs = doc.getString("questionAs") ?: "",
                                         answerEn = doc.getString("answerEn") ?: "",
@@ -1996,7 +1996,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     PendingRequestEntity(
-                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
                                         requestType = doc.getString("requestType") ?: "",
                                         title = doc.getString("title") ?: "",
                                         description = doc.getString("description") ?: "",
@@ -2030,7 +2030,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     ActivityLogEntity(
-                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
                                         role = doc.getString("role") ?: "",
                                         actionDetails = doc.getString("action") ?: doc.getString("details") ?: "",
                                         userEmail = doc.getString("userEmail") ?: "",
@@ -2060,7 +2060,7 @@ class FirebaseRepository {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
                                     NotificationEntity(
-                                        id = doc.getLong("id") ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
+                                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it }),
                                         title = doc.getString("title") ?: "",
                                         body = doc.getString("body") ?: "",
                                         timestamp = doc.getString("timestamp") ?: "Just now",
@@ -2079,7 +2079,7 @@ class FirebaseRepository {
 
     private fun docToAboutConfig(doc: com.google.firebase.firestore.DocumentSnapshot): AboutConfigEntity {
         return AboutConfigEntity(
-            id = doc.getLong("id")?.toInt() ?: 1,
+            id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong()?.toInt() ?: 1,
             appTitle = doc.getString("appTitle") ?: "Jukti",
             appSubtitleEn = doc.getString("appSubtitleEn") ?: "Test Your Knowledge",
             appSubtitleAs = doc.getString("appSubtitleAs") ?: "অসমৰ সৰ্ববৃহৎ পৰীক্ষা প্ৰস্তুতি এপ্প",
@@ -2420,7 +2420,7 @@ class FirebaseRepository {
             snap.documents.mapNotNull { doc ->
                 try {
                     com.example.data.local.MockAttemptEntity(
-                        id = doc.getLong("id") ?: doc.id.toLongOrNull() ?: 0L,
+                        id = doc.get("id")?.toString()?.toDoubleOrNull()?.toLong() ?: doc.id.toLongOrNull() ?: 0L,
                         mockTestId = doc.getLong("mockTestId") ?: mockTestId,
                         userId = doc.getString("userId") ?: "",
                         timestamp = doc.getLong("timestamp") ?: 0L,

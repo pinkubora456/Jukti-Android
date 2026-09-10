@@ -586,7 +586,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     val userQuestionStates: StateFlow<List<com.example.data.local.UserQuestionStateEntity>> = currentUserUid.flatMapLatest { uid ->
         if (uid.isNullOrBlank()) flowOf(emptyList())
         else repository.getUserStates(uid)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val bookmarkedIds: StateFlow<Set<Long>> = currentUserUid.flatMapLatest { uid ->
@@ -594,7 +594,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         else repository.getUserStates(uid).map { list ->
             list.filter { it.isBookmarked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val likedIds: StateFlow<Set<Long>> = currentUserUid.flatMapLatest { uid ->
@@ -602,7 +602,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         else repository.getUserStates(uid).map { list ->
             list.filter { it.isLiked }.mapNotNull { it.questionId.toLongOrNull() }.toSet()
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
 
     val examUpdates = repository.allExamUpdates.stateIn(
@@ -881,7 +881,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         questions.filter { q ->
             !q.isPremium || com.example.data.util.PlanValidityEngine.isQuestionAccessible(q, eff, isAdmin)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
 
@@ -965,7 +965,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 correctOptionIndex = -1, explanationEn = "Locked", explanationAs = "Locked"
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val questions: StateFlow<List<QuestionEntity>> = allResolvedQuestions
         .map { list -> list.filter { it.status != "HIDDEN" } }
@@ -990,7 +990,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             if (!n.isPremium || com.example.data.util.PlanValidityEngine.isStudyNoteAccessible(n, eff, isAdmin)) n
             else n.copy(contentEn = "Premium Content 🔒", contentAs = "Premium Content 🔒")
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val savedNotes = studyNotes.map { list -> list.filter { it.isBookmarked || it.isDownloaded } }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
@@ -1070,7 +1070,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         bookmarkedIds
     ) { qs, ids ->
         qs.filter { it.id in ids }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
     private val _isGuestMode = MutableStateFlow(false)
@@ -1306,7 +1306,6 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             clearOldActivityLogs(getApplication())
         }
         viewModelScope.launch {
-            delay(3000) // Allow Firebase Auth to complete its initial token restoration
             userProfile.collect { prof ->
                 if (prof != null) {
                     val fbUser = try { com.example.JuktiApplication.getAuth(getApplication())?.currentUser } catch (e: Throwable) { null }

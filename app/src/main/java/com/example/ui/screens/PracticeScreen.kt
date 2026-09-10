@@ -66,6 +66,7 @@ fun PracticeScreen(
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val allQuestions by viewModel.accessibleQuestions.collectAsState()
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val smartPracticeQuestions by viewModel.smartPracticeQuestions.collectAsState()
     val bookmarkedQuestions by viewModel.bookmarkedQuestions.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
@@ -136,62 +137,23 @@ fun PracticeScreen(
     var chaptersMap by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
 
     // Filter questions by selected subject and chapters asynchronously on Dispatchers.Default
-    val practiceQuestions by produceState(
-        initialValue = emptyList<QuestionEntity>(),
-        visibleQuestions, selectedSubjectKey, selectedChapters, isSavedPractice
-    ) {
-        value = withContext(Dispatchers.Default) {
-            if (isSavedPractice) {
-                visibleQuestions
-            } else {
-                visibleQuestions.filter { q ->
-                    try {
-                        val matchSubject = isQuestionInSubject(q, selectedSubjectKey)
-                        val matchChapter = if (selectedChapters.isEmpty()) {
-                            true
-                        } else {
-                            val topicStr = q.topic ?: ""
-                            val qSubject = q.subject ?: ""
-                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
-
-                            selectedChapters.any { rawCh ->
-                                val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                                val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
-
-                                val subjectMatches = if (selSubj.isNotBlank()) {
-                                    isQuestionInSubject(q, selSubj)
-                                } else {
-                                    true
-                                }
-
-                                if (!subjectMatches) return@any false
-
-                                val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
-                                normTopic.equals(nCh, ignoreCase = true) ||
-                                normTopic.equals(ch, ignoreCase = true) ||
-                                topicStr.equals(ch, ignoreCase = true) ||
-                                (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                    topicStr.contains(ch, ignoreCase = true) ||
-                                    ch.contains(topicStr, ignoreCase = true) ||
-                                    normTopic.contains(nCh, ignoreCase = true) ||
-                                    nCh.contains(normTopic, ignoreCase = true)
-                                ))
-                            }
-                        }
-                        
-                        matchSubject && matchChapter
-                    } catch (e: Exception) {
-                        false
-                    }
-                }
-            }
+    val practiceQuestions = remember(visibleQuestions, selectedTargetExam, selectedSubjectKey, selectedChapters, isSavedPractice) {
+        if (isSavedPractice) {
+            visibleQuestions
+        } else {
+            com.example.data.util.QuestionFilterUtils.filterQuestions(
+                allQuestions = visibleQuestions,
+                targetExam = selectedTargetExam,
+                targetSubject = selectedSubjectKey,
+                targetChapters = selectedChapters
+            )
         }
     }
 
     val colorSurfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val colorPrimary = MaterialTheme.colorScheme.primary
 
-    val bannersAndData = remember(visibleQuestions, allSubjectsChapters, colorSurfaceVariant, colorPrimary) {
+    val bannersAndData = remember(visibleQuestions, selectedTargetExam, allSubjectsChapters, colorSurfaceVariant, colorPrimary) {
         try {
             val predefined = listOf(
                 BannerConfig(
@@ -264,7 +226,7 @@ fun PracticeScreen(
             }
 
             val bannerQsMap = banners.associateWith { banner ->
-                visibleQuestions.filter { q -> isQuestionInSubject(q, banner.subjectKey) }
+                visibleQuestions.filter { q -> com.example.data.util.QuestionFilterUtils.isEligible(q, selectedTargetExam, banner.subjectKey, emptySet()) }
             }
 
             val bannerDataMap = banners.associate { banner ->
@@ -363,10 +325,10 @@ fun PracticeScreen(
         else "PRACTICE"
     }
 
-    val scopeKeyName = remember(isSavedPractice, isSmartPractice, selectedSubjectKey, selectedChapters) {
+    val scopeKeyName = remember(isSavedPractice, isSmartPractice, selectedTargetExam, selectedSubjectKey, selectedChapters) {
         if (isSavedPractice) "ALL_SAVED"
         else if (isSmartPractice) "ALL_SMART"
-        else com.example.data.repository.SessionDeckManager.buildScopeKey(selectedSubjectKey, selectedChapters)
+        else com.example.data.repository.SessionDeckManager.buildScopeKey(selectedTargetExam, selectedSubjectKey, selectedChapters)
     }
 
     LaunchedEffect(isSessionStarted, selectedSubjectKey, selectedChapters, isSmartPractice, isSavedPractice, activePracticeQuestion) {

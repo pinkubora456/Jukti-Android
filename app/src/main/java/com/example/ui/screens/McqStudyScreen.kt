@@ -304,6 +304,7 @@ fun McqStudyScreen(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val mockTests by viewModel.accessibleMockTests.collectAsState()
     val studyNotes by viewModel.accessibleStudyNotes.collectAsState()
     
@@ -758,6 +759,7 @@ fun StudyMcqInteractiveTab(
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val allSubjectsChapters by viewModel.allSubjectsChapters.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
@@ -859,88 +861,19 @@ fun StudyMcqInteractiveTab(
     }
 
     // Filter questions by selected subject and chapters asynchronously on Dispatchers.Default
-    val filteredStudyQuestions by produceState(
-        initialValue = emptyList<QuestionEntity>(),
-        visibleQuestions, selectedSubjectTab, selectedChapters
-    ) {
-        value = withContext(Dispatchers.Default) {
-            val isAll = selectedSubjectTab.equals("All Subject", ignoreCase = true) || selectedSubjectTab.equals("All Subjects", ignoreCase = true) || selectedSubjectTab.isBlank()
-            visibleQuestions.filter { q ->
-                try {
-                    val matchSubject = if (isAll) true else isQuestionInSubject(q, selectedSubjectTab)
-                    val matchChapter = if (selectedChapters.isEmpty()) {
-                        true
-                    } else {
-                        val topicStr = q.topic ?: ""
-                        val qSubject = q.subject ?: ""
-                        val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
-
-                        selectedChapters.any { rawCh ->
-                            val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                            val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
-
-                            val subjectMatches = if (selSubj.isNotBlank()) {
-                                isQuestionInSubject(q, selSubj)
-                            } else {
-                                true
-                            }
-
-                            if (!subjectMatches) return@any false
-
-                            val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
-                            normTopic.equals(nCh, ignoreCase = true) ||
-                            normTopic.equals(ch, ignoreCase = true) ||
-                            topicStr.equals(ch, ignoreCase = true) ||
-                            (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                topicStr.contains(ch, ignoreCase = true) ||
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                normTopic.contains(nCh, ignoreCase = true) ||
-                                nCh.contains(normTopic, ignoreCase = true)
-                            ))
-                        }
-                    }
-                    matchSubject && matchChapter
-                } catch (e: Exception) {
-                    false
-                }
-            }
-        }
+    val filteredStudyQuestions = remember(visibleQuestions, selectedTargetExam, selectedSubjectTab, selectedChapters) {
+        com.example.data.util.QuestionFilterUtils.filterQuestions(
+            allQuestions = visibleQuestions,
+            targetExam = selectedTargetExam,
+            targetSubject = selectedSubjectTab,
+            targetChapters = selectedChapters
+        )
     }
 
     LaunchedEffect(isStudySessionStarted, selectedSubjectTab, selectedChapters, filteredStudyQuestions, visibleQuestions) {
         if (isStudySessionStarted) {
-            val isAll = selectedSubjectTab.equals("All Subject", ignoreCase = true) || selectedSubjectTab.equals("All Subjects", ignoreCase = true) || selectedSubjectTab.isBlank()
-            val subjectFiltered = visibleQuestions.filter { q ->
-                val matchSubj = if (isAll) true else isQuestionInSubject(q, selectedSubjectTab)
-                if (selectedChapters.isEmpty()) {
-                    matchSubj
-                } else {
-                    val topicStr = q.topic ?: ""
-                    val qSubject = q.subject ?: ""
-                    val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubject)
-
-                    val matchCh = selectedChapters.any { rawCh ->
-                        val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                        val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
-
-                        val subjectMatches = if (selSubj.isNotBlank()) {
-                            isQuestionInSubject(q, selSubj)
-                        } else {
-                            true
-                        }
-
-                        if (!subjectMatches) return@any false
-
-                        val nCh = com.example.data.repository.normalizeChapterName(ch, qSubject).ifBlank { ch }
-                        normTopic.equals(nCh, ignoreCase = true) ||
-                        normTopic.equals(ch, ignoreCase = true) ||
-                        topicStr.equals(ch, ignoreCase = true)
-                    }
-                    matchSubj && matchCh
-                }
-            }
-            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedSubjectTab, selectedChapters)
-            val deckResult = viewModel.getOrUpdateSessionDeck("LEARN", scopeKey, subjectFiltered)
+            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedTargetExam, selectedSubjectTab, selectedChapters)
+            val deckResult = viewModel.getOrUpdateSessionDeck("LEARN", scopeKey, filteredStudyQuestions)
             activeStudySessionQuestions = deckResult.orderedQuestions
             currentQuestionIndex = deckResult.currentIndex
         } else {
@@ -950,16 +883,14 @@ fun StudyMcqInteractiveTab(
 
     LaunchedEffect(isStudySessionStarted, currentQuestionIndex, activeStudySessionQuestions) {
         if (isStudySessionStarted && activeStudySessionQuestions.isNotEmpty()) {
-            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedSubjectTab, selectedChapters)
+            val scopeKey = com.example.data.repository.SessionDeckManager.buildScopeKey(selectedTargetExam, selectedSubjectTab, selectedChapters)
             viewModel.saveSessionIndex("LEARN", scopeKey, currentQuestionIndex, activeStudySessionQuestions.size)
-        }
+    }
     }
 
     val displayQuestions = when {
         isStudySessionStarted -> activeStudySessionQuestions
-        filteredStudyQuestions.isNotEmpty() -> filteredStudyQuestions
-        selectedSubjectTab.equals("All Subject", ignoreCase = true) || selectedSubjectTab.equals("All Subjects", ignoreCase = true) || selectedSubjectTab.isBlank() -> visibleQuestions
-        else -> visibleQuestions.filter { isQuestionInSubject(it, selectedSubjectTab) }
+        else -> filteredStudyQuestions
     }
 
     val currentQuestion = displayQuestions.getOrNull(currentQuestionIndex)
@@ -1003,8 +934,8 @@ fun StudyMcqInteractiveTab(
             }
             androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             items(studyBanners) { banner ->
-                val bannerQuestions = remember(questions, banner.subjectKey) {
-                    questions.filter { q -> isQuestionInSubject(q, banner.subjectKey) }
+                val bannerQuestions = remember(questions, selectedTargetExam, banner.subjectKey) {
+                    questions.filter { q -> com.example.data.util.QuestionFilterUtils.isEligible(q, selectedTargetExam, banner.subjectKey, emptySet()) }
                 }
                 val totalCount = bannerQuestions.size
                 
@@ -1681,6 +1612,7 @@ fun PracticeMcqTab(viewModel: JuktiViewModel) {
     val questionLanguage by viewModel.questionLanguage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val questions by viewModel.accessibleQuestions.collectAsState()
+    val selectedTargetExam by viewModel.selectedExam.collectAsState()
     val bookmarkedIds by viewModel.bookmarkedIds.collectAsState()
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -2547,24 +2479,12 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
     }
 }
 
-fun isQuestionInSubject(q: com.example.data.local.QuestionEntity, subjectKey: String): Boolean {
+fun isQuestionSubjectMatch(qSubject: String, subjectKey: String): Boolean {
     val key = subjectKey.trim()
     if (key.equals("All Subject", ignoreCase = true) || key.equals("All Subjects", ignoreCase = true) || key.isBlank()) {
         return true
     }
-    val qSubj = q.subject.trim()
-    val qNorm = com.example.data.repository.normalizeSubjectName(qSubj)
+    val qNorm = com.example.data.repository.normalizeSubjectName(qSubject)
     val keyNorm = com.example.data.repository.normalizeSubjectName(key)
-
     return qNorm.equals(keyNorm, ignoreCase = true)
-}
-
-fun isQuestionSubjectMatch(qSubject: String, subjectKey: String): Boolean {
-    val dummy = com.example.data.local.QuestionEntity(
-        subject = qSubject, topic = "", difficulty = "", questionEn = "", questionAs = "",
-        optionAEn = "", optionBEn = "", optionCEn = "", optionDEn = "", optionAAs = "",
-        optionBAs = "", optionCAs = "", optionDAs = "", correctOptionIndex = 0,
-        explanationEn = "", explanationAs = ""
-    )
-    return isQuestionInSubject(dummy, subjectKey)
 }

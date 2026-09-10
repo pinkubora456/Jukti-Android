@@ -19,13 +19,14 @@ object SessionDeckManager {
     /**
      * Builds a unique scope key for filtering (e.g. "ALL", "SUBJECT:General Knowledge", etc.)
      */
-    fun buildScopeKey(subject: String, selectedChapters: Set<String>): String {
+    fun buildScopeKey(exam: String, subject: String, selectedChapters: Set<String>): String {
+        val cleanExam = exam.trim().ifBlank { "All Exams" }
         val cleanSubject = subject.trim().ifBlank { "All Subjects" }
         return if (selectedChapters.isEmpty()) {
-            "SUBJECT:$cleanSubject"
+            "EXAM:$cleanExam|SUBJECT:$cleanSubject"
         } else {
             val sortedCh = selectedChapters.map { it.trim() }.sorted().joinToString(",")
-            "SUBJECT:$cleanSubject|CHAPTERS:$sortedCh"
+            "EXAM:$cleanExam|SUBJECT:$cleanSubject|CHAPTERS:$sortedCh"
         }
     }
 
