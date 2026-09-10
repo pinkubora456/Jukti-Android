@@ -35,9 +35,6 @@ fun BulkEditQuestionsDialog(
 
     var pyqExamName by remember { mutableStateOf<String?>("Don't Change") }
 
-    var tags by remember { mutableStateOf<String?>("Don't Change") }
-    var tagsExpanded by remember { mutableStateOf(false) }
-
     var difficulty by remember { mutableStateOf<String?>("Don't Change") }
     var difficultyExpanded by remember { mutableStateOf(false) }
 
@@ -45,7 +42,6 @@ fun BulkEditQuestionsDialog(
 
     val accessOptions = listOf("Don't Change", "Free", "Premium")
     val questionTypeOptions = listOf("Don't Change", "Expected", "PYQ")
-    val tagsOptions = listOf("Don't Change", "Expected")
     val difficultyOptions = listOf("Don't Change", "Easy", "Medium", "Hard")
 
     if (showConfirm) {
@@ -58,7 +54,6 @@ fun BulkEditQuestionsDialog(
                     if (access != "Don't Change") Text("Access: $access")
                     if (questionType != "Don't Change") Text("Question Type: $questionType")
                     if (questionType == "PYQ" && pyqExamName != "Don't Change" && pyqExamName?.isNotBlank() == true) Text("PYQ Exam: $pyqExamName")
-                    if (tags != "Don't Change") Text("Tags: $tags")
                     if (difficulty != "Don't Change") Text("Difficulty: $difficulty")
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("These changes will be applied to all $selectedCount selected questions.")
@@ -72,7 +67,7 @@ fun BulkEditQuestionsDialog(
                         if (access == "Don't Change") null else access,
                         if (questionType == "Don't Change") null else questionType,
                         if (pyqExamName == "Don't Change") null else pyqExamName,
-                        if (tags == "Don't Change") null else tags,
+                        null,
                         if (difficulty == "Don't Change") null else difficulty
                     )
                 }) {
@@ -197,66 +192,38 @@ fun BulkEditQuestionsDialog(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Tags
-                    ExposedDropdownMenuBox(
-                        expanded = tagsExpanded,
-                        onExpandedChange = { tagsExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = tags ?: "Don't Change",
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text("Tags") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tagsExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = tagsExpanded,
-                            onDismissRequest = { tagsExpanded = false }
-                        ) {
-                            tagsOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option) },
-                                    onClick = { tags = option; tagsExpanded = false }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Difficulty
-                    ExposedDropdownMenuBox(
-                        expanded = difficultyExpanded,
-                        onExpandedChange = { difficultyExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = difficulty ?: "Don't Change",
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text("Difficulty") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = difficultyExpanded,
-                            onDismissRequest = { difficultyExpanded = false }
-                        ) {
-                            difficultyOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option) },
-                                    onClick = { difficulty = option; difficultyExpanded = false }
-                                )
-                            }
-                        }
-                    }
-                }
+                     // Difficulty
+                     ExposedDropdownMenuBox(
+                         expanded = difficultyExpanded,
+                         onExpandedChange = { difficultyExpanded = it }
+                     ) {
+                         OutlinedTextField(
+                             value = difficulty ?: "Don't Change",
+                             onValueChange = { },
+                             readOnly = true,
+                             label = { Text("Difficulty") },
+                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
+                             modifier = Modifier.fillMaxWidth().menuAnchor(),
+                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                         )
+                         ExposedDropdownMenu(
+                             expanded = difficultyExpanded,
+                             onDismissRequest = { difficultyExpanded = false }
+                         ) {
+                             difficultyOptions.forEach { option ->
+                                 DropdownMenuItem(
+                                     text = { Text(option) },
+                                     onClick = { difficulty = option; difficultyExpanded = false }
+                                 )
+                             }
+                         }
+                     }
+                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showConfirm = true },
-                    enabled = exam != "Don't Change" || access != "Don't Change" || questionType != "Don't Change" || tags != "Don't Change" || difficulty != "Don't Change"
+                    enabled = exam != "Don't Change" || access != "Don't Change" || questionType != "Don't Change" || difficulty != "Don't Change"
                 ) {
                     Text("Update Questions")
                 }
