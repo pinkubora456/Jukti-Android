@@ -31,7 +31,7 @@ fun AutoShiftingBannerCarousel(
     onUpgradeClick: () -> Unit,
     onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null
 ) {
-    val activePlans = plans.filter { it.isActive }
+    val activePlans = plans.filter { it.isActive && com.example.ui.components.PlanDisplayHelper.isPaidPlan(it) && !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
 
     val displayBanners = if (banners.isEmpty() && activePlans.isEmpty()) {
         listOf(com.example.data.local.BannerEntity(
@@ -80,7 +80,8 @@ fun AutoShiftingBannerCarousel(
                 val plan = activePlans[page]
                 FeaturedPlanBanner(
                     plan = plan,
-                    onBuyClick = onUpgradeClick
+                    onBuyClick = onUpgradeClick,
+                    isPlanActive = isUserPremium
                 )
             } else {
                 val bannerIndex = page - activePlans.size

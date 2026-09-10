@@ -16,6 +16,7 @@ class JuktiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ensureFirebaseInitialized(this)
+        ensureAnonymousAuth(this)
         createNotificationChannel()
         com.example.data.worker.FirestoreSyncWorker.scheduleSync(this)
     }
@@ -46,13 +47,32 @@ class JuktiApplication : Application() {
                     .build()
                 db.firestoreSettings = settings
                 android.util.Log.i("JuktiApplication", "Firestore persistence disabled for secure premium content.")
-            } catch (e: Exception) {
-                android.util.Log.e("JuktiApplication", "Failed to disable Firestore persistence", e)
+            } catch (e: Throwable) {
+                android.util.Log.w("JuktiApplication", "Failed to disable Firestore persistence: ${e.message}")
             }
         }
+
+        fun ensureAnonymousAuth(context: Context) {
+            try {
+                val auth = getAuth(context) ?: return
+                if (auth.currentUser == null) {
+                    auth.signInAnonymously()
+                        .addOnSuccessListener {
+                            Log.i("JuktiApplication", "Anonymous Firebase Auth session initialized: ${it.user?.uid}")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("JuktiApplication", "Anonymous sign-in unavailable: ${e.message}")
+                        }
+                }
+            } catch (e: Throwable) {
+                Log.w("JuktiApplication", "Unable to initialize anonymous auth: ${e.message}")
+            }
+        }
+
         fun ensureFirebaseInitialized(context: Context): FirebaseApp? {
             val existingApps = FirebaseApp.getApps(context)
             if (existingApps.isNotEmpty()) {
+                disableFirestorePersistence()
                 return FirebaseApp.getInstance()
             }
 
@@ -84,9 +104,10 @@ class JuktiApplication : Application() {
 
                 val app = FirebaseApp.initializeApp(context, options)
                 Log.i("JuktiApplication", "FirebaseApp initialized explicitly with fallback options.")
+                disableFirestorePersistence()
                 app
             } catch (e: Throwable) {
-                Log.e("JuktiApplication", "Critical failure initializing FirebaseApp", e)
+                Log.w("JuktiApplication", "Explicit FirebaseApp initialization fallback failed: ${e.message}")
                 null
             }
         }

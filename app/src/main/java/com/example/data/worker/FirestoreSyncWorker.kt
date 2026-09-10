@@ -20,14 +20,14 @@ class FirestoreSyncWorker(
             val (successCount, failCount) = syncManager.syncPendingQueue()
             
             Log.d("FirestoreSyncWorker", "Background sync finished: $successCount succeeded, $failCount failed")
-            if (failCount > 0) {
+            if (failCount > 0 && runAttemptCount < 3) {
                 Result.retry()
             } else {
                 Result.success()
             }
         } catch (e: Exception) {
-            Log.e("FirestoreSyncWorker", "Error executing background sync worker", e)
-            Result.retry()
+            Log.w("FirestoreSyncWorker", "Background sync worker error: ${e.message}")
+            if (runAttemptCount < 3) Result.retry() else Result.success()
         }
     }
 
@@ -50,7 +50,7 @@ class FirestoreSyncWorker(
                     syncRequest
                 )
             } catch (e: Exception) {
-                Log.e("FirestoreSyncWorker", "Failed to schedule WorkManager task", e)
+                Log.w("FirestoreSyncWorker", "Failed to schedule WorkManager task: ${e.message}")
             }
         }
     }

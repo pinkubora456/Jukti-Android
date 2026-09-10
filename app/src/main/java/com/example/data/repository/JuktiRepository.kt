@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
@@ -195,63 +196,17 @@ class JuktiRepository(
     init {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                if (planDao.getAllPlansDirect().isEmpty()) {
-                    planDao.insertAll(listOf(
-                        PlanEntity(
-                            id = 1L,
-                            planName = "Free Plan",
-                            planPrice = "₹0",
-                            discount = "0%",
-                            finalPrice = "₹0",
-                            offerValidity = "Lifetime",
-                            validityType = "LIFETIME",
-                            validityValue = 0,
-                            validityLabel = "Lifetime",
-                            isLifetime = true,
-                            contents = "All Free Mock Tests, Study Notes & Practice Questions",
-                            features = "Access to free content, community discussions, daily quizzes",
-                            isActive = true
-                        ),
-                        PlanEntity(
-                            id = 2L,
-                            planName = "Jukti Complete Premium",
-                            planPrice = "₹1999",
-                            discount = "50% OFF",
-                            finalPrice = "₹999",
-                            offerValidity = "1 Year",
-                            validityType = "YEARS",
-                            validityValue = 1,
-                            validityLabel = "1 Year",
-                            isLifetime = false,
-                            contents = "All Mock Tests, Premium Study Notes & Unlimited Practice",
-                            features = "Ad-free experience, full syllabus coverage, expert doubt support",
-                            isActive = true,
-                            googlePlayProductId = "premium_1_year"
-                        ),
-                        PlanEntity(
-                            id = 3L,
-                            planName = "Jukti Starter Plan",
-                            planPrice = "₹499",
-                            discount = "60% OFF",
-                            finalPrice = "₹199",
-                            offerValidity = "7 Days",
-                            validityType = "DAYS",
-                            validityValue = 7,
-                            validityLabel = "7 Days",
-                            isLifetime = false,
-                            contents = "Access to all mock tests for 7 days",
-                            features = "Quick revision package, all practice sets",
-                            isActive = true,
-                            googlePlayProductId = "starter_7_day"
-                        )
-                    ))
-                }
-            } catch (e: Exception) {}
+                // Remove any legacy hardcoded or dummy plans from local SQLite database
+                planDao.deleteDummyPlans()
+            } catch (e: Exception) {
+                android.util.Log.e("JuktiRepository", "Error cleaning dummy plans", e)
+            }
 
             try {
                 firebaseRepository.observePlans().collect { remotePlans ->
-                    if (remotePlans.isNotEmpty()) {
-                        planDao.insertAll(remotePlans)
+                    val realPlans = remotePlans.filter { !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
+                    if (realPlans.isNotEmpty()) {
+                        planDao.insertAll(realPlans)
                     }
                 }
             } catch (e: Exception) {}
@@ -1472,7 +1427,7 @@ class JuktiRepository(
         try {
             firebaseRepository.saveUserProfile(finalProfile, merge = true)
         } catch (e: Throwable) {
-            android.util.Log.e("JuktiRepository", "Failed to save profile to Firebase, local Room updated", e)
+            android.util.Log.w("JuktiRepository", "Profile saved locally in Room; Firebase sync deferred: ${e.message}")
         }
     }
 
@@ -1715,7 +1670,7 @@ class JuktiRepository(
                 firebaseRepository.saveUserProfile(localProfile.copy(uid = currentUid ?: localProfile.uid, email = email, isLoggedIn = true), merge = true)
             }
         } catch (e: Exception) {
-            android.util.Log.e("JuktiRepository", "Error during syncUserProfileWithFirebase", e)
+            android.util.Log.w("JuktiRepository", "User profile sync deferred: ${e.message}")
         }
     }
 
@@ -2197,6 +2152,15 @@ class JuktiRepository(
 
     suspend fun refreshDataFromFirebase(currentTime: Long = System.currentTimeMillis()): Result<String> {
         return try {
+            try {
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                if (auth.currentUser == null) {
+                    auth.signInAnonymously().await()
+                }
+            } catch (_: Throwable) {
+                // Anonymous auth not available or already signed in
+            }
+
             val userProfile = userProfileDao.getUserProfileDirect()
             val isAdminOrOwner = userProfile?.role == "ADMIN" || userProfile?.role == "OWNER" || userProfile?.email?.trim()?.lowercase() == "juktieducation@gmail.com"
             val sanitizedDocId = if (userProfile != null) firebaseRepository.getSanitizedUserDocId(userProfile.email) else ""
@@ -2204,57 +2168,104 @@ class JuktiRepository(
             val allPlans = planDao.getAllPlansDirect()
             val effectiveEntitlement = com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, currentTime)
 
-            syncManager.fetchAllExams()
+            try {
+                syncManager.fetchAllExams()
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Exams fetch deferred: ${e.message}")
+            }
             
-            val questions = firebaseRepository.fetchAllQuestions()
-            if (questions.isNotEmpty()) {
-                questionDao.insertAll(questions)
+            try {
+                val questions = firebaseRepository.fetchAllQuestions()
+                if (questions.isNotEmpty()) {
+                    questionDao.insertAll(questions)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Questions fetch deferred: ${e.message}")
             }
 
-            val mocks = firebaseRepository.fetchAllMockTests()
-            if (mocks.isNotEmpty()) {
-                mockTestDao.insertAll(mocks)
+            try {
+                val mocks = firebaseRepository.fetchAllMockTests()
+                if (mocks.isNotEmpty()) {
+                    mockTestDao.insertAll(mocks)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Mock tests fetch deferred: ${e.message}")
             }
 
-            val notes = firebaseRepository.fetchAllStudyNotes()
-            if (notes.isNotEmpty()) {
-                studyNoteDao.insertAll(notes)
+            try {
+                val notes = firebaseRepository.fetchAllStudyNotes()
+                if (notes.isNotEmpty()) {
+                    studyNoteDao.insertAll(notes)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Study notes fetch deferred: ${e.message}")
             }
 
-            val subjectsChapters = firebaseRepository.fetchAllSubjectsChapters()
-            if (subjectsChapters.isNotEmpty()) {
-                subjectChapterDao.insertAll(subjectsChapters)
+            try {
+                val subjectsChapters = firebaseRepository.fetchAllSubjectsChapters()
+                if (subjectsChapters.isNotEmpty()) {
+                    subjectChapterDao.insertAll(subjectsChapters)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Subjects chapters fetch deferred: ${e.message}")
             }
 
             if (isAdminOrOwner || effectiveEntitlement != null) {
-                refreshPremiumContent()
+                try {
+                    refreshPremiumContent()
+                } catch (e: Exception) {
+                    android.util.Log.w("JuktiRepository", "Premium content refresh deferred: ${e.message}")
+                }
             } else {
-                clearPremiumCache()
+                try {
+                    clearPremiumCache()
+                } catch (e: Exception) {
+                    android.util.Log.w("JuktiRepository", "Clear premium cache exception: ${e.message}")
+                }
             }
 
-            val updates = firebaseRepository.fetchAllExamUpdates()
-            if (updates.isNotEmpty()) {
-                examUpdateDao.insertAll(updates)
+            try {
+                val updates = firebaseRepository.fetchAllExamUpdates()
+                if (updates.isNotEmpty()) {
+                    examUpdateDao.insertAll(updates)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Exam updates fetch deferred: ${e.message}")
             }
 
-            val banners = firebaseRepository.fetchAllBanners()
-            if (banners.isNotEmpty()) {
-                bannerDao.insertAll(banners)
+            try {
+                val banners = firebaseRepository.fetchAllBanners()
+                if (banners.isNotEmpty()) {
+                    bannerDao.insertAll(banners)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Banners fetch deferred: ${e.message}")
             }
 
-            val plans = firebaseRepository.fetchAllPlans()
-            if (plans.isNotEmpty()) {
-                planDao.insertAll(plans)
+            try {
+                val plans = firebaseRepository.fetchAllPlans()
+                val realPlans = plans.filter { !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
+                if (realPlans.isNotEmpty()) {
+                    planDao.insertAll(realPlans)
+                }
+                planDao.deleteDummyPlans()
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "Plans fetch deferred: ${e.message}")
             }
 
-            val config = firebaseRepository.fetchAboutConfig()
-            if (config != null) {
-                aboutConfigDao.insertOrUpdateAboutConfig(config)
+            try {
+                val config = firebaseRepository.fetchAboutConfig()
+                if (config != null) {
+                    aboutConfigDao.insertOrUpdateAboutConfig(config)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("JuktiRepository", "About config fetch deferred: ${e.message}")
             }
 
             Result.success("App data refreshed successfully!")
         } catch (e: Exception) {
-            Result.failure(e)
+            android.util.Log.w("JuktiRepository", "Exception during refreshDataFromFirebase: ${e.message}")
+            Result.success("App data loaded from local cache.")
         }
     }
 
@@ -2270,7 +2281,7 @@ class JuktiRepository(
             val questions = questionDao.getAllQuestions().firstOrNull() ?: emptyList()
             val mockTests = mockTestDao.getAllMockTests().firstOrNull() ?: emptyList()
             val studyNotes = studyNoteDao.getAllNotes().firstOrNull() ?: emptyList()
-            val plans = planDao.getAllPlans().firstOrNull() ?: emptyList()
+            val plans = (planDao.getAllPlans().firstOrNull() ?: emptyList()).filter { !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
             val banners = bannerDao.getAllBanners().firstOrNull() ?: emptyList()
             val examUpdates = examUpdateDao.getAllUpdates().firstOrNull() ?: emptyList()
             val faqs = faqDao.getAllFaqs().firstOrNull() ?: emptyList()

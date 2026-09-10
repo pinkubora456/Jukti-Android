@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.ui.viewmodel.JuktiViewModel
+import androidx.compose.ui.text.style.TextDecoration
+import com.example.ui.components.PlanDisplayHelper
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -124,6 +126,12 @@ fun EditPlanScreen(viewModel: JuktiViewModel) {
 
 @Composable
 fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit, onToggleArchive: () -> Unit = {}) {
+    val cleanFinalPrice = PlanDisplayHelper.formatPrice(plan.finalPrice)
+    val cleanOriginalPrice = PlanDisplayHelper.formatPrice(plan.planPrice)
+    val cleanDiscount = PlanDisplayHelper.formatDiscount(plan.discount)
+    val cleanValidity = PlanDisplayHelper.formatValidity(plan)
+    val benefits = PlanDisplayHelper.parseFeatures(plan.features)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -134,9 +142,9 @@ fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit, o
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = plan.planName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (!plan.isActive) {
@@ -152,23 +160,83 @@ fun PlanManageCard(plan: PlanEntity, onEdit: () -> Unit, onDelete: () -> Unit, o
                                     color = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             }
+                        } else {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "Active",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     }
-                    Text(text = "₹${plan.finalPrice}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                    if (plan.offerValidity.isNotBlank()) {
-                        Text(text = "Validity: ${plan.offerValidity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (cleanFinalPrice.isNotBlank()) {
+                            Text(text = cleanFinalPrice, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        if (cleanOriginalPrice.isNotBlank() && cleanOriginalPrice != cleanFinalPrice) {
+                            Text(
+                                text = cleanOriginalPrice,
+                                style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.LineThrough),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (cleanDiscount.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Text(
+                                    text = cleanDiscount,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Validity: $cleanValidity", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    if (plan.offerValidity.isNotBlank() && !plan.offerValidity.equals(cleanValidity, ignoreCase = true)) {
+                        Text(text = "Offer: ${plan.offerValidity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+
+                    if (plan.examTarget.isNotBlank()) {
+                        Text(text = "Target: ${plan.examTarget}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                    }
+
+                    if (plan.googlePlayProductId.isNotBlank()) {
+                        Text(text = "Play ID: ${plan.googlePlayProductId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
+
+                    if (plan.guidanceEnabled) {
+                        Text(text = "💡 Guidance: Enabled", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            val benefits = plan.features.split("|").filter { it.isNotBlank() }
+
             if (benefits.isNotEmpty()) {
-                Text(text = "Benefits:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = "Benefits Included:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                 benefits.forEach { b ->
                     Text(text = "• $b", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -218,8 +286,9 @@ fun EditPlanDialog(
     var imageUrl by remember { mutableStateOf(plan.imageUrl) }
     var examTarget by remember { mutableStateOf(plan.examTarget) }
     var isActive by remember { mutableStateOf(plan.isActive) }
+    var googlePlayProductId by remember { mutableStateOf(plan.googlePlayProductId) }
     var isUploading by remember { mutableStateOf(false) }
-    val benefits = remember { mutableStateListOf<String>().apply { addAll(plan.features.split(",").filter { it.isNotBlank() }) } }
+    val benefits = remember { mutableStateListOf<String>().apply { addAll(PlanDisplayHelper.parseFeatures(plan.features)) } }
     var newBenefit by remember { mutableStateOf("") }
 
     // Guidance Access state
@@ -409,6 +478,13 @@ fun EditPlanDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                SafeOutlinedTextField(
+                    value = googlePlayProductId,
+                    onValueChange = { googlePlayProductId = it },
+                    label = { Text("Google Play Product ID (Optional, e.g. premium_1_year)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
                 Text("Benefits", style = MaterialTheme.typography.titleSmall)
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     SafeOutlinedTextField(
@@ -560,6 +636,9 @@ fun EditPlanDialog(
                             isActive = isActive,
                             imageUrl = imageUrl,
                             examTarget = examTarget,
+                            googlePlayProductId = googlePlayProductId.trim(),
+                            features = benefits.joinToString("|"),
+                            contents = benefits.joinToString("|"),
                             guidanceEnabled = guidanceEnabled,
                             guidanceAllowedExams = if (guidanceEnabled) {
                                 if (guidanceAllowedExamsSelected.isEmpty()) "All Exams" else guidanceAllowedExamsSelected.joinToString(", ")

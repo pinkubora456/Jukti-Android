@@ -311,10 +311,10 @@ interface AboutConfigDao {
 
 @Dao
 interface PlanDao {
-    @Query("SELECT * FROM subscription_plans ORDER BY id DESC")
+    @Query("SELECT * FROM subscription_plans WHERE id NOT IN (1, 2, 3) AND planName NOT IN ('Jukti Complete Premium', 'Jukti Starter Plan') AND NOT (planName = 'Free Plan' AND id <= 100) ORDER BY id DESC")
     abstract fun getAllPlans(): Flow<List<PlanEntity>>
     
-    @Query("SELECT * FROM subscription_plans ORDER BY id DESC")
+    @Query("SELECT * FROM subscription_plans WHERE id NOT IN (1, 2, 3) AND planName NOT IN ('Jukti Complete Premium', 'Jukti Starter Plan') AND NOT (planName = 'Free Plan' AND id <= 100) ORDER BY id DESC")
     abstract suspend fun getAllPlansDirect(): List<PlanEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -325,6 +325,9 @@ interface PlanDao {
 
     @Delete
     abstract suspend fun deletePlan(plan: PlanEntity)
+
+    @Query("DELETE FROM subscription_plans WHERE id IN (1, 2, 3) OR planName IN ('Jukti Complete Premium', 'Jukti Starter Plan') OR (planName = 'Free Plan' AND id <= 100)")
+    abstract suspend fun deleteDummyPlans()
 }
 
 @Dao

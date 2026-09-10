@@ -21,15 +21,42 @@ class FirebaseRepository {
             FirebaseFirestore.getInstance()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Firestore not available", e)
+            Log.w("FirebaseRepository", "Firestore not available: ${e.message}")
             null
         }
 
     private fun logListenerError(tagMsg: String, error: com.google.firebase.firestore.FirebaseFirestoreException) {
-        if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-            Log.w("FirebaseRepository", "$tagMsg (PERMISSION_DENIED: ${error.message})")
+        if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+            error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAUTHENTICATED ||
+            error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
+        ) {
+            Log.w("FirebaseRepository", "$tagMsg (${error.code}: ${error.message}) - fallback to local Room database")
         } else {
-            Log.e("FirebaseRepository", tagMsg, error)
+            Log.w("FirebaseRepository", "$tagMsg: ${error.message}")
+        }
+    }
+
+    private fun logFetchError(tagMsg: String, error: Throwable) {
+        if (error is com.google.firebase.firestore.FirebaseFirestoreException &&
+            (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAUTHENTICATED ||
+             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE)
+        ) {
+            Log.w("FirebaseRepository", "$tagMsg (${error.code}: ${error.message}) - fallback to local Room cache")
+        } else {
+            Log.w("FirebaseRepository", "$tagMsg: ${error.message ?: error.javaClass.simpleName}")
+        }
+    }
+
+    private fun logOperationError(tagMsg: String, error: Throwable) {
+        if (error is com.google.firebase.firestore.FirebaseFirestoreException &&
+            (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAUTHENTICATED ||
+             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE)
+        ) {
+            Log.w("FirebaseRepository", "$tagMsg (${error.code}: ${error.message}) - saved locally in Room / Sync Queue")
+        } else {
+            Log.w("FirebaseRepository", "$tagMsg: ${error.message ?: error.javaClass.simpleName}")
         }
     }
 
@@ -97,7 +124,7 @@ class FirebaseRepository {
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving user profile to Firebase", e)
+            logOperationError("Error saving user profile to Firebase", e)
         }
     }
 
@@ -155,7 +182,7 @@ class FirebaseRepository {
             } else null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error fetching user profile from Firebase", e)
+            logFetchError("Error fetching user profile from Firebase", e)
             null
         }
     }
@@ -331,7 +358,7 @@ class FirebaseRepository {
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error fetching user entitlements", e)
+            logFetchError("Error fetching user entitlements", e)
             emptyList()
         }
     }
@@ -453,7 +480,7 @@ class FirebaseRepository {
             true
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving user entitlement to Firebase", e)
+            logOperationError("Error saving user entitlement to Firebase", e)
             false
         }
     }
@@ -491,7 +518,7 @@ class FirebaseRepository {
                 } catch (e: Exception) { null }
             } ?: emptyList()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching entitlement history", e)
+            logFetchError("Error fetching entitlement history", e)
             emptyList()
         }
     }
@@ -532,7 +559,7 @@ class FirebaseRepository {
             users.sortedByDescending { it.uid.isNotBlank() && it.uid != "scholar_jukti_in" && it.uid != it.email.replace("@", "_at_").replace(".", "_dot_") }
                 .distinctBy { it.email.lowercase() }
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching all users", e)
+            logFetchError("Error fetching all users", e)
             emptyList()
         }
     }
@@ -557,7 +584,7 @@ class FirebaseRepository {
                 ?.set(map, SetOptions.merge())?.await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving user question state to Firebase", e)
+            logOperationError("Error saving user question state to Firebase", e)
         }
     }
 
@@ -584,7 +611,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching user question states", e)
+            logFetchError("Error fetching user question states", e)
             emptyList()
         }
     }
@@ -742,7 +769,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving question", e)
+            logOperationError("Error saving question", e)
         }
     }
 
@@ -754,7 +781,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting question", e)
+            logOperationError("Error deleting question", e)
         }
     }
 
@@ -766,7 +793,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving mock test", e)
+            logOperationError("Error saving mock test", e)
         }
     }
 
@@ -778,7 +805,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting mock test", e)
+            logOperationError("Error deleting mock test", e)
         }
     }
 
@@ -790,7 +817,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving study note", e)
+            logOperationError("Error saving study note", e)
         }
     }
 
@@ -802,7 +829,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting study note", e)
+            logOperationError("Error deleting study note", e)
         }
     }
 
@@ -814,7 +841,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving exam update", e)
+            logOperationError("Error saving exam update", e)
         }
     }
 
@@ -826,7 +853,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting exam update", e)
+            logOperationError("Error deleting exam update", e)
         }
     }
 
@@ -838,7 +865,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving banner", e)
+            logOperationError("Error saving banner", e)
         }
     }
 
@@ -850,7 +877,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting banner", e)
+            logOperationError("Error deleting banner", e)
         }
     }
 
@@ -862,7 +889,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving plan", e)
+            logOperationError("Error saving plan", e)
         }
     }
 
@@ -874,7 +901,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting plan", e)
+            logOperationError("Error deleting plan", e)
         }
     }
 
@@ -886,7 +913,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving faq", e)
+            logOperationError("Error saving faq", e)
         }
     }
 
@@ -898,7 +925,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting faq", e)
+            logOperationError("Error deleting faq", e)
         }
     }
 
@@ -910,7 +937,7 @@ class FirebaseRepository {
                 .await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error saving subject chapter", e)
+            logOperationError("Error saving subject chapter", e)
         }
     }
 
@@ -922,7 +949,7 @@ class FirebaseRepository {
             query.documents.forEach { it.reference.delete().await() }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting subject chapter", e)
+            logOperationError("Error deleting subject chapter", e)
         }
     }
 
@@ -954,7 +981,7 @@ class FirebaseRepository {
                 } catch (e: kotlinx.coroutines.CancellationException) { 
                     throw e 
                 } catch (e: Throwable) {
-                    Log.e("FirebaseRepository", "Error committing batch chunk for collection $collectionName. Error: ${e.localizedMessage ?: e.javaClass.simpleName}", e)
+                    logOperationError("Error committing batch chunk for collection $collectionName", e)
                 }
             }
         }
@@ -962,7 +989,7 @@ class FirebaseRepository {
         saveCollection("questions", questions.map { db.collection("questions").document(it.id.toString()) to questionToMap(it) })
         saveCollection("mock_tests", mockTests.map { db.collection("mock_tests").document(it.id.toString()) to mockTestToMap(it) })
         saveCollection("study_notes", studyNotes.map { db.collection("study_notes").document(it.id.toString()) to studyNoteToMap(it) })
-        saveCollection("plans", plans.map { db.collection("plans").document(it.id.toString()) to planToMap(it) })
+        saveCollection("plans", plans.filter { !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }.map { db.collection("plans").document(it.id.toString()) to planToMap(it) })
         saveCollection("banners", banners.map { db.collection("banners").document(it.id.toString()) to bannerToMap(it) })
         saveCollection("exam_updates", examUpdates.map { db.collection("exam_updates").document(it.id.toString()) to examUpdateToMap(it) })
         saveCollection("faqs", faqs.map { db.collection("faqs").document(it.id.toString()) to faqToMap(it) })
@@ -995,7 +1022,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching banners", e)
+            logFetchError("Error fetching banners", e)
             emptyList()
         }
     }
@@ -1004,6 +1031,15 @@ class FirebaseRepository {
         return try {
             val snapshot = firestore?.collection("plans")?.get()?.await()
             snapshot?.documents?.mapNotNull { doc ->
+                val planId = doc.getLong("id") ?: 0L
+                val planName = doc.getString("planName") ?: ""
+                val googlePlayProductId = doc.getString("googlePlayProductId") ?: ""
+                if (com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(planId, planName, googlePlayProductId) ||
+                    doc.id in listOf("1", "2", "3")
+                ) {
+                    try { doc.reference.delete() } catch (e: Throwable) {}
+                    return@mapNotNull null
+                }
                 val rawVal = doc.getString("planValidity") ?: doc.getString("offerValidity") ?: ""
                 val isLifetime = doc.getBoolean("isLifetime") ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.getString("validityType") ?: "").equals("LIFETIME", ignoreCase = true))
                 val validityType = doc.getString("validityType") ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
@@ -1040,7 +1076,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching plans", e)
+            logFetchError("Error fetching plans", e)
             emptyList()
         }
     }
@@ -1064,7 +1100,7 @@ class FirebaseRepository {
             }?.distinctBy { "${it.subject.trim().lowercase()}|${it.chapter.trim().lowercase()}" } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching subjects chapters", e)
+            logFetchError("Error fetching subjects chapters", e)
             emptyList()
         }
     }
@@ -1111,7 +1147,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching questions", e)
+            logFetchError("Error fetching questions", e)
             emptyList()
         }
     }
@@ -1158,7 +1194,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching all admin questions", e)
+            logFetchError("Error fetching all admin questions", e)
             emptyList()
         }
     }
@@ -1202,7 +1238,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching mock tests", e)
+            logFetchError("Error fetching mock tests", e)
             emptyList()
         }
     }
@@ -1230,7 +1266,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching study notes", e)
+            logFetchError("Error fetching study notes", e)
             emptyList()
         }
     }
@@ -1256,7 +1292,7 @@ class FirebaseRepository {
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error fetching exam updates", e)
+            logFetchError("Error fetching exam updates", e)
             emptyList()
         }
     }
@@ -1547,7 +1583,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up questions observer", e)
+            Log.w("FirebaseRepository", "Error setting up questions observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1608,7 +1644,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up mock tests observer", e)
+            Log.w("FirebaseRepository", "Error setting up mock tests observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1653,7 +1689,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up study notes observer", e)
+            Log.w("FirebaseRepository", "Error setting up study notes observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1696,7 +1732,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up exam updates observer", e)
+            Log.w("FirebaseRepository", "Error setting up exam updates observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1744,7 +1780,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up banners observer", e)
+            Log.w("FirebaseRepository", "Error setting up banners observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1766,6 +1802,15 @@ class FirebaseRepository {
                         if (snapshot != null) {
                             val list = snapshot.documents.mapNotNull { doc ->
                                 try {
+                                    val planId = doc.getLong("id")?.takeIf { it != 0L } ?: (doc.id.hashCode().toLong().let { if (it < 0) -it else it })
+                                    val planName = doc.getString("planName") ?: ""
+                                    val googlePlayProductId = doc.getString("googlePlayProductId") ?: ""
+                                    if (com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(planId, planName, googlePlayProductId) ||
+                                        doc.id in listOf("1", "2", "3")
+                                    ) {
+                                        try { doc.reference.delete() } catch (e: Throwable) {}
+                                        return@mapNotNull null
+                                    }
                                     val rawVal = doc.getString("planValidity") ?: doc.getString("offerValidity") ?: ""
                                     val isLifetime = doc.getBoolean("isLifetime") ?: (rawVal.equals("Lifetime", ignoreCase = true) || (doc.getString("validityType") ?: "").equals("LIFETIME", ignoreCase = true))
                                     val validityType = doc.getString("validityType") ?: if (isLifetime) "LIFETIME" else com.example.data.util.PlanValidityEngine.inferValidityType(rawVal)
@@ -1808,7 +1853,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up plans observer", e)
+            Log.w("FirebaseRepository", "Error setting up plans observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1849,7 +1894,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up exams observer", e)
+            Log.w("FirebaseRepository", "Error setting up exams observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1893,7 +1938,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up subjects chapters observer", e)
+            Log.w("FirebaseRepository", "Error setting up subjects chapters observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -1931,7 +1976,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up faqs observer", e)
+            Log.w("FirebaseRepository", "Error setting up faqs observer: ${e.message}")
             trySend(emptyList())
         }
         awaitClose { listener?.remove() }
@@ -2074,7 +2119,7 @@ class FirebaseRepository {
             if (docMain.exists()) return docToAboutConfig(docMain)
             null
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error fetching AboutConfig", e)
+            logFetchError("Error fetching AboutConfig", e)
             null
         }
     }
@@ -2253,7 +2298,7 @@ class FirebaseRepository {
                     }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error setting up user entitlements observer", e)
+            Log.w("FirebaseRepository", "Error setting up user entitlements observer: ${e.message}")
         }
         awaitClose {
             collListener?.remove()
@@ -2308,7 +2353,7 @@ class FirebaseRepository {
                         userRef.delete().await()
                         Log.i("FirebaseRepository", "Successfully deleted user document $docId")
                     } catch (e: Exception) {
-                        Log.e("FirebaseRepository", "Error deleting user document $docId", e)
+                        logOperationError("Error deleting user document $docId", e)
                     }
                 }
             }
@@ -2334,7 +2379,7 @@ class FirebaseRepository {
                 }
             }
         } catch (e: Throwable) {
-            Log.e("FirebaseRepository", "Error deleting user account from Firebase", e)
+            logOperationError("Error deleting user account from Firebase", e)
         }
     }
 
@@ -2473,7 +2518,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_pyq_focus").document(docId).set(data, SetOptions.merge()).await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving pyq_focus to Firestore", e)
+            logOperationError("Error saving pyq_focus to Firestore", e)
         }
     }
 
@@ -2483,7 +2528,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_pyq_focus").document(docId).delete().await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error deleting pyq_focus from Firestore", e)
+            logOperationError("Error deleting pyq_focus from Firestore", e)
         }
     }
 
@@ -2501,7 +2546,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_prep_strategies").document(docId).set(data, SetOptions.merge()).await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving prep_strategy to Firestore", e)
+            logOperationError("Error saving prep_strategy to Firestore", e)
         }
     }
 
@@ -2511,7 +2556,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_prep_strategies").document(docId).delete().await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error deleting prep_strategy from Firestore", e)
+            logOperationError("Error deleting prep_strategy from Firestore", e)
         }
     }
 
@@ -2532,7 +2577,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_focus_topics").document(docId).set(data, SetOptions.merge()).await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error saving focus_topic to Firestore", e)
+            logOperationError("Error saving focus_topic to Firestore", e)
         }
     }
 
@@ -2542,7 +2587,7 @@ class FirebaseRepository {
         try {
             db.collection("guidance_focus_topics").document(docId).delete().await()
         } catch (e: Exception) {
-            Log.e("FirebaseRepository", "Error deleting focus_topic from Firestore", e)
+            logOperationError("Error deleting focus_topic from Firestore", e)
         }
     }
 

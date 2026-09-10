@@ -526,7 +526,11 @@ class FirebaseSyncManager(
             if (codeName.contains("PERMISSION_DENIED")) {
                 errorMsg = "Permission Denied: Please update your Firestore Security Rules in the Firebase Console."
             }
-            Log.e("FirebaseSyncManager", "Firestore error on $path: $errorMsg", e)
+            if (codeName.contains("PERMISSION_DENIED") || codeName.contains("UNAUTHENTICATED") || codeName.contains("UNAVAILABLE")) {
+                Log.w("FirebaseSyncManager", "Firestore sync restricted on $path: $errorMsg")
+            } else {
+                Log.w("FirebaseSyncManager", "Firestore error on $path: $errorMsg")
+            }
             updateItemFailure(item, errorMsg)
             Pair(false, errorMsg)
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -534,7 +538,7 @@ class FirebaseSyncManager(
         } catch (e: Throwable) {
             val exceptionClass = e.javaClass.simpleName
             val errorMsg = "[$exceptionClass] ${e.localizedMessage ?: "Network or Firestore write failure"} | Path: $path | AuthUID: $authUid"
-            Log.e("FirebaseSyncManager", "Failed syncing item #${item.syncId} ($path)", e)
+            Log.w("FirebaseSyncManager", "Sync item #${item.syncId} deferred ($path): ${e.message}")
             updateItemFailure(item, errorMsg)
             Pair(false, errorMsg)
         }
@@ -579,7 +583,11 @@ class FirebaseSyncManager(
             if (codeName.contains("PERMISSION_DENIED")) {
                 errorMsg = "Permission Denied: Please update your Firestore Security Rules in the Firebase Console."
             }
-            Log.e("FirebaseSyncManager", errorMsg, e)
+            if (codeName.contains("PERMISSION_DENIED") || codeName.contains("UNAUTHENTICATED") || codeName.contains("UNAVAILABLE")) {
+                Log.w("FirebaseSyncManager", "Write test restricted: $errorMsg")
+            } else {
+                Log.w("FirebaseSyncManager", errorMsg)
+            }
             Pair(false, errorMsg)
         }
     }
@@ -656,7 +664,7 @@ class FirebaseSyncManager(
 
             Pair(failCount == 0, resultMessage)
         } catch (e: Exception) {
-            Log.e("FirebaseSyncManager", "Exception during bulk upload", e)
+            Log.w("FirebaseSyncManager", "Exception during bulk upload: ${e.message}")
             resultMessage = "❌ Firebase Update Failed: ${e.localizedMessage ?: "Unknown error"}"
             Pair(false, resultMessage)
         } finally {
@@ -711,7 +719,7 @@ class FirebaseSyncManager(
         try {
             syncQueueDao.clearAll()
         } catch (e: Throwable) {
-            Log.e("FirebaseSyncManager", "Error clearing sync queue", e)
+            Log.w("FirebaseSyncManager", "Error clearing sync queue: ${e.message}")
         }
     }
 
@@ -740,8 +748,14 @@ class FirebaseSyncManager(
             examDao.insertAll(exams)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
+        } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+            if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                Log.w("FirebaseSyncManager", "Permission denied fetching exams (using local cache): ${e.message}")
+            } else {
+                Log.w("FirebaseSyncManager", "Firestore error fetching exams: ${e.message}")
+            }
         } catch (e: Throwable) {
-            Log.e("FirebaseSyncManager", "Error fetching exams", e)
+            Log.w("FirebaseSyncManager", "Unable to fetch exams from remote Firestore, using local cache: ${e.message}")
         }
     }
 }

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.ui.viewmodel.JuktiViewModel
 import com.example.ui.viewmodel.LocalMessageTranslator
+import com.example.ui.components.PlanDisplayHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,7 +185,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                     contentColor = MaterialTheme.colorScheme.onPrimary
                                 ) {
                                     Text(
-                                        text = "₹${plan.finalPrice}",
+                                        text = PlanDisplayHelper.formatPrice(plan.finalPrice),
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold
@@ -192,19 +193,23 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 }
                             }
                             
-                            if (plan.planPrice.isNotBlank() && plan.planPrice != plan.finalPrice) {
+                            val originalPriceFormatted = PlanDisplayHelper.formatPrice(plan.planPrice)
+                            val finalPriceFormatted = PlanDisplayHelper.formatPrice(plan.finalPrice)
+                            val discountFormatted = PlanDisplayHelper.formatDiscount(plan.discount)
+
+                            if (originalPriceFormatted.isNotBlank() && originalPriceFormatted != finalPriceFormatted) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = "Original: ₹${plan.planPrice}",
+                                        text = "Original: $originalPriceFormatted",
                                         style = MaterialTheme.typography.bodySmall,
                                         textDecoration = TextDecoration.LineThrough,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    if (plan.discount.isNotBlank()) {
+                                    if (discountFormatted.isNotBlank()) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "(${plan.discount}% OFF)",
+                                            text = "($discountFormatted)",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -213,16 +218,17 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 }
                             }
                             
-                            if (plan.planValidity.isNotBlank()) {
+                            val validityFormatted = PlanDisplayHelper.formatValidity(plan)
+                            if (validityFormatted.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Validity: ${plan.planValidity}",
+                                    text = "Validity: $validityFormatted",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
 
-                            if (plan.offerValidity.isNotBlank()) {
+                            if (plan.offerValidity.isNotBlank() && !plan.offerValidity.equals(validityFormatted, ignoreCase = true)) {
                                 Text(
                                     text = "Offer Note: ${plan.offerValidity}",
                                     style = MaterialTheme.typography.bodySmall,
@@ -231,7 +237,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 )
                             }
 
-                            val featList = plan.features.split("|").filter { it.isNotBlank() }
+                            val featList = PlanDisplayHelper.parseFeatures(plan.features)
                             if (featList.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Features Included:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)

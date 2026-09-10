@@ -1306,10 +1306,12 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
             clearOldActivityLogs(getApplication())
         }
         viewModelScope.launch {
+            delay(3000) // Allow Firebase Auth to complete its initial token restoration
             userProfile.collect { prof ->
                 if (prof != null) {
                     val fbUser = try { com.example.JuktiApplication.getAuth(getApplication())?.currentUser } catch (e: Throwable) { null }
-                    val needsForcedLogout = prof.isLoggedIn && fbUser == null && prof.email.isNotBlank() && prof.email != "guest@jukti.in"
+                    val isOnline = networkMonitor.isConnected.value
+                    val needsForcedLogout = isOnline && prof.isLoggedIn && fbUser == null && prof.email.isNotBlank() && prof.email != "guest@jukti.in" && prof.uid.isNotBlank() && prof.uid != "guest_user"
 
                     if (needsForcedLogout) {
                          // Force logout because Firebase session is missing
