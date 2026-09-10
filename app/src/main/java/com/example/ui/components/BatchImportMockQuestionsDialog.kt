@@ -953,7 +953,7 @@ private fun ValidQuestionCard(itemRow: ParsedQuestionRow) {
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = if (q.isPremium) "Premium" else "Free",
+                            text = if (q.isPremium) "💎" else "🆓",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (q.isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

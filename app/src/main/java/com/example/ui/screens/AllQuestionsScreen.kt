@@ -304,7 +304,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                                             modifier = Modifier.padding(end = 6.dp)
                                         ) {
                                             Text(
-                                                text = if (question.isPremium) "💎 Premium" else "🆓 Free",
+                                                text = if (question.isPremium) "💎" else "🆓",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (question.isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,

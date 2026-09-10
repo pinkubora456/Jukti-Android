@@ -1230,7 +1230,7 @@ private fun QBankValidQuestionCard(
                         modifier = Modifier.clickable { onTogglePremium() }
                     ) {
                         Text(
-                            text = if (isPremium) "⭐ Premium" else "🆓 Free",
+                            text = if (isPremium) "💎" else "🆓",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isPremium) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
