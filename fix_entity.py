@@ -1,12 +1,13 @@
-import re
-
-with open("app/src/main/java/com/example/data/local/Entities.kt", "r") as f:
+with open('app/src/main/java/com/example/data/local/Entities.kt', 'r') as f:
     content = f.read()
 
-new_ent = """@Entity(tableName = "prep_strategies")
-data class PrepStrategyEntity("""
+import re
 
-content = content.replace("data class PrepStrategyEntity(", new_ent)
+# Add pyqExams
+regex = r'val duplicateKey: String = ""\n\)'
+replacement = r'val duplicateKey: String = "",\n    @ColumnInfo(defaultValue = "") val pyqExams: String = ""\n)'
 
-with open("app/src/main/java/com/example/data/local/Entities.kt", "w") as f:
+content = re.sub(regex, replacement, content)
+
+with open('app/src/main/java/com/example/data/local/Entities.kt', 'w') as f:
     f.write(content)

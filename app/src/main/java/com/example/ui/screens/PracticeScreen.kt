@@ -382,12 +382,21 @@ fun PracticeScreen(
     val isSubmitted = selectedOptionIndex != null
 
     // Real session correct and incorrect counts
-    var correctCount = 0
-    var incorrectCount = 0
-    displayQuestions.forEach { q ->
-        val ans = userAnswers[q.id]
-        if (ans != null) {
-            if (ans == q.correctOptionIndex) correctCount++ else incorrectCount++
+    val correctCount by remember(displayQuestions) {
+        derivedStateOf {
+            displayQuestions.count { q ->
+                val ans = userAnswers[q.id]
+                ans != null && ans == q.correctOptionIndex
+            }
+        }
+    }
+    
+    val incorrectCount by remember(displayQuestions) {
+        derivedStateOf {
+            displayQuestions.count { q ->
+                val ans = userAnswers[q.id]
+                ans != null && ans != q.correctOptionIndex
+            }
         }
     }
 
@@ -591,14 +600,7 @@ fun PracticeScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(14.dp)
                             )
-                            val minutes = sessionTotalSeconds / 60
-                            val secs = sessionTotalSeconds % 60
-                            Text(
-                                text = String.format("%02d:%02d", minutes, secs),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            SessionTimerText(sessionTotalSecondsProvider = { sessionTotalSeconds })
                         }
 
                         // Session Stats Badge (✓ Correct   ✕ Incorrect)
@@ -897,9 +899,7 @@ fun PracticeScreen(
                                                 val isAnsCorrect = (index == currentQuestion.correctOptionIndex)
                                                 userAnswers[currentQuestion.id] = index
                                                 viewModel.submitQuestionAnswer(currentQuestion.id, isAnsCorrect, 15)
-                                                if (isAnsCorrect) {
-                                                    viewModel.awardCorrectAnswerXp()
-                                                }
+
                                             }
                                         },
                                         shape = RoundedCornerShape(12.dp),
@@ -959,7 +959,7 @@ fun PracticeScreen(
                                 }
 
                                 // After Answering Feedback Banner & Explanation Area
-                                AnimatedVisibility(visible = isSubmitted) {
+                                if (isSubmitted) {
                                     Column {
                                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -1205,4 +1205,17 @@ fun PracticeScreen(
             )
         }
     }
+}
+
+@Composable
+fun SessionTimerText(sessionTotalSecondsProvider: () -> Int) {
+    val totalSeconds = sessionTotalSecondsProvider()
+    val minutes = totalSeconds / 60
+    val secs = totalSeconds % 60
+    Text(
+        text = String.format("%02d:%02d", minutes, secs),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+    )
 }

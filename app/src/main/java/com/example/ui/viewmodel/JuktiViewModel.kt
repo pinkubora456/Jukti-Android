@@ -684,10 +684,10 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    val isAdminOrOwner: StateFlow<Boolean> = combine(userProfile, aboutConfig) { profile, config ->
-        val role = profile?.role?.uppercase(java.util.Locale.ROOT) ?: ""
+    val isAdminOrOwner: StateFlow<Boolean> = combine(userProfile.map { it?.role to it?.email }.distinctUntilChanged(), aboutConfig) { (userRole, userEmail), config ->
+        val role = userRole?.uppercase(java.util.Locale.ROOT) ?: ""
         val isRoleAdminOrOwner = role == "ADMIN" || role == "OWNER"
-        val email = profile?.email?.trim()?.lowercase() ?: ""
+        val email = userEmail?.trim()?.lowercase() ?: ""
         val isOwnerEmail = email == "juktieducation@gmail.com" || email == "borapinku151@gmail.com"
         val adminEmails = config.adminEmails.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
         val isAdminEmail = email.isNotBlank() && adminEmails.contains(email)
@@ -696,15 +696,13 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope, SharingStarted.Eagerly, false
     )
 
-    val isOwner: StateFlow<Boolean> = userProfile.map { profile ->
-        val role = profile?.role?.uppercase(java.util.Locale.ROOT) ?: ""
+    val isOwner: StateFlow<Boolean> = userProfile.map { it?.role to it?.email }.distinctUntilChanged().map { (userRole, userEmail) ->
+        val role = userRole?.uppercase(java.util.Locale.ROOT) ?: ""
         val isRoleOwner = role == "OWNER"
-        val email = profile?.email?.trim()?.lowercase() ?: ""
+        val email = userEmail?.trim()?.lowercase() ?: ""
         val isOwnerEmail = email == "juktieducation@gmail.com" || email == "borapinku151@gmail.com"
         isRoleOwner || isOwnerEmail
-    }.stateIn(
-        viewModelScope, SharingStarted.Eagerly, false
-    )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     suspend fun getUserRoleDirect(email: String, roleInProfile: String? = null): UserRole {
         val roleUpper = roleInProfile?.uppercase(java.util.Locale.ROOT) ?: ""
@@ -815,8 +813,8 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return Pair(true, "")
     }
 
-    val isUserPremium: StateFlow<Boolean> = combine(userProfile, isAdminOrOwner, userEntitlements, plans) { profile, admin, entitlements, allPlans ->
-        val email = profile?.email?.trim()?.lowercase() ?: ""
+    val isUserPremium: StateFlow<Boolean> = combine(userProfile.map { it?.email }.distinctUntilChanged(), isAdminOrOwner, userEntitlements, plans) { userEmail, admin, entitlements, allPlans ->
+        val email = userEmail?.trim()?.lowercase() ?: ""
         val isOwner = email == "juktieducation@gmail.com" || email == "borapinku151@gmail.com"
         if (isOwner || admin) {
             true
@@ -828,9 +826,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val effectiveEntitlement: StateFlow<com.example.data.util.EffectiveUserEntitlement?> = combine(
-        userProfile, isAdminOrOwner, userEntitlements, plans
-    ) { profile, admin, entitlements, allPlans ->
-        val email = profile?.email?.trim()?.lowercase() ?: ""
+        userProfile.map { it?.email }.distinctUntilChanged(), isAdminOrOwner, userEntitlements, plans
+    ) { userEmail, admin, entitlements, allPlans ->
+        val email = userEmail?.trim()?.lowercase() ?: ""
         val isOwner = email == "juktieducation@gmail.com" || email == "borapinku151@gmail.com"
         val isUserAdminOrOwner = isOwner || admin
         com.example.data.util.PlanValidityEngine.resolveEffectiveEntitlement(entitlements, allPlans, getTrustedTime(), isAdminOrOwner = isUserAdminOrOwner)
@@ -892,6 +890,21 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
 
     // Selection & Filter States
+        private val _selectedOverviewSubjects = MutableStateFlow<Set<String>>(setOf("All Subjects"))
+    val selectedOverviewSubjects: StateFlow<Set<String>> = _selectedOverviewSubjects.asStateFlow()
+
+    fun toggleOverviewSubject(subject: String, isChecked: Boolean) {
+        val current = _selectedOverviewSubjects.value.toMutableSet()
+        if (subject == "All Subjects") {
+            if (isChecked) current.clear(); current.add("All Subjects")
+        } else {
+            current.remove("All Subjects")
+            if (isChecked) current.add(subject) else current.remove(subject)
+            if (current.isEmpty()) current.add("All Subjects")
+        }
+        _selectedOverviewSubjects.value = current
+    }
+
     private val _selectedSubject = MutableStateFlow("All Subjects")
     val selectedSubject: StateFlow<String> = _selectedSubject.asStateFlow()
 
@@ -1566,6 +1579,38 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
+        fun getChapterStatsByExamMultiSubject(
+        subjects: Set<String>,
+        exam: String,
+        qType: String = "All Types",
+        qTag: String = "All Tags"
+    ): Flow<List<com.example.data.local.ChapterStatResult>> {
+        return allResolvedQuestions.map { list ->
+            val isAllSubjects = subjects.contains("All Subjects")
+            val isAllExams = exam == "All Exams"
+            val isAllTypes = qType == "All Types"
+            val isAllTags = qTag == "All Tags"
+
+            val filtered = list.filter { q ->
+                (isAllSubjects || subjects.contains(com.example.data.repository.normalizeSubjectName(q.subject))) &&
+                (isAllExams || q.examCategory.contains(exam, ignoreCase = true)) &&
+                (isAllTypes || (qType == "Premium" && q.isPremium) || (qType == "Free" && !q.isPremium)) &&
+                (isAllTags || q.questionType.equals(qTag, ignoreCase = true))
+            }
+            
+            filtered.groupBy { it.topic }
+                .map { (chap, qs) ->
+                    com.example.data.local.ChapterStatResult(
+                        chapter = chap.ifBlank { "Uncategorized" },
+                        total = qs.size,
+                        easy = qs.count { it.difficulty.equals("Easy", ignoreCase = true) },
+                        medium = qs.count { it.difficulty.equals("Medium", ignoreCase = true) },
+                        hard = qs.count { it.difficulty.equals("Hard", ignoreCase = true) }
+                    )
+                }
+        }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+    }
+
     fun getChapterStatsByExam(
         subject: String, 
         exam: String, 
@@ -1629,6 +1674,11 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSubjectFilter(subject: String) {
         _selectedSubject.value = subject
+        if (subject == "All Subjects") {
+            _selectedOverviewSubjects.value = setOf("All Subjects")
+        } else {
+            _selectedOverviewSubjects.value = setOf(subject)
+        }
     }
     fun setExamFilter(exam: String) {
         _selectedExam.value = exam
@@ -2218,7 +2268,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun awardCorrectAnswerXp() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             repository.awardXp(10, 0)
         }
     }
@@ -2236,7 +2286,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun submitQuestionAnswer(questionId: Long, isCorrect: Boolean, timeSpentSec: Int = 10) {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val userId = userProfile.value?.uid ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
             repository.recordQuestionAnswer(userId, questionId.toString(), isCorrect, timeSpentSec, today)
@@ -2961,19 +3011,34 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    
+    private fun migrateQuestionTags() {
+        viewModelScope.launch {
+            val allQs = repository.getAllQuestionsForAdmin()
+            val qsToUpdate = allQs.filter { 
+                it.questionType != "PYQ" && it.questionType != "Expected"
+            }.map {
+                it.copy(questionType = if (it.questionType.startsWith("PYQ", ignoreCase = true)) "PYQ" else "Expected")
+            }
+            if (qsToUpdate.isNotEmpty()) {
+                repository.bulkEditQuestions(qsToUpdate, null, null, null, null, null)
+            }
+        }
+    }
+
     fun bulkEditQuestions(
         questionsToUpdate: List<QuestionEntity>,
         targetExam: String?,
         targetAccess: String?,
         targetQuestionType: String?,
-        targetPyqExamName: String?,
+        
         targetTags: String?,
         targetDifficulty: String?,
         onComplete: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
             val (success, msg) = repository.bulkEditQuestions(
-                questionsToUpdate, targetExam, targetAccess, targetQuestionType, targetPyqExamName, targetTags, targetDifficulty
+                questionsToUpdate, targetExam, targetAccess, targetQuestionType, targetTags, targetDifficulty
             )
             onComplete(success, msg)
             if (success) {

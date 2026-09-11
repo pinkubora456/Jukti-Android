@@ -29,7 +29,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     val examsList by viewModel.examsList.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val selectedTargetExam by viewModel.selectedExam.collectAsState()
-    val selectedSubject by viewModel.selectedSubject.collectAsState()
+    val selectedOverviewSubjects by viewModel.selectedOverviewSubjects.collectAsState()
     val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
     val selectedQuestionTag by viewModel.selectedQuestionTag.collectAsState()
 
@@ -64,14 +64,10 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
     
     var expanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(subjectsList) {
-        if (selectedSubject !in subjectsList && subjectsList.isNotEmpty()) {
-            viewModel.setSubjectFilter(subjectsList.first())
-        }
-    }
+    
 
-    val chapterStatsResults by remember(selectedSubject, selectedTargetExam, selectedQuestionType, selectedQuestionTag) {
-        viewModel.getChapterStatsByExam(selectedSubject, selectedTargetExam, selectedQuestionType, selectedQuestionTag)
+    val chapterStatsResults by remember(selectedOverviewSubjects, selectedTargetExam, selectedQuestionType, selectedQuestionTag) {
+        viewModel.getChapterStatsByExamMultiSubject(selectedOverviewSubjects, selectedTargetExam, selectedQuestionType, selectedQuestionTag)
     }.collectAsState(initial = emptyList())
 
     val chapterStats = remember(chapterStatsResults) {
@@ -105,7 +101,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                 .padding(16.dp)
         ) {
             val isFilterActive = selectedTargetExam != "All Exams" || 
-                    (subjectsList.isNotEmpty() && selectedSubject != subjectsList.first()) || 
+                    (!selectedOverviewSubjects.contains("All Subjects")) || 
                     selectedQuestionType != "All Types" || 
                     selectedQuestionTag != "All Tags"
 
@@ -152,8 +148,9 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                     onExpandedChange = { expanded = it },
                     modifier = Modifier.weight(1f)
                 ) {
+                    val displayValue = if (selectedOverviewSubjects.contains("All Subjects")) "All Subjects" else "${selectedOverviewSubjects.size} Selected"
                     OutlinedTextField(
-                        value = selectedSubject,
+                        value = displayValue,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Subject", maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -168,13 +165,26 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        subjectsList.forEach { subj ->
-                            DropdownMenuItem(
-                                text = { Text(subj, style = MaterialTheme.typography.bodyMedium) },
-                                onClick = {
-                                    viewModel.setSubjectFilter(subj)
-                                    expanded = false
+                        DropdownMenuItem(
+                            text = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = selectedOverviewSubjects.contains("All Subjects"), onCheckedChange = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("All Subjects", style = MaterialTheme.typography.bodyMedium)
                                 }
+                            },
+                            onClick = { viewModel.toggleOverviewSubject("All Subjects", !selectedOverviewSubjects.contains("All Subjects")) }
+                        )
+                        subjectsList.filter { it != "All Subjects" }.forEach { subj ->
+                            DropdownMenuItem(
+                                text = { 
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(checked = selectedOverviewSubjects.contains(subj), onCheckedChange = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(subj, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                },
+                                onClick = { viewModel.toggleOverviewSubject(subj, !selectedOverviewSubjects.contains(subj)) }
                             )
                         }
                     }
@@ -280,7 +290,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                 onClick = {
                                     viewModel.setExamFilter("All Exams")
                                     if (subjectsList.isNotEmpty()) {
-                                        viewModel.setSubjectFilter(subjectsList.first())
+                                        
                                     }
                                     viewModel.setQuestionTypeFilter("All Types")
                                     viewModel.setQuestionTagFilter("All Tags")
@@ -341,7 +351,7 @@ fun ContentQuestionsOverviewScreen(viewModel: JuktiViewModel) {
                                         .fillMaxWidth()
                                         .clickable { 
                                             viewModel.setExamFilter(selectedTargetExam)
-                                            viewModel.setSubjectFilter(selectedSubject)
+                                            
                                             viewModel.setChapterFilter(stat.chapter)
                                             viewModel.setQuestionTypeFilter(selectedQuestionType)
                                             viewModel.setQuestionTagFilter(selectedQuestionTag)

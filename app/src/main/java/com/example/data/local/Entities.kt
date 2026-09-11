@@ -2,6 +2,7 @@ package com.example.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "questions")
 data class QuestionEntity(
@@ -33,7 +34,8 @@ data class QuestionEntity(
     val version: Int = 1,
     val updatedAt: Long = 0L,
     val firebaseId: String = "",
-    val duplicateKey: String = ""
+    val duplicateKey: String = "",
+    @ColumnInfo(defaultValue = "") val pyqExams: String = ""
 )
 
 @Entity(tableName = "mock_tests")

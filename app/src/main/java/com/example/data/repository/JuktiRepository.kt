@@ -993,7 +993,7 @@ class JuktiRepository(
         targetExam: String?,
         targetAccess: String?,
         targetQuestionType: String?,
-        targetPyqExamName: String?,
+        
         targetTags: String?,
         targetDifficulty: String?
     ): Pair<Boolean, String> {
@@ -1003,8 +1003,7 @@ class JuktiRepository(
             var finalQuestionType = q.questionType
             
             if (targetQuestionType == "PYQ") {
-                val baseExam = if (targetPyqExamName.isNullOrBlank()) "" else targetPyqExamName
-                finalQuestionType = if (baseExam.isNotBlank()) "PYQ - $baseExam" else "PYQ"
+                finalQuestionType = "PYQ"
             } else if (targetQuestionType == "Expected") {
                 finalQuestionType = "Expected"
             }
@@ -2018,13 +2017,7 @@ class JuktiRepository(
         
         if (isCorrect) {
             if (!alreadyAttemptedToday) {
-                // Keep the original XP logic if possible, simplified
-                xpToAward = 5 
-                if (state.incorrectCount == 0 && state.totalAttempts == 0) {
-                   xpToAward = 5 // First correct
-                } else if (state.everGotWrong) {
-                    xpToAward = 8 // Correct after wrong
-                }
+                xpToAward = 10 
             }
         } else {
             newIncorrectCount += 1

@@ -27,7 +27,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
     val questions by viewModel.questions.collectAsState()
     
     val selectedTargetExam by viewModel.selectedExam.collectAsState()
-    val selectedSubject by viewModel.selectedSubject.collectAsState()
+    val selectedOverviewSubjects by viewModel.selectedOverviewSubjects.collectAsState()
     val selectedChapter by viewModel.selectedChapter.collectAsState()
     val selectedQuestionType by viewModel.selectedQuestionType.collectAsState()
     val selectedQuestionTag by viewModel.selectedQuestionTag.collectAsState()
@@ -50,7 +50,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
         }
     }
 
-    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedSubject, selectedChapter, selectedQuestionType, selectedQuestionTag, showOnlyIssues) {
+    val filteredQuestions = remember(questions, searchQuery, selectedTargetExam, selectedOverviewSubjects, selectedChapter, selectedQuestionType, selectedQuestionTag, showOnlyIssues) {
         questions.filter { q ->
             val hasIssue = q.questionEn.isBlank() || q.subject.isBlank() || q.topic.isBlank() ||
                            q.optionAEn.isBlank() || q.optionBEn.isBlank() || q.optionCEn.isBlank() || q.optionDEn.isBlank() ||
@@ -69,9 +69,9 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                     (selectedQuestionTag.equals("Expected", ignoreCase = true) && q.questionType.isBlank())
 
             val normSubj = com.example.data.repository.normalizeSubjectName(q.subject)
-            val matchesSubject = selectedSubject == "All Subjects" || 
-                  normSubj.equals(selectedSubject, ignoreCase = true) ||
-                  q.subject.equals(selectedSubject, ignoreCase = true)
+            val matchesSubject = selectedOverviewSubjects.contains("All Subjects") ||
+                  selectedOverviewSubjects.contains(normSubj) ||
+                  selectedOverviewSubjects.contains(q.subject)
                   
             val normChapter = com.example.data.repository.normalizeChapterName(q.topic, q.subject)
             val matchesChapter = selectedChapter == "All Chapters" || 
@@ -130,7 +130,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             
             // Filter Info (since the filters were set from Overview)
-            if (selectedTargetExam != "All Exams" || selectedSubject != "All Subjects" || selectedChapter != "All Chapters" || selectedQuestionType != "All Types" || selectedQuestionTag != "All Tags") {
+            if (selectedTargetExam != "All Exams" || !selectedOverviewSubjects.contains("All Subjects") || selectedChapter != "All Chapters" || selectedQuestionType != "All Types" || selectedQuestionTag != "All Tags") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -139,7 +139,7 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text("Active Filters:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         if (selectedTargetExam != "All Exams") Text("Exam: $selectedTargetExam", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                        if (selectedSubject != "All Subjects") Text("Subject: $selectedSubject", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        if (!selectedOverviewSubjects.contains("All Subjects")) Text("Subjects: ${selectedOverviewSubjects.size} Selected", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         if (selectedChapter != "All Chapters") Text("Chapter: $selectedChapter", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         if (selectedQuestionType != "All Types") Text("Type: $selectedQuestionType", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         if (selectedQuestionTag != "All Tags") Text("Tag: $selectedQuestionTag", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
@@ -470,14 +470,14 @@ fun AllQuestionsScreen(viewModel: JuktiViewModel) {
             selectedCount = selectedQuestionIds.size,
             examsList = examsList.map { it.title }.distinct(),
             onDismiss = { showBulkEditDialog = false },
-            onConfirm = { exam, access, questionType, pyqExamName, tags, difficulty ->
+            onConfirm = { exam, access, questionType, tags, difficulty ->
                 val selectedQs = questions.filter { it.id in selectedQuestionIds }
                 viewModel.bulkEditQuestions(
                     questionsToUpdate = selectedQs,
                     targetExam = exam,
                     targetAccess = access,
                     targetQuestionType = questionType,
-                    targetPyqExamName = pyqExamName,
+                    
                     targetTags = tags,
                     targetDifficulty = difficulty
                 ) { success, _ ->

@@ -1,8 +1,11 @@
-with open("app/src/main/java/com/example/data/repository/JuktiRepository.kt", "r") as f:
-    repo_content = f.read()
+with open('app/src/main/java/com/example/data/repository/JuktiRepository.kt', 'r') as f:
+    lines = f.readlines()
 
-import re
-repo_content = re.sub(r'fun saveGuidance\(entity: GuidanceEntity\)[\s\S]*?\}', '', repo_content)
+new_lines = []
+for line in lines:
+    if "val baseExam = if (targetPyqExamName" in line:
+        continue
+    new_lines.append(line)
 
-with open("app/src/main/java/com/example/data/repository/JuktiRepository.kt", "w") as f:
-    f.write(repo_content)
+with open('app/src/main/java/com/example/data/repository/JuktiRepository.kt', 'w') as f:
+    f.writelines(new_lines)

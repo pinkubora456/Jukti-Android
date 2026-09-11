@@ -1,4 +1,6 @@
-package com.example.ui.screens
+import sys
+
+content = """package com.example.ui.screens
 
 import kotlinx.coroutines.launch
 import com.example.ui.components.SafeOutlinedTextField
@@ -145,8 +147,8 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
             title = { Text("Duplicate Question") },
             text = {
                 Text(
-                    "A similar question already exists in the database:\n\n" +
-                    "$duplicateError\n\n" +
+                    "A similar question already exists in the database:\\n\\n" +
+                    "$duplicateError\\n\\n" +
                     "Import skipped to prevent duplicates."
                 )
             },
@@ -162,7 +164,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
                 title = if (editingQuestion != null) "Edit Question" else "Manual Entry",
-                onBackClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
+                onNavigationClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_QBANK) },
                 actions = {
                     IconButton(onClick = { viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_SUBJECTS_CHAPTERS) }) {
                         Icon(Icons.Default.Category, contentDescription = "Manage Subjects & Chapters")
@@ -616,3 +618,7 @@ fun SingleQuestionUploadScreen(viewModel: JuktiViewModel) {
         )
     }
 }
+"""
+
+with open('app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt', 'w') as f:
+    f.write(content)

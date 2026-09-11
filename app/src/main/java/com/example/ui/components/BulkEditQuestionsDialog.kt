@@ -19,7 +19,7 @@ fun BulkEditQuestionsDialog(
         exam: String?,
         access: String?,
         questionType: String?,
-        pyqExamName: String?,
+        
         tags: String?,
         difficulty: String?
     ) -> Unit
@@ -32,8 +32,6 @@ fun BulkEditQuestionsDialog(
 
     var questionType by remember { mutableStateOf<String?>("Don't Change") }
     var questionTypeExpanded by remember { mutableStateOf(false) }
-
-    var pyqExamName by remember { mutableStateOf<String?>("Don't Change") }
 
     var difficulty by remember { mutableStateOf<String?>("Don't Change") }
     var difficultyExpanded by remember { mutableStateOf(false) }
@@ -53,7 +51,7 @@ fun BulkEditQuestionsDialog(
                     if (exam != "Don't Change") Text("Exam: $exam")
                     if (access != "Don't Change") Text("Access: $access")
                     if (questionType != "Don't Change") Text("Question Type: $questionType")
-                    if (questionType == "PYQ" && pyqExamName != "Don't Change" && pyqExamName?.isNotBlank() == true) Text("PYQ Exam: $pyqExamName")
+                    
                     if (difficulty != "Don't Change") Text("Difficulty: $difficulty")
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("These changes will be applied to all $selectedCount selected questions.")
@@ -66,7 +64,6 @@ fun BulkEditQuestionsDialog(
                         if (exam == "Don't Change") null else exam,
                         if (access == "Don't Change") null else access,
                         if (questionType == "Don't Change") null else questionType,
-                        if (pyqExamName == "Don't Change") null else pyqExamName,
                         null,
                         if (difficulty == "Don't Change") null else difficulty
                     )
@@ -172,8 +169,7 @@ fun BulkEditQuestionsDialog(
                                     text = { Text(option) },
                                     onClick = { 
                                         questionType = option
-                                        if (option != "PYQ") pyqExamName = "Don't Change"
-                                        else if (pyqExamName == "Don't Change") pyqExamName = ""
+                                        
                                         questionTypeExpanded = false 
                                     }
                                 )
@@ -181,16 +177,6 @@ fun BulkEditQuestionsDialog(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    if (questionType == "PYQ") {
-                        OutlinedTextField(
-                            value = if (pyqExamName == "Don't Change") "" else pyqExamName ?: "",
-                            onValueChange = { pyqExamName = it },
-                            label = { Text("PYQ Exam Name") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
 
                      // Difficulty
                      ExposedDropdownMenuBox(

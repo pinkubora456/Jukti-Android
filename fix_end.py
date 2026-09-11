@@ -1,30 +1,94 @@
-import re
+with open('app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt', 'r') as f:
+    content = f.read()
 
-def fix(filepath):
-    with open(filepath, "r") as f:
-        content = f.read()
+bad_chunk = """    if (targetExamDialogVisible) {
+        AlertDialog(
+            text = {
+                if (exams.isEmpty()) {
+                    Text("No exams available. Please add exams in Manage Exams first.", color = MaterialTheme.colorScheme.error)
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(exams) { exam ->
+                            val isSelected = selectedExams.contains(exam.title)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedExams.remove(exam.title)
+                                            selectedExams.add(exam.title)
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            if (!selectedExams.contains(exam.title)) selectedExams.add(exam.title)
+                                            selectedExams.remove(exam.title)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(exam.title, style = MaterialTheme.typography.bodyLarge)
+            confirmButton = {
+                    Text("Done")
+        )
+"""
 
-    idx = content.find("private data class BannerConfig")
-    if idx == -1:
-        idx = content.find("private data class")
-        
-    if idx == -1: return
-    
-    before = content[:idx]
-    after = content[idx:]
-    
-    # count braces in `before`
-    # exclude comments and strings? The codebase doesn't have many block comments or strings with braces.
-    open_count = before.count("{")
-    close_count = before.count("}")
-    
-    diff = open_count - close_count
-    
-    if diff > 0:
-        print(f"Adding {diff} braces")
-        before += ("}\n" * diff)
-        
-    with open(filepath, "w") as f:
-        f.write(before + after)
+good_chunk = """    if (targetExamDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { targetExamDialogVisible = false },
+            title = { Text("Select Target Exams") },
+            text = {
+                if (exams.isEmpty()) {
+                    Text("No exams available. Please add exams in Manage Exams first.", color = MaterialTheme.colorScheme.error)
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(exams) { exam ->
+                            val isSelected = selectedExams.contains(exam.title)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedExams.remove(exam.title)
+                                        } else {
+                                            selectedExams.add(exam.title)
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            if (!selectedExams.contains(exam.title)) selectedExams.add(exam.title)
+                                        } else {
+                                            selectedExams.remove(exam.title)
+                                        }
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(exam.title, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { targetExamDialogVisible = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+}
+"""
 
-fix("app/src/main/java/com/example/ui/screens/PracticeScreen.kt")
+if bad_chunk in content:
+    content = content.replace(bad_chunk, good_chunk)
+    print("Replaced!")
+else:
+    print("Could not find chunk")
+
+with open('app/src/main/java/com/example/ui/screens/SingleQuestionUploadScreen.kt', 'w') as f:
+    f.write(content)

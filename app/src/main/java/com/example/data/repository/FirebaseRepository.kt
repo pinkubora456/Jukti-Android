@@ -73,8 +73,9 @@ class FirebaseRepository {
         return trimmed.replace("@", "_at_").replace(".", "_dot_")
     }
 
-    suspend fun saveUserProfile(profile: UserProfileEntity, merge: Boolean = true) {
+    suspend fun saveUserProfile(profile: UserProfileEntity, merge: Boolean = true) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
+
             val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (e: Exception) { null }
             val currentUid = auth?.currentUser?.uid
             val sanitizedEmailDocId = getSanitizedUserDocId(profile.email)
@@ -122,10 +123,7 @@ class FirebaseRepository {
             } else {
                 firestore?.collection("users")?.document(docId)?.set(userMap)?.await()
             }
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Throwable) {
-            logOperationError("Error saving user profile to Firebase", e)
-        }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) { logOperationError("Error saving user profile to Firebase", e) }
     }
 
     suspend fun fetchUserProfile(email: String, explicitUid: String? = null): UserProfileEntity? {
