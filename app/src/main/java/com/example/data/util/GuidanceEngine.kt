@@ -144,20 +144,34 @@ object GuidanceEngine {
                 val correct = state.totalAttempts - state.incorrectCount
                 performanceMap[key] = Pair(current.first + state.totalAttempts, current.second + correct)
             }
+        }        // Combine chapters from PYQs and Questions
+        val allExamChapters = mutableSetOf<Pair<String, String>>()
+        examPyqs.forEach { pyq ->
+            if (pyq.subject.isNotBlank() && pyq.chapter.isNotBlank()) {
+                allExamChapters.add(Pair(pyq.subject, pyq.chapter))
+            }
+        }
+        allQuestions.forEach { q ->
+            if (q.examCategory.contains(exam, ignoreCase = true) || q.examCategory.isEmpty() || exam.contains(q.examCategory, ignoreCase = true)) {
+                if (q.subject.isNotBlank() && q.topic.isNotBlank()) {
+                    allExamChapters.add(Pair(q.subject, q.topic))
+                }
+            }
         }
         
+        val pyqAvgMap = examPyqs.associate { Pair(it.subject, it.chapter) to (if (it.examsCovered > 0) it.pyqCount.toFloat() / it.examsCovered else 0f) }
+
         // Build ChapterPerformance
-        val chapterPerformances = examPyqs.map { pyq ->
-            val key = Pair(pyq.subject, pyq.chapter)
+        val chapterPerformances = allExamChapters.map { key ->
             val perf = performanceMap[key]
             val totalAtt = perf?.first ?: 0
             val correctAtt = perf?.second ?: 0
             val acc = if (totalAtt >= minAttemptsRequired) (correctAtt.toFloat() / totalAtt) * 100f else null
-            val avg = if (pyq.examsCovered > 0) pyq.pyqCount.toFloat() / pyq.examsCovered else 0f
+            val avg = pyqAvgMap[key] ?: 0f
             
             ChapterPerformance(
-                subject = pyq.subject,
-                chapter = pyq.chapter,
+                subject = key.first,
+                chapter = key.second,
                 totalAttempts = totalAtt,
                 correctAttempts = correctAtt,
                 accuracy = acc,
@@ -170,9 +184,7 @@ object GuidanceEngine {
             chapterPerformances.filter { it.subject.equals(subject, ignoreCase = true) }
         } else {
             chapterPerformances
-        }
-        
-        // Priority Topics
+        }        // Priority Topics
         val priorityTopics = filteredPerformances.map { perf ->
             val pyqScore = (perf.pyqAvg.coerceAtMost(5f) / 5f) * 100f
             
@@ -187,21 +199,15 @@ object GuidanceEngine {
             val label: String
             val reason: String
             
-            if (perf.pyqAvg >= highImportancePyqAvg && (perf.accuracy != null && perf.accuracy < weakAccuracyThreshold)) {
+            if (perf.pyqAvg >= 2.0f) {
                 label = "High Priority"
-                reason = "Frequently asked + weak performance"
-            } else if (perf.pyqAvg >= highImportancePyqAvg && (perf.accuracy != null && perf.accuracy >= strongAccuracyThreshold)) {
-                label = "Maintain"
-                reason = "Important topic but current performance is strong"
-            } else if (perf.pyqAvg >= highImportancePyqAvg && perf.accuracy == null) {
-                label = "High Priority"
-                reason = "Important topic (PYQ). Practice to determine accuracy."
-            } else if (priorityScore >= 60f) {
+                reason = "Avg PYQ >= 2.0 (High Importance)"
+            } else if (perf.pyqAvg >= 1.0f) {
                 label = "Medium Priority"
-                reason = "Needs improvement"
+                reason = "Avg PYQ 1.0 - 2.0 (Medium Importance)"
             } else {
                 label = "Low Priority"
-                reason = "Less frequent or already strong"
+                reason = "Avg PYQ < 1.0 (Low Importance)"
             }
             
             PriorityTopicItem(

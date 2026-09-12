@@ -720,12 +720,14 @@ fun PyqFocusRowItem(
     onSave: (PyqFocusEntity) -> Unit,
     onDelete: () -> Unit
 ) {
-    var pyqCountStr by remember(item) { mutableStateOf(item.pyqCount.toString()) }
-    var examsCoveredStr by remember(item) { mutableStateOf(item.examsCovered.toString()) }
+    var pyqCountStr by remember(item.pyqCount) { mutableStateOf(item.pyqCount.toString()) }
+    var examsCoveredStr by remember(item.examsCovered) { mutableStateOf(item.examsCovered.toString()) }
 
-    val pyqCount = pyqCountStr.toIntOrNull() ?: 0
-    val examsCovered = examsCoveredStr.toIntOrNull() ?: 0
-    val avg = if (examsCovered > 0) pyqCount.toFloat() / examsCovered else 0f
+    val isModified = pyqCountStr != item.pyqCount.toString() || examsCoveredStr != item.examsCovered.toString()
+
+    val avg = if ((examsCoveredStr.toIntOrNull() ?: 0) > 0) {
+        (pyqCountStr.toFloatOrNull() ?: 0f) / (examsCoveredStr.toFloatOrNull() ?: 1f)
+    } else 0f
 
     val (impLabel, impColor) = when {
         avg >= 2.0f -> Pair("High", Color(0xFFE53935))
@@ -759,22 +761,14 @@ fun PyqFocusRowItem(
 
             SafeOutlinedTextField(
                 value = pyqCountStr,
-                onValueChange = {
-                    pyqCountStr = it
-                    val newCount = it.toIntOrNull() ?: 0
-                    onSave(item.copy(pyqCount = newCount, examsCovered = examsCoveredStr.toIntOrNull() ?: 0, updatedAt = System.currentTimeMillis()))
-                },
+                onValueChange = { pyqCountStr = it },
                 modifier = Modifier.weight(1.1f),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             SafeOutlinedTextField(
                 value = examsCoveredStr,
-                onValueChange = {
-                    examsCoveredStr = it
-                    val newCovered = it.toIntOrNull() ?: 0
-                    onSave(item.copy(pyqCount = pyqCountStr.toIntOrNull() ?: 0, examsCovered = newCovered, updatedAt = System.currentTimeMillis()))
-                },
+                onValueChange = { examsCoveredStr = it },
                 modifier = Modifier.weight(1.1f),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -784,7 +778,7 @@ fun PyqFocusRowItem(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = String.format(Locale.US, "%.1f", avg),
+                    text = String.format(java.util.Locale.US, "%.1f", avg),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -803,11 +797,32 @@ fun PyqFocusRowItem(
                 }
             }
 
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(32.dp)
+            Column(
+                modifier = Modifier.width(36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                val context = androidx.compose.ui.platform.LocalContext.current
+                if (isModified) {
+                    IconButton(
+                        onClick = {
+                            val newCount = pyqCountStr.toIntOrNull() ?: 0
+                            val newCovered = examsCoveredStr.toIntOrNull() ?: 0
+                            onSave(item.copy(pyqCount = newCount, examsCovered = newCovered, updatedAt = System.currentTimeMillis()))
+                            Toast.makeText(context, "Changes Saved to Cloud", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Save", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
+                } else {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
         }
     }

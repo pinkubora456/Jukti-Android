@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -595,24 +596,36 @@ fun PyqFocusSection(pyqData: List<PyqFocusEntity>, onPractice: (String) -> Unit)
                     Text(subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
                         Text("Chapter", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
                         Text("PYQs", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                         Text("Exams", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                         Text("Avg", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                     }
-                    HorizontalDivider()
                     
                     chapters.sortedByDescending { if (it.examsCovered > 0) it.pyqCount.toFloat() / it.examsCovered else 0f }.forEach { chapterData ->
                         val avg = if (chapterData.examsCovered > 0) chapterData.pyqCount.toFloat() / chapterData.examsCovered else 0f
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable { onPractice(chapterData.chapter) }, 
-                            verticalAlignment = Alignment.CenterVertically
+                        val (baseColor, bgColor) = when {
+                            avg >= 2.0f -> Pair(Color(0xFFE53935), Color(0xFFE53935).copy(alpha = 0.2f)) // Red
+                            avg >= 1.0f -> Pair(Color(0xFFFB8C00), Color(0xFFFB8C00).copy(alpha = 0.2f)) // Orange
+                            else -> Pair(Color(0xFF757575), Color(0xFF757575).copy(alpha = 0.2f)) // Gray
+                        }
+                        
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onPractice(chapterData.chapter) },
+                            colors = CardDefaults.cardColors(containerColor = bgColor),
+                            border = BorderStroke(1.dp, baseColor.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(chapterData.chapter, modifier = Modifier.weight(2f), style = MaterialTheme.typography.bodySmall)
-                            Text("${chapterData.pyqCount}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                            Text("${chapterData.examsCovered}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                            Text(String.format("%.1f", avg), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = if(avg >= 2f) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(chapterData.chapter, modifier = Modifier.weight(2f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text("${chapterData.pyqCount}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface)
+                                Text("${chapterData.examsCovered}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface)
+                                Text(String.format("%.1f", avg), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = baseColor)
+                            }
                         }
                     }
                 }
@@ -626,27 +639,31 @@ fun PriorityTopicsSection(topics: List<PriorityTopicItem>, onPractice: (String, 
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                topics.take(10).forEachIndexed { index, topic ->
-                    val (statusColor, statusIcon) = when (topic.priorityLabel) {
-                        "High Priority" -> Pair(Color(0xFFE53935), Icons.Default.Warning)
-                        "Medium Priority" -> Pair(Color(0xFFFDD835), Icons.Default.TrendingDown)
-                        "Maintain" -> Pair(Color(0xFF43A047), Icons.Default.Verified)
-                        else -> Pair(Color(0xFF81C784), Icons.Default.Check)
+                topics.take(10).forEachIndexed { index, topic ->                    val (baseColor, bgColor) = when (topic.priorityLabel) {
+                        "High Priority" -> Pair(Color(0xFFE53935), Color(0xFFE53935).copy(alpha = 0.2f))
+                        "Medium Priority" -> Pair(Color(0xFFFB8C00), Color(0xFFFB8C00).copy(alpha = 0.2f))
+                        else -> Pair(Color(0xFF757575), Color(0xFF757575).copy(alpha = 0.2f))
                     }
 
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(topic.priorityLabel.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = statusColor)
-                            Text(topic.subject + " - " + topic.chapter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                            Text("PYQ Avg: ${String.format("%.1f", topic.pyqAvg)} | Your Accuracy: ${topic.accuracy?.let { String.format("%.0f%%", it) } ?: "N/A"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(topic.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        
-                        TextButton(onClick = { onPractice(topic.subject, topic.chapter) }) {
-                            Text("Practice")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = bgColor),
+                        border = BorderStroke(1.dp, baseColor.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(topic.priorityLabel.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = baseColor)
+                                Text(topic.subject + " - " + topic.chapter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text("PYQ Avg: ${String.format("%.1f", topic.pyqAvg)} | Your Accuracy: ${topic.accuracy?.let { String.format("%.0f%%", it) } ?: "N/A"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(topic.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            
+                            IconButton(onClick = { onPractice(topic.subject, topic.chapter) }, modifier = Modifier.background(baseColor.copy(alpha = 0.2f), RoundedCornerShape(50))) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Practice", tint = baseColor)
+                            }
                         }
                     }
-                    if (index < topics.size - 1) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 }
             }
         }
@@ -658,28 +675,29 @@ fun StrengthWeaknessSection(items: List<StrengthWeaknessItem>, onImprove: (Strin
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items.take(10).forEachIndexed { index, item ->
-                    val (statusColor, statusIcon) = when {
-                        item.statusLabel == "Not Enough Data" -> Pair(MaterialTheme.colorScheme.onSurfaceVariant, Icons.Default.HelpOutline)
-                        item.isImportant && item.isWeak -> Pair(Color(0xFFE53935), Icons.Default.Warning) // Red
-                        item.isImportant && !item.isWeak -> Pair(Color(0xFF43A047), Icons.Default.Verified) // Green
-                        !item.isImportant && item.isWeak -> Pair(Color(0xFFFDD835), Icons.Default.TrendingDown) // Yellow
-                        else -> Pair(Color(0xFF43A047), Icons.Default.TrendingUp) // Green
+                items.take(10).forEachIndexed { index, item ->                    val (baseColor, bgColor) = when {
+                        item.statusLabel == "Not Enough Data" -> Pair(Color(0xFF757575), Color(0xFF757575).copy(alpha = 0.2f))
+                        item.isImportant && item.isWeak -> Pair(Color(0xFFE53935), Color(0xFFE53935).copy(alpha = 0.2f))
+                        !item.isImportant && item.isWeak -> Pair(Color(0xFFFB8C00), Color(0xFFFB8C00).copy(alpha = 0.2f))
+                        else -> Pair(Color(0xFF43A047), Color(0xFF43A047).copy(alpha = 0.2f))
                     }
 
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(item.subject + " - " + item.chapter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                            Text("Avg PYQ: ${String.format("%.1f", item.pyqAvg)} | Accuracy: ${item.accuracy?.let { String.format("%.0f%%", it) } ?: "N/A"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(16.dp)).padding(horizontal = 8.dp, vertical = 4.dp).clickable { onImprove(item.subject, item.chapter) }) {
-                            Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(item.statusLabel, color = statusColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onImprove(item.subject, item.chapter) },
+                        colors = CardDefaults.cardColors(containerColor = bgColor),
+                        border = BorderStroke(1.dp, baseColor.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.statusLabel.uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = baseColor)
+                                Text(item.subject + " - " + item.chapter, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text("Avg PYQ: ${String.format("%.1f", item.pyqAvg)} | Accuracy: ${item.accuracy?.let { String.format("%.0f%%", it) } ?: "N/A"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            
+                            Icon(Icons.Default.ArrowForwardIos, contentDescription = "Improve", tint = baseColor, modifier = Modifier.size(16.dp))
                         }
                     }
-                    if (index < items.size - 1) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 }
             }
         }
