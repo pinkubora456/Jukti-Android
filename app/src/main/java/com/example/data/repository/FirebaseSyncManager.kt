@@ -295,7 +295,9 @@ class FirebaseSyncManager(
         "createdAt" to (if (p.createdAt > 0L) p.createdAt else System.currentTimeMillis()),
         "updatedAt" to System.currentTimeMillis(),
         "guidanceEnabled" to p.guidanceEnabled,
-        "guidanceAllowedExams" to p.guidanceAllowedExams.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        "guidanceAllowedExams" to p.guidanceAllowedExams.split(",").map { it.trim() }.filter { it.isNotBlank() },
+        "planBadge" to p.planBadge,
+        "displayOrder" to p.displayOrder
     )
 
     fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(

@@ -36,6 +36,8 @@ import com.example.ui.components.BilingualText
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.AppLanguage
 import com.example.ui.viewmodel.JuktiViewModel
+import kotlinx.coroutines.launch
+import com.example.billing.PlayBillingManager
 import com.example.ui.viewmodel.Screen
 import com.example.ui.components.getLogoIcon
 
@@ -53,6 +55,11 @@ fun HomeScreen(viewModel: JuktiViewModel) {
     val studyNotes by viewModel.accessibleStudyNotes.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
     val isUserPremium by viewModel.isUserPremium.collectAsState()
+    val userEntitlements by viewModel.userEntitlements.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val hasEverPurchasedAnyPlan = remember(userEntitlements) {
+        userEntitlements.any { !it.planName.equals("Free Plan", ignoreCase = true) }
+    }
     val premiumSyncState by viewModel.premiumSyncState.collectAsState()
 
     var showPomodoroDialog by remember { mutableStateOf(false) }
@@ -240,6 +247,23 @@ Row(
             Spacer(modifier = Modifier.height(24.dp))
 
             val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as? android.app.Activity
+    val billingManager = remember { PlayBillingManager(context) }
+    val pendingVerificationInfo by billingManager.pendingVerificationInfo.collectAsState()
+
+    LaunchedEffect(pendingVerificationInfo) {
+        pendingVerificationInfo?.let { info ->
+            viewModel.verifyAndProvisionPurchase(
+                purchaseToken = info.purchaseToken,
+                purchaseId = info.purchaseId,
+                planId = info.planId,
+                planName = info.planName,
+                validity = info.validity,
+                productId = info.productId
+            )
+            billingManager.clearVerificationInfo()
+        }
+    }
             var selectedBannerForDetails by remember { mutableStateOf<com.example.data.local.BannerEntity?>(null) }
             
             if (selectedBannerForDetails != null) {
@@ -347,7 +371,28 @@ Row(
                 plans = plans,
                 language = language,
                 isUserPremium = isUserPremium,
-                onUpgradeClick = { viewModel.navigateTo(Screen.PREMIUM_PLANS) },
+                hasEverPurchasedAnyPlan = hasEverPurchasedAnyPlan,
+                onUpgradeClick = { plan -> 
+                    coroutineScope.launch {
+                        val (canBuy, reasonMsg) = viewModel.validatePurchaseEligibility(plan)
+                        if (!canBuy) {
+                            android.widget.Toast.makeText(context, reasonMsg, android.widget.Toast.LENGTH_LONG).show()
+                        } else {
+                            if (activity != null) {
+                                billingManager.buyPlan(
+                                    activity = activity,
+                                    planId = plan.id.toString(),
+                                    planName = plan.planName,
+                                    explicitProductId = plan.googlePlayProductId,
+                                    planValidity = plan.planValidity.ifBlank { "1 year" }
+                                )
+                            } else {
+                                android.widget.Toast.makeText(context, "Activity reference not available for Play Billing.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                onNavigateToPlans = { viewModel.navigateTo(Screen.PREMIUM_PLANS) },
                 onBannerClick = { banner ->
                     when (banner.actionType) {
                         "Mock Test" -> {

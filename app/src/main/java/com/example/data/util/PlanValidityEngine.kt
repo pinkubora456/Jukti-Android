@@ -218,8 +218,16 @@ object PlanValidityEngine {
                 targets.add("Grade IV")
             }
             nameLower.contains("grade 3") || nameLower.contains("grade iii") || nameLower.contains("class 3") -> {
-                targets.add("Grade 3")
-                targets.add("Grade III")
+                if (nameLower.contains("graduate") || nameLower.contains("degree")) {
+                    targets.add("Grade 3 Graduate Level")
+                } else if (nameLower.contains("hs") || nameLower.contains("higher secondary") || nameLower.contains("12th") || nameLower.contains("plus two")) {
+                    targets.add("Grade 3 HS Level")
+                } else if (nameLower.contains("driver")) {
+                    targets.add("Grade 3 Driver")
+                } else {
+                    targets.add("Grade 3")
+                    targets.add("Grade III")
+                }
             }
             nameLower.contains("driver") -> {
                 targets.add("Driver")
@@ -507,10 +515,9 @@ object PlanValidityEngine {
     /**
      * Checks whether an item's exam matches the allowed exam list of an active plan.
      */
-    fun matchesExamTarget(itemExamCategory: String?, itemTitleOrTopic: String?, allowedExams: List<String>): Boolean {
+        fun matchesExamTarget(itemExamCategory: String?, itemTitleOrTopic: String?, allowedExams: List<String>): Boolean {
         if (allowedExams.isEmpty()) return true
         if (allowedExams.any { it.isBlank() || it.equals("All Exams", ignoreCase = true) || it.equals("All", ignoreCase = true) || it.equals("ALL_EXAMS", ignoreCase = true) }) return true
-
         val cat = itemExamCategory?.trim().orEmpty()
         val title = itemTitleOrTopic?.trim().orEmpty()
         val combined = "$cat $title".trim().lowercase(Locale.ROOT)
@@ -519,38 +526,53 @@ object PlanValidityEngine {
             val allowed = rawAllowed.trim().lowercase(Locale.ROOT)
             if (allowed.isBlank() || allowed == "all" || allowed == "all exams" || allowed == "all_exams") return@any true
 
+            val isGrade3GraduatePlan = allowed.contains("graduate") || allowed.contains("degree")
+            val isGrade3HsPlan = allowed.contains("hs") || allowed.contains("higher secondary") || allowed.contains("12th")
+            val isGrade3DriverPlan = allowed.contains("driver")
             val isGrade4Plan = allowed.contains("grade 4") || allowed.contains("grade iv") || allowed.contains("class 4")
-            val isGrade3Plan = allowed.contains("grade 3") || allowed.contains("grade iii") || allowed.contains("class 3")
-            val isDriverPlan = allowed.contains("driver")
-            val isPolicePlan = allowed.contains("police") || allowed.contains("constable") || allowed.contains("si")
-            val isTetPlan = allowed.contains("tet")
-            val isApscPlan = allowed.contains("apsc")
+            val isGrade3GeneralPlan = (allowed.contains("grade 3") || allowed.contains("grade iii") || allowed.contains("class 3")) && !isGrade3GraduatePlan && !isGrade3HsPlan && !isGrade3DriverPlan
 
+            val isGrade3GraduateItem = combined.contains("graduate") || combined.contains("degree")
+            val isGrade3HsItem = combined.contains("hs") || combined.contains("higher secondary") || combined.contains("12th")
+            val isGrade3DriverItem = combined.contains("driver")
             val isGrade4Item = combined.contains("grade 4") || combined.contains("grade iv") || combined.contains("class 4")
             val isGrade3Item = combined.contains("grade 3") || combined.contains("grade iii") || combined.contains("class 3")
-            val isDriverItem = combined.contains("driver")
-            val isPoliceItem = combined.contains("police") || combined.contains("constable") || combined.contains("si")
-            val isTetItem = combined.contains("tet")
-            val isApscItem = combined.contains("apsc")
 
+            if (isGrade3GraduatePlan) {
+                return@any isGrade3GraduateItem && combined.contains("grade 3")
+            }
+            if (isGrade3HsPlan) {
+                return@any isGrade3HsItem && combined.contains("grade 3")
+            }
+            if (isGrade3DriverPlan) {
+                return@any isGrade3DriverItem && combined.contains("grade 3")
+            }
+            if (isGrade3GeneralPlan) {
+                return@any isGrade3Item && !isGrade3GraduateItem && !isGrade3HsItem && !isGrade3DriverItem
+            }
             if (isGrade4Plan) {
                 return@any isGrade4Item || (!isGrade3Item && combined.contains("adre"))
             }
-            if (isGrade3Plan) {
-                return@any isGrade3Item || (!isGrade4Item && combined.contains("adre"))
-            }
-            if (isDriverPlan) return@any isDriverItem
+
+            val isPolicePlan = allowed.contains("police") || allowed.contains("constable") || allowed.contains("si")
+            val isTetPlan = allowed.contains("tet")
+            val isApscPlan = allowed.contains("apsc")
+            val isForestPlan = allowed.contains("forest")
+
+            val isPoliceItem = combined.contains("police") || combined.contains("constable") || combined.contains("si")
+            val isTetItem = combined.contains("tet")
+            val isApscItem = combined.contains("apsc")
+            val isForestItem = combined.contains("forest")
+
             if (isPolicePlan) return@any isPoliceItem
             if (isTetPlan) return@any isTetItem
             if (isApscPlan) return@any isApscItem
+            if (isForestPlan) return@any isForestItem
 
             combined.contains(allowed) || cat.lowercase(Locale.ROOT).contains(allowed)
         }
     }
 
-    /**
-     * Checks if Guidance is accessible for a specific exam title/category.
-     */
     fun isGuidanceAccessibleForExam(
         examTitle: String,
         effectiveEntitlement: EffectiveUserEntitlement?,

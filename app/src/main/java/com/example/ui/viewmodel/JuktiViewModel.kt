@@ -118,6 +118,9 @@ enum class Screen {
 
 class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
+    var planToEditForScreen: com.example.data.local.PlanEntity? = null
+
+
     private val timePrefs by lazy { getApplication<Application>().getSharedPreferences("jukti_time_prefs", android.content.Context.MODE_PRIVATE) }
     
     private var sessionTrustedServerTime: Long = 0L

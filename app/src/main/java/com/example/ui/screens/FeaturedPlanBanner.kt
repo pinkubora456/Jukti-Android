@@ -24,183 +24,15 @@ import com.example.ui.components.PlanDisplayHelper
 fun FeaturedPlanBanner(
     plan: PlanEntity,
     onBuyClick: () -> Unit,
+    onMoreInfoClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     isPlanActive: Boolean = false
 ) {
-    var showDetailsDialog by remember { mutableStateOf(false) }
-
     val cleanFinalPrice = PlanDisplayHelper.formatPrice(plan.finalPrice)
     val cleanOriginalPrice = PlanDisplayHelper.formatPrice(plan.planPrice)
     val cleanDiscount = PlanDisplayHelper.formatDiscount(plan.discount)
     val cleanValidity = PlanDisplayHelper.formatValidity(plan)
     val benefits = PlanDisplayHelper.parseFeatures(plan.features)
-
-    if (showDetailsDialog) {
-        AlertDialog(
-            onDismissRequest = { showDetailsDialog = false },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = plan.planName,
-                        fontWeight = FontWeight.ExtraBold,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .fillMaxWidth()
-                ) {
-                    if (cleanFinalPrice.isNotBlank() || cleanOriginalPrice.isNotBlank() || cleanDiscount.isNotBlank()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        ) {
-                            if (cleanFinalPrice.isNotBlank()) {
-                                Text(
-                                    text = cleanFinalPrice,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            if (cleanOriginalPrice.isNotBlank() && cleanOriginalPrice != cleanFinalPrice) {
-                                Text(
-                                    text = cleanOriginalPrice,
-                                    style = MaterialTheme.typography.titleMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                            }
-                            if (cleanDiscount.isNotBlank()) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.error,
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Text(
-                                        text = cleanDiscount,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onError,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (cleanValidity.isNotBlank()) {
-                        Text(
-                            text = "Plan Validity: $cleanValidity",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                    if (plan.offerValidity.isNotBlank() && !plan.offerValidity.equals(cleanValidity, ignoreCase = true)) {
-                        Text(
-                            text = "Offer Note: ${plan.offerValidity}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
-                    if (plan.examTarget.isNotBlank()) {
-                        Text(
-                            text = "Target Exam: ${plan.examTarget}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                    if (plan.guidanceEnabled) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Text(
-                                text = "💡 Includes Preparation Guidance & Strategy",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-
-                    if (benefits.isNotEmpty()) {
-                        Text(
-                            text = "Benefits Included:",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        benefits.forEach { b ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = b,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = {
-                            if (!isPlanActive) {
-                                showDetailsDialog = false
-                                onBuyClick()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isPlanActive,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isPlanActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
-                            contentColor = if (isPlanActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Text(if (isPlanActive) "✅ Active Plan" else "Buy Now", fontWeight = FontWeight.Bold)
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showDetailsDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
-    }
 
     Card(
         modifier = modifier
@@ -249,6 +81,23 @@ fun FeaturedPlanBanner(
                         .fillMaxSize()
                         .background(brush = Brush.horizontalGradient(colors = gradientColors))
                 )
+            }
+
+
+            if (plan.planBadge.isNotBlank() && !plan.planBadge.equals("None", ignoreCase = true)) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                    shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp)
+                ) {
+                    Text(
+                        text = plan.planBadge,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
 
             Icon(
@@ -370,7 +219,7 @@ fun FeaturedPlanBanner(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(
-                        onClick = { showDetailsDialog = true },
+                        onClick = onMoreInfoClick,
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
                     ) {
                         Text("More Info", fontWeight = FontWeight.Bold)
@@ -380,7 +229,7 @@ fun FeaturedPlanBanner(
                             if (!isPlanActive) {
                                 onBuyClick()
                             } else {
-                                showDetailsDialog = true
+                                onMoreInfoClick()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(

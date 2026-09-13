@@ -742,7 +742,9 @@ class FirebaseRepository {
         "createdAt" to (if (p.createdAt > 0L) p.createdAt else System.currentTimeMillis()),
         "updatedAt" to System.currentTimeMillis(),
         "guidanceEnabled" to p.guidanceEnabled,
-        "guidanceAllowedExams" to p.guidanceAllowedExams.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        "guidanceAllowedExams" to p.guidanceAllowedExams.split(",").map { it.trim() }.filter { it.isNotBlank() },
+        "planBadge" to p.planBadge,
+        "displayOrder" to p.displayOrder
     )
 
     private fun faqToMap(f: FaqEntity): Map<String, Any?> = mapOf(
@@ -1069,7 +1071,9 @@ class FirebaseRepository {
                         is List<*> -> raw.filterIsInstance<String>().joinToString(",")
                         is String -> raw
                         else -> ""
-                    }
+                    },
+                    planBadge = doc.get("planBadge")?.toString() ?: "None",
+                    displayOrder = doc.get("displayOrder")?.toString()?.toDoubleOrNull()?.toInt() ?: 0
                 )
             } ?: emptyList()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -1840,7 +1844,9 @@ class FirebaseRepository {
                                             is List<*> -> raw.filterIsInstance<String>().joinToString(",")
                                             is String -> raw
                                             else -> ""
-                                        }
+                                        },
+                                        planBadge = doc.get("planBadge")?.toString() ?: "None",
+                                        displayOrder = doc.get("displayOrder")?.toString()?.toDoubleOrNull()?.toInt() ?: 0
                                     )
                                 } catch (e: Throwable) {
                                     null

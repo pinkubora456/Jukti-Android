@@ -4,6 +4,11 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Check
+
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +33,21 @@ fun AutoShiftingBannerCarousel(
     plans: List<com.example.data.local.PlanEntity> = emptyList(),
     language: com.example.ui.viewmodel.AppLanguage,
     isUserPremium: Boolean = false,
-    onUpgradeClick: () -> Unit,
+    hasEverPurchasedAnyPlan: Boolean = false,
+    onUpgradeClick: (com.example.data.local.PlanEntity) -> Unit,
+    onNavigateToPlans: () -> Unit = {},
     onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null
 ) {
-    val activePlans = plans.filter { it.isActive && com.example.ui.components.PlanDisplayHelper.isPaidPlan(it) && !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
+    var selectedPlanForDetails by remember { mutableStateOf<com.example.data.local.PlanEntity?>(null) }
+    var isRotationPaused by remember { mutableStateOf(false) }
+    val activePlans = remember(plans, hasEverPurchasedAnyPlan) {
+        plans.filter { plan ->
+            plan.isActive && 
+            com.example.ui.components.PlanDisplayHelper.isPaidPlan(plan) && 
+            !com.example.ui.components.PlanDisplayHelper.isDummyOrHardcodedPlan(plan) &&
+            !(hasEverPurchasedAnyPlan && (plan.finalPrice == "9" || plan.planName.contains("Starter Pass", ignoreCase = true)))
+        }.sortedWith(compareBy({ it.displayOrder }, { it.id }))
+    }
 
     val displayBanners = if (banners.isEmpty() && activePlans.isEmpty()) {
         listOf(com.example.data.local.BannerEntity(
@@ -48,6 +64,178 @@ fun AutoShiftingBannerCarousel(
         banners
     }
     
+    if (selectedPlanForDetails != null) {
+        val plan = selectedPlanForDetails!!
+        val cleanFinalPrice = com.example.ui.components.PlanDisplayHelper.formatPrice(plan.finalPrice)
+        val cleanOriginalPrice = com.example.ui.components.PlanDisplayHelper.formatPrice(plan.planPrice)
+        val cleanDiscount = com.example.ui.components.PlanDisplayHelper.formatDiscount(plan.discount)
+        val cleanValidity = com.example.ui.components.PlanDisplayHelper.formatValidity(plan)
+        val benefits = com.example.ui.components.PlanDisplayHelper.parseFeatures(plan.features)
+
+        AlertDialog(
+            onDismissRequest = { 
+                selectedPlanForDetails = null
+                isRotationPaused = false
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = plan.planName,
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .fillMaxWidth()
+                ) {
+                    if (cleanFinalPrice.isNotBlank() || cleanOriginalPrice.isNotBlank() || cleanDiscount.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        ) {
+                            if (cleanFinalPrice.isNotBlank()) {
+                                Text(
+                                    text = cleanFinalPrice,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (cleanOriginalPrice.isNotBlank() && cleanOriginalPrice != cleanFinalPrice) {
+                                Text(
+                                    text = cleanOriginalPrice,
+                                    style = MaterialTheme.typography.titleMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                            if (cleanDiscount.isNotBlank()) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.error,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = cleanDiscount,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onError,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (cleanValidity.isNotBlank()) {
+                        Text(
+                            text = "Plan Validity: $cleanValidity",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    if (plan.offerValidity.isNotBlank() && !plan.offerValidity.equals(cleanValidity, ignoreCase = true)) {
+                        Text(
+                            text = "Offer Note: ${plan.offerValidity}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    if (plan.examTarget.isNotBlank()) {
+                        Text(
+                            text = "Target Exam: ${plan.examTarget}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    if (plan.guidanceEnabled) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = "💡 Includes Preparation Guidance & Strategy",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+
+                    if (benefits.isNotEmpty()) {
+                        Text(
+                            text = "Benefits Included:",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        benefits.forEach { b ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = b,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            if (!isUserPremium) {
+                                selectedPlanForDetails = null
+                                isRotationPaused = false
+                                onUpgradeClick(plan)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isUserPremium,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isUserPremium) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                            contentColor = if (isUserPremium) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(if (isUserPremium) "Active Plan" else "Buy Now")
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
     val totalItems = displayBanners.size + activePlans.size
 
     val pagerState = rememberPagerState(pageCount = { totalItems })
@@ -57,7 +245,7 @@ fun AutoShiftingBannerCarousel(
         if (totalItems > 1) {
             while (true) {
                 delay(3500)
-                if (!pagerState.isScrollInProgress) {
+                if (!pagerState.isScrollInProgress && !isRotationPaused) {
                     val nextPage = (pagerState.currentPage + 1) % totalItems
                     try {
                         pagerState.animateScrollToPage(nextPage)
@@ -80,7 +268,11 @@ fun AutoShiftingBannerCarousel(
                 val plan = activePlans[page]
                 FeaturedPlanBanner(
                     plan = plan,
-                    onBuyClick = onUpgradeClick,
+                    onBuyClick = { onUpgradeClick(plan) },
+                    onMoreInfoClick = {
+                        selectedPlanForDetails = plan
+                        isRotationPaused = true
+                    },
                     isPlanActive = isUserPremium
                 )
             } else {
@@ -89,7 +281,7 @@ fun AutoShiftingBannerCarousel(
                     InfoBannerContent(
                         banner = displayBanners[bannerIndex],
                         language = language,
-                        onUpgradeClick = onUpgradeClick,
+                        onUpgradeClick = onNavigateToPlans,
                         onBannerClick = onBannerClick,
                         isUserPremium = isUserPremium
                     )
@@ -128,6 +320,7 @@ fun InfoBannerContent(
     onUpgradeClick: () -> Unit,
     onBannerClick: ((com.example.data.local.BannerEntity) -> Unit)? = null,
     isUserPremium: Boolean = false,
+    hasEverPurchasedAnyPlan: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showDetailsDialog by remember { mutableStateOf(false) }

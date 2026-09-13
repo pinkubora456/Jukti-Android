@@ -42,34 +42,67 @@ import com.example.ui.components.PlanDisplayHelper
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePlanScreen(viewModel: JuktiViewModel) {
-    var planName by remember { mutableStateOf(TextFieldValue("")) }
-    var googlePlayProductId by remember { mutableStateOf(TextFieldValue("")) }
-    
-    // Pricing
-    var planPrice by remember { mutableStateOf(TextFieldValue("")) }
-    var discount by remember { mutableStateOf(TextFieldValue("")) }
-    var finalPrice by remember { mutableStateOf(TextFieldValue("")) }
-    var selectedValidityPreset by remember { mutableStateOf("1 Month") }
-    var customValidityNumber by remember { mutableStateOf("30") }
-    var customValidityUnit by remember { mutableStateOf("Days") }
-    var offerValidity by remember { mutableStateOf(TextFieldValue("")) }
-    var imageUrl by remember { mutableStateOf(TextFieldValue("")) }
-    
-    // State for Exam Target
-    val examTargetExamsSelected = remember { mutableStateListOf<String>() }
-    
+        val planToEdit = viewModel.planToEditForScreen
 
+    var planName by remember { mutableStateOf(TextFieldValue(planToEdit?.planName ?: "")) }
+    var googlePlayProductId by remember { mutableStateOf(TextFieldValue(planToEdit?.googlePlayProductId ?: "")) }
+    var planBadge by remember { mutableStateOf(if (planToEdit?.planBadge?.isNotBlank() == true) planToEdit.planBadge!! else "None") }
+    var displayOrder by remember { mutableStateOf(TextFieldValue(planToEdit?.displayOrder?.toString() ?: "0")) }
+        
+    // Pricing
+    var planPrice by remember { mutableStateOf(TextFieldValue(planToEdit?.planPrice ?: "")) }
+    var discount by remember { mutableStateOf(TextFieldValue(planToEdit?.discount ?: "")) }
+    var finalPrice by remember { mutableStateOf(TextFieldValue(planToEdit?.finalPrice ?: "")) }
+    
+    val initialPreset = remember(planToEdit) {
+        if (planToEdit != null) PlanValidityHelper.detectPreset(planToEdit.planValidity, planToEdit.validityType, planToEdit.validityValue, planToEdit.isLifetime)
+        else Triple("1 Month", "30", "Days")
+    }
+    var selectedValidityPreset by remember { mutableStateOf(initialPreset.first) }
+    var customValidityNumber by remember { mutableStateOf(initialPreset.second) }
+    var customValidityUnit by remember { mutableStateOf(initialPreset.third) }
+    
+    var offerValidity by remember { mutableStateOf(TextFieldValue(planToEdit?.offerValidity ?: "")) }
+    var imageUrl by remember { mutableStateOf(TextFieldValue(planToEdit?.imageUrl ?: "")) }
+        
+    // State for Exam Target
+    val examTargetExamsSelected = remember { 
+        val list = mutableStateListOf<String>()
+        planToEdit?.examTarget?.let {
+            if (it != "All Exams" && it.isNotBlank()) list.addAll(it.split(", "))
+        }
+        list
+    }
+        
     // Content & Benefits Lists
-    val contentsList = remember { mutableStateListOf<String>() }
-    val featuresList = remember { mutableStateListOf<String>() }
+    val contentsList = remember { 
+        val list = mutableStateListOf<String>()
+        planToEdit?.contents?.let {
+            if (it.isNotBlank()) list.addAll(it.split("|"))
+        }
+        list
+    }
+    val featuresList = remember { 
+        val list = mutableStateListOf<String>()
+        planToEdit?.features?.let {
+            if (it.isNotBlank()) list.addAll(it.split("|"))
+        }
+        list
+    }
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val examsList by viewModel.examsList.collectAsState()
     val examTitles = examsList.map { it.title }
 
     // State for Guidance Access
-    var isGuidanceEnabled by remember { mutableStateOf(false) }
-    val guidanceAllowedExamsSelected = remember { mutableStateListOf<String>() }
+    var isGuidanceEnabled by remember { mutableStateOf(planToEdit?.guidanceEnabled ?: false) }
+    val guidanceAllowedExamsSelected = remember { 
+        val list = mutableStateListOf<String>()
+        planToEdit?.guidanceAllowedExams?.let {
+            if (it != "All Exams" && it.isNotBlank()) list.addAll(it.split(", "))
+        }
+        list
+    }
 
     // State for Mock Test Benefit
     val mockTestExamsSelected = remember { mutableStateListOf<String>() }
@@ -131,6 +164,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
             onDismissRequest = {
                 showSuccessDialog = false
                 createdPlanPreview = null
+                viewModel.planToEditForScreen = null
                 viewModel.navigateTo(com.example.ui.viewmodel.Screen.MANAGE_PLAN)
             },
             icon = {
@@ -143,7 +177,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
             },
             title = {
                 Text(
-                    text = "Plan Created Successfully",
+                    text = if (planToEdit != null) "Plan Updated Successfully" else "Plan Created Successfully",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -342,6 +376,56 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                 )
                 Text(
                     text = "Product ID configured in Google Play Console (e.g. jukti_yearly_pass). If left blank, it is generated automatically from plan name.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            item {
+                var badgeExpanded by remember { mutableStateOf(false) }
+                val badges = listOf("None", "Most Popular", "Best Value", "Recommended", "Best for Beginners", "New", "Featured")
+                
+                ExposedDropdownMenuBox(
+                    expanded = badgeExpanded,
+                    onExpandedChange = { badgeExpanded = !badgeExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = planBadge,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Plan Badge") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = badgeExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = badgeExpanded,
+                        onDismissRequest = { badgeExpanded = false }
+                    ) {
+                        badges.forEach { badge ->
+                            DropdownMenuItem(
+                                text = { Text(badge) },
+                                onClick = {
+                                    planBadge = badge
+                                    badgeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                SafeOutlinedTextField(
+                    value = displayOrder,
+                    onValueChange = { displayOrder = it },
+                    label = { Text("Display Order") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                Text(
+                    text = "Controls the order of the plans on the home screen. Lower numbers appear first (e.g. 0, 1, 2).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -1125,6 +1209,7 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                             }
 
                             val newPlan = com.example.data.local.PlanEntity(
+                                id = planToEdit?.id ?: 0L,
                                 planName = planName.text,
                                 planPrice = planPrice.text.ifBlank { finalPrice.text },
                                 discount = discount.text,
@@ -1140,6 +1225,8 @@ fun CreatePlanScreen(viewModel: JuktiViewModel) {
                                 imageUrl = imageUrl.text,
                                 examTarget = if (examTargetExamsSelected.isEmpty()) "All Exams" else examTargetExamsSelected.joinToString(", "),
                                 googlePlayProductId = googlePlayProductId.text.trim(),
+                                planBadge = planBadge,
+                                displayOrder = displayOrder.text.toIntOrNull() ?: 0,
                                 guidanceEnabled = isGuidanceEnabled,
                                 guidanceAllowedExams = if (isGuidanceEnabled) {
                                     if (guidanceAllowedExamsSelected.isEmpty()) "All Exams" else guidanceAllowedExamsSelected.joinToString(", ")

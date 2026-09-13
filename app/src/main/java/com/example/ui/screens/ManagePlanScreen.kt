@@ -21,39 +21,6 @@ import com.example.ui.viewmodel.JuktiViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManagePlanScreen(viewModel: JuktiViewModel) {
-    var planToEdit by remember { mutableStateOf<PlanEntity?>(null) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
-    var successMessage by remember { mutableStateOf("") }
-    val examsList by viewModel.examsList.collectAsState()
-
-    if (showSuccessDialog) {
-        AlertDialog(
-            onDismissRequest = { showSuccessDialog = false },
-            title = { Text("Success", fontWeight = FontWeight.Bold) },
-            text = { Text(successMessage) },
-            confirmButton = {
-                TextButton(onClick = { showSuccessDialog = false }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-
-    if (planToEdit != null) {
-        EditPlanDialog(
-            plan = planToEdit!!,
-            examsList = examsList,
-            onDismiss = { planToEdit = null },
-            onSave = { updatedPlan ->
-                viewModel.requestOrCreatePlan(updatedPlan) { _, message ->
-                    successMessage = message
-                    showSuccessDialog = true
-                }
-                planToEdit = null
-            }
-        )
-    }
-
     Scaffold(
         topBar = {
             com.example.ui.components.JuktiTopAppBar(
@@ -69,7 +36,10 @@ fun ManagePlanScreen(viewModel: JuktiViewModel) {
         ) {
             ManagePlanContent(
                 viewModel = viewModel,
-                onEditPlan = { plan -> planToEdit = plan }
+                onEditPlan = { plan -> 
+                    viewModel.planToEditForScreen = plan
+                    viewModel.navigateTo(com.example.ui.viewmodel.Screen.CREATE_PLAN)
+                }
             )
         }
     }
@@ -83,6 +53,7 @@ fun ManagePlanContent(
     onEditPlan: (PlanEntity) -> Unit
 ) {
     val plans by viewModel.plans.collectAsState()
+    val sortedPlans = remember(plans) { plans.sortedWith(compareBy({ it.displayOrder }, { it.id })) }
     var planToDelete by remember { mutableStateOf<PlanEntity?>(null) }
 
     val actionItems = listOf(
@@ -130,7 +101,7 @@ fun ManagePlanContent(
             }
         }
 
-        if (plans.isEmpty()) {
+        if (sortedPlans.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -152,7 +123,7 @@ fun ManagePlanContent(
                 }
             }
         } else {
-            itemsIndexed(plans, key = { index, plan -> if (plan.id != 0L) plan.id else "plan_${plan.planName}_$index" }) { _, plan ->
+            itemsIndexed(sortedPlans, key = { index, plan -> if (plan.id != 0L) plan.id else "plan_${plan.planName}_$index" }) { _, plan ->
                 PlanManageCard(
                     plan = plan,
                     onEdit = { onEditPlan(plan) },

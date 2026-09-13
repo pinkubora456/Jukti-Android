@@ -42,9 +42,12 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
     val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
     val plans by viewModel.plans.collectAsState()
+    val userEntitlements by viewModel.userEntitlements.collectAsState()
+    val hasEverPurchasedAnyPlan = remember(userEntitlements) {
+        userEntitlements.any { !it.planName.equals("Free Plan", ignoreCase = true) }
+    }
     val isUserPremium by viewModel.isUserPremium.collectAsState()
     val isAdminOrOwner by viewModel.isAdminOrOwner.collectAsState()
-    val userEntitlements by viewModel.userEntitlements.collectAsState()
     
     var selectedPlan by remember { mutableStateOf<PlanEntity?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
@@ -111,8 +114,11 @@ fun PremiumPlansScreen(viewModel: JuktiViewModel) {
             PremiumHeaderBanner(isUserPremium = isUserPremium)
 
             // Filter active plans created by admin/owner, excluding any dummy or hardcoded plans
-            val activePlans = remember(plans) {
-                plans.filter { it.isActive && !PlanDisplayHelper.isDummyOrHardcodedPlan(it) }
+            val activePlans = remember(plans, hasEverPurchasedAnyPlan) {
+                plans.filter { plan ->
+                    plan.isActive && !PlanDisplayHelper.isDummyOrHardcodedPlan(plan) &&
+                    !(hasEverPurchasedAnyPlan && (plan.finalPrice == "9" || plan.planName.contains("Starter Pass", ignoreCase = true)))
+                }.sortedWith(compareBy({ it.displayOrder }, { it.id }))
             }
 
             if (activePlans.isEmpty()) {
@@ -289,16 +295,11 @@ private fun FullPlanDetailCard(
     val cleanValidity = PlanDisplayHelper.formatValidity(plan)
     val benefits = PlanDisplayHelper.parseFeatures(plan.features)
 
-    val isPopular = remember(plan) {
-        plan.planName.contains("Combo", ignoreCase = true) ||
-        plan.planName.contains("Complete", ignoreCase = true) ||
-        cleanDiscount.contains("40") || cleanDiscount.contains("50") || cleanDiscount.contains("60")
-    }
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isPopular) 4.dp else 2.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -334,6 +335,21 @@ private fun FullPlanDetailCard(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        if (plan.planBadge.isNotBlank() && !plan.planBadge.equals("None", ignoreCase = true)) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            ) {
+                                Text(
+                                    text = plan.planBadge,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                         Text(
                             text = plan.planName,
                             style = MaterialTheme.typography.titleLarge,
@@ -377,19 +393,6 @@ private fun FullPlanDetailCard(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
-                        }
-                    } else if (isPopular) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer
-                        ) {
-                            Text(
-                                text = "MOST POPULAR",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
                         }
                     }
                 }

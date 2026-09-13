@@ -291,7 +291,9 @@ data class PlanEntity(
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
     val guidanceEnabled: Boolean = false,
-    val guidanceAllowedExams: String = ""
+    val guidanceAllowedExams: String = "",
+    val planBadge: String = "None",
+    val displayOrder: Int = 0
 )
 
 @Entity(tableName = "exams")
