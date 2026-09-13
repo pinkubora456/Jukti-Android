@@ -1,4 +1,7 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.ui.screens
+
 
 import com.example.ui.components.SafeOutlinedTextField
 
@@ -70,6 +73,16 @@ data class StudyBannerConfig(
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
+fun isQuestionSubjectMatch(qSubject: String, subjectKey: String): Boolean {
+    val key = subjectKey.trim()
+    if (key.equals("All Subject", ignoreCase = true) || key.equals("All Subjects", ignoreCase = true) || key.isBlank()) {
+        return true
+    }
+    val qNorm = com.example.data.repository.normalizeSubjectName(qSubject)
+    val keyNorm = com.example.data.repository.normalizeSubjectName(key)
+    return qNorm.equals(keyNorm, ignoreCase = true)
+}
+
 @Composable
 fun StudySubjectBannerCard(
     banner: StudyBannerConfig,
@@ -193,7 +206,9 @@ fun StudySubjectBannerCard(
                 ExposedDropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier.heightIn(max = 280.dp)
+                    modifier = Modifier
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     DropdownMenuItem(
                         text = {
@@ -907,12 +922,28 @@ fun StudyMcqInteractiveTab(
         StudyBannerConfig("All Subjects", "সকলো বিষয়", "Mixed questions from all subjects", "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন", "All Subjects", androidx.compose.material.icons.Icons.Default.AllInclusive, androidx.compose.ui.graphics.Color(0xFFFFF8E1), androidx.compose.ui.graphics.Color(0xFFFF8F00))
     )
 
+    val precomputedBannerData by viewModel.precomputedBannerData.collectAsState()
+    val studyBannerData = remember(precomputedBannerData) {
+        val map = mutableMapOf<String, Triple<List<String>, Int, Map<String, Int>>>()
+        for (banner in studyBanners) {
+            val data = precomputedBannerData[banner.subjectKey]
+            if (data != null) {
+                map[banner.subjectKey] = Triple(data.first, data.second.size, data.third)
+            }
+        }
+        map
+    }
+
     if (!isStudySessionStarted) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -932,88 +963,30 @@ fun StudyMcqInteractiveTab(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            items(studyBanners) { banner ->
-                val bannerQuestions = remember(questions, selectedTargetExam, banner.subjectKey) {
-                    questions.filter { q -> com.example.data.util.QuestionFilterUtils.isEligible(q, selectedTargetExam, banner.subjectKey, emptySet()) }
+
+            if (studyBannerData.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                val totalCount = bannerQuestions.size
-                
-                val availableChapters = remember(banner.subjectKey, allSubjectsChapters, questions) {
-                    val set = mutableSetOf<String>()
-                    if (banner.subjectKey == "All Subjects" || banner.subjectKey == "All Subject") {
-                        allSubjectsChapters.forEach { sc ->
-                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
-                            if (norm.isNotBlank()) {
-                                set.add(norm)
-                            }
-                        }
-                        bannerQuestions.forEach { q ->
-                            val norm = com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject ?: "").ifBlank { q.topic?.trim() ?: "" }
-                            if (norm.isNotBlank()) {
-                                set.add(norm)
-                            }
-                        }
+            } else {
+                studyBanners.forEach { banner ->
+                    val data = studyBannerData[banner.subjectKey] ?: Triple(emptyList(), 0, emptyMap())
+                    val availableChapters = data.first
+                    val totalCount = data.second
+                    val chapterCounts = data.third
+                    val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
+                    val displayedCount = if (currentSelectedChapters.isEmpty()) {
+                        totalCount
                     } else {
-                        val filteredFromDb = allSubjectsChapters.filter { isQuestionSubjectMatch(it.subject, banner.subjectKey) }
-                        filteredFromDb.forEach { sc ->
-                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
-                            if (norm.isNotBlank()) set.add(norm)
-                        }
-                        bannerQuestions.forEach { q ->
-                            val norm = com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject ?: "").ifBlank { q.topic?.trim() ?: "" }
-                            if (norm.isNotBlank()) set.add(norm)
-                        }
+                        currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
                     }
-                    set.toList().sortedWith(String.CASE_INSENSITIVE_ORDER)
-                }
-                
-                val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
-
-                val chapterCounts = remember(bannerQuestions, availableChapters) {
-                    availableChapters.associateWith { rawCh ->
-                        val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                        val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
-
-                        bannerQuestions.count { q ->
-                            val qSubj = q.subject ?: ""
-                            val topicStr = q.topic ?: ""
-                            val normTopic = com.example.data.repository.normalizeChapterName(topicStr, qSubj).ifBlank { topicStr }
-
-                            val subjectMatches = if (selSubj.isNotBlank()) {
-                                when (selSubj) {
-                                    "General Knowledge" -> qSubj in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                                    "General English" -> qSubj.equals("General English", ignoreCase = true) || qSubj.equals("English", ignoreCase = true) || qSubj.contains("English", ignoreCase = true)
-                                    "General Mathematics", "Mathematics" -> qSubj in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                                    "Reasoning", "Reasoning & Mental Ability" -> qSubj in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                                    "Transport & Motor Vehicle" -> qSubj.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubj.contains("Transport", ignoreCase = true) || qSubj.contains("Motor Vehicle", ignoreCase = true)
-                                    else -> qSubj.equals(selSubj, ignoreCase = true) || qSubj.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubj, ignoreCase = true)
-                                }
-                            } else true
-
-                            if (!subjectMatches) false
-                            else {
-                                val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj).ifBlank { ch }
-                                normTopic.equals(normCh, ignoreCase = true) ||
-                                normTopic.equals(ch, ignoreCase = true) ||
-                                topicStr.equals(ch, ignoreCase = true) ||
-                                (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                    topicStr.contains(ch, ignoreCase = true) ||
-                                    ch.contains(topicStr, ignoreCase = true) ||
-                                    normTopic.contains(normCh, ignoreCase = true) ||
-                                    normCh.contains(normTopic, ignoreCase = true)
-                                ))
-                            }
-                        }
-                    }
-                }
-
-                val displayedCount = if (currentSelectedChapters.isEmpty()) {
-                    bannerQuestions.size
-                } else {
-                    currentSelectedChapters.sumOf { ch -> chapterCounts[ch] ?: 0 }
-                }
-                
                 StudySubjectBannerCard(
                     banner = banner,
                     availableChapters = availableChapters,
@@ -1034,9 +1007,8 @@ fun StudyMcqInteractiveTab(
                     isAssamese = isAssamese,
                     chapterCounts = chapterCounts
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+              }
             }
-        }
         }
     } else {
         Column(
@@ -2479,12 +2451,4 @@ fun CurrentAffairsNotesTab(viewModel: JuktiViewModel) {
     }
 }
 
-fun isQuestionSubjectMatch(qSubject: String, subjectKey: String): Boolean {
-    val key = subjectKey.trim()
-    if (key.equals("All Subject", ignoreCase = true) || key.equals("All Subjects", ignoreCase = true) || key.isBlank()) {
-        return true
-    }
-    val qNorm = com.example.data.repository.normalizeSubjectName(qSubject)
-    val keyNorm = com.example.data.repository.normalizeSubjectName(key)
-    return qNorm.equals(keyNorm, ignoreCase = true)
-}
+

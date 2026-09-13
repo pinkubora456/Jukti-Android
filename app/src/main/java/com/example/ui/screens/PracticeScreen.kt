@@ -153,158 +153,79 @@ fun PracticeScreen(
     val colorSurfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val colorPrimary = MaterialTheme.colorScheme.primary
 
-    val bannersAndData = remember(visibleQuestions, selectedTargetExam, allSubjectsChapters, colorSurfaceVariant, colorPrimary) {
-        try {
-            val predefined = listOf(
-                BannerConfig(
-                    titleEn = "General Knowledge",
-                    titleAs = "সাধাৰণ জ্ঞান",
-                    subtitleEn = "Assam history, geography, and more",
-                    subtitleAs = "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য",
-                    subjectKey = "General Knowledge",
-                    icon = Icons.Default.Public,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                ),
-                BannerConfig(
-                    titleEn = "General English",
-                    titleAs = "সাধাৰণ ইংৰাজী",
-                    subtitleEn = "Grammar, vocabulary, and comprehension",
-                    subtitleAs = "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা",
-                    subjectKey = "General English",
-                    icon = Icons.Default.MenuBook,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                ),
-                BannerConfig(
-                    titleEn = "General Mathematics",
-                    titleAs = "সাধাৰণ গণিত",
-                    subtitleEn = "Arithmetic, algebra, and geometry",
-                    subtitleAs = "পাটিগণিত, বীজগণিত আৰু জ্যামিতি",
-                    subjectKey = "General Mathematics",
-                    icon = Icons.Default.Calculate,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                ),
-                BannerConfig(
-                    titleEn = "Reasoning & Mental Ability",
-                    titleAs = "যুক্তিবিদ্যা (Reasoning)",
-                    subtitleEn = "Logical and analytical reasoning",
-                    subtitleAs = "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি",
-                    subjectKey = "Reasoning & Mental Ability",
-                    icon = Icons.Default.Psychology,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                ),
-                BannerConfig(
-                    titleEn = "Transport & Motor Vehicle",
-                    titleAs = "পৰিবহন আৰু মটৰ বাহন",
-                    subtitleEn = "Motor vehicle act and traffic signs",
-                    subtitleAs = "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত",
-                    subjectKey = "Transport & Motor Vehicle",
-                    icon = Icons.Default.Traffic,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                )
+    val precomputedDataFlow by viewModel.precomputedBannerData.collectAsState()
+    val bannersAndData = remember(precomputedDataFlow, colorSurfaceVariant, colorPrimary) {
+        val predefined = listOf(
+            BannerConfig(
+                titleEn = "General Knowledge",
+                titleAs = "সাধাৰণ জ্ঞান",
+                subtitleEn = "Assam history, geography, and more",
+                subtitleAs = "অসমৰ ইতিহাস, ভূগোল আৰু অন্যান্য",
+                subjectKey = "General Knowledge",
+                icon = Icons.Default.Public,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
+            ),
+            BannerConfig(
+                titleEn = "General English",
+                titleAs = "সাধাৰণ ইংৰাজী",
+                subtitleEn = "Grammar, vocabulary, and comprehension",
+                subtitleAs = "ব্যাকৰণ, শব্দভাণ্ডাৰ আৰু বুজাপৰা",
+                subjectKey = "General English",
+                icon = Icons.Default.MenuBook,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
+            ),
+            BannerConfig(
+                titleEn = "General Mathematics",
+                titleAs = "সাধাৰণ গণিত",
+                subtitleEn = "Arithmetic, algebra, and geometry",
+                subtitleAs = "পাটিগণিত, বীজগণিত আৰু জ্যামিতি",
+                subjectKey = "General Mathematics",
+                icon = Icons.Default.Calculate,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
+            ),
+            BannerConfig(
+                titleEn = "Reasoning & Mental Ability",
+                titleAs = "যুক্তিবিদ্যা (Reasoning)",
+                subtitleEn = "Logical and analytical reasoning",
+                subtitleAs = "যৌক্তিক আৰু বিশ্লেষণাত্মক যুক্তি",
+                subjectKey = "Reasoning & Mental Ability",
+                icon = Icons.Default.Psychology,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
+            ),
+            BannerConfig(
+                titleEn = "Transport & Motor Vehicle",
+                titleAs = "পৰিবহন আৰু মটৰ বাহন",
+                subtitleEn = "Motor vehicle act and traffic signs",
+                subtitleAs = "মটৰ বাহন আইন আৰু যান-বাহনৰ সংকেত",
+                subjectKey = "Transport & Motor Vehicle",
+                icon = Icons.Default.Traffic,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
             )
+        )
 
-            val banners = predefined + listOf(
-                BannerConfig(
-                    titleEn = "All Subjects",
-                    titleAs = "সকলো বিষয়",
-                    subtitleEn = "Mixed questions from all subjects",
-                    subtitleAs = "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন",
-                    subjectKey = "All Subjects",
-                    icon = Icons.Default.AllInclusive,
-                    containerColor = colorSurfaceVariant,
-                    iconColor = colorPrimary
-                )
+        val banners = predefined + listOf(
+            BannerConfig(
+                titleEn = "All Subjects",
+                titleAs = "সকলো বিষয়",
+                subtitleEn = "Mixed questions from all subjects",
+                subtitleAs = "সকলো বিষয়ৰ পৰা মিশ্ৰিত প্ৰশ্ন",
+                subjectKey = "All Subjects",
+                icon = Icons.Default.AllInclusive,
+                containerColor = colorSurfaceVariant,
+                iconColor = colorPrimary
             )
-
-            val qIdToNormalizedTopic = visibleQuestions.associate { q ->
-                q.id to com.example.data.repository.normalizeChapterName(q.topic ?: "", q.subject)
-            }
-
-            val bannerQsMap = banners.associateWith { banner ->
-                visibleQuestions.filter { q -> com.example.data.util.QuestionFilterUtils.isEligible(q, selectedTargetExam, banner.subjectKey, emptySet()) }
-            }
-
-            val bannerDataMap = banners.associate { banner ->
-                val set = mutableSetOf<String>()
-                val bannerQs = bannerQsMap[banner] ?: emptyList()
-
-                when (banner.subjectKey) {
-                    "All Subjects", "All Subject" -> {
-                        allSubjectsChapters.forEach { sc ->
-                            val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
-                            if (norm.isNotBlank()) {
-                                set.add(norm)
-                            }
-                        }
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]?.ifBlank { q.topic?.trim() ?: "" } ?: (q.topic?.trim() ?: "")
-                            if (norm.isNotBlank()) {
-                                set.add(norm)
-                            }
-                        }
-                    }
-                    else -> {
-                        bannerQs.forEach { q ->
-                            val norm = qIdToNormalizedTopic[q.id]?.ifBlank { q.topic?.trim() ?: "" } ?: (q.topic?.trim() ?: "")
-                            if (norm.isNotBlank()) set.add(norm)
-                        }
-                        allSubjectsChapters.filter { isQuestionSubjectMatch(it.subject, banner.subjectKey) }
-                            .forEach { sc ->
-                                val norm = com.example.data.repository.normalizeChapterName(sc.chapter, sc.subject).ifBlank { sc.chapter.trim() }
-                                if (norm.isNotBlank()) set.add(norm)
-                            }
-                    }
-                }
-                val availableChaptersList = set.toList().sortedWith(String.CASE_INSENSITIVE_ORDER)
-
-                val chapterCountsMap = availableChaptersList.associateWith { rawCh ->
-                    val selSubj = if (rawCh.contains(": ")) rawCh.substringBefore(": ").trim() else ""
-                    val ch = if (rawCh.contains(": ")) rawCh.substringAfter(": ").trim() else rawCh.trim()
-
-                    bannerQs.count { q ->
-                        val qSubj = q.subject ?: ""
-                        val topicStr = q.topic ?: ""
-                        val normTopic = qIdToNormalizedTopic[q.id] ?: ""
-
-                        val subjectMatches = if (selSubj.isNotBlank()) {
-                            when (selSubj) {
-                                "General Knowledge" -> qSubj in listOf("General Knowledge", "Assam History", "Assam Geography", "Assamese Literature & Culture", "Current Affairs")
-                                "General English" -> qSubj.equals("General English", ignoreCase = true) || qSubj.equals("English", ignoreCase = true) || qSubj.contains("English", ignoreCase = true)
-                                "General Mathematics", "Mathematics" -> qSubj in listOf("General Mathematics", "Mathematics", "Quantitative Aptitude")
-                                "Reasoning", "Reasoning & Mental Ability" -> qSubj in listOf("Reasoning", "Logical Reasoning", "Logical Reasoning & Mental Ability", "Mental Ability", "Logical Aptitude", "Reasoning & Mental Ability")
-                                "Transport & Motor Vehicle" -> qSubj.equals("Transport & Motor Vehicle", ignoreCase = true) || qSubj.contains("Transport", ignoreCase = true) || qSubj.contains("Motor Vehicle", ignoreCase = true)
-                                else -> qSubj.equals(selSubj, ignoreCase = true) || qSubj.contains(selSubj, ignoreCase = true) || selSubj.contains(qSubj, ignoreCase = true)
-                            }
-                        } else true
-
-                        if (!subjectMatches) false
-                        else {
-                            val normCh = com.example.data.repository.normalizeChapterName(ch, qSubj).ifBlank { ch }
-                            normTopic.equals(normCh, ignoreCase = true) ||
-                            normTopic.equals(ch, ignoreCase = true) ||
-                            topicStr.equals(ch, ignoreCase = true) ||
-                            (topicStr.isNotBlank() && ch.isNotBlank() && (
-                                topicStr.contains(ch, ignoreCase = true) ||
-                                ch.contains(topicStr, ignoreCase = true) ||
-                                normTopic.contains(normCh, ignoreCase = true) ||
-                                normCh.contains(normTopic, ignoreCase = true)
-                            ))
-                        }
-                    }
-                }
-
-                banner.subjectKey to Triple(availableChaptersList, bannerQs, chapterCountsMap)
-            }
-
-            banners to bannerDataMap
-        } catch (e: Exception) {
-            emptyList<BannerConfig>() to emptyMap()
+        )
+        
+        val bannerDataMap = banners.associate { banner ->
+            banner to (precomputedDataFlow[banner.subjectKey] ?: Triple(emptyList(), emptyList(), emptyMap()))
         }
+        
+        banners to bannerDataMap
     }
     val dynamicBanners = bannersAndData.first
     val precomputedBannerData = bannersAndData.second
@@ -668,10 +589,10 @@ fun PracticeScreen(
                     }
                 } else {
                     dynamicBanners.forEach { banner ->
-                        val preData = precomputedBannerData[banner.subjectKey]
+                        val preData = precomputedDataFlow[banner.subjectKey]
                         val availableChapters = preData?.first ?: emptyList()
                         val bannerQs = preData?.second ?: emptyList()
-                        val chapterCounts = preData?.third ?: emptyMap()
+                        val chapterCounts = preData?.third ?: emptyMap<String, Int>()
 
                         val currentSelectedChapters = chaptersMap[banner.subjectKey] ?: emptySet()
 

@@ -147,7 +147,9 @@ fun PracticeSubjectBannerCard(
                 ExposedDropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier.heightIn(max = 280.dp)
+                    modifier = Modifier
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     DropdownMenuItem(
                         text = {

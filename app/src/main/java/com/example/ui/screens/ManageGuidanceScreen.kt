@@ -548,7 +548,7 @@ fun ManagePyqFocusScreen(
                             Text("PYQs", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
                             Text("Exams", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
                             Text("Avg/Imp", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
-                            Spacer(modifier = Modifier.width(36.dp))
+                            Spacer(modifier = Modifier.width(72.dp))
                         }
                     }
 
@@ -797,31 +797,28 @@ fun PyqFocusRowItem(
                 }
             }
 
-            Column(
-                modifier = Modifier.width(36.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Row(
+                modifier = Modifier.width(72.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 val context = androidx.compose.ui.platform.LocalContext.current
-                if (isModified) {
-                    IconButton(
-                        onClick = {
-                            val newCount = pyqCountStr.toIntOrNull() ?: 0
-                            val newCovered = examsCoveredStr.toIntOrNull() ?: 0
-                            onSave(item.copy(pyqCount = newCount, examsCovered = newCovered, updatedAt = System.currentTimeMillis()))
-                            Toast.makeText(context, "Changes Saved to Cloud", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Save", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    }
-                } else {
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                    }
+                IconButton(
+                    onClick = {
+                        val newCount = pyqCountStr.toIntOrNull() ?: 0
+                        val newCovered = examsCoveredStr.toIntOrNull() ?: 0
+                        onSave(item.copy(pyqCount = newCount, examsCovered = newCovered, updatedAt = System.currentTimeMillis()))
+                        Toast.makeText(context, "Changes Saved to Cloud", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Save Changes", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                 }
             }
         }
