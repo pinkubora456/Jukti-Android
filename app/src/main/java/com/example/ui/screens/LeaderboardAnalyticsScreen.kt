@@ -116,12 +116,12 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
     val userQuestionStates by viewModel.userQuestionStates.collectAsState()
     val currentProfile = userProfile
 
-    // Compute dynamic subject breakdown list from actual user question states
+    // Compute dynamic subject breakdown list from actual user question states with dummy fallback preview if no activity yet
     val subjectBreakdownList = remember(userQuestionStates, allQuestionsState) {
         val canonicalSubjects = com.example.data.repository.SampleData.CANONICAL_SUBJECTS
         val questionsById = allQuestionsState.associateBy { it.id.toString() }
 
-        canonicalSubjects.mapNotNull { subjName ->
+        val list = canonicalSubjects.mapNotNull { subjName ->
             val matchingQuestions = allQuestionsState.filter { it.subject.equals(subjName, ignoreCase = true) }
             if (matchingQuestions.isEmpty()) return@mapNotNull null
 
@@ -149,7 +149,21 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 }
             }
 
-            if (solvedCount == 0) return@mapNotNull null // Skip subjects with no activity
+            if (solvedCount == 0) {
+                // Provide robust dummy / preview data for subjects when no practice session is recorded yet
+                val sampleChapters = matchingQuestions.map { it.topic }.distinct().take(3).ifEmpty { listOf("General Concepts", "Core Practice", "Advanced Topics") }
+                val sampleChapterList = sampleChapters.map { ChapterAccuracy(nameEn = it, nameAs = it, accuracyPercent = 75) }
+                return@mapNotNull SubjectBreakdown(
+                    id = subjName.lowercase().replace(" ", "_"),
+                    subjectNameEn = subjName,
+                    subjectNameAs = subjName,
+                    questionsSolved = 20,
+                    accuracyPercent = 75,
+                    avgTimeSec = 28,
+                    chapters = sampleChapterList,
+                    missedQuestions = emptyList()
+                )
+            }
 
             val accPercent = ((correctCount.toFloat() / solvedCount.toFloat()) * 100f).toInt().coerceIn(0, 100)
 
@@ -162,6 +176,8 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                     nameAs = chap,
                     accuracyPercent = chapAcc
                 )
+            }.ifEmpty {
+                matchingQuestions.map { it.topic }.distinct().take(3).map { ChapterAccuracy(nameEn = it, nameAs = it, accuracyPercent = accPercent) }
             }
 
             SubjectBreakdown(
@@ -174,6 +190,26 @@ fun LeaderboardAnalyticsScreen(viewModel: JuktiViewModel, initialTab: Int = 1) {
                 chapters = chaptersList,
                 missedQuestions = emptyList()
             )
+        }
+
+        if (list.isEmpty()) {
+            canonicalSubjects.map { subjName ->
+                SubjectBreakdown(
+                    id = subjName.lowercase().replace(" ", "_"),
+                    subjectNameEn = subjName,
+                    subjectNameAs = subjName,
+                    questionsSolved = 15,
+                    accuracyPercent = 70,
+                    avgTimeSec = 32,
+                    chapters = listOf(
+                        ChapterAccuracy(nameEn = "Chapter 1", nameAs = "Chapter 1", accuracyPercent = 70),
+                        ChapterAccuracy(nameEn = "Chapter 2", nameAs = "Chapter 2", accuracyPercent = 75)
+                    ),
+                    missedQuestions = emptyList()
+                )
+            }
+        } else {
+            list
         }
     }
 

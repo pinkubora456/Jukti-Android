@@ -1296,8 +1296,15 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
+            var lastOnlineState: Boolean? = null
             networkMonitor.isConnected.collect { online ->
-                // Keep premium content cached in memory until app is closed or explicitly refreshed from settings.
+                if (online && lastOnlineState == false) {
+                    try {
+                        com.example.data.worker.FirestoreSyncWorker.scheduleSync(getApplication())
+                        repository.refreshDataFromFirebase(getTrustedTime())
+                    } catch (_: Exception) {}
+                }
+                lastOnlineState = online
             }
         }
 

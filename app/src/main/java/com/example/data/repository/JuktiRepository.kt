@@ -230,14 +230,43 @@ class JuktiRepository(
         firebaseRepository.observeQuestions().onStart { emit(emptyList()) },
         questionDao.getAllQuestions()
     ) { remote, local ->
-        val list = if (remote.isEmpty()) local
-        else {
-            val remoteIds = remote.map { it.id }.toSet()
-            val combined = remote.toMutableList()
-            local.forEach { loc -> if (!remoteIds.contains(loc.id)) combined.add(loc) }
-            combined
+        val localMap = local.associateBy { it.id }
+        val localFirebaseIdMap = local.filter { it.firebaseId.isNotBlank() }.associateBy { it.firebaseId }
+
+        val resultList = mutableListOf<QuestionEntity>()
+        val processedIds = mutableSetOf<Long>()
+        val processedFirebaseIds = mutableSetOf<String>()
+
+        // 1. Process remote items
+        remote.forEach { remoteQ ->
+            val isDeletedLocally = !localMap.containsKey(remoteQ.id) &&
+                    (remoteQ.firebaseId.isBlank() || !localFirebaseIdMap.containsKey(remoteQ.firebaseId))
+
+            if (!isDeletedLocally) {
+                val localQ = localMap[remoteQ.id] ?: (if (remoteQ.firebaseId.isNotBlank()) localFirebaseIdMap[remoteQ.firebaseId] else null)
+                if (localQ != null) {
+                    // Local version takes precedence (reflects local edits/updates)
+                    resultList.add(localQ)
+                    processedIds.add(localQ.id)
+                    if (localQ.firebaseId.isNotBlank()) processedFirebaseIds.add(localQ.firebaseId)
+                } else {
+                    resultList.add(remoteQ)
+                    processedIds.add(remoteQ.id)
+                    if (remoteQ.firebaseId.isNotBlank()) processedFirebaseIds.add(remoteQ.firebaseId)
+                }
+            }
         }
-        list.map { normalizeQuestionEntity(it) }
+
+        // 2. Add local-only items (created offline / not yet in remote)
+        local.forEach { localQ ->
+            if (!processedIds.contains(localQ.id) && (localQ.firebaseId.isBlank() || !processedFirebaseIds.contains(localQ.firebaseId))) {
+                resultList.add(localQ)
+                processedIds.add(localQ.id)
+                if (localQ.firebaseId.isNotBlank()) processedFirebaseIds.add(localQ.firebaseId)
+            }
+        }
+
+        resultList.map { normalizeQuestionEntity(it) }
     }
 
     val allMockTests: Flow<List<MockTestEntity>> = combine(
