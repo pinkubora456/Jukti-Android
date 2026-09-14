@@ -1011,116 +1011,251 @@ fun StudyMcqInteractiveTab(
             }
         }
     } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            val subjectTitle = when (selectedSubjectTab) {
-                "General Knowledge" -> "General Knowledge"
-                "General English" -> "General English"
-                "General Mathematics" -> "Mathematics"
-                "Reasoning", "Reasoning & Mental Ability" -> "Reasoning"
-                "Reading Comprehension" -> "Reading Comprehension"
-                "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
-                "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
-                else -> if (selectedSubjectTab.isNotBlank()) selectedSubjectTab else "All Subjects"
-            }
+        val scrollState = rememberScrollState()
+        val isScrolled by remember {
+            derivedStateOf { scrollState.value > 25 }
+        }
+        LaunchedEffect(currentQuestionIndex) {
+            scrollState.scrollTo(0)
+        }
 
-            // Compact Top Bar with Back Button + Subject Name + Question Info + Language Selector + Slim Progress
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+        val subjectTitle = when (selectedSubjectTab) {
+            "General Knowledge" -> "General Knowledge"
+            "General English" -> "General English"
+            "General Mathematics" -> "Mathematics"
+            "Reasoning", "Reasoning & Mental Ability" -> "Reasoning"
+            "Reading Comprehension" -> "Reading Comprehension"
+            "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
+            "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
+            else -> if (selectedSubjectTab.isNotBlank()) selectedSubjectTab else "All Subjects"
+        }
+
+        val isLastQuestion = (currentQuestionIndex == displayQuestions.size - 1)
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                if (isScrolled) {
+                    // Compact Header when scrolled down
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 2.dp
                     ) {
-                        IconButton(
-                            onClick = { showEndLearningConfirmDialog = true },
-                            modifier = Modifier.testTag("top_bar_back_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { showEndLearningConfirmDialog = true },
+                                    modifier = Modifier.testTag("compact_top_bar_back_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
 
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 4.dp)
-                        ) {
-                            Text(
-                                text = subjectTitle,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (displayQuestions.isNotEmpty()) {
-                                val pct = ((currentQuestionIndex + 1) * 100) / displayQuestions.size
                                 Text(
-                                    text = "Question ${currentQuestionIndex + 1} of ${displayQuestions.size} · $pct%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = subjectTitle,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                                 )
-                            }
-                        }
 
-                        // Compact Language Selection Chips
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.ENGLISH,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
-                                label = { Text("EN", fontSize = 11.sp, fontWeight = if (questionLanguage == AppLanguage.ENGLISH) FontWeight.Bold else FontWeight.Normal) },
-                                modifier = Modifier.height(28.dp)
-                            )
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.ASSAMESE,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
-                                label = { Text("অসমীয়া", fontSize = 11.sp, fontWeight = if (questionLanguage == AppLanguage.ASSAMESE) FontWeight.Bold else FontWeight.Normal) },
-                                modifier = Modifier.height(28.dp)
-                            )
-                            FilterChip(
-                                selected = questionLanguage == AppLanguage.BOTH,
-                                onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
-                                label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                modifier = Modifier.height(28.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                                if (displayQuestions.isNotEmpty()) {
+                                    Text(
+                                        text = "${currentQuestionIndex + 1} / ${displayQuestions.size}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                }
+                            }
+
+                            LinearProgressIndicator(
+                                progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
                             )
                         }
                     }
+                } else {
+                    // Expanded Header at top
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 2.dp
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { showEndLearningConfirmDialog = true },
+                                    modifier = Modifier.testTag("top_bar_back_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
 
-                    // Slim 3dp Progress Bar
-                    LinearProgressIndicator(
-                        progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 4.dp)
+                                ) {
+                                    Text(
+                                        text = subjectTitle,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (displayQuestions.isNotEmpty()) {
+                                        val pct = ((currentQuestionIndex + 1) * 100) / displayQuestions.size
+                                        Text(
+                                            text = "Question ${currentQuestionIndex + 1} of ${displayQuestions.size} · $pct%",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                // Compact Language Selection Chips
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    FilterChip(
+                                        selected = questionLanguage == AppLanguage.ENGLISH,
+                                        onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
+                                        label = { Text("EN", fontSize = 11.sp, fontWeight = if (questionLanguage == AppLanguage.ENGLISH) FontWeight.Bold else FontWeight.Normal) },
+                                        modifier = Modifier.height(28.dp)
+                                    )
+                                    FilterChip(
+                                        selected = questionLanguage == AppLanguage.ASSAMESE,
+                                        onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
+                                        label = { Text("অসমীয়া", fontSize = 11.sp, fontWeight = if (questionLanguage == AppLanguage.ASSAMESE) FontWeight.Bold else FontWeight.Normal) },
+                                        modifier = Modifier.height(28.dp)
+                                    )
+                                    FilterChip(
+                                        selected = questionLanguage == AppLanguage.BOTH,
+                                        onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
+                                        label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                        modifier = Modifier.height(28.dp),
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    )
+                                }
+                            }
+
+                            // Slim 3dp Progress Bar
+                            LinearProgressIndicator(
+                                progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                            )
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                // Fixed/Pinned Bottom Navigation Bar: Previous | End | Next
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-                    )
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                if (currentQuestionIndex > 0) {
+                                    currentQuestionIndex--
+                                }
+                            },
+                            enabled = currentQuestionIndex > 0,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Previous", maxLines = 1)
+                        }
+
+                        TextButton(
+                            onClick = { showEndLearningConfirmDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(48.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("End", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, maxLines = 1)
+                        }
+
+                        Button(
+                            onClick = {
+                                markQuestionLearned(currentQuestion?.id ?: 0L)
+                                if (!isLastQuestion) {
+                                    currentQuestionIndex++
+                                } else {
+                                    finalSessionTime = sessionTotalSeconds
+                                    finalSessionQuestions = learnedQuestionIds.value.size
+                                    isStudySessionStarted = false
+                                    showSummaryDialog = true
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text(if (isLastQuestion) "Finish" else "Next", maxLines = 1)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = if (isLastQuestion) Icons.Default.CheckCircle else Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
-
-            // Scrollable Content Area - Space of page utilized properly
+        ) { innerPadding ->
+            // Scrollable Content Area
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
             // 2. QUESTION CARD VIEW
@@ -1368,75 +1503,11 @@ fun StudyMcqInteractiveTab(
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
 
-                            // Previous / Next Navigation Controls
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        if (currentQuestionIndex > 0) {
-                                            currentQuestionIndex--
-                                        }
-                                    },
-                                    enabled = currentQuestionIndex > 0,
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1f).padding(end = 6.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Question", modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Previous")
-                                }
-
-                                val isLastQuestion = (currentQuestionIndex == displayQuestions.size - 1)
-                                Button(
-                                    onClick = {
-                                        markQuestionLearned(currentQuestion.id)
-                                        if (!isLastQuestion) {
-                                            currentQuestionIndex++
-                                        } else {
-                                            finalSessionTime = sessionTotalSeconds
-                                            finalSessionQuestions = learnedQuestionIds.value.size
-                                            isStudySessionStarted = false
-                                            showSummaryDialog = true
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1f).padding(start = 6.dp)
-                                ) {
-                                    Text(if (isLastQuestion) "Finish Learning" else "Next")
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Icon(
-                                        imageVector = if (isLastQuestion) Icons.Default.CheckCircle else Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Subtle End Learning text button
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                TextButton(
-                                    onClick = { showEndLearningConfirmDialog = true },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Text(
-                                        text = "End Learning",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
+                            // Navigation and End buttons removed from here as they are now in the pinned bottom navigation bar
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }

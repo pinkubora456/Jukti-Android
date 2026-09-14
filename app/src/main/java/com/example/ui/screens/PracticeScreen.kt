@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,6 +53,19 @@ data class BannerConfig(
     val containerColor: Color,
     val iconColor: Color
 )
+
+@Composable
+fun SessionTimerText(sessionTotalSecondsProvider: () -> Int) {
+    val totalSeconds = sessionTotalSecondsProvider()
+    val minutes = totalSeconds / 60
+    val secs = totalSeconds % 60
+    Text(
+        text = String.format("%02d:%02d", minutes, secs),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -330,245 +344,380 @@ fun PracticeScreen(
     val isAssamese = language == AppLanguage.ASSAMESE
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Top Navigation Header
-        val practiceTitle = if (showSummary) {
-            "Practice Summary"
-        } else if (isSessionStarted) {
-            if (isSavedPractice) {
-                "Saved Questions Practice"
-            } else if (isSmartPractice) {
-                "Smart Practice"
-            } else {
-                when (selectedSubjectKey) {
-                    "General Knowledge" -> "General Knowledge"
-                    "General English" -> "General English"
-                    "Mathematics", "General Mathematics" -> "General Mathematics"
-                    "Reasoning", "Reasoning & Mental Ability" -> "Reasoning & Mental Ability"
-                    "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
-                    "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
-                    "All Subjects", "All Subject" -> "All Subjects"
-                    else -> selectedSubjectKey
-                }
-            }
+    val practiceTitle = if (showSummary) {
+        "Practice Summary"
+    } else if (isSessionStarted) {
+        if (isSavedPractice) {
+            "Saved Questions Practice"
+        } else if (isSmartPractice) {
+            "Smart Practice"
         } else {
-            "Practice"
-        }
-
-        val practiceSubtitle = if (showSummary) {
-            "Performance Review"
-        } else if (isSessionStarted) {
-            if (isSavedPractice) {
-                "${practiceQuestions.size} Saved Questions"
-            } else if (isSmartPractice) {
-                "Your personalized practice session"
-            } else {
-                val chText = if (selectedChapters.isEmpty()) {
-                    "All Chapters"
-                } else {
-                    "${selectedChapters.size} Chapters"
-                }
-                "$chText • ${practiceQuestions.size} Questions"
+            when (selectedSubjectKey) {
+                "General Knowledge" -> "General Knowledge"
+                "General English" -> "General English"
+                "Mathematics", "General Mathematics" -> "General Mathematics"
+                "Reasoning", "Reasoning & Mental Ability" -> "Reasoning & Mental Ability"
+                "Basic Computer", "Computer Knowledge", "Computer" -> "Basic Computer"
+                "Transport & Motor Vehicle", "Transport Rule", "Transport Rules" -> "Transport & Motor Vehicle"
+                "All Subjects", "All Subject" -> "All Subjects"
+                else -> selectedSubjectKey
             }
+        }
+    } else {
+        "Practice"
+    }
+
+    val practiceSubtitle = if (showSummary) {
+        "Performance Review"
+    } else if (isSessionStarted) {
+        if (isSavedPractice) {
+            "${practiceQuestions.size} Saved Questions"
+        } else if (isSmartPractice) {
+            "Your personalized practice session"
         } else {
-            "Select a subject banner to start practice"
-        }
-
-        val handleBack: () -> Unit = {
-            if (showSummary) {
-                showSummary = false
-                isSessionStarted = false
-                userAnswers.clear()
-                if (activePracticeQuestion != null) {
-                    viewModel.clearActivePracticeQuestion()
-                }
-                if (!viewModel.goBack()) {
-                    viewModel.navigateTo(Screen.HOME)
-                }
-            } else if (isSessionStarted) {
-                showEndPracticeConfirmDialog = true
+            val chText = if (selectedChapters.isEmpty()) {
+                "All Chapters"
             } else {
-                // Not in session (e.g. subject selection view)
-                if (activePracticeQuestion != null) {
-                    viewModel.clearActivePracticeQuestion()
-                }
-                if (!viewModel.goBack()) {
-                    viewModel.navigateTo(Screen.HOME)
-                }
+                "${selectedChapters.size} Chapters"
+            }
+            "$chText • ${practiceQuestions.size} Questions"
+        }
+    } else {
+        "Select a subject banner to start practice"
+    }
+
+    val handleBack: () -> Unit = {
+        if (showSummary) {
+            showSummary = false
+            isSessionStarted = false
+            userAnswers.clear()
+            if (activePracticeQuestion != null) {
+                viewModel.clearActivePracticeQuestion()
+            }
+            if (!viewModel.goBack()) {
+                viewModel.navigateTo(Screen.HOME)
+            }
+        } else if (isSessionStarted) {
+            showEndPracticeConfirmDialog = true
+        } else {
+            // Not in session (e.g. subject selection view)
+            if (activePracticeQuestion != null) {
+                viewModel.clearActivePracticeQuestion()
+            }
+            if (!viewModel.goBack()) {
+                viewModel.navigateTo(Screen.HOME)
             }
         }
+    }
 
-        com.example.ui.components.JuktiTopAppBar(
-            title = practiceTitle,
-            subtitle = practiceSubtitle,
-            onBackClick = handleBack,
-            actions = {
-                // Practiced Question Counter Badge
+    val scrollState = rememberScrollState()
+    val isScrolled by remember {
+        derivedStateOf { scrollState.value > 25 }
+    }
+    LaunchedEffect(currentQuestionIndex) {
+        scrollState.scrollTo(0)
+    }
+
+    BackHandler(enabled = !showEndPracticeConfirmDialog && !showReportDialog) {
+        handleBack()
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            if (isScrolled && isSessionStarted && !showSummary) {
+                // Compact Header when scrolled down in active session
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Practiced: $totalPracticedCount",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-            }
-        )
-
-        BackHandler(enabled = !showEndPracticeConfirmDialog && !showReportDialog) {
-            handleBack()
-        }
-
-        // Compact Question Language Selector & Active Session Header
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 1.dp
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                // Language Selector
-                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Translate,
-                            contentDescription = "Language",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Language:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = handleBack,
+                                modifier = Modifier.testTag("compact_top_bar_back_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        FilterChip(
-                            selected = questionLanguage == AppLanguage.ENGLISH,
-                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
-                            label = { Text("English", fontSize = 11.sp) },
-                            modifier = Modifier.height(28.dp)
-                        )
-                        FilterChip(
-                            selected = questionLanguage == AppLanguage.ASSAMESE,
-                            onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
-                            label = { Text("অসমীয়া", fontSize = 11.sp) },
-                            modifier = Modifier.height(28.dp)
-                        )
-                        FilterChip(
-                            selected = questionLanguage == AppLanguage.BOTH,
-                            onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
-                            label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                            modifier = Modifier.height(28.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            Text(
+                                text = practiceTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                             )
+
+                            if (displayQuestions.isNotEmpty()) {
+                                Text(
+                                    text = "${currentQuestionIndex + 1} / ${displayQuestions.size}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            }
+                        }
+
+                        LinearProgressIndicator(
+                            progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
                         )
                     }
                 }
+            } else {
+                // Expanded Header at top
+                Column {
+                    com.example.ui.components.JuktiTopAppBar(
+                        title = practiceTitle,
+                        subtitle = practiceSubtitle,
+                        onBackClick = handleBack,
+                        actions = {
+                            // Practiced Question Counter Badge
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Practiced: $totalPracticedCount",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    )
 
-                // Active Session Status Bar (Question count, Timer, Correct/Incorrect, Progress Bar)
-                if (isSessionStarted && displayQuestions.isNotEmpty() && !showSummary) {
-                    Spacer(modifier = Modifier.height(6.dp))
+            // Compact Question Language Selector & Active Session Header
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    // Language Selector
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Question ${currentQuestionIndex + 1} / ${displayQuestions.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        // Timer
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Timer",
+                                imageVector = Icons.Default.Translate,
+                                contentDescription = "Language",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            SessionTimerText(sessionTotalSecondsProvider = { sessionTotalSeconds })
+                            Text(
+                                text = "Language:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
 
-                        // Session Stats Badge (✓ Correct   ✕ Incorrect)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "✓ $correctCount",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.success
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(
+                                selected = questionLanguage == AppLanguage.ENGLISH,
+                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ENGLISH) },
+                                label = { Text("English", fontSize = 11.sp) },
+                                modifier = Modifier.height(28.dp)
                             )
-                            Text(
-                                text = "✕ $incorrectCount",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
+                            FilterChip(
+                                selected = questionLanguage == AppLanguage.ASSAMESE,
+                                onClick = { viewModel.setQuestionLanguage(AppLanguage.ASSAMESE) },
+                                label = { Text("অসমীয়া", fontSize = 11.sp) },
+                                modifier = Modifier.height(28.dp)
+                            )
+                            FilterChip(
+                                selected = questionLanguage == AppLanguage.BOTH,
+                                onClick = { viewModel.setQuestionLanguage(AppLanguage.BOTH) },
+                                label = { Text("Both", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                modifier = Modifier.height(28.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    // Active Session Status Bar (Question count, Timer, Correct/Incorrect, Progress Bar)
+                    if (isSessionStarted && displayQuestions.isNotEmpty() && !showSummary) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Question ${currentQuestionIndex + 1} / ${displayQuestions.size}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
-                    LinearProgressIndicator(
-                        progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                            // Timer
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = "Timer",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                SessionTimerText(sessionTotalSecondsProvider = { sessionTotalSeconds })
+                            }
+
+                            // Session Stats Badge (✓ Correct   ✕ Incorrect)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "✓ $correctCount",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.success
+                                )
+                                Text(
+                                    text = "✕ $incorrectCount",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        LinearProgressIndicator(
+                            progress = { (currentQuestionIndex + 1).toFloat() / displayQuestions.size.coerceAtLeast(1) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+            }
+                }
+            }
+        },
+    bottomBar = {
+            if (isSessionStarted && !showSummary && displayQuestions.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                if (currentQuestionIndex > 0) {
+                                    currentQuestionIndex--
+                                }
+                            },
+                            enabled = currentQuestionIndex > 0,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Icon(Icons.Default.ChevronLeft, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Previous", maxLines = 1)
+                        }
+
+                        TextButton(
+                            onClick = { showEndPracticeConfirmDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(48.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("End", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, maxLines = 1)
+                        }
+
+                        Button(
+                            onClick = {
+                                val isLast = currentQuestionIndex == displayQuestions.size - 1
+                                if (!isLast) {
+                                    currentQuestionIndex++
+                                } else {
+                                    viewModel.awardChapterCompletionXp()
+                                    showSummary = true
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text(
+                                if (currentQuestionIndex == displayQuestions.size - 1) "Finish" else "Next",
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
                 }
             }
         }
-
-        // BODY CONTENT
-        if (!isSessionStarted) {
-            // STEP 1: SUBJECT BANNERS SELECTION
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (!isSessionStarted) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 Text(
                     text = "Choose Subject to Practice:",
                     style = MaterialTheme.typography.titleMedium,
@@ -626,7 +775,7 @@ fun PracticeScreen(
                     }
                 }
             }
-        } else if (showSummary) {
+          } else if (showSummary) {
             PracticeSummaryView(
                 questions = displayQuestions,
                 userAnswers = userAnswers,
@@ -655,7 +804,7 @@ fun PracticeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -1000,75 +1149,7 @@ fun PracticeScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Bottom Navigation Controls: Previous & Next with End Practice below
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                if (currentQuestionIndex > 0) {
-                                                    currentQuestionIndex--
-                                                }
-                                            },
-                                            enabled = currentQuestionIndex > 0,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(Icons.Default.ChevronLeft, contentDescription = null)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Previous")
-                                        }
-
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        Button(
-                                            onClick = {
-                                                if (currentQuestionIndex < displayQuestions.size - 1) {
-                                                    currentQuestionIndex++
-                                                } else {
-                                                    viewModel.awardChapterCompletionXp()
-                                                    showSummary = true
-                                                }
-                                            },
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                if (currentQuestionIndex == displayQuestions.size - 1) {
-                                                    "Finish Practice"
-                                                } else {
-                                                    "Next"
-                                                }
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(Icons.Default.ChevronRight, contentDescription = null)
-                                        }
-                                    }
-
-                                    // End Practice Button directly below Previous / Next
-                                    TextButton(
-                                        onClick = { showEndPracticeConfirmDialog = true },
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ExitToApp,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "End Practice",
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
+                                // Navigation removed
                             }
                         }
                     }
@@ -1125,18 +1206,6 @@ fun PracticeScreen(
                 }
             )
         }
+      }
     }
-}
-
-@Composable
-fun SessionTimerText(sessionTotalSecondsProvider: () -> Int) {
-    val totalSeconds = sessionTotalSecondsProvider()
-    val minutes = totalSeconds / 60
-    val secs = totalSeconds % 60
-    Text(
-        text = String.format("%02d:%02d", minutes, secs),
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-    )
 }
