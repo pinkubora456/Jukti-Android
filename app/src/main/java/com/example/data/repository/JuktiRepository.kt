@@ -191,6 +191,7 @@ class JuktiRepository(
     private val mockAttemptDao: MockAttemptDao,
     private val entitlementDao: EntitlementDao,
     private val entitlementHistoryDao: EntitlementHistoryDao,
+    private val rcPassageDao: com.example.data.local.ReadingComprehensionPassageDao,
     val syncManager: FirebaseSyncManager
 ) {
     private val firebaseRepository = FirebaseRepository()
@@ -1149,6 +1150,30 @@ class JuktiRepository(
 
         return@withContext Pair(true, "Successfully imported ${updatedList.size} questions.")
     }
+
+    suspend fun bulkInsertPassages(passages: List<com.example.data.local.ReadingComprehensionPassageEntity>): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        if (passages.isEmpty()) return@withContext Pair(true, "No passages to insert.")
+        val now = System.currentTimeMillis()
+        val updatedList = passages.map { p ->
+            p.copy(updatedAt = now, firebaseId = p.passageId)
+        }
+        rcPassageDao.insertPassages(updatedList)
+
+        val syncItems = updatedList.map { p ->
+            com.example.data.local.SyncQueueEntity(
+                entityId = p.passageId,
+                dataType = "RC_PASSAGE",
+                operation = "CREATE",
+                payloadJson = syncManager.mapToJson(syncManager.passageToMap(p)),
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "PENDING"
+            )
+        }
+        syncManager.enqueueBatch(syncItems)
+        Pair(true, "Success")
+    }
+
 
     suspend fun batchImportMockQuestions(
         questions: List<QuestionEntity>,

@@ -1,172 +1,18 @@
-package com.example.util
+import re
+path = "app/src/main/java/com/example/util/CsvQuestionParser.kt"
+with open(path, "r") as f:
+    content = f.read()
 
-import com.example.data.local.QuestionEntity
-import com.example.data.repository.normalizeChapterName
-import com.example.data.repository.normalizeSubjectName
+# First, find "    /**\n     * Validates and parses questions from CSV text.\n     */"
+marker = "    /**\n     * Validates and parses questions from CSV text.\n     */"
+if marker in content:
+    idx = content.find(marker)
+    prefix = content[:idx + len(marker)]
+else:
+    print("Marker not found")
+    exit()
 
-data class ParsedQuestionRow(
-    val rowNumber: Int,
-    val question: QuestionEntity?,
-    val isValid: Boolean,
-    val errorReasons: List<String>,
-    val isDuplicateInBatch: Boolean = false,
-    val isExistingInQBank: Boolean = false,
-    val existingQBankId: Long? = null,
-    val rawPreview: String = ""
-)
-
-data class BatchValidationResult(
-    val totalRows: Int,
-    val validRows: List<ParsedQuestionRow>,
-    val invalidRows: List<ParsedQuestionRow>,
-    val duplicateInQBankRows: List<ParsedQuestionRow>,
-    val duplicateInBatchRows: List<ParsedQuestionRow>,
-    val passages: List<com.example.data.local.ReadingComprehensionPassageEntity> = emptyList()
-) {
-    val validCount: Int get() = validRows.size
-    val invalidCount: Int get() = invalidRows.size
-    val duplicateCount: Int get() = duplicateInQBankRows.size + duplicateInBatchRows.size
-}
-
-object CsvQuestionParser {
-
-    const val SAMPLE_CSV_HEADER = "statement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty"
-
-    const val SAMPLE_CSV_ROW_1 = "\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in medieval Assam.\",\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
-    const val SAMPLE_CSV_ROW_2 = "\"Kaziranga National Park is famous for which animal?\",\"কাজিৰঙা ৰাষ্ট্ৰীয় উদ্যান কোনটো প্ৰাণীৰ বাবে বিখ্যাত?\",\"One-horned Rhinoceros\",\"এশিঙীয়া গঁড়\",\"Royal Bengal Tiger\",\"ৰয়েল বেংগল টাইগাৰ\",\"Asian Elephant\",\"এছিয়ান হাতী\",\"Snow Leopard\",\"স্ন' লিপাৰ্ড\",\"A\",\"Kaziranga hosts two-thirds of the world's great one-horned rhinoceroses.\",\"কাজিৰঙাত বিশ্বৰ দুই-তৃতীয়াংশ এশিঙীয়া গঁড় আছে।\",\"Assam Geography\",\"National Parks & Wildlife\",\"ADRE, Assam Police\",\"Easy\""
-
-    fun getSampleCsvTemplate(contentType: String = "Normal MCQ"): String {
-        return if (contentType == "Reading Comprehension") {
-            "passageId,passage,statement,a,b,c,d,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n" +
-            "\"passage1\",\"Read this passage...\",\"Who was the first King?\",\"Sukaphaa\",\"Sutephaa\",\"Subinphaa\",\"Sudangphaa\",\"A\",\"Explanation\",\"\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
-        } else {
-            "${SAMPLE_CSV_HEADER}\n${SAMPLE_CSV_ROW_1}\n${SAMPLE_CSV_ROW_2}"
-        }
-    }
-
-    /**
-     * Sanitizes raw CSV text to fix BOM, smart quotes, stray leading/trailing quotes, and strange line breaks.
-     */
-    fun cleanCsvInput(raw: String): String {
-        if (raw.isBlank()) return ""
-        var text = raw.trim()
-        // Strip UTF-8 Byte Order Mark (BOM) if present
-        if (text.startsWith("\uFEFF")) {
-            text = text.substring(1)
-        }
-        // Normalize smart / curly double quotes to standard ASCII double quote
-        text = text.replace('\u201C', '\"')
-            .replace('\u201D', '\"')
-            .replace('\u201E', '\"')
-            .replace('\u201F', '\"')
-
-        // Fix stray unmatched leading quote before header or first line
-        val lines = text.lines()
-        val cleanedLines = lines.mapIndexed { idx, line ->
-            var l = line.trim()
-            if (l.contains(",")) {
-                val quoteCount = l.count { it == '\"' }
-                if (quoteCount % 2 != 0) {
-                    if (l.startsWith("\"") && !l.startsWith("\"\"")) {
-                        l = l.removePrefix("\"")
-                    } else if (l.endsWith("\"") && !l.endsWith("\"\"")) {
-                        l = l.removeSuffix("\"")
-                    }
-                }
-            }
-            l
-        }
-        return cleanedLines.joinToString("\n")
-    }
-
-    /**
-     * Parses raw CSV text into rows and columns handling quoted fields,
-     * multiline strings, escaped quotes ("" and \"), and varied line endings.
-     */
-    fun parseCsv(csvText: String): List<List<String>> {
-        val rows = mutableListOf<List<String>>()
-        val cleanedText = cleanCsvInput(csvText)
-        if (cleanedText.isBlank()) return rows
-
-        var inQuotes = false
-        val currentField = StringBuilder()
-        val currentRow = mutableListOf<String>()
-        var i = 0
-        val len = cleanedText.length
-
-        fun cleanField(field: String): String {
-            var f = field.trim()
-            if (f.startsWith("\"") && f.endsWith("\"") && f.length >= 2) {
-                f = f.substring(1, f.length - 1).trim()
-            }
-            return f.replace("\"\"", "\"")
-        }
-
-        while (i < len) {
-            val c = cleanedText[i]
-
-            if (c == '\"') {
-                if (inQuotes && i + 1 < len && cleanedText[i + 1] == '\"') {
-                    // Escaped double quote ("")
-                    currentField.append('\"')
-                    i += 2
-                    continue
-                } else {
-                    inQuotes = !inQuotes
-                }
-            } else if (c == '\\' && i + 1 < len && cleanedText[i + 1] == '\"') {
-                // Escaped quote (\")
-                currentField.append('\"')
-                i += 2
-                continue
-            } else if (c == ',' && !inQuotes) {
-                currentRow.add(cleanField(currentField.toString()))
-                currentField.clear()
-            } else if ((c == '\n' || c == '\r') && !inQuotes) {
-                if (c == '\r' && i + 1 < len && cleanedText[i + 1] == '\n') {
-                    i++ // skip \r of \r\n
-                }
-                currentRow.add(cleanField(currentField.toString()))
-                currentField.clear()
-                if (currentRow.any { it.isNotEmpty() }) {
-                    rows.add(currentRow.toList())
-                }
-                currentRow.clear()
-            } else {
-                currentField.append(c)
-            }
-            i++
-        }
-
-        // Add trailing row if present
-        if (currentField.isNotEmpty() || currentRow.isNotEmpty()) {
-            currentRow.add(cleanField(currentField.toString()))
-            if (currentRow.any { it.isNotEmpty() }) {
-                rows.add(currentRow.toList())
-            }
-        }
-
-        return rows
-    }
-
-    /**
-     * Determines whether the first row is a header row.
-     */
-    private fun isHeaderRow(firstRow: List<String>): Boolean {
-        if (firstRow.isEmpty()) return false
-        val headerKeywords = listOf(
-            "statement", "question", "option", "subject", "topic", "chapter",
-            "correct", "correctanswer", "explanation", "difficulty", "tags",
-            "a_as", "b_as", "c_as", "d_as", "target", "exam", "premium", "access"
-        )
-        val joined = firstRow.joinToString(" ").lowercase().replace(" ", "").replace("_", "")
-        return headerKeywords.any { joined.contains(it.replace("_", "")) }
-    }
-
-    /**
-     * Validates and parses questions from CSV text.
-     */
-
+new_func = """
     fun validateAndParseQuestions(
         csvText: String,
         defaultSubject: String = "General Studies",
@@ -194,7 +40,7 @@ object CsvQuestionParser {
 
         val headerMap: Map<String, Int> = if (hasHeader) {
             parsedRows[0].mapIndexed { index, col ->
-                col.trim().trim('"').trim().lowercase().replace(" ", "").replace("_", "") to index
+                col.trim().trim('\"').trim().lowercase().replace(" ", "").replace("_", "") to index
             }.toMap()
         } else emptyMap()
 
@@ -503,3 +349,8 @@ object CsvQuestionParser {
         }
     }
 }
+"""
+with open(path, "w") as f:
+    f.write(prefix + "\n" + new_func)
+
+print("CsvQuestionParser.kt reconstructed successfully")

@@ -36,9 +36,10 @@ import kotlinx.coroutines.launch
         ActivityLogEntity::class,
         SyncQueueEntity::class,
         EntitlementEntity::class,
-        EntitlementHistoryEntity::class
+        EntitlementHistoryEntity::class,
+        ReadingComprehensionPassageEntity::class
     ],
-    version = 46,
+    version = 48,
     exportSchema = false
 )
 abstract class JuktiDatabase : RoomDatabase() {
@@ -61,6 +62,7 @@ abstract class JuktiDatabase : RoomDatabase() {
     abstract fun pendingRequestDao(): PendingRequestDao
     abstract fun faqDao(): FaqDao
     abstract fun activityLogDao(): ActivityLogDao
+    abstract fun rcPassageDao(): ReadingComprehensionPassageDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun entitlementDao(): EntitlementDao
     abstract fun entitlementHistoryDao(): EntitlementHistoryDao
@@ -305,6 +307,19 @@ val MIGRATION_42_43 = object : androidx.room.migration.Migration(42, 43) {
                 db.execSQL("ALTER TABLE `subscription_plans` ADD COLUMN `displayOrder` INTEGER NOT NULL DEFAULT 0")
             }
         }
+        val MIGRATION_46_47 = object : Migration(46, 47) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `questions` ADD COLUMN `contentType` TEXT NOT NULL DEFAULT 'normal'")
+                db.execSQL("ALTER TABLE `questions` ADD COLUMN `passageId` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+        val MIGRATION_47_48 = object : Migration(47, 48) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `rc_passages` (`passageId` TEXT NOT NULL, `passage` TEXT NOT NULL, `subject` TEXT NOT NULL, `chapter` TEXT NOT NULL, `topic` TEXT NOT NULL, `difficulty` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `firebaseId` TEXT NOT NULL, PRIMARY KEY(`passageId`))")
+            }
+        }
+
+
 
         fun getDatabase(context: Context): JuktiDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -314,7 +329,7 @@ val MIGRATION_42_43 = object : androidx.room.migration.Migration(42, 43) {
                     "jukti_exam_db"
                 )
                 .addMigrations(MIGRATION_23_24, MIGRATION_24_25, MIGRATION_1_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42)
-                .addMigrations(MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45, MIGRATION_45_46)
+                .addMigrations(MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

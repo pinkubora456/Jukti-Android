@@ -61,6 +61,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
 
     // Options state
     var questionFor by remember { mutableStateOf("Premium") } // Free or Premium
+    var selectedContentType by remember { mutableStateOf("Normal MCQ") }
     val selectedExams = remember { mutableStateListOf<String>() }
 
     // Individual question selection and customization state
@@ -88,7 +89,8 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
     fun runValidation(
         text: String = csvInputText,
         exams: String = selectedExams.joinToString(", "),
-        isPrem: Boolean = questionFor.equals("Premium", ignoreCase = true)
+        isPrem: Boolean = questionFor.equals("Premium", ignoreCase = true),
+        contentType: String = selectedContentType
     ) {
         if (text.isNotBlank()) {
             isValidating = true
@@ -100,7 +102,8 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                         defaultChapter = "General",
                         defaultExamCategory = exams,
                         isPremium = isPrem,
-                        existingQuestions = allExistingQuestions
+                        existingQuestions = allExistingQuestions,
+                        contentType = contentType
                     )
                 }
                 validationResult = result
@@ -259,7 +262,10 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                     return@Button
                                 }
                                 isImporting = true
-                                viewModel.batchImportQuestionsToQBank(questionsToImport) { importedCount, message ->
+                                val passagesToImport = validationResult?.passages?.filter { p ->
+                                    questionsToImport.any { q -> q.passageId == p.passageId }
+                                } ?: emptyList()
+                                viewModel.batchImportQuestionsToQBank(questionsToImport, passagesToImport) { importedCount, message ->
                                     isImporting = false
                                     if (importedCount > 0) {
                                         importSuccessSummary = Pair(importedCount, skippedCount)
@@ -361,7 +367,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             OutlinedButton(
                                 onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Sample CSV Template", CsvQuestionParser.getSampleCsvTemplate())
+                                    val clip = ClipData.newPlainText("Sample CSV Template", CsvQuestionParser.getSampleCsvTemplate(selectedContentType))
                                     clipboard.setPrimaryClip(clip)
                                     Toast.makeText(context, "Sample CSV copied to clipboard!", Toast.LENGTH_SHORT).show()
                                 },
@@ -468,6 +474,43 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                 )
                             }
                         }
+
+                        // Section: Content Type (Dropdown)
+                        var contentTypeExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = contentTypeExpanded,
+                            onExpandedChange = { contentTypeExpanded = !contentTypeExpanded }
+                        ) {
+                            SafeOutlinedTextField(
+                                value = selectedContentType,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Content Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = contentTypeExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = contentTypeExpanded,
+                                onDismissRequest = { contentTypeExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Normal MCQ") },
+                                    onClick = {
+                                        selectedContentType = "Normal MCQ"
+                                        runValidation(contentType = "Normal MCQ")
+                                        contentTypeExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Reading Comprehension") },
+                                    onClick = {
+                                        selectedContentType = "Reading Comprehension"
+                                        runValidation(contentType = "Reading Comprehension")
+                                        contentTypeExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -524,7 +567,11 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                                 .testTag("tf_paste_csv_data"),
                             placeholder = {
                                 Text(
-                                    "Paste CSV content here...\ne.g.\nstatement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in medieval Assam.\",\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\"",
+                                    text = if (selectedContentType == "Reading Comprehension") {
+                                        "Paste CSV content here...\ne.g.\npassageId,passage,statement,a,b,c,d,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"passage1\",\"Read this passage...\",\"Who was the first King?\",\"Sukaphaa\",\"Sutephaa\",\"Subinphaa\",\"Sudangphaa\",\"A\",\"Explanation\",\"\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
+                                    } else {
+                                        "Paste CSV content here...\ne.g.\nstatement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"Who was the first King of the Ahom Kingdom?\",\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল?\",\"Sukaphaa\",\"চ্যুকাফা\",\"Sutephaa\",\"চ্যুটেফা\",\"Subinphaa\",\"চুবিনফা\",\"Sudangphaa\",\"চুডাংফা\",\"A\",\"Sukaphaa founded the Ahom Kingdom in medieval Assam.\",\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল。\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
+                                    },
                                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
@@ -548,7 +595,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 TextButton(
                                     onClick = {
-                                        val sample = CsvQuestionParser.getSampleCsvTemplate()
+                                        val sample = CsvQuestionParser.getSampleCsvTemplate(selectedContentType)
                                         csvInputText = sample
                                         runValidation(text = sample)
                                     }
@@ -956,7 +1003,7 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
 
     // Format Guide & Sample Template Dialog
     if (showFormatGuideDialog) {
-        val sampleText = CsvQuestionParser.getSampleCsvTemplate()
+        val sampleText = CsvQuestionParser.getSampleCsvTemplate(selectedContentType)
         AlertDialog(
             onDismissRequest = { showFormatGuideDialog = false },
             title = {
@@ -973,52 +1020,78 @@ fun BatchImportQuestionScreen(viewModel: JuktiViewModel) {
                         .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "Your CSV file can use either the full 19-column schema or the simplified 7-column schema:",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text(
-                                text = "Standard Format (17 columns):",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = CsvQuestionParser.SAMPLE_CSV_HEADER,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    if (selectedContentType == "Reading Comprehension") {
+                        Text(
+                            text = "For Reading Comprehension, ensure you provide passageId. The passage text is only needed in the first row. Other rows can just use passageId.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "Reading Comprehension Format (14 columns):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "passageId,passage,statement,a,b,c,d,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Your CSV file can use either the full 17-column schema or the simplified 7-column schema:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "Standard Format (17 columns):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = CsvQuestionParser.SAMPLE_CSV_HEADER,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "Simplified Format (7 columns):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Question, Option A, Option B, Option C, Option D, Correct Answer (A/B/C/D), Subject",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
 
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text(
-                                text = "Simplified Format (7 columns):",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Question, Option A, Option B, Option C, Option D, Correct Answer (A/B/C/D), Subject",
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
 
                     Text(
                         text = "Tips: Values with commas or quotes should be wrapped in double quotes. Correct answer must be A, B, C, or D.",
@@ -1182,6 +1255,20 @@ private fun QBankValidQuestionCard(
         )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+            if (q.passageId.isNotBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "Passage ID: ${q.passageId}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
             // Header with Checkbox for individual selection, Row # and Metadata Badges
             Row(
                 modifier = Modifier.fillMaxWidth(),

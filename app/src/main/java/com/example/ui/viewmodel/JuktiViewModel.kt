@@ -227,6 +227,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
         database.mockAttemptDao(),
         database.entitlementDao(),
         database.entitlementHistoryDao(),
+        database.rcPassageDao(),
         com.example.data.repository.FirebaseSyncManager(database)
     )
 
@@ -3033,6 +3034,7 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun batchImportQuestionsToQBank(
         questionsToInsert: List<QuestionEntity>,
+        passagesToInsert: List<com.example.data.local.ReadingComprehensionPassageEntity> = emptyList(),
         onComplete: (Int, String) -> Unit
     ) {
         viewModelScope.launch {
@@ -3045,6 +3047,9 @@ class JuktiViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             try {
+                if (passagesToInsert.isNotEmpty()) {
+                    repository.bulkInsertPassages(passagesToInsert)
+                }
                 val (success, msg) = repository.bulkInsertQuestions(questionsToInsert)
                 val count = if (success) questionsToInsert.size else 0
                 val displayMsg = if (success) "Successfully imported $count questions to Question Bank." else msg

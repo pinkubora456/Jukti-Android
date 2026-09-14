@@ -35,7 +35,9 @@ data class QuestionEntity(
     val updatedAt: Long = 0L,
     val firebaseId: String = "",
     val duplicateKey: String = "",
-    @ColumnInfo(defaultValue = "") val pyqExams: String = ""
+    @ColumnInfo(defaultValue = "") val pyqExams: String = "",
+    @ColumnInfo(defaultValue = "normal") val contentType: String = "normal",
+    @ColumnInfo(defaultValue = "") val passageId: String = ""
 )
 
 @Entity(tableName = "mock_tests")
@@ -476,4 +478,17 @@ data class GuidanceBannerEntity(
     val actionTarget: String = "",
     val firebaseId: String = "",
     val updatedAt: Long = 0L
+)
+
+
+@Entity(tableName = "rc_passages")
+data class ReadingComprehensionPassageEntity(
+    @PrimaryKey val passageId: String,
+    val passage: String,
+    val subject: String,
+    val chapter: String,
+    val topic: String,
+    val difficulty: String,
+    val updatedAt: Long = 0L,
+    val firebaseId: String = ""
 )

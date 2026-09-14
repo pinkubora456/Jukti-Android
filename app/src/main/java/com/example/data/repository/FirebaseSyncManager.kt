@@ -182,7 +182,21 @@ class FirebaseSyncManager(
         "lastAccessedAt" to q.lastAccessedAt,
         "version" to q.version,
         "updatedAt" to System.currentTimeMillis(),
-        "firebaseId" to q.firebaseId
+        "firebaseId" to q.firebaseId,
+        "contentType" to q.contentType,
+        "passageId" to q.passageId,
+        "pyqExams" to q.pyqExams
+    )
+
+    fun passageToMap(p: com.example.data.local.ReadingComprehensionPassageEntity): Map<String, Any?> = mapOf(
+        "passageId" to p.passageId,
+        "passage" to p.passage,
+        "subject" to p.subject,
+        "chapter" to p.chapter,
+        "topic" to p.topic,
+        "difficulty" to p.difficulty,
+        "updatedAt" to p.updatedAt,
+        "firebaseId" to p.firebaseId
     )
     
     fun userQuestionStateToMap(s: UserQuestionStateEntity): Map<String, Any?> = mapOf(

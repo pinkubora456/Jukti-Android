@@ -1,38 +1,49 @@
-repo_file = "app/src/main/java/com/example/data/repository/JuktiRepository.kt"
-with open(repo_file, "r") as f:
+import re
+path = "app/src/main/java/com/example/data/repository/JuktiRepository.kt"
+with open(path, "r") as f:
     content = f.read()
 
-# Replace old Guidance flow with new flows
-import re
+# Add rcPassageDao to JuktiRepository if missing
+if "rcPassageDao: ReadingComprehensionPassageDao" not in content:
+    pattern_dao = r"(private val examDao: ExamDao,\n\s*private val syncManager: FirebaseSyncManager)"
+    if re.search(pattern_dao, content):
+        content = re.sub(pattern_dao, r"private val examDao: ExamDao,\n    private val rcPassageDao: com.example.data.local.ReadingComprehensionPassageDao,\n    private val syncManager: FirebaseSyncManager", content)
+    else:
+        # try another pattern
+        pattern_dao2 = r"(private val examDao: ExamDao,[\s\S]*?private val syncManager: FirebaseSyncManager)"
+        content = re.sub(pattern_dao2, r"\1,\n    private val rcPassageDao: com.example.data.local.ReadingComprehensionPassageDao", content)
+        
+# Add bulkInsertPassages
+bulk_passages = """
+    suspend fun bulkInsertPassages(passages: List<com.example.data.local.ReadingComprehensionPassageEntity>): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        if (passages.isEmpty()) return@withContext Pair(true, "No passages to insert.")
+        val now = System.currentTimeMillis()
+        val updatedList = passages.map { p ->
+            p.copy(updatedAt = now, firebaseId = p.passageId)
+        }
+        rcPassageDao.insertPassages(updatedList)
 
-old_guidance = r'val allGuidance = guidanceDao\.getAllGuidance\(\)[\s\S]*?suspend fun saveGuidance.*?\}'
-new_guidance = """
-    val allPyqFocus = guidanceDao.getAllPyqFocus()
-    val allFocusTopics = guidanceDao.getAllFocusTopics()
-    val allPrepStrategies = guidanceDao.getAllPrepStrategies()
-    val allGuidanceBanners = guidanceDao.getAllGuidanceBanners()
-
-    suspend fun savePyqFocus(entity: com.example.data.local.PyqFocusEntity) {
-        if (entity.id == 0L) guidanceDao.insertPyqFocus(entity) else guidanceDao.updatePyqFocus(entity)
-    }
-    suspend fun saveFocusTopic(entity: com.example.data.local.FocusTopicEntity) {
-        if (entity.id == 0L) guidanceDao.insertFocusTopic(entity) else guidanceDao.updateFocusTopic(entity)
-    }
-    suspend fun deleteFocusTopic(entity: com.example.data.local.FocusTopicEntity) {
-        guidanceDao.deleteFocusTopic(entity)
-    }
-    suspend fun savePrepStrategy(entity: com.example.data.local.PrepStrategyEntity) {
-        if (entity.id == 0L) guidanceDao.insertPrepStrategy(entity) else guidanceDao.updatePrepStrategy(entity)
-    }
-    suspend fun saveGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) {
-        if (entity.id == 0L) guidanceDao.insertGuidanceBanner(entity) else guidanceDao.updateGuidanceBanner(entity)
-    }
-    suspend fun deleteGuidanceBanner(entity: com.example.data.local.GuidanceBannerEntity) {
-        guidanceDao.deleteGuidanceBanner(entity)
+        val syncItems = updatedList.map { p ->
+            com.example.data.local.SyncQueueEntity(
+                entityId = p.passageId,
+                dataType = "RC_PASSAGE",
+                operation = "CREATE",
+                payloadJson = syncManager.mapToJson(syncManager.passageToMap(p)),
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "PENDING"
+            )
+        }
+        syncManager.enqueueBatch(syncItems)
+        Pair(true, "Success")
     }
 """
 
-content = re.sub(old_guidance, new_guidance.strip(), content)
+if "bulkInsertPassages" not in content:
+    pattern_bulk = r"(suspend fun bulkInsertQuestions[\s\S]*?\n    \})"
+    if re.search(pattern_bulk, content):
+        content = re.sub(pattern_bulk, r"\1\n" + bulk_passages, content)
 
-with open(repo_file, "w") as f:
+with open(path, "w") as f:
     f.write(content)
+print("Patched JuktiRepository.kt")

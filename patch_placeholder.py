@@ -1,32 +1,12 @@
 import re
 
-# Fix CsvQuestionParser.kt
-path1 = "app/src/main/java/com/example/util/CsvQuestionParser.kt"
-with open(path1, "r") as f:
-    c1 = f.read()
+path = "app/src/main/java/com/example/ui/screens/BatchImportQuestionScreen.kt"
+with open(path, "r") as f:
+    content = f.read()
 
-pattern1 = r'(fun getSampleCsvTemplate\([\s\S]*?\n    \})'
-replacement1 = r'''fun getSampleCsvTemplate(contentType: String = "Normal MCQ"): String {
-        return if (contentType == "Reading Comprehension") {
-            "passageId,passage,statement,a,b,c,d,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n" +
-            "\"passage1\",\"Read this passage...\",\"Who was the first King?\",\"Sukaphaa\",\"Sutephaa\",\"Subinphaa\",\"Sudangphaa\",\"A\",\"Explanation\",\"\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
-        } else {
-            "$SAMPLE_CSV_HEADER\n$SAMPLE_CSV_ROW_1\n$SAMPLE_CSV_ROW_2"
-        }
-    }'''
-c1 = re.sub(pattern1, replacement1, c1)
-with open(path1, "w") as f:
-    f.write(c1)
+pattern = r'placeholder = \{\n\s+Text\(\n\s+"Paste CSV content here\.\.\.\\ne\.g\.\\nstatement,statementAssamese,a,a_as,b,b_as,c,c_as,d,d_as,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\\n\\"Who was the first King of the Ahom Kingdom\?\\",\\"আহোম ৰাজ্যৰ প্ৰথম ৰজা কোন আছিল\?\\",\\"Sukaphaa\\",\\"চ্যুকাফা\\",\\"Sutephaa\\",\\"চ্যুটেফা\\",\\"Subinphaa\\",\\"চুবিনফা\\",\\"Sudangphaa\\",\\"চুডাংফা\\",\\"A\\",\\"Sukaphaa founded the Ahom Kingdom in medieval Assam\.\\",\\"চ্যুকাফাই মধ্যযুগীয় অসমত আহোম ৰাজ্য প্ৰতিষ্ঠা কৰিছিল।\\",\\"Assam History\\",\\"Ahom Kingdom\\",\\"ADRE HS 2024\\",\\"Medium\\"",\n\s+style = MaterialTheme\.typography\.bodySmall\.copy\(fontFamily = FontFamily\.Monospace\),\n\s+color = MaterialTheme\.colorScheme\.onSurfaceVariant\.copy\(alpha = 0\.7f\)\n\s+\)\n\s+\},'
 
-# Fix BatchImportQuestionScreen.kt
-path2 = "app/src/main/java/com/example/ui/screens/BatchImportQuestionScreen.kt"
-with open(path2, "r") as f:
-    c2 = f.read()
-
-c2 = c2.replace("p.id", "p.passageId")
-
-pattern2 = r'placeholder = \{\n\s+Text\(\n\s+if \(selectedContentType == "Reading Comprehension"\)\n\s+"Paste CSV[\s\S]*?\}'
-replacement2 = r'''placeholder = {
+replacement = r"""placeholder = {
                                 Text(
                                     if (selectedContentType == "Reading Comprehension")
                                         "Paste CSV content here...\ne.g.\npassageId,passage,statement,a,b,c,d,correctAnswer,explanation,explanationAssamese,subject,topic,tags,difficulty\n\"passage1\",\"Read this passage...\",\"Who was the first King?\",\"Sukaphaa\",\"Sutephaa\",\"Subinphaa\",\"Sudangphaa\",\"A\",\"Explanation\",\"\",\"Assam History\",\"Ahom Kingdom\",\"ADRE HS 2024\",\"Medium\""
@@ -35,13 +15,14 @@ replacement2 = r'''placeholder = {
                                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
-                            },'''
+                            },"""
 
-if re.search(pattern2, c2):
-    c2 = re.sub(pattern2, replacement2, c2)
+if re.search(pattern, content):
+    content = re.sub(pattern, replacement, content)
+    print("Replaced placeholder")
 else:
-    print("Pattern2 not found in UI!")
+    print("Placeholder pattern not found")
 
-with open(path2, "w") as f:
-    f.write(c2)
+with open(path, "w") as f:
+    f.write(content)
 

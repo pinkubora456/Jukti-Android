@@ -107,7 +107,8 @@ fun BatchImportMockQuestionsDialog(
                                 defaultChapter = defaultChapter,
                                 defaultExamCategory = targetExamsStr,
                                 isPremium = isPrem,
-                                existingQuestions = allExistingQuestions
+                                existingQuestions = allExistingQuestions,
+                                contentType = "Normal MCQ"
                             )
                         }
                         validationResult = result
@@ -138,7 +139,8 @@ fun BatchImportMockQuestionsDialog(
                         defaultChapter = defaultChapter,
                         defaultExamCategory = targetExamsStr,
                         isPremium = isPrem,
-                        existingQuestions = allExistingQuestions
+                        existingQuestions = allExistingQuestions,
+                                contentType = "Normal MCQ"
                     )
                 }
                 validationResult = result
@@ -161,7 +163,8 @@ fun BatchImportMockQuestionsDialog(
                     defaultChapter = defaultChapter,
                     defaultExamCategory = targetExamsStr,
                     isPremium = isPrem,
-                    existingQuestions = allExistingQuestions
+                    existingQuestions = allExistingQuestions,
+                                contentType = "Normal MCQ"
                 )
             }
             validationResult = result
